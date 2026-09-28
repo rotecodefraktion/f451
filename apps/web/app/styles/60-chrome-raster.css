@@ -759,3 +759,22 @@
   display: block;
 }
 
+
+/* Attribution required by the f451 License ("Based on f451 by …"),
+   `components/attribution.tsx`. Quiet, but visible: at the end of the space
+   and settings sidebars and on the sign-in card. */
+.attribution {
+  margin: var(--space-5) 0 var(--space-3);
+  padding: 0 var(--space-3);
+  font-size: var(--text-xs);
+  line-height: var(--leading-ui);
+  color: var(--color-text-muted);
+}
+.attribution a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.attribution a:hover {
+  color: var(--color-text);
+}

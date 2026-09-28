@@ -7,8 +7,8 @@ Required Notice: Copyright (c) 2026 David Krcek / rote code fraktion — f451, h
 - **Noncommercial use is free** — use, copy, change and share f451 for any
   noncommercial purpose.
 - **Name and link are required** — keep the notice above in every copy, and show
-  "Based on f451 by rote code fraktion" with a link to https://github.com/rotecodefraktion/f451 in any
-  installation others can use.
+  "Based on f451 by www.rotecodefraktion.de" in any installation others can use,
+  with "f451" linking to https://github.com/rotecodefraktion/f451.
 - **Commercial use requires a separate license** from the licensor:
   david@rotecodefraktion.de.
 - **Excluded** are the AfD and the organizations and platforms listed under
@@ -119,10 +119,11 @@ In addition to the Notices section above:
   (b) Anyone who makes the Software available for use by others — including
       over a network, as a hosted service, or within an organization — must
       display, in the user interface, a reasonably visible notice reading
-      "Based on f451 by rote code fraktion" that links to
-      https://github.com/rotecodefraktion/f451 (for example in a page footer or on an
-      "About" page). The notice may be adapted to the language of the user
-      interface, but must keep the name and the link.
+      "Based on f451 by www.rotecodefraktion.de", in which "f451" links to
+      https://github.com/rotecodefraktion/f451 and "www.rotecodefraktion.de"
+      links to https://www.rotecodefraktion.de (for example in a page footer,
+      a sidebar or on an "About" page). The notice may be adapted to the
+      language of the user interface, but must keep both names and both links.
 
 COMMERCIAL USE
 ==============

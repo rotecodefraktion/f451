@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers'
+import { Attribution } from '../../../components/attribution'
 import { redirect } from 'next/navigation'
 import { AccountMenu } from '../../../components/account-menu'
 import { ApiTokensPanel, type ApiTokenSummary } from '../../../components/api-tokens-panel'
@@ -79,6 +80,7 @@ export default async function VerbindungenPage({
           {t('settings.connections.navItem')}
         </a>
       </div>
+      <Attribution />
     </nav>
   )
 

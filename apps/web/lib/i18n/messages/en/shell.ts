@@ -23,6 +23,10 @@ export const shell: Messages['shell'] = {
       title: 'Collapse or expand the info sidebar (key ] )',
     },
   },
+  attribution: {
+    before: 'Based on ',
+    between: ' by ',
+  },
   phoneBar: {
     ariaLabel: 'Sections',
     nav: 'Pages',

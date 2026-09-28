@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Attribution } from '../../../../components/attribution'
 import { cookies } from 'next/headers'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
@@ -278,6 +279,7 @@ export default async function SpaceLayout({ children, params }: SpaceLayoutProps
           <span className="sub">{t('sidebar.tools.shortcuts.desc')}</span>
         </ToolTrigger>
       </div>
+      <Attribution />
     </nav>
   )
 

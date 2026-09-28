@@ -28,6 +28,11 @@ export const shell = {
     },
   },
   // Telefon-Leiste (#66, Variante B): nur unter 700 px bei Fingerbedienung.
+  // Attribution required by the f451 License (see LICENSE.md, "Attribution").
+  attribution: {
+    before: 'Basiert auf ',
+    between: ' von ',
+  },
   phoneBar: {
     ariaLabel: 'Bereiche',
     nav: 'Seiten',

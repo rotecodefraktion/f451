@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers'
+import { Attribution } from '../../../components/attribution'
 import { redirect } from 'next/navigation'
 import { AccountMenu } from '../../../components/account-menu'
 import { ErscheinungsbildEditor } from '../../../components/erscheinungsbild-editor'
@@ -67,6 +68,7 @@ export default async function ErscheinungsbildPage() {
           {t('settings.appearance.navItem')}
         </a>
       </div>
+      <Attribution />
     </nav>
   )
 
