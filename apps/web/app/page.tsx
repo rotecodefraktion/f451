@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers'
+import { Attribution } from '../components/attribution'
 import { redirect } from 'next/navigation'
 import { getT } from '../lib/i18n/server'
 import { getMe } from '../lib/session'
@@ -73,6 +74,7 @@ export default async function Home({ searchParams }: HomeProps) {
           {t('settings.login.button')}
         </a>
         <p className="foot">{t('settings.login.foot')}</p>
+        <Attribution />
       </div>
     </main>
   )

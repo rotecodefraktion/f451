@@ -140,7 +140,8 @@ Contributions are welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md).
 f451 is source-available, not Open Source in the OSI sense. For noncommercial
 purposes, use, modification and redistribution are free — with credit to
 rote code fraktion and a link to this repository, both in the code and in the
-user interface of every installation ("Based on f451 by rote code fraktion").
+user interface of every installation ("Based on f451 by www.rotecodefraktion.de" —
+f451 shows this notice itself).
 Commercial use requires a separate license on request. Excluded are the AfD and
 the organizations and platforms named in the license. The license covers code,
 documentation and design alike; details in [`LICENSE.md`](LICENSE.md).
