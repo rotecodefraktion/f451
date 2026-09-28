@@ -30,6 +30,7 @@ import {
   destroySession,
   requireSession,
   SESSION_COOKIE_NAME,
+  COOKIE_PREFIX,
   setSessionCookie,
   type SessionCookieOptions,
 } from '../auth/sessions.js'
@@ -100,7 +101,7 @@ export interface ConnectRoutesDeps {
 }
 
 /** Kurzlebiges, signiertes Cookie für den Login-Kontext (state/nonce/code_verifier/next). */
-const TX_COOKIE_NAME = 'f451_oidc_tx'
+const TX_COOKIE_NAME = `${COOKIE_PREFIX}_oidc_tx`
 const TX_TTL_SECONDS = 10 * 60
 
 /** Task 2 (Rate-Limits, Spec §7): projektweites {status,reason}-Format
@@ -348,7 +349,7 @@ export function registerMeRoute(app: FastifyInstance, deps: MeRouteDeps): void {
 }
 
 /** Kurzlebiges, signiertes Cookie für den Connect-OAuth-Kontext (state + Provider). */
-const CONNECT_TX_COOKIE_NAME = 'f451_connect_tx'
+const CONNECT_TX_COOKIE_NAME = `${COOKIE_PREFIX}_connect_tx`
 const CONNECT_TX_TTL_SECONDS = 10 * 60
 
 interface ConnectTransaction {
