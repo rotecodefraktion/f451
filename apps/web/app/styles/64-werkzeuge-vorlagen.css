@@ -1,0 +1,90 @@
+/* =========================================================================
+   Werkzeuge — Vorlagen-Pflege
+
+   Der Bereich „Vorlagen" im Werkzeuge-Teil (4454-4522 alt).
+
+   Besitzer im weiteren Umbau: Teilschritt H4 (Werkzeuge/Einstellungen/
+   Anmeldung).
+   Getrennte Datei, weil dieser Abschnitt in der heutigen Kaskade ganz am
+   Ende steht — s. Kopf von `64-werkzeuge-einstellungen.css`.
+
+   Herkunft: `app/globals.css` Zeilen 4454-4522 (Stand vor der Aufteilung,
+   4522 Zeilen). Teilschritt A war rein mechanisch: kein Wert, kein Selektor,
+   keine Reihenfolge geändert. Die Kaskadenreihenfolge steht ausschließlich
+   in der @import-Liste von `app/globals.css` — NICHT in den Dateinamen.
+
+   ── Was Teilschritt H4 hier abgeräumt hat ─────────────────────────────────
+   `.tpl-row` ist ersatzlos entfallen. Die Zeile trug im Markup seit jeher
+   `card tpl-row` und nahm den Karten-Innenraum sofort wieder zurück — genau
+   das Muster, das die Bestandsaufnahme (§2.4) als „eine Basis, die man
+   überall zurücknimmt, ist keine Basis" beschreibt. Der Innenraum kommt
+   jetzt aus `.card`, und weil das die einzige Deklaration von `.tpl-row`
+   war, ist mit der Regel auch der Klassenname aus dem Markup verschwunden.
+   Die Kinder heißen weiter `tpl-row-*` — sie tragen eigene Regeln.
+   ========================================================================= */
+/* =========================================================================
+   Vorlagen-Pflege (Werkzeuge-Bereich „Vorlagen",
+   components/editor/templates-manager.tsx) — Zeilenliste mit inline auf-
+   klappbaren „Umbenennen"-/„Inhalt bearbeiten"-Panels je Space-Vorlage.
+   `.tpl-panel` lehnt sich an `.newpage-body`/`.mf-field` an (gleiche
+   Label+Input-Struktur), `.tpl-content-textarea` erweitert
+   `.schema-field-textarea` auf volle Breite (Markdown-Rohtext braucht mehr
+   Platz als die schmalen Metadaten-Felder dort).
+   ========================================================================= */
+.tpl-manager {
+  margin-top: var(--space-5);
+}
+.tpl-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.tpl-row-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+}
+.tpl-row-name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.tpl-row-desc {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  flex-basis: 100%;
+}
+.tpl-row-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex: none;
+}
+.tpl-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: var(--rule-hair) solid var(--color-border-strong);
+}
+.tpl-panel label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-display);
+}
+.tpl-content-textarea {
+  max-width: none;
+  width: 100%;
+  resize: vertical;
+}
+.tpl-panel-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}

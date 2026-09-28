@@ -1,0 +1,72 @@
+{
+  "frontmatter": {
+    "tags": [
+      "betrieb",
+      "ci-cd"
+    ],
+    "relations": {
+      "depends_on": [
+        "monitoring",
+        "secrets-management"
+      ],
+      "supersedes": [
+        "deployment-legacy"
+      ]
+    },
+    "id": "8f3ka2",
+    "title": "Deployment-Prozess",
+    "lang": "de",
+    "archived": false
+  },
+  "frontmatterErrors": [],
+  "title": "Deployment-Prozess",
+  "links": [
+    {
+      "rawTarget": "betrieb/monitoring",
+      "kind": "wikilink",
+      "text": "betrieb/monitoring"
+    },
+    {
+      "rawTarget": "Secrets-Management",
+      "kind": "wikilink",
+      "text": "Verwaltung von Secrets"
+    },
+    {
+      "rawTarget": "../runbooks/index.md",
+      "kind": "relative",
+      "text": "Runbook"
+    },
+    {
+      "rawTarget": "./anleitung-fehlt.md",
+      "kind": "relative",
+      "text": "veralteten Anleitung"
+    }
+  ],
+  "headings": [
+    {
+      "depth": 1,
+      "text": "Deployment-Prozess",
+      "slug": "deployment-prozess"
+    },
+    {
+      "depth": 2,
+      "text": "Voraussetzungen",
+      "slug": "voraussetzungen"
+    },
+    {
+      "depth": 3,
+      "text": "Checkliste im Detail",
+      "slug": "checkliste-im-detail"
+    },
+    {
+      "depth": 2,
+      "text": "Architektur",
+      "slug": "architektur"
+    },
+    {
+      "depth": 2,
+      "text": "Weiterführende Hinweise",
+      "slug": "weiterführende-hinweise"
+    }
+  ]
+}

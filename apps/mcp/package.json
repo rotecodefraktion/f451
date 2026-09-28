@@ -1,0 +1,25 @@
+{
+  "name": "@f451/mcp",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "auffrischen": "tsx src/cli/auffrischen.ts"
+  },
+  "dependencies": {
+    "@f451/design-tokens": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "fastify": "^5.2.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "esbuild": "^0.28.1",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}

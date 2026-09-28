@@ -1,0 +1,93 @@
+/* =========================================================================
+   Anwendungs-CSS — Import-Liste
+
+   Diese Datei enthält seit Teilschritt A des Bausteinsystem-Umbaus
+   (docs/superpowers/plans/2026-07-26-bausteinsystem-bestandsaufnahme.md, §7)
+   KEINE eigenen Regeln mehr. Sie legt nur noch fest, in welcher Reihenfolge
+   die Teildateien unter `app/styles/` geladen werden.
+
+   ── Warum die Reihenfolge hier das Wichtigste ist ──────────────────────────
+   Bei gleicher Spezifität entscheidet in CSS die Reihenfolge. Die Liste unten
+   bildet deshalb GENAU die Reihenfolge ab, in der die Abschnitte bis
+   2026-07-26 in der 4522 Zeilen langen `globals.css` standen. Teilschritt A
+   war rein mechanisch: kein Wert, kein Selektor, keine Regel wurde geändert,
+   gelöscht oder umsortiert. Der Nachweis war das gebaute Stylesheet — vorher
+   und nachher bitgleich (gleiche Inhalts-Hashes in `.next/static/css`).
+
+   ── Warum die Zahlen im Dateinamen NICHT die Reihenfolge sind ─────────────
+   Die Nummern (00/10/20/44/60…) sind die Besitz-Nummern aus §7.1 des Plans:
+   sie sagen, WELCHER spätere Teilschritt die Datei umbaut. Die Kaskade steht
+   ausschließlich in dieser Liste. Wer eine Zeile hier verschiebt, ändert das
+   Aussehen der Anwendung — auch wenn keine Regel angefasst wurde.
+
+   Drei Zielbereiche des Plans liegen heute an mehreren Stellen der Kaskade
+   (Dialoge, Chrome, Editor, Werkzeuge). Sie sind deshalb in mehrere Dateien
+   mit sprechendem Zusatz geschnitten, statt Blöcke zu verschieben. Die
+   späteren Teilschritte führen sie zusammen; erst dann entstehen die im Plan
+   genannten Zieldateien `40-schaltflaeche.css`, `41-eingabe.css`,
+   `42-marke.css`, `43-flaeche.css`, `44-dialog.css` und `45-auswahl.css`.
+
+   Seit Teilschritt H5 gehört auch die Graph-Ansicht dazu (`65-graph.css`,
+   letzte Zeile). Bis dahin lud `app/layout.tsx` sie getrennt und NACH
+   `globals.css`; sie stand damit hinter allem, und jede Baustein-Regel über
+   die Graph-Ansicht war wirkungslos. Die Verlegung ist sichtneutral, weil die
+   Importzeile ans ENDE der Liste geht — die zusammengefügte Reihenfolge ist
+   danach dieselbe wie vorher. Begründung und Nachweis im Kopf der Datei.
+   ========================================================================= */
+
+/* Token-Ebene (erzeugt) */
+@import './styles/00-tokens.css';
+@import './styles/10-ableitungen.css';
+
+/* Grundschicht */
+@import './styles/20-basis.css';
+
+/* Bausteine (Etappe 2, Teilschritte C–G). Stehen VOR den Ansichten, damit eine
+   Ansicht einen Baustein bei Bedarf noch überschreiben kann — genau diese
+   Überschreibungen räumen die Teilschritte H1–H5 anschließend wieder ab.
+   Die Dateien sind zunächst leer und werden je von genau einem Teilschritt
+   gefüllt; die Importzeilen stehen vorab hier, damit die parallel arbeitenden
+   Bearbeiter diese Datei nicht gleichzeitig anfassen müssen. */
+@import './styles/40-schaltflaeche.css';
+@import './styles/41-eingabe.css';
+@import './styles/42-marke.css';
+@import './styles/43-flaeche.css';
+/* Teilschritt F hat die drei `44-dialog-*.css` zu dieser einen Datei
+   zusammengeführt. Sie steht jetzt hier im Bausteine-Block statt an drei
+   Stellen zwischen den Ansichten. Dass das die Sicht nicht ändert, ist mit
+   einer Paaranalyse über alle Regeln belegt — Begründung und Verfahren im
+   Kopf von `44-dialog.css`. Die Stelle ist zugleich Voraussetzung für die
+   Menü-Aliase dort: die Ansichtsregeln müssen weiter gewinnen, bis H1–H5
+   sie entfernen. */
+@import './styles/44-dialog.css';
+@import './styles/45-auswahl.css';
+
+/* Anwendungsrahmen und Ansichten — Reihenfolge = frühere Dateireihenfolge */
+@import './styles/60-chrome-topbar.css'; /* alt 174-593   */
+@import './styles/64-werkzeuge-einstellungen.css'; /* alt 594-830   */
+@import './styles/60-chrome-raster.css'; /* alt 831-1230  */
+@import './styles/61-lese.css'; /* alt 1231-1930 */
+@import './styles/60-chrome-leiste.css'; /* alt 1931-2029 */
+@import './styles/62-editor.css'; /* alt 2303-3455 */
+@import './styles/62-editor-rohtext.css'; /* alt 3634-3675 */
+@import './styles/63-review.css'; /* alt 3676-4346 */
+@import './styles/64-werkzeuge-vorlagen.css'; /* alt 4454-4522 */
+/* Graph-Ansicht. Steht als LETZTE Zeile — genau da, wo `app/layout.tsx` sie
+   bis Teilschritt H5 nachgeladen hat. Dass sie zuletzt steht, ist keine
+   Rangordnung, sondern die Bewahrung der bisherigen Kaskade; H5 hat die
+   Regeln, die dieses Zuletzt-Stehen ausgenutzt haben, im Inhalt abgeräumt. */
+@import './styles/65-graph.css';
+
+/* Telefon-Layout (#66): ersetzt unter der Schwelle `(max-width: 699px) and
+   (pointer: coarse)` die Rasterregeln der Ansichten, steht deshalb danach. */
+@import './styles/66-telefon.css';
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Erledigte Altlast (Bestandsaufnahme §6.2): `.seg` war ZWEIMAL definiert —
+   Block A in `62-editor.css` (alt 2964-2992), Block B in `63-review.css`
+   (alt 3759-3788). Bei gleicher Spezifität gewann der später importierte
+   Block B für ALLE Vorkommen, Block A war wirkungslos. Teilschritt G hat
+   Block A gelöscht und Block B als `.segmented` nach `45-auswahl.css`
+   verlegt; die Review-Ansicht bekam den neuen Reiter-Baustein `.tabs`.
+   `.seg` existiert nicht mehr.
+   ───────────────────────────────────────────────────────────────────────── */

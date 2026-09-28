@@ -1,0 +1,284 @@
+/* 40-schaltflaeche.css — Teilschritt C des Bausteinsystem-Umbaus.
+   Schaltflaechen (.btn und Varianten)
+
+   Diese Datei gehoert AUSSCHLIESSLICH Teilschritt C. Andere Teilschritte
+   schreiben hier nicht hinein — die Aufteilung existiert genau deshalb,
+   damit mehrere Bearbeiter gleichzeitig arbeiten koennen.
+
+   Die Nummer im Dateinamen ist die Besitz-Nummer, nicht die Reihenfolge;
+   massgeblich fuer die Kaskade ist allein die Importreihenfolge in
+   ../globals.css (s. Kommentar dort).
+
+   ── Was hier entsteht ─────────────────────────────────────────────────────
+   Die Bestandsaufnahme (§2.1, §3) zaehlt 34 Auspraegungen von Bedienelementen
+   mit 15 Innenabstands-Kombinationen, 7 festen Hoehen und 15 Kantenradien.
+   Keine einzige erreicht die zugesicherte Zielgroesse von 44 x 44 px
+   (Spec „Zugesicherte Eigenschaften", Punkt 4) — der einzige `44px`-Treffer
+   in 5358 Zeilen CSS war das Logo-Quadrat der Anmeldeseite.
+
+   Hier steht ab jetzt EIN Baustein: `.btn` mit `--control-h` als
+   Mindest-Zielgroesse, `--control-pad-x/-y` als einzigem Innenabstand, drei
+   Bedeutungsvarianten (primaer / zurueckhaltend / gefaehrlich), zwei Groessen
+   und EINER Regel fuer den ausgeschalteten Zustand.
+
+   ── Der Uebergang ist abgeschlossen (Teilschritt I) ───────────────────────
+   Diese Datei wird VOR den Ansichtsdateien (60-* bis 65-*) geladen. Solange
+   eine Ansicht dieselbe Klasse noch einmal fuehrte, gewann sie — und weil CSS
+   je EIGENSCHAFT ueberschreibt und nicht je Regel, haetten die Eigenschaften,
+   die keine Altregel setzt (`min-height`, `line-height`, `transition`, die
+   Trefferflaeche), sofort durchgeschlagen. Dafuer stand hier bis
+   Teilschritt I ein Uebergangsblock am Dateifuss, der sie auf dem Wert vor
+   dem Umbau festhielt, solange `<html data-altlasten="weg">` fehlte.
+
+   H1-H5 haben die Ansichtskopien abgeraeumt; Teilschritt I hat den Schalter
+   in `app/layout.tsx` gesetzt und den Block geloescht. Ab jetzt gilt in der
+   ganzen Anwendung die Zielgroesse: `.btn` ist 44 px hoch, `.btn.icon`
+   44 x 44 px. Am Schalter haengt nur noch die unsichtbare Trefferflaeche der
+   klein gebauten Schaltflaechen (`::after`, s. u.) — sie faengt Klicks und
+   bleibt deshalb an einer Stelle ein- und ausschaltbar.
+
+   Die Bruecken auf die Altnamen (`.tbtn`, `.iconbtn`, `.pbtn`,
+   `.newpage-trigger`) sind mit dem Uebergang entfallen: `.iconbtn`/`.pbtn`
+   kommen im Markup nicht mehr vor (H5), `.tbtn` hat Teilschritt I aus dem
+   Markup gestrichen. `.app-switch` und `.newpage-trigger` stehen weiter im
+   Markup, aber nur noch als STELLUNGS-Haken ihrer Ansicht
+   (`60-chrome-topbar.css`: `max-width`; `60-chrome-raster.css`:
+   `margin-left: auto`) — kein Mass mehr, also auch keine Bruecke hier.
+
+   ── Bedeutungswechsel, von H1–H5 im Markup nachgezogen ────────────────────
+   Vor dem Umbau war das nackte `.btn` die AKZENTFARBENE Hauptaktion und
+   `.btn.ghost` die neutrale Umrissvariante. Der Entwurf dreht das um: `.btn`
+   ist neutral, `.btn.primary` ist die Hauptaktion (Tinte statt Farbe — die
+   Akzentfarbe bleibt der Bedeutung vorbehalten, editorial.html:1052).
+   `.ghost` braucht deshalb keine eigene Regel mehr: es IST die Grundform.
+   ========================================================================= */
+
+/* =========================================================================
+   Der Baustein
+   ========================================================================= */
+
+/* Grundform = zurueckgenommene Umrissschaltflaeche. `min-height` (nicht
+   `height`), damit zweizeilige Beschriftungen wachsen duerfen, ohne die
+   Zielgroesse zu unterschreiten. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--control-h);
+  padding: var(--control-pad-y) var(--control-pad-x);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+  line-height: var(--leading-ui);
+  border-radius: var(--radius-md);
+  border: var(--rule-hair) solid var(--color-border-strong);
+  background: var(--color-bg);
+  color: var(--color-text);
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) var(--motion-ease),
+    border-color var(--motion-fast) var(--motion-ease);
+}
+.btn:hover {
+  background: var(--color-surface-hover);
+  text-decoration: none;
+}
+
+/* Primaer = Tinte, nicht Farbe. Der Entwurf haelt die Akzentfarbe fuer
+   Bedeutung frei; die Hauptaktion traegt deshalb die Textfarbe als Flaeche. */
+.btn.primary {
+  background: var(--color-text);
+  color: var(--color-bg);
+  border-color: var(--color-text);
+  box-shadow: var(--shadow-sm);
+}
+.btn.primary:hover {
+  background: color-mix(in srgb, var(--color-text) 88%, var(--color-accent));
+  border-color: color-mix(in srgb, var(--color-text) 88%, var(--color-accent));
+}
+
+/* Zurueckhaltend = randlos. Ersetzt die randlosen Symbolknoepfe der
+   Bestandsaufnahme (`.tbtn`, `.newpage-trigger`, `.metadata-panel-toggle`,
+   `.mf-chip-remove`, `.node-actions button`, `.app-switch`). */
+.btn.quiet {
+  border-color: transparent;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-weight: var(--weight-medium);
+  box-shadow: none;
+}
+.btn.quiet:hover {
+  color: var(--color-text);
+  background: var(--color-surface-hover);
+}
+
+/* Gefaehrlich: die Bestandsaufnahme fand ueberhaupt keine rote Schaltflaeche
+   (§5.1) — das einzige Loeschelement war ein Menueeintrag. Farbe allein traegt
+   die Bedeutung nicht (Spec, Punkt 3), Rand und Flaeche stuetzen sie. */
+.btn.danger {
+  color: var(--color-danger);
+  border-color: color-mix(in srgb, var(--color-danger) 45%, var(--color-bg));
+  background: var(--color-danger-wash);
+}
+.btn.danger:hover {
+  background: color-mix(in srgb, var(--color-danger) 16%, var(--color-bg));
+}
+
+/* Zweite Groesse. Sie fuehrt die bisherigen `.btn.small`, `.btn.merge`,
+   `.discard > .btn` und `.node-actions button` zusammen (vier Innenabstaende,
+   drei Schriftgrade). Die BAUgroesse schrumpft, die ZIELgroesse nicht:
+   ::after legt eine unsichtbare Trefferflaeche von `--control-h` darueber
+   (Spec, Punkt 4 gilt auch ohne Wortmarke). */
+.btn.small {
+  min-height: calc(var(--control-h) - 2 * var(--space-2));
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-xs);
+}
+/* Symbol ohne Wort: quadratisch, damit die Zielgroesse auch in der Breite
+   erreicht wird. */
+.btn.icon {
+  min-width: var(--control-h);
+  padding: 0;
+}
+
+/* Trefferflaeche fuer alles, was kleiner gebaut ist als die Zielgroesse.
+   `.mf-chip-remove` steht mit, weil das kleine „x" am Schlagwort-Chip heute
+   0 px Innenabstand hat und damit die kleinste Flaeche der ganzen Anwendung
+   ist.
+
+   Warum diese beiden Regeln als einzige am Schalter `data-altlasten`
+   haengen geblieben sind (der Rest des Uebergangs ist mit Teilschritt I
+   entfallen): Sie sind der einzige Teil dieses Bausteins, der nicht nur
+   AUSSIEHT, sondern WIRKT. Ein durchsichtiger Kasten faengt Klicks; er darf
+   keinen Nachbarn verdecken. Bleibt der Schalter erhalten, laesst sich das an
+   genau einer Stelle zuruecknehmen.
+
+   ── Warum die Flaeche nur in der HOEHE waechst ────────────────────────────
+   Nachgemessen (Teilschritt I, `elementFromPoint` an den vier Randpunkten
+   jeder Flaeche, in den fuenf echten Nachbarschaften des Markups): mit
+   `min-width: var(--control-h)` griff die Flaeche der Baumzeilen-Aktionen
+   2 px in den Seitenverweis daneben. Die Knoepfe sind dort 40 px breit; die
+   erzwungenen 44 haetten je 2 px links und rechts ueber den Knopf
+   hinausgestanden, und links steht der Verweis, der die Seite oeffnet. Ein
+   Klick auf dessen letzte zwei Pixel haette umbenannt statt geoeffnet.
+
+   `width: 100%` allein ist deshalb der Regelfall: die Flaeche uebernimmt die
+   BREITE des Knopfes und waechst nur in der Hoehe auf die Zielgroesse. In der
+   Hoehe ist das gefahrlos, weil die kleinen Knoepfe in waagerechten Reihen
+   stehen — ueber und unter ihnen liegt Zwischenraum, kein Bedienelement
+   (ebenfalls gemessen).
+
+   Die einzige Ausnahme ist das „x" am Schlagwort-Chip: es ist 11 px breit,
+   die kleinste Flaeche der ganzen Anwendung, und ohne Breitenzwang bliebe es
+   das. Es steht am ENDE eines Chips, seine Nachbarn sind der naechste Chip
+   (8 px Abstand) und das Eingabefeld — dort ist Platz, gemessen. */
+:root[data-altlasten='weg'] :is(.btn.small, .mf-chip-remove) {
+  position: relative;
+}
+:root[data-altlasten='weg'] :is(.btn.small, .mf-chip-remove)::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  width: 100%;
+  height: var(--control-h);
+}
+:root[data-altlasten='weg'] .mf-chip-remove::after {
+  min-width: var(--control-h);
+}
+
+/* EINE Regel fuer den ausgeschalteten Zustand — fuer die ganze Anwendung.
+
+   Bestand: 9 Regeln, 4 Kombinationen (Deckkraft 0.6 vs. 0.45, Cursor
+   `default` vs. `not-allowed`) und kein einziger `[aria-disabled]`-Selektor —
+   Schaltflaechen, die fokussierbar bleiben sollen, waren damit unbeschrieben.
+
+   Teilschritt C hat die Regel als `.btn[disabled]` angelegt, weil er nur
+   Schaltflaechen besass. Teilschritt I hat sie auf das Zustandsattribut
+   verengt und die sechs lokalen Wiederholungen geloescht (`62-editor.css`:
+   `.tb`, `.page-title-input`, `.page-title-archived input`, `.mf-input`,
+   `.mf-chip-toggle button`, `.mf-chip-input`; `44-dialog.css`:
+   `.menu-item`). Ohne Klasse im Selektor gilt sie fuer JEDES abgeschaltete
+   Bedienelement — auch fuer die, an die noch niemand gedacht hat, und genau
+   so schreibt der Entwurf sie (editorial.html:1043).
+
+   Warum die Elementliste in `:is(…)` davorsteht und nicht bloss `[disabled]`:
+   Ein reines Attribut waere (0,1,0) — genau so hoch wie `.menu-item`,
+   `.select` und `label.check`, die alle `cursor: pointer` setzen und SPAETER
+   in der @import-Liste stehen. Bei Gleichstand gewinnt die spaetere Regel:
+   eine abgeschaltete Menuezeile haette den Zeigefinger behalten und damit
+   angekuendigt, dass man sie druecken kann (nachgemessen, deshalb steht es
+   hier). `:is(button, a, …)` traegt (0,0,1) bei und hebt die Regel auf
+   (0,1,1) — hoch genug fuer jede einklassige Bausteinregel, niedrig genug,
+   damit eine Ansicht mit zwei Klassen sie noch gezielt schlagen kann.
+
+   `label` steht in der Liste, weil das Kontrollkaestchen-Label der eigentliche
+   Klickbereich ist (s. `41-eingabe.css`), `[role='menuitem']` fuer Menuezeilen
+   ohne eigenes Bedienelement. Im Markup dieser Anwendung tragen nur
+   `<button>` und ein `<input>` das Attribut — kein `<fieldset disabled>`,
+   dessen Deckkraft die Kinder mitgenommen haette. */
+:is(button, a, input, select, textarea, label, summary, [role='menuitem'])[disabled],
+:is(button, a, input, select, textarea, label, summary, [role='menuitem'])[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Symbol in der Schaltflaeche folgt der Textfarbe, statt eine eigene zu
+   fuehren. */
+.btn .glyph {
+  color: currentColor;
+}
+/* Mass des Symbols. Die Zeile stand bis Teilschritt I in
+   `60-chrome-topbar.css` und ist von H1 hierher gemeldet worden: sie gehoert
+   zum Baustein, nicht zur Kopfleiste. Sie ist keine zweite
+   Schaltflaechen-Definition, sondern eine Massangabe fuer das Markup dieser
+   Anwendung — die Symbole stehen als `<svg viewBox="0 0 24 24">` ohne eigene
+   Masse im JSX, und ein solches SVG ist ohne CSS 300 x 150 px gross. */
+.btn svg {
+  width: 14px;
+  height: 14px;
+}
+/* Waagerechte Reihe aus Schaltflaechen — Ziel fuer die 8 Inline-Stile
+   `padding: 0, textAlign: left` aus §4.3. */
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* =========================================================================
+   Fokus — genau EINE Regel
+
+   Vorher: 9 Umsetzungen. Sechsmal woertlich `outline: none; border-color:
+   …-line; box-shadow: 0 0 0 3px …-wash` (Bestandsaufnahme §2.2), dazu fuenf
+   Stellen, die den Ring ERSATZLOS entfernen. Der Ring war damit weder
+   vorhersehbar noch ueber ein Token steuerbar.
+
+   Diese Regel gilt fuer BEIDE Baustein-Dateien (40 + 41). Sie steht bewusst
+   nur einmal und nur hier; 41-eingabe.css fuegt keine zweite hinzu.
+
+   Warum kein `box-shadow`-Ring mehr: ein Schatten liegt INNERHALB des
+   Elementkastens und wird von `overflow: hidden` und `clip-path`
+   weggeschnitten (Spec „Zugesicherte Eigenschaften", Punkt 1). `outline`
+   nicht.
+
+   Warum die Liste nur einfache Klassen enthaelt: `:is()` uebernimmt die
+   HOECHSTE Spezifitaet seiner Argumente. Ein `.check input` darin wuerde die
+   ganze Regel auf (0,2,1) heben — deshalb steht es in `:where()`, das 0
+   beitraegt. So bleibt die Regel bei (0,2,0).
+
+   Warum die Liste seit Teilschritt I kuerzer ist: `.tbtn`, `.iconbtn` und
+   `.pbtn` stehen nicht mehr im Markup, und `.app-switch`,
+   `.newpage-trigger` und `.mf-chip-remove` tragen dort inzwischen alle
+   `class="btn …"` — sie sind ueber `.btn` mit erfasst. Uebrig bleiben die
+   zwei Eingabe-Altnamen, die kein `.input` tragen (`.mf-input`,
+   `.mf-chip-input`).
+   ========================================================================= */
+:is(.btn, .input, .select, .mf-input, .mf-chip-input, :where(.check input)):focus-visible {
+  outline: var(--focus-w) solid var(--color-focus);
+  outline-offset: var(--focus-offset);
+}

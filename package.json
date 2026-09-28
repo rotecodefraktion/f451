@@ -1,0 +1,16 @@
+{
+  "name": "f451",
+  "private": true,
+  "license": "SEE LICENSE IN LICENSE.md",
+  "packageManager": "pnpm@9.15.0",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "build": "pnpm -r build",
+    "e2e:deploy": "node scripts/deploy-e2e.mjs",
+    "e2e:deploy:full": "bash scripts/deploy-e2e-full.sh",
+    "e2e:discovery": "node scripts/discovery-e2e.mjs",
+    "css:inventar": "node scripts/css-inventar.mjs"
+  }
+}

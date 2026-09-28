@@ -1,0 +1,1254 @@
+/* =========================================================================
+   Leseansicht — Toolbar, Warnbanner, Artikelkörper
+
+   Toolbar/Breadcrumb/Status-Badge/Workflow-Chips/Versionsanzeige (1231-1378
+   alt), die `.notice`-Warnbanner in sieben Varianten (1379-1513 alt) und
+   der gerenderte Artikelkörper `.page-body` (1514-1930 alt).
+
+   Besitzer im weiteren Umbau: Teilschritt H1 (Lese/Chrome).
+   ACHTUNG (Bestandsaufnahme §6.1): `.page-body` wird von Leseansicht,
+   Editor (ProseMirror-Wurzel trägt `doc page-body`) und Review-Diff
+   GEMEINSAM benutzt; seine Klassennamen stammen teilweise aus
+   `packages/markdown`. `.page-body` bleibt in Etappe 2 unangetastet —
+   es ist Etappe 3. Ebenso die Lesespalten-Geometrie 760px/48px.
+   Teilschritt H1 hat hier die zweite `.chip`-Definition entfernt (Baustein:
+   `42-marke.css`). Die `.notice`-Familie steht BEWUSST noch: der `.callout`
+   in `43-flaeche.css` führt für sie nur Rollen-Aliase (zwei Variablen), der
+   Kasten selbst hat einen anderen Aufbau (`.callout__head` statt
+   `.ic`/`.txt`). Das ist ein Markup-Umbau, kein Klassenwechsel, und
+   `.notice` gehört zu drei Ansichten gleichzeitig (Leseansicht, Editor,
+   Review) — s. Bericht H1. `.page-body .alert` bleibt ohnehin.
+
+   Herkunft: `app/globals.css` Zeilen 1231-1930 (Stand vor der Aufteilung,
+   4522 Zeilen). Teilschritt A war rein mechanisch: kein Wert, kein Selektor,
+   keine Reihenfolge geändert. Die Kaskadenreihenfolge steht ausschließlich
+   in der @import-Liste von `app/globals.css` — NICHT in den Dateinamen.
+   ========================================================================= */
+/* =========================================================================
+   Leseansicht — Toolbar / Breadcrumb / Status-Badge (Task 4)
+   Struktur 1:1 aus docs/design/mockups/leseansicht.html.
+   ========================================================================= */
+/* ── Erscheinungsbild 2026, Breitenstufen (Etappe 3) ───────────────────────
+   Referenz: `docs/design/mockups-2026/editorial.html`, Blöcke `.doc`/`.prose`;
+   Spec `docs/superpowers/specs/2026-07-26-erscheinungsbild-2026-design.md`,
+   Abschnitt „Breitenstufen".
+
+   Bis hierher trugen die vier Geschwister-Blöcke der Spalte (`.toolbar`,
+   `.subbar`, `.notices`, `.body`) die Handoff-Geometrie „760px, zentriert,
+   48px seitlich". Sie ist ENTFALLEN: 760px minus 2 × 48px sind 664px
+   Satzbreite, das Maß `--measure` (68 Zeichen) braucht bei der Lesegröße des
+   Entwurfs rund 690px — der Fließtext lief deshalb gemessen auf 65 statt 68
+   Zeichen, obwohl das Token längst ausgeliefert ist. Der Container darf keine
+   Grenze setzen; die Grenze gehört auf den Inhalt (s. „Breitenstufen" am
+   `.page-body` unten):
+
+     Lesespalte  `--measure`       Absatz, Liste, Zitat, Überschrift
+     Breit       `--measure-wide`  Satzspiegel mit Randspalte (Hinweisblöcke)
+     Voll        `--measure-full`  Tabelle, Codeblock, Diagramm, Bild
+
+   Geblieben ist der seitliche Innenabstand, jetzt aus dem Token
+   `--layout-gutter` (= `--space-9` = 3rem = exakt die bisherigen 48px, also
+   ohne Sichtänderung) statt als Literal. Er gilt weiter für genau diese vier
+   Blöcke plus den Kolumnentitel; `--content-pad-x` bleibt der 28px-Wert der
+   rail-losen Werkzeugseiten. `.body` teilen sich Leseansicht, Editor und
+   Review-Diff — die drei Editor-Kopfzeilen in `62-editor.css` sind auf
+   dieselbe Kante nachgezogen, damit der dortige Treppeneffekt nicht
+   zurückkommt. */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-2) var(--layout-gutter);
+  border-bottom: 1px solid var(--color-border);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: var(--panel-2);
+}
+.toolbar .grow {
+  flex: 1;
+}
+
+/* ── Kolumnentitel (Etappe 3) ──────────────────────────────────────────────
+   Referenz: `.runhead` in `docs/design/mockups-2026/editorial.html`; Spec
+   Abschnitt „Kolumnentitel". Er trägt GENAU zwei Dinge — den Brotkrumenpfad
+   und die Positionsanzeige („Abschnitt 3 von 6", `components/reading-
+   position.tsx`). Die Leisten-Schalter gehören ausdrücklich NICHT hierher:
+   in der ersten Entwurfsfassung überfüllten sie die Zeile so, dass bei
+   offenen Leisten die Positionsanzeige wegfiel. Sie kommen als
+   Daumenregister in den Außenspalten des Fünf-Spalten-Rasters
+   (`app/pane-edges.tsx`, `60-chrome-raster.css`).
+
+   SCHNITTSTELLE zum Raster (bewusst NICHT in `60-chrome-raster.css`
+   geschrieben): Der Kolumnentitel braucht vom Raster nichts außer einer
+   Dokumentspalte, die ihm ihre Breite gibt (`.main` ist Gitterkind mit
+   `min-width: 0`) — er misst sich selbst. Ändert sich am Raster etwas, ist
+   hier nur EINE Annahme nachzuziehen: dass die Dokumentspalte mit dem Fenster
+   monoton wächst (s. Kürzungsleiter am Ende dieses Abschnitts).
+
+   Der Kolumnentitel ist sein eigener Größenkontext (`container-type`), damit
+   die Kürzungsleiter des Pfades an der SPALTENbreite hängt und nicht am
+   Fenster — im Entwurf trägt das die Dokumentspalte `.doc`; die liegt hier
+   in `60-chrome-raster.css` (`.main`, fremder Bearbeiter), deshalb steht der
+   Kontext auf dem Kolumnentitel selbst. Wirkung ist dieselbe: er ist so
+   breit wie die Spalte, seine Kinder fragen ihn ab. */
+.runhead {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  min-width: 0;
+  padding: var(--space-2) var(--layout-gutter);
+  border-bottom: var(--rule-hair) solid var(--color-border);
+  container-type: inline-size;
+  container-name: kolumnentitel;
+}
+/* Der Pfad darf schrumpfen (und kürzt dann), aber er wächst nicht. Reicht die
+   Spalte für gekürzten Pfad und Positionsanzeige NEBENEINANDER nicht mehr,
+   rutscht als letzte Reserve die Positionsanzeige in eine zweite Zeile
+   (`flex-wrap` am `.runhead`), statt dass etwas abgeschnitten wird. Der Pfad
+   selbst bleibt dabei immer einzeilig (s. `.crumbs`). */
+.runhead .crumbs {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.runhead__pos {
+  flex: none;
+  margin-left: auto;
+  white-space: nowrap;
+}
+/* ── Brotkrumenpfad (Etappe 3) ─────────────────────────────────────────────
+   Referenz: `.crumbs` in `docs/design/mockups-2026/editorial.html`. Eine
+   Zeile, immer. Reicht der Platz nicht, wird gekürzt — die Ellipse am
+   Wortende (`text-overflow`) ist nur der Notnagel für Glieder, die selbst
+   länger sind als die Spalte; die eigentliche Kürzung ist die Leiter weiter
+   unten. Umbrechen darf der Pfad nie: ein `flex-wrap`-Pfad ohne Mindestbreite
+   fällt in einer engen Spalte auf die Breite des längsten Wortes zusammen und
+   stapelt sich senkrecht.
+
+   Bis hierher stand hier `overflow: hidden` auf dem Container selbst und ein
+   13px-Literal. Das Clipping ist ENTFALLEN — es hätte den Fokusring der
+   Pfad-Links mit abgeschnitten (Spec „Zugesicherte Eigenschaften" Nr. 1);
+   gekürzt wird jetzt gliedweise. Der Grad kommt aus `--text-sm`, die Familie
+   ausdrücklich aus `--font-sans`: der Pfad ist Bedienung, nicht Satz, und
+   dürfte sonst (in der Leseansicht) den Serifensatz erben.
+
+   Drei Ansichten teilen diese Klasse: Leseansicht (`components/breadcrumb.tsx`
+   im Kolumnentitel), Editor-Statuszeile (`components/editor/status-bar.tsx`)
+   und Review-Kopf (`review/page.tsx`). Die beiden Letzteren führen nur zwei
+   Glieder und ein `<b>` als aktuelles Glied — `b` ist deshalb neben `.here`
+   gleichrangig aufgeführt. */
+.crumbs {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+  color: var(--color-text-muted);
+}
+.crumbs > * {
+  white-space: nowrap;
+}
+.crumbs a,
+.crumbs .here,
+.crumbs b {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.crumbs a {
+  /* Gibt vierfach schneller nach als das aktuelle Glied: die Vorfahren im Pfad
+     treten zurück, bevor der Seitenname unlesbar wird. */
+  flex: 0 4 auto;
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+.crumbs a:hover {
+  color: var(--color-text);
+  text-decoration: underline;
+}
+.crumbs .sep {
+  flex: none;
+  color: var(--color-border-strong);
+}
+.crumbs .here,
+.crumbs b {
+  flex: 0 1 auto;
+  color: var(--color-text);
+  font-weight: var(--weight-strong);
+}
+/* Die Zwischenebenen sind im Satz normale Glieder; verkürzt tritt „…" an ihre
+   Stelle, während sie für die Vorlesehilfe erhalten bleiben. Umgeschaltet wird
+   allein über zwei geerbte Schalter-Tokens — die Verbergen-Geometrie steht
+   dauerhaft hier und wirkt erst, sobald `display` von `contents` auf `block`
+   geht (ein Element mit `display: contents` erzeugt keinen Kasten). So bleibt
+   es bei EINER Stelle, an der die sr-only-Technik steht; jede Bedingung weiter
+   unten setzt nur noch den Schalter.
+
+   Verborgen heißt hier NIE `display: none` (Spec „Zugesicherte
+   Eigenschaften" Nr. 2): der vollständige Pfad bleibt im
+   Zugänglichkeitsbaum, auch wenn nur „…" im Satz steht. */
+.crumbs__mid {
+  display: var(--crumbs-mid, contents);
+  position: absolute;
+  width: var(--rule-hair);
+  height: var(--rule-hair);
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.crumbs__more {
+  display: var(--crumbs-more, none);
+  flex: none;
+  color: var(--color-text-muted);
+}
+/* Ein angesprungenes Glied kürzt nicht: die Nachbarn geben zuerst nach, damit
+   der Fokusring immer ganz im Satz steht statt auf einen Rest zusammenzufallen. */
+.crumbs a:focus-visible {
+  flex-shrink: 0;
+}
+/* Die Zwischenebenen bleiben anspringbar, also darf der Fokus nie im
+   Verborgenen landen: erreicht er ein Glied der Mitte, tritt der volle Pfad in
+   den Satz zurück und „…" weicht ihm. `clip-path` schneidet den Ring von
+   Kindelementen mit weg — ohne diese Aufhebung verliert ein Tastaturnutzer die
+   Spur (Spec „Zugesicherte Eigenschaften" Nr. 1). Einzeilig bleibt der Pfad
+   dabei von selbst: die Glieder kürzen nach der Regel oben, nur das
+   angesprungene nicht. */
+.crumbs__mid:focus-within {
+  --crumbs-mid: contents;
+}
+.crumbs:focus-within .crumbs__more {
+  display: none;
+}
+
+/* ── Kürzungsleiter des Pfades ─────────────────────────────────────────────
+   Der Kolumnentitel trägt nur Pfad und Positionsanzeige; es gibt keine
+   Rangfolge, in der etwas abtritt. Übrig bleibt eine einzige Kürzung für die
+   wirklich enge Spalte: unterhalb von 39rem treten die Zwischenebenen zu „…"
+   zusammen. Gemessen am Entwurf: „handbuch / Azure Betrieb / Backup & Restore
+   / HANA-Datensicherung" misst 456px, die Positionsanzeige 143px, dazu der
+   Zwischenraum — unter 39rem Spaltenbreite passt das nicht mehr in eine Zeile.
+   Gefragt wird die SPALTE (`@container`), nicht das Fenster: eine
+   eingeklappte/ausgeblendete Leiste wirkt damit sofort. */
+@container kolumnentitel (max-width: 39rem) {
+  .crumbs {
+    --crumbs-mid: block;
+    --crumbs-more: block;
+  }
+}
+/* MONOTONIE (Spec „Leisten-Verhalten"): Beim Verschmälern darf nie etwas
+   hinzukommen. Die eine Kürzungsbedingung oben genügt dafür — es braucht
+   KEINEN zusätzlichen Fenster-Riegel, weil die Dokumentspalte des
+   Fünf-Spalten-Rasters (`60-chrome-raster.css`) mit dem Fenster monoton
+   wächst: dort wird nie gestapelt, und die beiden Leisten geben unter ~800px
+   stetig Breite ab (`width: min(var(--layout-nav-w), 34vw)`) statt an einem
+   Haltepunkt ganz zu verschwinden. Gemessen von 1600 bis 800px: die Spalte
+   fällt Schritt für Schritt (968 → 168px), die Kürzung geht also einmal an und
+   nie wieder aus.
+
+   Der Entwurf brauchte an dieser Stelle zwei `@media`-Riegel, weil er Leisten
+   an Haltepunkten unter das Dokument dockte und die Spalte dabei sprunghaft
+   breiter wurde. Kommt so ein Umbruch je zurück, muss hier ein Riegel je
+   Umbruch nach: gekürzt bleibt, was schon gekürzt war.
+
+   Das EINKLAPPEN einer Leiste verbreitert die Spalte natürlich weiterhin —
+   das ist eine Handlung des Lesers, keine Fensterverschmälerung, und wirkt
+   über die Container-Abfrage oben sofort in die richtige Richtung. */
+/* Die Statusmarke der Kopfzeile ist der Baustein `.chip` (42-marke.css).
+   Bis Teilschritt H1 stand hier eine zweite, vollständige Fassung: eigene
+   feste Höhe (32 px), eigener Schriftgrad (13 px), eigener Innenabstand
+   (`0 11px`), eigene 999-px-Rundung und vier von Hand gemischte
+   Zustandsfarben. Das Markup trägt jetzt die Variantennamen des Bausteins
+   (`chip released` / `chip archived` / `chip working` / `chip review`)
+   statt der Kurzformen `rel`/`arch`/`work`/`rev`. */
+
+/* „Aus Archiv holen"-Button (Feature „Unarchive", `components/unarchive-
+   button.tsx`) — Geschwister des `.chip.arch` in der Toolbar, s.
+   `page-view.tsx`. */
+.unarchive-action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.subbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  /* Horizontal: Steg aus `--layout-gutter`, keine Breitengrenze — s.
+     „Breitenstufen"-Kommentar an `.toolbar` oben. */
+  padding: var(--space-2) var(--layout-gutter);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+.subbar b {
+  color: var(--color-text);
+  font-weight: var(--weight-strong);
+}
+/* Versionsanzeige (Seitenversionierung Etappe 1, Task 8 Nachtrag/Task 9,
+   `components/page-view.tsx`) — bislang ohne eigene Regel, dadurch optisch
+   nicht vom übrigen `.subbar`-Text abgesetzt (Befund aus Task 9). Absicht
+   laut Brief: `.subbar-version` bleibt bewusst UNAUFFÄLLIG (reiner
+   Statustext, keine Handlung nötig) — nur leicht betont wie die übrigen
+   Werte via `.subbar b`-Pendant. `.subbar-changed` MUSS dagegen erkennbar
+   hervorstechen (ein direkt an der Freigabe vorbei geänderter Stand ist ein
+   Hinweis, den man nicht überlesen soll) — dieselbe Warnfarbe wie
+   `.notice.warn` (Token `--rev-fg`/`--color-status-review`, s. Root-Variablen
+   oben), aber OHNE eigenen Hintergrund/Rahmen: ein einzelnes Wort in der
+   Subbar soll wie ein Hinweis wirken, nicht wie eine Fehlermeldung. */
+.subbar-version {
+  font-weight: var(--weight-strong);
+  color: var(--color-text);
+}
+.subbar-changed {
+  font-weight: var(--weight-strong);
+  color: var(--color-status-review);
+}
+
+/* =========================================================================
+   Leseansicht — Warnbanner (Frontmatter/Parse amber, tote Verweise danger)
+   ========================================================================= */
+.notices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  /* Horizontal: Steg aus `--layout-gutter` (s. „Breitenstufen" an `.toolbar`).
+     Die Warnbanner selbst sind Hinweisblöcke und stehen deshalb auf der
+     mittleren Stufe `--measure-wide` — wie `.page-body .alert`, der im Entwurf
+     dieselbe Rolle trägt (`.callout`). Die Stufe gilt für den Kasten, der Steg
+     kommt oben drauf (`border-box` zählt den Innenabstand sonst von der Stufe
+     ab). */
+  max-width: calc(var(--measure-wide) + 2 * var(--layout-gutter));
+  padding: var(--space-3) var(--layout-gutter) 0;
+}
+.notice {
+  display: flex;
+  /* Umbrechen statt quetschen (#63/#77): Der Link darf nicht umbrechen
+     (`nowrap` unten) und nahm auf dem Telefon fast die ganze Breite — der
+     Satz daneben stand als eine Wortsäule untereinander. Jetzt rutscht der
+     Link in eine eigene Zeile, sobald neben ihm keine 12rem Text mehr Platz
+     haben; auf breiten Schirmen bleibt alles in einer Zeile. */
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-3);
+  /* Redesign Phase 3 (Handoff „Draft banner"): 12px/16px Innenabstand,
+     Radius 10px (eigenes Handoff-Literal zwischen --radius-md/9px und
+     --radius-lg/12px), 14px Text. */
+  padding: 12px 16px;
+  border-radius: var(--radius-lg);
+  font-size: var(--text-ui);
+  border: 1px solid;
+}
+.notice .ic {
+  flex: none;
+  display: grid;
+  place-items: center;
+  padding-top: 1px;
+}
+.notice .ic svg {
+  width: 17px;
+  height: 17px;
+}
+.notice .txt {
+  /* Wächst vor dem Abstandshalter `.grow` — sonst teilten sich beide den
+     freien Platz, und der Satz bräche am Desktop ohne Not um. */
+  flex: 999 1 12rem;
+  min-width: 0;
+}
+.notice a {
+  font-weight: var(--weight-strong);
+  white-space: nowrap;
+}
+.notice .txt b {
+  display: block;
+  margin-bottom: 2px;
+}
+.notice.warn {
+  background: var(--rev-bg);
+  border-color: var(--rev-ln);
+  color: var(--color-text);
+}
+.notice.warn .ic {
+  color: var(--color-status-review);
+}
+.notice.warn .txt b {
+  color: var(--color-status-review);
+}
+.notice.broken {
+  background: var(--color-danger-wash);
+  border-color: var(--dgr-ln);
+  color: var(--color-text);
+}
+.notice.broken .ic {
+  color: var(--color-danger);
+}
+.notice.broken .txt b {
+  color: var(--color-danger);
+}
+/* „Es existiert ein Entwurf dieser Seite" (Phase 2d Task 6) — work-Ton, 1:1
+   aus docs/design/mockups/leseansicht.html (Zeilen ~267-269). */
+/* Redesign Phase 3 (Handoff „Draft banner"): amber statt des bisherigen
+   Indigo-`--work-*`-Tons — der Handoff zeigt das Entwurfs-Banner der
+   Leseansicht ausdrücklich in der Warn-/Amber-Familie (#fffbeb/#fde68a/
+   #b45309); der Indigo-Ton bleibt dem Editor-`.dbadge` („Working"-Zustand)
+   vorbehalten. Der Link erbt denselben Amber-Ton statt der Akzentfarbe. */
+.notice.draft {
+  background: var(--rev-bg);
+  border-color: var(--rev-ln);
+  color: var(--color-text);
+}
+.notice.draft .ic {
+  color: var(--color-status-review);
+}
+.notice.draft a {
+  color: var(--color-status-review);
+}
+.notice.draft a:hover {
+  color: color-mix(in srgb, var(--color-status-review) 80%, var(--color-text));
+}
+.notice .grow {
+  flex: 1;
+}
+/* Soft-Lock-Hinweis (Task 4) — Werte 1:1 aus docs/design/mockups/leseansicht.html
+   (dort ein passiver Hinweis ohne Aktion; im Editor ergänzt `lock-banner.tsx` den
+   „Trotzdem bearbeiten"-Button über die bereits vorhandenen `.notice .grow`/`.btn`-
+   Klassen — keine neue Button-CSS nötig). */
+.notice.lock {
+  background: var(--rev-bg);
+  border-color: var(--rev-ln);
+  color: var(--color-text);
+}
+.notice.lock .ic {
+  color: var(--color-status-review);
+}
+.notice.lock .who {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--color-status-review);
+  color: var(--color-bg);
+  display: grid;
+  place-items: center;
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-strong);
+}
+.notice.lock b {
+  color: var(--color-status-review);
+}
+.notice-list {
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-5);
+  font-size: var(--text-xs);
+}
+.notice-list li {
+  margin: 1px 0;
+}
+.notice-list code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--panel-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  padding: 0 4px;
+}
+
+/* =========================================================================
+   Leseansicht — Artikel-Körper (.page-body): gerendertes, sanitisiertes HTML
+   der Markdown-Pipeline (Phase 1b). Alle Konstrukte im Mockup-Stil.
+   ========================================================================= */
+.body {
+  /* Steg aus `--layout-gutter`, KEINE Breitengrenze (s. „Breitenstufen" an
+     `.toolbar` oben — die Grenze gehört auf den Inhalt, nicht auf den
+     Container). Unten bleibt deutlich mehr Luft (96px) als Leseende-Abstand.
+     Diesen Block teilen sich Leseansicht, Editor (`wysiwyg-editor.tsx`) und
+     Review-Diff (`review/diff-view.tsx`). */
+  padding: var(--space-6) var(--layout-gutter) 96px;
+}
+/* ── Erscheinungsbild 2026 („Editorial"), Schriftumstellung des Lesetexts ───
+   Referenz: `docs/design/mockups-2026/editorial.html`, Block `.prose`/`body`;
+   Begründung: `docs/superpowers/specs/2026-07-26-erscheinungsbild-2026-design.md`,
+   Abschnitt „Schriftwahl".
+
+   Der Lesetext steht ab hier im Serifensatz (`--font-text`). Grotesk
+   (`--font-sans`) bleibt der Bedienung und der Etikettenebene vorbehalten,
+   Dicktengleich (`--font-mono`) dem Code. Weil `.page-body` von DREI Ansichten
+   getragen wird — Leseansicht, Editor (ProseMirror-Wurzel trägt
+   `class="doc page-body"`, s. `62-editor.css`) und Review-Diff (Visuell-Tab,
+   s. `63-review.css`) — gilt jede Zeile hier dreifach. Deshalb:
+
+     • Alles, was zum SATZ gehört, erbt die Serifen: Fließtext, Überschriften,
+       Listen, Zitate, Tabellenzellen, hängende Gliederungsziffern.
+     • Alles, was BEDIENUNG ist, trägt `--font-sans` ausdrücklich, damit es
+       nicht in den Satz kippt: die Anhang-Karte, der Etikettentext der
+       Alerts/Tabellenköpfe, die Abspiel-Schaltfläche des YouTube-Einbaus.
+     • Code trägt `--font-mono` ausdrücklich (stand schon so) und dazu
+       Tabellenziffern; der Fließtext nutzt Mediävalziffern wie im Entwurf.
+
+   Alle Werte kommen aus dem Token-Katalog (`packages/design-tokens`), kein
+   Literal: Schriftgrade `--text-*`, Zeilenabstände `--leading-*`, Laufweiten
+   `--tracking-*`, Gewichte `--weight-*`, Zeilenlänge `--measure`,
+   Satzrhythmus `--rhythm`, Hängebreite `--layout-hang`.
+   ------------------------------------------------------------------------- */
+.page-body {
+  /* Serifensatz und Lesegröße aus dem Entwurf: `--text-md` ist die
+     Fließtextstufe (fluid), `--leading-text` der Leseabstand. Bis hierher
+     stand hier ein 15.5px-Literal aus dem alten Handoff — es war die
+     kleinere Grotesk-Stufe und hätte den Serifensatz zu klein gesetzt. */
+  font-family: var(--font-text);
+  font-size: var(--text-md);
+  line-height: var(--leading-text);
+  font-weight: var(--weight-text);
+  letter-spacing: var(--tracking-normal);
+  /* Satzdetails des Entwurfs (dort auf `body`, hier auf den Lesekörper
+     begrenzt): Mediävalziffern im Fließtext, Kerning an. Tabellen, Code und
+     die Gliederungsziffer stellen unten ausdrücklich auf Tabellenziffern
+     zurück — dort zählt die Spaltenausrichtung, nicht der Satzfluss. */
+  font-kerning: normal;
+  font-variant-numeric: oldstyle-nums proportional-nums;
+  text-rendering: optimizeLegibility;
+  /* Zähler für die hängende Gliederungsziffer der h2 (s. dort). */
+  counter-reset: sec;
+  /* Breite der Hängung; im Review-Diff auf 0 gesetzt, s. Ende der Datei. */
+  --hang-w: var(--layout-hang);
+}
+.page-body > :first-child {
+  margin-top: 0;
+}
+
+/* ── Breitenstufen im Satzspiegel (Etappe 3) ───────────────────────────────
+   Referenz: `.prose` in `docs/design/mockups-2026/editorial.html`; Spec
+   Abschnitt „Breitenstufen". Die Regel des Hauses, in drei Zeilen:
+     1. Der Satzspiegel selbst ist unbegrenzt — er ist so breit wie die Spalte.
+     2. Fließtext (Absatz, Liste, Zitat, Überschrift) hält `--measure`.
+     3. Tabelle, Codeblock, Diagramm und Bild brechen auf `--measure-full` aus.
+   Alles Übrige — was weder Fließtext noch Ausbruch ist, etwa Hinweisblöcke
+   und Prozedurkästen — steht auf der mittleren Stufe `--measure-wide` (Satz-
+   spiegel mit Randspalte). Beim Verbreitern der Spalte geht der Gewinn also
+   vollständig an die Stufe „Voll", während der Fließtext stehen bleibt.
+
+   Bewusst über `:where()` (Spezifität 0): die Stufen sind die GRUNDregel;
+   jede Sonderabsprache weiter unten (`.alert` = wide, `.yt-embed` = 640px,
+   `table`/`img` = 100%) gewinnt mit ihrer eigenen Spezifität, ohne dass hier
+   Ausnahmen aufgezählt werden müssen. Die Reihenfolge Breit → Lesespalte →
+   Voll ist maßgeblich: gleich spezifische Regeln entscheidet die Position.
+
+   Alle drei Träger von `.page-body` sind mitgemeint: Leseansicht, Editor
+   (ProseMirror-Wurzel `doc page-body`) und Review-Diff. Im Diff sind die
+   Änderungshüllen (`.dchange`, `.removed`, `.rbody`) ausdrücklich „Voll" —
+   sie sind kein Fließtext, sondern der Rahmen um einen, und eine Tabelle
+   darin darf nicht an der mittleren Stufe hängen bleiben. */
+.page-body > * {
+  max-width: var(--measure-wide);
+}
+.page-body :where(p, ul, ol, dl, blockquote, h1, h2, h3, h4, h5, h6) {
+  max-width: var(--measure);
+}
+.page-body :where(table, pre, figure, img, svg, .diagram-node),
+.page-body :where(.dchange, .removed, .rbody) {
+  max-width: var(--measure-full);
+}
+/* Der TRÄGER eines ausbrechenden Bildes muss mit ausbrechen. Die Pipeline
+   liefert ein Bild als `<p><img></p>`; der Absatz hängt an der Lesespalte
+   (Regel darüber), und `.page-body img { max-width: 100% }` weiter unten
+   rechnet dann 100 % VON DIESER schmalen Spalte — das Diagramm blieb auf
+   Fließtextbreite stehen, während dasselbe Diagramm im Editor die volle
+   Spalte füllte (dort sitzt es in `.diagram-node`, nicht in einem Absatz).
+
+   Diese Ausnahme stand bis zum Umbau des Bausteinsystems in `globals.css`
+   (PR #61, abgenommen) und ist beim Zerlegen in die Teildateien nicht
+   mitgekommen. Sie gehört ans Ende der Stufenleiter, damit sie die Deckelung
+   überstimmt; als eigene Regel statt als Argument in deren `:where()`, weil
+   `:where()` die Spezifität auf null zieht und sie damit wirkungslos wäre.
+
+   Absichtlich ohne Einschränkung auf die Leseansicht: Im Editor und im
+   Review-Diff liegen Bilder in eigenen Knoten, nicht in Absätzen — dort
+   trifft der Selektor nichts. */
+.page-body p:has(> img) {
+  max-width: var(--measure-full);
+}
+.page-body h1,
+.page-body h2,
+.page-body h3,
+.page-body h4,
+.page-body h5,
+.page-body h6 {
+  /* Redesign Phase 2: `.main.card` ist jetzt ein EIGENER Scrollbereich,
+     getrennt von der (außerhalb liegenden) Topbar (s. `.shell`) — die
+     Topbar überlappt den Inhalt nicht mehr, ein Kompensationswert für ihre
+     Höhe ist daher nicht mehr nötig. Nur noch etwas Luft zum oberen Rand. */
+  scroll-margin-top: var(--space-4);
+  /* Überschriften gehören zum Satz, nicht zur Bedienung — also Serifen.
+     Nötig als eigene Deklaration, weil `20-basis.css` global
+     `h1..h4 { font-family: var(--font-display) }` setzt; die Elementregel
+     dort verliert gegen diese Klassenregel, aber ohne sie erbte der Lesetext
+     die Displayschrift statt `--font-text`. */
+  font-family: var(--font-text);
+  /* Breite: Lesespalte — steht seit Etappe 3 EINMAL in der Stufenleiter oben,
+     nicht mehr je Element. */
+}
+.page-body h1 {
+  /* Entwurf `.doc__title`: --text-3xl / --leading-tight / --tracking-tight /
+     --weight-display. Ersetzt die Literale 34px/700/-0.025em/1.15 des alten
+     Handoffs. */
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-display);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-tight);
+  margin: 2px 0 var(--space-4);
+  text-wrap: balance;
+}
+.page-body h2 {
+  /* Entwurf `.prose h2`: --text-xl / --leading-heading / --tracking-tight /
+     --weight-display. `display:flex` ist ENTFALLEN: der Akzentbalken, für den
+     es da war, ist der hängenden Gliederungsziffer gewichen (s. unten), und
+     eine Flex-Überschrift setzt im Editor die Zeilenbox der ersten Zeile neu
+     — ProseMirror rechnet mit Zeilenboxen, ein Flex-Container statt eines
+     Blocks kostet dort die saubere Grundlinie. */
+  position: relative;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-display);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-heading);
+  margin: var(--space-7) 0 var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 2px solid var(--color-border);
+}
+/* ── Gliederungsnummerierung ───────────────────────────────────────────────
+   Drei Einstellungen, gesteuert über zwei Tokens aus dem Design-Template
+   (`packages/design-tokens`, Gruppe „Satzdetails"):
+
+     aus            --heading-number: none              --heading-number-sub: none
+     oberste Ebene  --heading-number: counter(sec) '.'  --heading-number-sub: none   (Vorgabe)
+     hierarchisch   --heading-number: counter(sec) '.'  --heading-number-sub: inline-block
+
+   Warum ZWEI Tokens und nicht eines mit `counters(sec, '.')`: Die
+   Verschachtelung der CSS-Zähler folgt der DOM-Verschachtelung, und h2, h3, h4
+   stehen im Lesekörper als GESCHWISTER nebeneinander (kein `<section>`-Baum).
+   Ein Zähler, den ein Geschwister aufmacht, ersetzt den vorigen auf derselben
+   Ebene, statt sich in ihn zu schachteln — `counters()` gäbe an einer h3 also
+   auch dann nur „2" aus, nie „1.1". Die Ebenen brauchen deshalb je einen
+   eigenen Zählernamen (`sec`/`subsec`/`subsubsec`), und damit steht der Inhalt
+   je Ebene hier fest; einstellbar bleibt, WELCHE Ebenen ihre Ziffer zeigen.
+   Das Inhalts-Token der obersten Ebene schaltet mit `none` zugleich alles ab.
+
+   `:not(:empty)` ist der Fehlerfix (Screenshot des Auftraggebers: „2." und „3."
+   standen allein vor zwei Anhang-Karten): Die Pipeline liefert für eine leere
+   Überschriftszeile ein echtes, kindloses `<h2 id=""></h2>`
+   (`packages/markdown/src/render.ts`; `##` ohne Text bleibt ein
+   Heading-Knoten, `rehype-minify-whitespace` räumt auch das Leerzeichen weg).
+   Der Zähler zählte diese Hüllen mit und setzte seine Ziffer vor den nächsten
+   Block. Zählen UND Zeigen hängen deshalb beide an `:not(:empty)` — hinge nur
+   das Zeigen daran, spränge die Nummerierung an der Lücke (1., dann 4.).
+   Im Editor sind leere Überschriften nicht `:empty` (ProseMirror setzt einen
+   Platzhalter-`<br>`); dort trägt die Zeile, die man gerade tippt, ihre Ziffer
+   von Anfang an — genau richtig, sie ist ja eine Überschrift in Arbeit. */
+.page-body h2:not(:empty) {
+  counter-increment: sec;
+  counter-reset: subsec subsubsec;
+}
+.page-body h3:not(:empty) {
+  counter-increment: subsec;
+  counter-reset: subsubsec;
+}
+.page-body h4:not(:empty) {
+  counter-increment: subsubsec;
+}
+
+/* Hängende Gliederungsziffer im Rand (Entwurf `.prose h2::before`) — der Leser
+   sieht die Ebene, ohne zu zählen. Bis hierher stand hier ein 4px-Akzentbalken
+   aus dem alten Handoff; der Entwurf setzt an dieselbe Stelle die Ziffer.
+
+   Sie gehört zur Überschrift, also derselbe Serifensatz, dasselbe Gewicht und
+   die Größe der Versalhöhe (`--text-hang` = `--text-xl` × `--cap-ratio`) — sie
+   skaliert damit über die Tokens mit dem clamp() der Überschrift mit.
+   `inline-block` in der ersten Zeile plus negativer Außenabstand: Vorschub
+   netto null, dafür sitzt die Ziffer von selbst exakt auf der Grundlinie der
+   ersten Zeile — bei absoluter Lage wäre die Grundlinie bei jedem Schriftgrad
+   neu zu raten. Tabellen-/Versalziffern, weil eine Gliederungsziffer keine
+   Mediävalziffer ist. Die Hängebreite steckt in `--hang-w`, damit der
+   Review-Diff sie auf 0 stellen kann (s. Dateiende). */
+.page-body h2:not(:empty)::before {
+  content: var(--heading-number);
+  display: inline-block;
+  /* Im TEXTFLUSS, nicht hängend: Auf Wunsch des Auftraggebers steht die Ziffer
+     unmittelbar vor dem Titel, an derselben Stelle, an der eine von Hand in den
+     Text geschriebene Nummer stünde. Hängend im Rand wurde sie als loser Fleck
+     neben dem Block gelesen. Damit rückt die Überschrift um die Ziffernbreite
+     ein statt bündig zum Fließtext zu stehen — bewusst, weil die Zugehörigkeit
+     zum Titel schwerer wiegt als die bündige Kante. */
+  margin-right: var(--space-3);
+  white-space: nowrap;
+  font-family: var(--font-text);
+  font-size: var(--text-hang);
+  font-weight: var(--weight-display);
+  line-height: var(--leading-heading);
+  letter-spacing: var(--tracking-tight);
+  font-variant-numeric: lining-nums tabular-nums;
+  color: var(--color-accent);
+}
+/* Unterkapitel — derselbe Satzspiegel wie oben: hängend, rechtsbündig im
+   Hängekasten `--hang-w`, Vorschub netto null. Nur Inhalt, Grad und Schnitt
+   folgen ihrer eigenen Ebene: „1.1" bzw. „1.1.1" (ohne Schlusspunkt, der Punkt
+   trennt), Versalhöhe der jeweiligen Überschrift nach derselben Rechnung wie
+   `--text-hang` (`--text-lg`/`--text-md` × `--cap-ratio`) und `--weight-strong`
+   wie h3/h4 selbst. `display` ist der Schalter: `none` verbirgt die Ziffer
+   samt Kasten, in der Voreinstellung „oberste Ebene" bleiben die Unterkapitel
+   also unnummeriert und ungerückt. */
+.page-body :is(h3, h4):not(:empty)::before {
+  /* Rückfallwert `none`, obwohl das Token immer erzeugt wird: Fehlt es einmal
+     (fremdes Theme, alter Wurzelblock), wäre `display` ungültig und fiele auf
+     `inline` zurück — die Unterebenen bekämen ihre Ziffern ungefragt und ohne
+     Hängung. Der Rückfall hält den abgenommenen Entwurf als sicheren Zustand.
+     Die h2-Ziffer braucht das nicht: Dort erzeugt ein fehlendes Token gar
+     keinen Inhalt, und das ist bereits die harmlose Seite. */
+  display: var(--heading-number-sub, none);
+  margin-right: var(--space-3);
+  white-space: nowrap;
+  font-family: var(--font-text);
+  font-weight: var(--weight-strong);
+  line-height: var(--leading-heading);
+  font-variant-numeric: lining-nums tabular-nums;
+  color: var(--color-accent);
+}
+.page-body h3:not(:empty)::before {
+  content: counter(sec) '.' counter(subsec);
+  font-size: calc(var(--text-lg) * var(--cap-ratio));
+}
+.page-body h4:not(:empty)::before {
+  content: counter(sec) '.' counter(subsec) '.' counter(subsubsec);
+  font-size: calc(var(--text-md) * var(--cap-ratio));
+}
+.page-body h3 {
+  /* Entwurf `.prose h3`: --text-lg / --leading-heading / --weight-strong. */
+  font-size: var(--text-lg);
+  font-weight: var(--weight-strong);
+  line-height: var(--leading-heading);
+  margin: var(--space-5) 0 var(--space-2);
+}
+.page-body h4 {
+  /* Entwurf `.steps h4` (die einzige h4 des Entwurfs): --text-md /
+     --weight-strong / --leading-heading. */
+  font-size: var(--text-md);
+  font-weight: var(--weight-strong);
+  line-height: var(--leading-heading);
+  margin: var(--space-5) 0 var(--space-2);
+}
+.page-body h5,
+.page-body h6 {
+  /* Die tiefsten Ebenen bleiben die Versalzeile des alten Handoffs, jetzt aber
+     im Serifensatz (Spec „Schriftwahl": kein Grotesk-Element mitten im
+     Satzspiegel) und mit `--weight-strong` statt des Literals 800 — die
+     Serifenfamilien des Stapels haben keinen 800er-Schnitt, der Browser
+     müsste ihn sonst künstlich fetten. Laufweite/Grad bleiben unverändert. */
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  margin: var(--space-4) 0 var(--space-2);
+}
+.page-body p {
+  /* Entwurf `.prose p`: Satzrhythmus `--rhythm` als Abstand nach unten,
+     Leseabstand `--leading-text` (1.68 statt des Literals 1.7), Silbentrennung
+     an. Die Zeilenlänge `--measure` steht in der Stufenleiter oben. */
+  margin: 0 0 var(--rhythm);
+  line-height: var(--leading-text);
+  hyphens: auto;
+}
+/* Handoff: „Bold lead word" (z. B. „**Purpose** · …") in Text-Primär, damit
+   das Leitwort gegen den sekundären Fließtext heraussticht. */
+.page-body p > strong:first-child {
+  color: var(--color-text);
+}
+.page-body strong {
+  /* Entwurf `.prose strong`: --weight-strong (650) statt des Literals 700 —
+     die Serifenfamilien liefern 700, der Token bleibt aber die eine Stellschraube. */
+  font-weight: var(--weight-strong);
+}
+.page-body a {
+  color: var(--link);
+  text-decoration: none;
+}
+.page-body a:hover {
+  text-decoration: underline;
+}
+/* Externer Link (Pipeline setzt rel="noopener noreferrer") — dezenter Marker. */
+.page-body a[rel~='noopener']::after {
+  content: '↗';
+  font-size: 0.8em;
+  margin-left: 2px;
+  color: var(--color-text-muted);
+}
+/* Redesign Phase 3 (Handoff „Anhänge"/file cards): Verweise auf hochgeladene
+   Dateien (`/media/<seite>/<datei>`, s. `lib/urls.ts#mediaHref` — Bilder
+   kommen als `<img>`, NICHT als `<a>`, hier greift also ausschließlich der
+   Anhang-Download) rendern als Karte statt als Fließtext-Link: Hairline,
+   10px-Rundung, Icon-Kachel links, Download-Glyphe rechts, Hover verstärkt
+   Rahmen + Zebra-Fläche. Bewusst rein CSS auf dem Pipeline-Markup — der
+   Renderer liefert keinen eigenen Karten-Container. */
+.page-body a[href^='/media/'] {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 14px 16px;
+  margin: 0 0 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-text);
+  /* Bedienelement, kein Satz: die Anhang-Karte ist eine Schaltfläche zum
+     Herunterladen und bleibt deshalb ausdrücklich in Grotesk — ohne diese
+     Zeile erbte sie ab jetzt den Serifensatz des Lesekörpers. */
+  font-family: var(--font-sans);
+  font-size: var(--text-ui);
+  font-weight: var(--weight-display);
+}
+.page-body a[href^='/media/']:hover {
+  border-color: var(--color-border-strong);
+  background: var(--panel-2);
+  text-decoration: none;
+}
+/* Icon-Kachel (36px) — Akzent-Tint, weil ein Anhang im Handoff die einzige
+   akzentgetönte Kachel der Lesespalte ist. Die Datei-Glyphe kommt als
+   Textzeichen in Akzentfarbe (kein Bild-Asset, keine Einfärbung nötig — die
+   Farbe wandert damit im Dark-Theme automatisch mit). */
+.page-body a[href^='/media/']::before {
+  content: '🗎';
+  flex: none;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-wash);
+  color: var(--color-accent);
+  font-size: var(--text-md);
+  line-height: 1;
+}
+/* Download-Pfeil rechts — ersetzt hier den generischen Externer-Link-Marker. */
+.page-body a[href^='/media/']::after {
+  content: '↓';
+  margin-left: auto;
+  flex: none;
+  font-size: var(--text-ui);
+  font-weight: var(--weight-text);
+  color: var(--color-text-muted);
+}
+/* Toter Verweis (Pipeline: <span class="broken-link" title="…">) — danger-Ton,
+   gepunktet, mit Warn-Marker (nie nur über Farbe erkennbar). */
+.page-body .broken-link {
+  color: var(--color-danger);
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1.5px;
+  cursor: not-allowed;
+}
+.page-body .broken-link::before {
+  content: '⚠ ';
+  font-size: 0.85em;
+}
+
+/* Listen */
+.page-body ul,
+.page-body ol {
+  /* Entwurf `.prose ul, .prose ol`: Satzrhythmus nach unten; die Zeilenlänge
+     `--measure` steht in der Stufenleiter oben. Die Einrückung bleibt
+     `--space-6` wie bisher. */
+  margin: 0 0 var(--rhythm);
+  padding-left: var(--space-6);
+}
+.page-body li {
+  /* Entwurf `.prose li`: Abstand nach unten `--space-2`; der Zeilenabstand ist
+     der des Satzes (`--leading-text`), nicht mehr das engere Literal 1.55 —
+     eine Liste mitten im Fließtext soll im gleichen Zeilenmaß laufen. */
+  margin: 0 0 var(--space-2);
+  line-height: var(--leading-text);
+}
+/* Aufgabenlisten (Pipeline: ul.contains-task-list > li.task-list-item) */
+.page-body ul.contains-task-list {
+  list-style: none;
+  padding-left: 0;
+}
+.page-body li.task-list-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+.page-body li.task-list-item input[type='checkbox'] {
+  margin: 0;
+  /* Das Literal 0.28em war auf den alten Zeilenabstand 1.55 eingemessen. Mit
+     dem Leseabstand des Entwurfs (`--leading-text`) wächst die Zeilenbox, das
+     Kästchen muss um den halben Zuwachs nachrutschen, sonst hängt es über der
+     ersten Textzeile. Aus dem Token gerechnet, damit es mit ihm mitwandert. */
+  margin-top: calc((1em * var(--leading-text) - 1em) / 2);
+  flex: none;
+  accent-color: var(--color-accent);
+}
+
+/* Inline-Code */
+.page-body :not(pre) > code {
+  font-family: var(--font-mono);
+  /* Entwurf: Code trägt Tabellen-/Versalziffern — der Lesetext darüber setzt
+     Mediävalziffern, ein Wert im Code darf davon nicht erfasst werden. */
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: 0.85em;
+  background: var(--panel-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  padding: 1px 5px;
+  color: var(--link);
+}
+/* Codeblock */
+.page-body pre {
+  /* Fläche: die Regel zur Schattenkante weiter unten setzt den Hintergrund
+     aus `--kante-grund` zusammen (#67). */
+  --kante-grund: var(--color-code-bg);
+  color: var(--color-code-text);
+  border: 1px solid var(--code-line);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  margin: var(--space-2) 0 var(--space-5);
+  overflow-x: auto;
+  font-size: var(--text-sm);
+  /* Entwurf `figure.code pre`: `--leading-code` statt des Literals 1.65. */
+  line-height: var(--leading-code);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.page-body pre code {
+  font-family: var(--font-mono);
+  font-size: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+}
+
+/* Tabelle — ohne Wrapper vom Server geliefert, daher als scrollender Block
+   (display:block + overflow-x:auto), damit breite Tabellen im eigenen Container
+   scrollen und nie die Seite horizontal schieben (docs/design/README.md §5). */
+/* Redesign Phase 3 (Handoff „Metadata table"): gerundeter 12px-Hairline-
+   Container mit `overflow:hidden` (Zeilentrenner laufen sauber in die
+   Rundung), 14px, KEINE vertikalen Zell-Linien mehr, Zeilentrenner in der
+   hellsten Hairline-Stufe (`--line-inset`) und Zebra nur noch als HOVER
+   (statt der bisherigen dauerhaften `nth-child(even)`-Streifen — der Handoff
+   zeigt eine ruhige, weiße Tabelle). */
+.page-body table {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  margin: var(--space-2) 0 var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  /* Erscheinungsbild 2026: die ZELLINHALTE gehören zum Satz (Spec „Schriftwahl":
+     kein Grotesk-Element mitten im Satzspiegel) und stehen deshalb im
+     Serifensatz, mit Tabellen-/Versalziffern, damit Zahlenspalten untereinander
+     stehen. Nur die Kopfzeile bleibt Etikett und damit Grotesk (s. unten).
+     Der Schriftgrad kommt jetzt aus `--text-sm` statt aus dem 14px-Literal.
+     ABWEICHUNG vom Entwurf: dort steht `table.data` komplett in `--font-sans`.
+     Der Auftrag zu dieser Etappe nennt „Tabelleninhalte" ausdrücklich als Teil
+     des Lesetexts — eine Betriebstabelle IST hier Inhalt, kein Bedienelement.
+     Umzustellen wäre genau diese eine Deklaration. */
+  font-family: var(--font-text);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: var(--text-sm);
+}
+.page-body thead th {
+  text-align: left;
+  /* Etikettenebene: Versalien, weit gesperrt, Grotesk — im Entwurf trägt genau
+     diese Rolle `.label`/`table.data caption`. `--tracking-caps` und
+     `--weight-strong` ersetzen die Literale 0.05em/700. */
+  font-family: var(--font-sans);
+  font-weight: var(--weight-strong);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  background: var(--panel-2);
+  padding: 11px 18px;
+  border-bottom: 1px solid var(--color-border-hair);
+}
+.page-body tbody td {
+  padding: 11px 18px;
+  border-bottom: 1px solid var(--color-border-hair);
+  vertical-align: top;
+}
+/* Erste Spalte = Schlüssel-Zelle (Handoff: 34% Breite, muted/500); die
+   Wert-Zelle bleibt in Text-Primär. Gilt nur für Tabellen OHNE `<thead>` —
+   genau die Frontmatter-/Metadaten-Tabellen aus dem Handoff; echte
+   Datentabellen mit Kopfzeile behalten gleichrangige Spalten. */
+.page-body table:not(:has(thead)) tbody td:first-child {
+  width: 34%;
+  color: var(--color-text-muted);
+  font-weight: var(--weight-medium);
+}
+.page-body tbody tr:last-child td {
+  border-bottom: 0;
+}
+.page-body tbody tr:hover {
+  background: var(--panel-2);
+}
+
+/* Blockzitat (ohne Alert-Marker) — Zitat gehört zum Satz: Serifen und
+   Zeilenlänge `--measure` wie der Fließtext (Stufenleiter oben), Kasten und
+   Farbton bleiben. */
+.page-body blockquote {
+  margin: var(--space-2) 0 var(--space-5);
+  padding: var(--space-2) var(--space-4);
+  border-left: 3px solid var(--color-border-strong);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  background: var(--panel-2);
+  color: var(--color-text-muted);
+}
+.page-body blockquote > :first-child {
+  margin-top: 0;
+}
+.page-body blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+/* Bild / eingebettete Grafik */
+.page-body img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: var(--space-2) 0 var(--space-4);
+  border: var(--rule-hair) solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  /* `--color-bg-raised`, nicht `--panel-2`: Der Token-Katalog weist diese
+     Fläche ausdrücklich dem Bild zu („abgesetzte Fläche: Karte,
+     Diagrammkasten"), die Regel griff aber auf die gedämpfte Ruhefläche
+     zurück. Damit stand die Rollenbeschreibung des Katalogs neben der
+     Wirklichkeit — und wer den Token auf der Einstellungsseite verstellte,
+     sah am Bild nichts geschehen. */
+  background: var(--color-bg-raised);
+}
+/* Diagramme führen ihren eigenen Rahmen IM SVG mit (draw.io zeichnet ihn als
+   Teil der Grafik, Excalidraw ebenso) — der Bildrahmen oben käme als zweiter
+   Rand außen herum. Deshalb eine eigene Stärke, die sich unabhängig vom
+   Bildrahmen einstellen und mit `0` ganz abschalten lässt; bei Fotos und
+   Bildschirmabzügen bleibt der Rahmen sinnvoll, er trennt die Bildkante vom
+   Papier.
+
+   Erkannt am Dateinamen (`…​.drawio.svg` / `…​.excalidraw.svg`, die Endungen aus
+   `apps/api/src/drafts/diagram.ts#DIAGRAM_SUFFIXES`) statt an einer Klasse:
+   Die Markdown-Pipeline liefert ein gewöhnliches `<img>` ohne Zusatz, und die
+   Endung ist ohnehin die Kennung, an der Editor und API ein Diagramm
+   erkennen. `*=` statt `$=`, weil die Quelle eine Abfrage tragen kann
+   (`?ref=draft` in der Entwurfsansicht, s. `lib/urls.ts#mediaHref`). */
+.page-body img[src*='.drawio.svg'],
+.page-body img[src*='.excalidraw.svg'] {
+  border-width: var(--diagram-frame-w);
+  /* KEINE Fläche darunter. Diagramme werden hier bewusst mit transparentem
+     Grund gezeichnet, damit dieselbe Datei in beiden Erscheinungsmodi trägt —
+     das Papier scheint durch, statt dass eine im SVG eingebrannte weiße
+     Fläche im Dunkelmodus als Kachel stehen bliebe. Der Bildgrund `--panel-2`
+     der Regel oben macht diesen Aufbau zunichte: Er ist eine abgesetzte
+     RUHEfläche, nicht die Grundfläche, und das Diagramm säße sichtbar auf
+     einer anderen Farbe als der Text daneben.
+
+     Bei Fotos und Bildschirmabzügen bleibt `--panel-2` richtig — die haben
+     keinen transparenten Aufbau, und die Fläche trägt dort den Rand, den ein
+     Bild mit fremdem Seitenverhältnis frei lässt. */
+  background: transparent;
+}
+
+/* Alerts / Callouts (GitHub-Syntax) — alle fünf Typen, Farbton je Semantik.
+   Pipeline: <div class="alert alert-<typ>"><p class="alert-title">…</p>…</div> */
+.page-body .alert {
+  margin: var(--space-2) 0 var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid;
+  border-left-width: 3px;
+  border-radius: var(--radius-md);
+  /* Hinweisblock im Satzspiegel (Entwurf `.callout`): Fließtext im Serifensatz
+     — nur der Kopf ist Etikett (s. `.alert-title`). Zeilenabstand aus
+     `--leading-text` statt des Literals 1.55, sonst läuft der Kasten enger als
+     der Satz, in dem er steht. */
+  font-size: var(--text-sm);
+  line-height: var(--leading-text);
+  max-width: var(--measure-wide);
+}
+.page-body .alert > :first-child {
+  margin-top: 0;
+}
+.page-body .alert > :last-child {
+  margin-bottom: 0;
+}
+.page-body .alert p {
+  margin: 0 0 var(--space-2);
+}
+.page-body .alert .alert-title {
+  /* Etikettenebene wie im Entwurf (`.callout__head .label`): Grotesk, Versalien,
+     `--tracking-caps`, `--weight-strong`. Bewusst NICHT im Serifensatz — das
+     ist die eine Ausnahme im Hinweiskasten, und sie ist Beschriftung, nicht Satz. */
+  font-family: var(--font-sans);
+  font-weight: var(--weight-strong);
+  text-transform: uppercase;
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-caps);
+  line-height: var(--leading-ui);
+  margin: 0 0 var(--space-1);
+}
+.page-body .alert-note {
+  background: var(--color-status-working-wash);
+  border-color: var(--work-ln);
+}
+.page-body .alert-note .alert-title {
+  color: var(--color-status-working);
+}
+.page-body .alert-tip {
+  background: var(--rel-bg);
+  border-color: var(--rel-ln);
+}
+.page-body .alert-tip .alert-title {
+  color: var(--color-status-released);
+}
+.page-body .alert-important {
+  background: var(--color-accent-wash);
+  border-color: var(--color-accent-line);
+}
+.page-body .alert-important .alert-title {
+  color: var(--color-accent);
+}
+.page-body .alert-warning {
+  background: var(--rev-bg);
+  border-color: var(--rev-ln);
+}
+.page-body .alert-warning .alert-title {
+  color: var(--color-status-review);
+}
+.page-body .alert-caution {
+  background: var(--color-danger-wash);
+  border-color: var(--dgr-ln);
+}
+.page-body .alert-caution .alert-title {
+  color: var(--color-danger);
+}
+
+/* YouTube-Embed (Phase 3d): Thumbnail-zuerst-Karte; das iframe kommt erst
+   per Klick (page-body.tsx). 16:9 über aspect-ratio. */
+.page-body .yt-embed {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  max-width: 640px;
+  margin: var(--space-4) 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-bg);
+}
+.page-body .yt-embed a.yt-link {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.page-body .yt-embed img.yt-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+/* Bedienelement, kein Satz: die Abspiel-Schaltfläche bleibt in Grotesk. */
+.page-body .yt-embed .yt-play {
+  font-family: var(--font-sans);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-text) 72%, transparent);
+  color: var(--color-bg);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-display);
+}
+.page-body .yt-embed iframe.yt-frame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
+/* =========================================================================
+   Schriftumstellung — die zwei Stellen, an denen die beiden ANDEREN Träger von
+   `.page-body` eine eigene Antwort brauchen. `.page-body` gehört Leseansicht,
+   Editor und Review-Diff gemeinsam (Bestandsaufnahme §6.1); die Regeln oben
+   gelten überall, diese beiden hier fangen die Abweichungen des DOMs auf.
+   ========================================================================= */
+
+/* 1. EDITOR — Tiptap baut Tabellen OHNE `<thead>`: die Kopfzelle steht als
+      `<th>` direkt im `<tbody>` (s. Kopfkommentar `62-editor.css`). Die
+      Etikettenregel oben hängt an `thead th` und greift dort deshalb nicht,
+      die Kopfzeile wäre im Editor Serifen und in der Leseansicht Grotesk.
+      Diese eine Deklaration hält beide Ansichten zusammen; alles Übrige der
+      Kopfzelle (Versalien, Grad, Fläche) setzt `.doc th` bereits selbst. */
+.page-body th {
+  font-family: var(--font-sans);
+}
+
+/* 2. REVIEW-DIFF — im Visuell-Tab stehen nur die GEÄNDERTEN Blöcke, jeder in
+      einer eigenen Hülle mit Randbalken und linker Einrückung (`.dchange`,
+      `.rbody` in `63-review.css`). Beides verträgt die hängende
+      Gliederungsziffer nicht:
+        • Der Zähler zählte dort nur die geänderten Überschriften — die Ziffer
+          wäre schlicht falsch („1." für den vierten Abschnitt).
+        • Die Hängung zieht 44 px nach links und liefe damit über den
+          3-px-Randbalken der Hülle.
+      Deshalb im Diff keine Ziffer und keine Hängung. Die Überschrift behält
+      ihre Grundlinie und ihren Unterstrich; der Diff verschiebt sich nicht.
+
+      Abgeschaltet wird über die TOKENS, nicht über eine `content: none`-Regel
+      auf `h2::before`: Custom Properties erben in die Hülle hinein und gelten
+      damit für alle Ebenen auf einmal (auch für die hierarchisch nummerierten
+      h3/h4) — und zwar ohne Spezifitätswettlauf mit den Regeln oben, die seit
+      dem `:not(:empty)`-Fix eine Klasse mehr wiegen. */
+.page-body :where(.dchange, .rbody) {
+  --hang-w: 0px;
+  --heading-number: none;
+  --heading-number-sub: none;
+}
+
+
+/* =========================================================================
+   Seitwärts scrollende Kästen: Hinweis und feste erste Spalte (#67)
+
+   Tabellen und Codeblöcke scrollen seitlich im eigenen Kasten (Regeln oben).
+   Ohne Hinweis sah man auf dem Telefon nicht, dass es weitergeht — die
+   Bestandsaufnahme #63 fand sechs Tabellen, die um bis zu 271 px überstanden.
+   Die Schattenkante erscheint nur, solange es in diese Richtung etwas zu
+   sehen gibt: zwei Deckflächen wandern mit dem Inhalt (`local`), zwei
+   Schatten bleiben am Rand stehen (`scroll`) — ist der Rand erreicht, deckt
+   die Fläche den Schatten zu. Reines CSS, wirkt in jeder Breite, aber nur, wo
+   tatsächlich etwas übersteht.
+   ========================================================================= */
+.page-body table,
+.page-body pre {
+  --kante-schatten: color-mix(in srgb, var(--color-text) 22%, transparent);
+  background:
+    linear-gradient(to right, var(--kante-grund, var(--color-bg)) 30%, transparent) left center / var(--space-7) 100% no-repeat local,
+    linear-gradient(to left, var(--kante-grund, var(--color-bg)) 30%, transparent) right center / var(--space-7) 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, var(--kante-schatten), transparent) left center / var(--space-3) 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, var(--kante-schatten), transparent) right center / var(--space-3) 100% no-repeat scroll;
+  background-color: var(--kante-grund, var(--color-bg));
+}
+/* Die erste Spalte bleibt beim Seitwärtsscrollen stehen — sie trägt meist den
+   Schlüssel (Schritt, Feld, Rolle), ohne den die Zeile nicht lesbar ist. */
+.page-body tbody td:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--color-bg);
+}
+.page-body thead th:first-child {
+  position: sticky;
+  left: 0;
+}
+.page-body tbody tr:hover td:first-child {
+  background: var(--panel-2);
+}

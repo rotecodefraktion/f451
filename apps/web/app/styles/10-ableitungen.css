@@ -1,0 +1,172 @@
+/* =========================================================================
+   Ableitungen und Überbrückungen (`:root` + Dark-Overrides)
+
+   Bis Teilschritt B stand hier ein zweites, projekteigenes Farbvokabular:
+   `--page`, `--panel`, `--surface-*`, `--line*`, `--accent-*`, die vier
+   Status-Familien und die `--code-*`-Rollen — 28 Variablen, die den
+   Token-Katalog verdoppelten. Ein Anwender-Theme, das `--color-accent-wash`
+   setzte, änderte nichts, weil die Bausteine `--accent-wash` lasen
+   (Bestandsaufnahme §1.3; `2026-07-26-themefaehigkeit-design.md`).
+
+   ── Was Teilschritt B getan hat ────────────────────────────────────────────
+   19 der 28 Eigenvariablen sind ersatzlos verschwunden; ihre Regeln lesen
+   jetzt das Katalog-Token. Wo der heutige Wert vom Entwurfswert abwich, ist
+   NICHT das Aussehen nachgezogen worden, sondern der Wert in den Bestand von
+   `@f451/design-tokens` gewandert (`carryOver` / `carryOverDerived` in
+   `packages/design-tokens/src/tokens.ts`). Das ist derselbe Mechanismus wie
+   in Etappe 1 und zugleich die Arbeitsliste für Etappe 3.
+
+     --page, --surface-subtle  → --color-bg-sunken        (Bestand Ebene 1)
+     --panel                   → --color-bg               (s. Panel/Page-Flip)
+     --surface-hover           → --color-surface-hover    (Bestand: 6 %)
+     --line                    → --color-border
+     --line-2                  → --color-border-strong    (Bestand: 8 %)
+     --line-inset              → --color-border-hair      (Bestand: Text 5 %)
+     --accent-wash/-line       → --color-accent-wash/-line(Bestand: 9 %/34 %)
+     --work-fg/-bg             → --color-status-working(-wash) (Bestand: 12 %)
+     --rev-fg / --rel-fg       → --color-status-review / -released
+     --dgr-fg/-bg              → --color-danger(-wash)    (Bestand: 11 %)
+     --code-bg/-text/-comment  → --color-code-bg/-text/-comment (Bestand Eb. 1)
+
+   ── Was übrig bleibt und warum (Meldung fehlender Tokens) ─────────────────
+   Neun Eigenvariablen haben im Katalog KEINE Entsprechung. Sie sind hier
+   unten versammelt, ausschließlich aus Katalog-Tokens gemischt, und gehören
+   dem Auftraggeber vorgelegt, bevor Etappe 3 sie auflöst:
+
+   1. `--panel-2` — gedämpfte RUHEfläche (Handoff „Muted fill"), nicht die
+      Fläche unter dem Zeiger. Der Katalog kennt für Neutralflächen nur
+      `--color-surface-hover`, und das trägt bereits `--surface-hover`.
+      Fehlt: ein Token „gedämpfte Fläche".
+   2. `--link` — Verweisfarbe, um 18 % zur Textfarbe abgedunkelt. Der Entwurf
+      setzt Verweise unmittelbar auf `--color-accent`; die Angleichung ist
+      eine Gestaltungsentscheidung, keine Umbenennung.
+   3. `--code-line` — Linie im Codebereich. Der Entwurf zeichnet sie mit
+      `--color-border-hair`; hier kann dasselbe Token das nicht leisten, weil
+      die Codefläche im Hellmodus DUNKEL ist und `--color-border-hair` die
+      Tabellen-Haarlinie auf hellem Papier trägt. Fehlt: ein Token „Linie im
+      Codebereich".
+   4.-9. `--work-ln`, `--rev-bg`, `--rev-ln`, `--rel-bg`, `--rel-ln`,
+      `--dgr-ln` — Linien und Flächen der Statusfamilien. Zwei Gründe:
+      (a) Zu `--color-status-*-wash` gibt es KEIN `-line`-Gegenstück; der
+          Entwurf zieht Statusränder unmittelbar aus `--color-status-*`
+          (editorial.html:903-909), was hier eine deutliche Sichtänderung
+          wäre.
+      (b) `--rev-bg/-ln` und `--rel-bg/-ln` tragen im Hellmodus die im Handoff
+          abgenommenen Literale (#fffbeb/#fde68a, #f0fdf4/#bbf7d0). Ebene 2
+          des Katalogs kennt nur theme-UNABHÄNGIGE Mischvorschriften und kann
+          einen solchen Sonderwert nicht halten; `carryOverDerived` scheidet
+          damit als Überbrückung aus. Die Familie bleibt darum zusammen,
+          statt die Hälfte auf ein Token zu heben, das im Hellmodus doch
+          wieder von Hand überschrieben werden müsste.
+
+   Nicht Teil von B: `--content-pad-x` (Maß, nicht Farbe — Lesespalten-
+   Geometrie, Etappe 3) und die sechs Graph-eigenen Kantenrollen in
+   `app/graph.css`, die laut Bestandsaufnahme §1.3 berechtigt sind.
+
+   ── Die drei Stellen, die sich doch verschieben ───────────────────────────
+   Gemessen wurde der WIRKSAME Wert jeder Deklaration aller Stildateien in
+   drei Modi (hell, dunkel per Schalter, dunkel per System): 8748 Auflösungen,
+   davon 8742 unverändert. Drei Deklarationen weichen ab, alle nur im Dunkeln,
+   alle aus demselben Grund — sie lasen `var(--color-bg)` DIREKT und liefen
+   damit bisher im Flip mit (hell die Karte, dunkel der Grund):
+
+     61-lese.css:690  .page-body .yt-embed { background }   #09090b → #18181b
+     61-lese.css:711  .page-body .yt-embed .yt-play{color}  #09090b → #18181b
+     62-editor.css:443 .ProseMirror .yt-embed-editor {bg}   #09090b → #18181b
+
+   Ab jetzt ist `--color-bg` in beiden Modi die Kartenfläche; die drei Stellen
+   verhalten sich damit in Hell und Dunkel zum ersten Mal gleich. Beide Kästen
+   liegen hinter einem deckenden Vorschaubild und tragen einen eigenen Rand;
+   `.yt-play` ist eine Beschriftung auf einer 72-%-Textfläche.
+   ========================================================================= */
+:root {
+  /* Geteilte horizontale Content-Einrückung der Leseansicht (Shared-Padding-
+     Konvention, Bugfix „uneinheitliche rechte Einrückung"): `.toolbar`/
+     `.subbar`/`.notices`/`.body` auf `.main.card` nutzen ALLE diesen EINEN
+     Wert statt je einer eigenen `--space-*`-Stufe — vorher lief der rechte
+     Rand aus (Breadcrumb/Badge 12px näher am Rand als der Artikel-Body).
+     Wert = `--space-7` (der bisherige `.body`-Wert, die geräumigste der drei
+     Stufen) — die anderen Bereiche rücken auf diesen Wert nach, nicht
+     umgekehrt. Dieselbe Variable deckt auch `.doc-pad` (rail-lose
+     Werkzeug-Seiten, s. dort) ab. */
+  --content-pad-x: var(--space-7);
+  /* Redesign Phase 1: next/font/google (s. `app/layout.tsx`) hängt die
+     eigentlich geladenen Font-Face-Variablen `--font-hanken-grotesk` /
+     `--font-schibsted-grotesk` / `--font-jetbrains-mono` an `<html>`.
+     Hier werden die drei semantischen Rollen-Variablen aus `tokens.css`
+     (Zeile 6, oben importiert) überschrieben, damit sie die tatsächlich
+     geladenen Schriftschnitte VOR den textuellen Fallbacks referenzieren —
+     `tokens.css` selbst bleibt der dokumentierte Fallback-Name je Rolle. */
+  --font-sans: var(--font-hanken-grotesk), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
+    sans-serif;
+  --font-display: var(--font-schibsted-grotesk), var(--font-sans);
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+    'Liberation Mono', monospace;
+
+  /* ── Übrige Eigenvariablen (Meldung 1-9 im Kopf) ────────────────────────
+     Alle ausschließlich aus Katalog-Tokens gemischt — kein rohes Hex außer
+     den vier abgenommenen Handoff-Literalen (Meldung 9b). */
+  /* Handoff „Muted fill" #f4f4f5 — bewusst zurückhaltender als
+     `--color-surface-hover` (Handoff „Hover surface (nav items)" #f0f0f1),
+     beide aus derselben Text/Papier-Mischung, nur mit anderem Anteil. */
+  --panel-2: color-mix(in srgb, var(--color-text) 4%, var(--color-bg));
+  --link: color-mix(in srgb, var(--color-accent) 82%, var(--color-text));
+  --work-ln: color-mix(in srgb, var(--color-status-working) 38%, var(--color-bg));
+  /* Redesign Phase 3 (Handoff „Entwurf/Review"-Pille): exakte Tailwind-Amber-
+     50/100-Literale statt einer color-mix-Ableitung — die 13%/42%-Mischung
+     aus --color-status-review landete sichtbar sattiger als die Handoff-Werte
+     #fffbeb/#fde68a. Dark-Theme fällt weiter auf die Mischung zurück (Handoff
+     nennt kein Dark-Theme), s. Overrides unten. */
+  --rev-bg: #fffbeb;
+  --rev-ln: #fde68a;
+  /* s. Kommentar bei --rev-bg — exakte Tailwind-Green-50/100-Literale. */
+  --rel-bg: #f0fdf4;
+  --rel-ln: #bbf7d0;
+  --dgr-ln: color-mix(in srgb, var(--color-danger) 40%, var(--color-bg));
+  /* Linie im Codebereich. Hell: kräftig, weil die Codefläche dort dunkel ist
+     (`--color-code-bg` #291a1a); Dunkel: zurückgenommen, s. Overrides. */
+  --code-line: color-mix(in srgb, var(--color-text) 78%, var(--color-bg));
+}
+
+/* ── Panel/Page-Flip ────────────────────────────────────────────────────────
+   Im Dunkelmodus tauschen Papier und Umfeld die Plätze: Die Karte liegt AUF
+   dem Grund, also ist sie dort die hellere Fläche. Bis Teilschritt B stand
+   das als `--page`/`--panel`-Vertauschung im eigenen Vokabular; jetzt steht
+   es an genau einer Stelle und auf dem Katalog-Token selbst.
+
+   Warum es (noch) nicht im Token-Paket steht: Hell trägt `--color-bg` das
+   Papier (#ffffff) und `--color-bg-raised` das Umfeld — Dunkel umgekehrt.
+   Eine Zuordnung, die in beiden Modi ohne Tausch auskäme, müsste einen der
+   beiden Werte ändern, die Etappe 1 ausdrücklich festgeschrieben hat
+   (`test/fixtures/tokens-vor-etappe-1.css`). Das ist eine Sichtänderung und
+   gehört damit nicht in einen Teilschritt, der Namen tauscht.
+
+   Folge, die benannt sein will: Ein Anwender-Theme, das im Dunkelmodus
+   `--color-bg` setzt, wird von dieser Zeile überstimmt — es muss
+   `--color-bg-raised` setzen. Genau diese Verdrehung räumt Etappe 3 weg.
+   Die abgeleiteten Tokens (`--color-*-wash`, `--color-surface-hover`, …)
+   mischen in `--color-bg` und treffen damit hier wie dort die Kartenfläche,
+   so wie sie es vorher über `--panel` taten.
+   ────────────────────────────────────────────────────────────────────────── */
+:root[data-theme='dark'] {
+  --color-bg: var(--color-bg-raised);
+  /* Der Dunkel-Wert wurde gegen das FRÜHERE `--color-bg` gemischt, also gegen
+     den Grund und nicht gegen die Karte. `--color-bg-sunken` trägt genau
+     diesen Wert weiter (#09090b) — deshalb hier eine andere Grundfläche als
+     im Hell-Block oben. */
+  --code-line: color-mix(in srgb, var(--color-text) 22%, var(--color-bg-sunken));
+  --rev-bg: color-mix(in srgb, var(--color-status-review) 13%, var(--color-bg));
+  --rev-ln: color-mix(in srgb, var(--color-status-review) 42%, var(--color-bg));
+  --rel-bg: color-mix(in srgb, var(--color-status-released) 14%, var(--color-bg));
+  --rel-ln: color-mix(in srgb, var(--color-status-released) 40%, var(--color-bg));
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --color-bg: var(--color-bg-raised);
+    --code-line: color-mix(in srgb, var(--color-text) 22%, var(--color-bg-sunken));
+    --rev-bg: color-mix(in srgb, var(--color-status-review) 13%, var(--color-bg));
+    --rev-ln: color-mix(in srgb, var(--color-status-review) 42%, var(--color-bg));
+    --rel-bg: color-mix(in srgb, var(--color-status-released) 14%, var(--color-bg));
+    --rel-ln: color-mix(in srgb, var(--color-status-released) 40%, var(--color-bg));
+  }
+}

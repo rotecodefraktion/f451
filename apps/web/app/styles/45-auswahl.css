@@ -1,0 +1,211 @@
+/* 45-auswahl.css — Teilschritt G des Bausteinsystem-Umbaus.
+   Segmentierte Auswahl (.segmented) und Reiter (.tabs)
+
+   Diese Datei gehoert AUSSCHLIESSLICH Teilschritt G. Andere Teilschritte
+   schreiben hier nicht hinein — die Aufteilung existiert genau deshalb,
+   damit mehrere Bearbeiter gleichzeitig arbeiten koennen.
+
+   Die Nummer im Dateinamen ist die Besitz-Nummer, nicht die Reihenfolge;
+   massgeblich fuer die Kaskade ist allein die Importreihenfolge in
+   ../globals.css (s. Kommentar dort).
+
+   ── Warum es zwei Bausteine sind und nicht einen ──────────────────────────
+   Bis hierher gab es genau EINEN Selektor `.seg`, und `role="tablist"` sass
+   darauf — im Editor-Fussteil („WYSIWYG | Markdown") ebenso wie in der
+   Review-Leiste („Visuell | Markdown"). Das war eine Form fuer zwei
+   verschiedene Dinge. Der Entwurf (docs/design/mockups-2026/editorial.html,
+   Kap. 2) trennt sie, und diese Datei zieht nach:
+
+   * `.segmented` — eine AUSWAHL aus wenigen, gleichrangigen Einstellungen,
+     die den Zustand desselben Bereichs umstellt. Zustand: `aria-pressed`.
+   * `.tabs`      — REITER, die zwischen mehreren Bereichen umschalten.
+     Zustand: `aria-selected` auf `role="tab"` in einem `role="tablist"`.
+
+   ── Warum je genau EIN Zustandsmerkmal ────────────────────────────────────
+   Der behobene Fehler (Bestandsaufnahme §6.2) bestand nicht nur aus der
+   doppelten `.seg`-Definition, sondern auch daraus, dass `mode-switch.tsx`
+   den aktiven Knoten GLEICHZEITIG mit `class="on"` und `aria-selected="true"`
+   markierte. Zwei Merkmale fuer einen Zustand heisst: zwei Regeln koennen um
+   dasselbe Element streiten, und genau das ist passiert. Jeder Baustein hier
+   liest den Zustand deshalb aus genau einem ARIA-Merkmal — dem, das die
+   Rolle des Elements ohnehin verlangt. Es gibt keine Zustandsklasse mehr.
+
+   ── Warum `aria-pressed` bei `.segmented` und nicht `aria-selected` ───────
+   `aria-selected` ist in ARIA nur fuer die Rollen `tab`, `option`, `row`,
+   `gridcell` und `treeitem` definiert. Es zu benutzen zwingt also zu
+   `role="tab"` — und damit zu einem echten `tablist`: Pfeiltasten-Navigation
+   mit wanderndem Tabindex, `aria-controls`, ein `tabpanel` je Lasche. Der
+   Editor-Umschalter hat nichts davon, und er kann den Wechsel sogar
+   VERWEIGERN (Roh→WYSIWYG bei Normalisierungsbefunden, s. mode-switch.tsx).
+   Eine Lasche, die sich weigert ausgewaehlt zu werden, ist kein Reiter.
+   `aria-pressed` auf einem gewoehnlichen `<button>` in einer `role="group"`
+   beschreibt genau das Richtige (ein-/ausgeschaltet), braucht keine Rolle
+   und keinen wandernden Tabindex: beide Schaltflaechen bleiben im normalen
+   Tabulator-Lauf und sind damit ohne eine Zeile JavaScript bedienbar.
+   Der Entwurf schreibt fuer `.segmented` ebenfalls `[aria-pressed]` vor.
+   ========================================================================= */
+
+/* =========================================================================
+   Segmentierte Auswahl
+
+   Die Werte sind Block B der frueheren `.seg`-Doppeldefinition (bis hierher
+   `63-review.css`, urspruenglich globals.css:3759-3788) — unveraendert
+   uebernommen. Block A (`62-editor.css`, urspruenglich globals.css:2964-2992)
+   ist ersatzlos entfallen: er war seit seiner Entstehung wirkungslos, weil
+   `63-review.css` in der Import-Liste spaeter steht und beide Bloecke
+   dieselbe Spezifitaet hatten. Block A wieder zum Leben zu erwecken waere
+   eine Sichtaenderung, die niemand bestellt hat (Bestandsaufnahme §6.2) —
+   deshalb steht hier NICHT die Akzentflaeche aus Block A, sondern die
+   angehobene Flaeche aus Block B, die die Anwendung heute schon zeigt.
+
+   Die drei mitgebrachten Zahlenliterale (`gap: 6px`, `padding: 5px …`,
+   `font-weight: 700`) hat Teilschritt G bewusst stehen gelassen und
+   Teilschritt I angeglichen: `--space-2` (8 px), `--control-pad-y` (8 px, in
+   der Hoehe wirkungslos, weil `--control-h` die Untergrenze setzt) und
+   `--weight-strong` (650). Damit fuehrt diese Datei keinen eigenen
+   Schriftschnitt und keinen eigenen Zwischenraum mehr.
+
+   Stehen bleibt EIN Zahlenliteral: `padding: 2px` am Behaelter `.segmented`
+   und das entsprechende `calc(… - 2px)` an der Lasche. Es ist kein
+   Bedienelement-Innenabstand, sondern die Fugenbreite, in der die aktive
+   Lasche im Behaelter sitzt — beide Werte muessen gleich sein, sonst passt
+   die Rundung nicht. Der Katalog kennt dafuer keine Stufe (`--space-1` sind
+   4 px und waeren doppelt so breit); die fehlende Stufe ist gemeldet.
+   ========================================================================= */
+.segmented {
+  display: inline-flex;
+  background: var(--panel-2);
+  border: var(--rule-hair) solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  padding: 2px;
+  /* Der Entwurf setzt hier `overflow: hidden`. Bewusst NICHT uebernommen:
+     das schneidet den Fokusring der inneren Schaltflaechen weg
+     (zugesicherte Eigenschaft 1 der Erscheinungsbild-Spec). Die Laschen
+     runden sich stattdessen selbst, s. `border-radius` unten. */
+}
+.segmented button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  /* Zielgroesse 44 px (zugesicherte Eigenschaft 4). Seit Teilschritt I ohne
+     Uebergangsblock wirksam. */
+  min-height: var(--control-h);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+  color: var(--color-text-muted);
+  background: transparent;
+  border: 0;
+  /* Abzug von 2px = der Innenabstand des Behaelters, damit die Lasche
+     buendig in dessen Rundung liegt (s. Kopf: die einzige Fuge dieser Datei). */
+  border-radius: calc(var(--radius-md) - 2px);
+  padding: var(--control-pad-y) var(--space-3);
+  cursor: pointer;
+}
+.segmented button svg {
+  width: 14px;
+  height: 14px;
+}
+/* Aktiver Zustand — EIN Merkmal, kein Klassen-Gegenstueck. */
+.segmented button[aria-pressed='true'] {
+  background: var(--color-bg);
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
+}
+
+/* =========================================================================
+   Reiter
+
+   Neuer Baustein (Entwurf editorial.html, Kap. 2). Der Zustand haengt an
+   der Markerlinie `--rule-marker` unter der aktiven Lasche, nicht an einer
+   Flaeche — so unterscheidet sich der Reiter auf den ersten Blick von der
+   segmentierten Auswahl, obwohl beide aus nebeneinander stehenden
+   Schaltflaechen bestehen.
+
+   Die Farbe traegt den Zustand NICHT allein: die aktive Lasche ist zugleich
+   fetter gesetzt und in der Vollton-Textfarbe statt gedaempft (zugesicherte
+   Eigenschaft 3 sinngemaess; ausserdem meldet `aria-selected` den Zustand
+   an den Zugaenglichkeitsbaum).
+   ========================================================================= */
+.tabs {
+  display: flex;
+  gap: var(--space-5);
+  border-bottom: var(--rule-hair) solid var(--color-border);
+}
+/* Ohne eigene Grundlinie — fuer Reiter, die in einer Leiste sitzen, die ihre
+   Linie schon selbst zieht (heute `.viewbar` in `63-review.css`). Ohne diesen
+   Zusatz stuenden zwei Haarlinien wenige Pixel uebereinander. Der Modifier
+   sitzt am Baustein statt als `.viewbar .tabs`, damit die Ansicht ihren
+   Kontext selbst erklaert und diese Datei keine Ansichtsklasse kennen muss.
+   Faellt weg, sobald H3 die Leiste aufraeumt. */
+.tabs.flush {
+  border-bottom: 0;
+}
+.tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  /* Zielgroesse 44 px (zugesicherte Eigenschaft 4). `--control-h` ist im
+     Katalog gesperrt — der Wert IST die Zusage; seit Teilschritt I wirksam. */
+  min-height: var(--control-h);
+  padding: var(--control-pad-y) 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-ui);
+  color: var(--color-text-muted);
+  border-bottom: var(--rule-marker) solid transparent;
+  /* Die Markerlinie legt sich auf die Grundlinie, statt sie zu verschieben. */
+  margin-bottom: calc(-1 * var(--rule-hair));
+}
+.tabs button svg {
+  width: 14px;
+  height: 14px;
+}
+.tabs button:hover {
+  color: var(--color-text);
+}
+/* Aktiver Zustand — EIN Merkmal. `aria-selected` ist hier korrekt, weil die
+   Laschen `role="tab"` in einem `role="tablist"` tragen und je einen
+   `role="tabpanel"` steuern (s. `components/review/diff-view.tsx`). */
+.tabs button[aria-selected='true'] {
+  color: var(--color-text);
+  border-bottom-color: var(--color-accent);
+  font-weight: var(--weight-strong);
+}
+/* Der zugehoerige Bereich ist mit der Tastatur erreichbar (`tabindex=0` im
+   Markup, damit auch scrollbare Bereiche ohne Bedienelement bedienbar sind);
+   der globale Ring aus `20-basis.css` macht das sichtbar. Kein `display:none`
+   fuer den inaktiven Bereich noetig — `diff-view.tsx` rendert immer nur den
+   aktiven, es faellt also nichts aus dem Zugaenglichkeitsbaum (zugesicherte
+   Eigenschaft 2 sinngemaess). */
+
+/* Der Uebergangsblock, der die Laschen-Hoehe bis Teilschritt I auf dem Wert
+   vor dem Umbau hielt, ist entfernt (Schalter `<html data-altlasten="weg">`,
+   s. Kopf von `40-schaltflaeche.css`). Umschalter und Reiter tragen damit die
+   zugesicherte Zielgroesse von 44 px. */
+
+/* =========================================================================
+   Offene Abhaengigkeit: `.etoggle` (Kantenfilter der Graph-Ansicht)
+
+   Laut Schnitt-Tabelle wird `.etoggle` eine Variante der Statusmarke
+   (`.chip`). Hier steht dazu bewusst KEINE Regel:
+
+   1. `.chip` entsteht parallel in `42-marke.css` (Teilschritt D). In eine
+      fremde Datei zu schreiben wuerde den Parallelbetrieb brechen.
+   2. `.etoggle` wird heute vollstaendig in `app/graph.css` definiert, und
+      `graph.css` wird in `app/layout.tsx` NACH `globals.css` geladen. Jede
+      Regel, die hier stuende, waere bis zum Umbau der Graph-Ansicht (H5)
+      wirkungslos — also genau die Art toter Regel, die dieser Umbau
+      beseitigt.
+
+   Was uebrig bleibt, gehoert aber in diesen Baustein und sei hier notiert:
+   `graph-view.tsx:253` markiert den Zustand ebenfalls DOPPELT — Klasse
+   `off` UND `aria-pressed`. Das ist derselbe Fehler wie im Editor-Umschalter,
+   nur bisher ohne Schaden, weil nur eine Regel darum streitet. Beim Umbau
+   der Graph-Ansicht (H5) faellt die Klasse `off` weg; der Zustand kommt dann
+   aus `[aria-pressed='false']`, so wie bei `.segmented` hier.
+   ========================================================================= */

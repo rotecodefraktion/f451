@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    # `dev` traegt die Entwicklung und rollt auf die Dev-Umgebung aus — was
+    # dort ankommt, muss dieselbe Pruefung bestanden haben wie `main`.
+    branches: [main, dev]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      github_live_contract:
+        description: "GitHub-Live-Contract-Test ausführen (braucht Secrets GH_CONTRACT_TOKEN/GH_CONTRACT_REPO)"
+        type: boolean
+        default: false
+      run_e2e:
+        description: "Playwright-E2E-Lese-Flow ausführen (startet Postgres-/Forgejo-Container + next dev; teurer Browser-Install)"
+        type: boolean
+        default: false
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - name: GitHub Live-Contract (manuell)
+        if: github.event_name == 'workflow_dispatch' && inputs.github_live_contract
+        env:
+          GITHUB_CONTRACT: "1"
+          GITHUB_CONTRACT_TOKEN: ${{ secrets.GH_CONTRACT_TOKEN }}
+          GITHUB_CONTRACT_REPO: ${{ secrets.GH_CONTRACT_REPO }}
+        run: pnpm --filter @f451/git-provider test:contract:github
+
+  e2e:
+    # Nur auf ausdrücklichen Wunsch (workflow_dispatch mit run_e2e) — der
+    # Browser-Install + die Container-Startzeit sind zu teuer für jeden Lauf.
+    if: github.event_name == 'workflow_dispatch' && inputs.run_e2e
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Chromium erst hier installieren (nicht im Standard-CI). Auf Linux liegt
+      # keine gecachte Binärdatei am mac-Pfad — die Playwright-Config fällt dann
+      # automatisch auf diese Installation zurück.
+      - name: Playwright-Chromium installieren
+        run: pnpm --filter @f451/web exec playwright install chromium --with-deps
+      - name: E2E-Lese-Flow
+        run: pnpm --filter @f451/web test:e2e

@@ -1,0 +1,240 @@
+/* =========================================================================
+   Telefon-Layout (Issue #66, Variante B; Schwelle aus #64)
+
+   Unter `(max-width: 699px) and (pointer: coarse)` gilt ein eigenes Layout:
+   Seitenbaum (`#pane-nav`) und Info-Leiste (`#pane-rail`) belegen keine
+   Spalte mehr, sondern öffnen sich als Blatt von unten, geschaltet über die
+   Telefon-Leiste (`app/phone-bar.tsx`) und `data-sheet` am `<html>`. Die
+   Daumenregister entfallen hier — der linke Bildschirmrand ist auf iOS die
+   Zurück-Geste.
+
+   Oberhalb der Schwelle wirkt diese Datei nicht: Dort gilt die
+   Monotonie-Zusage unverändert (Spec Erscheinungsbild, Nachtrag #64). Ein
+   schmal gezogenes Desktop-Fenster (feiner Zeiger) bleibt beim Raster.
+
+   Steht in der Import-Liste nach den Ansichten, weil sie deren Rasterregeln
+   unter der Schwelle ersetzt. Selektoren, die gegen die Leisten-Zustände aus
+   `60-chrome-raster.css` antreten müssen, führen dieselbe Spezifität und
+   gewinnen durch die spätere Stellung — kein `!important`.
+   ========================================================================= */
+
+/* Leiste und Schleier gibt es oberhalb der Schwelle nicht. */
+.phone-bar,
+.phone-scrim {
+  display: none;
+}
+
+@media (max-width: 699px) and (pointer: coarse) {
+  :root {
+    --phone-bar-h: calc(var(--control-h) + var(--space-2));
+  }
+
+  /* ---- Raster: eine Spalte, die Leisten verlassen den Fluss ---- */
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+    /* `dvh` statt `vh`: `vh` ist auf dem Telefon die Höhe OHNE eingeblendete
+       Browserleiste, der untere Rand läge sonst hinter ihr (Recherche #65). */
+    height: calc(100dvh - 56px - var(--phone-bar-h) - env(safe-area-inset-bottom));
+  }
+  .shell > .main {
+    grid-column: 1;
+  }
+  .shell > .pane-edge {
+    display: none;
+  }
+
+  /* ---- Die beiden Leisten als Blätter ----
+     Sichtbar unabhängig von `data-nav`/`data-rail`: Die Desktop-Zustände
+     entscheiden über Spalten, die es hier nicht gibt. Die Selektorpaare
+     spiegeln die Spezifität der Regeln in `60-chrome-raster.css`. */
+  :root[data-nav] .shell > .tree,
+  :root:not([data-nav]) .shell > .tree,
+  :root[data-rail] .shell > .rail,
+  :root:not([data-rail]) .shell > .rail,
+  :root:not([data-nav='off']):not([data-rail='off']) .shell > .tree,
+  :root:not([data-nav='off']):not([data-rail='off']) .shell > .rail {
+    display: block;
+    position: fixed;
+    z-index: 40;
+    left: 0;
+    right: 0;
+    bottom: calc(var(--phone-bar-h) + env(safe-area-inset-bottom));
+    width: auto;
+    max-height: 75dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border: 0;
+    border-top: var(--rule-hair) solid var(--color-border);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    box-shadow: var(--shadow-md);
+    background: var(--color-bg);
+    /* Geschlossen: unter die Leiste geschoben und aus dem Tabulator-Lauf. */
+    transform: translateY(calc(100% + var(--phone-bar-h)));
+    visibility: hidden;
+    transition:
+      transform 0.2s ease,
+      visibility 0s linear 0.2s;
+  }
+  :root[data-sheet='nav'] .shell > .tree,
+  :root[data-sheet='toc'] .shell > .rail,
+  :root[data-sheet='info'] .shell > .rail {
+    transform: none;
+    visibility: visible;
+    transition: transform 0.2s ease;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    :root .shell > .tree,
+    :root .shell > .rail {
+      transition: none;
+    }
+  }
+
+  /* Gliederung und Info teilen sich die Info-Leiste. */
+  :root[data-sheet='toc'] .rail .rp:not(.rp-toc),
+  :root[data-sheet='info'] .rail .rp-toc {
+    display: none;
+  }
+
+  /* ---- Schleier hinter dem offenen Blatt ---- */
+  :root[data-sheet] .phone-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 35;
+    border: 0;
+    background: var(--color-scrim);
+  }
+
+  /* ---- Die Leiste selbst: Daumenzone, vier gleich breite Felder ---- */
+  .phone-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    position: fixed;
+    z-index: 45;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+    background: var(--color-bg);
+    border-top: var(--rule-hair) solid var(--color-border);
+  }
+  .phone-bar button {
+    min-height: var(--phone-bar-h);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+    border: 0;
+    background: none;
+    color: var(--color-text);
+    font: inherit;
+    font-size: var(--text-xs);
+  }
+  .phone-bar .glyph {
+    font-size: var(--text-md);
+    line-height: 1;
+  }
+  .phone-bar button[aria-expanded='true'] {
+    color: var(--color-accent);
+    font-weight: var(--weight-strong);
+  }
+  .phone-bar button:disabled {
+    color: var(--color-text-muted);
+    opacity: 0.5;
+  }
+}
+
+/* =========================================================================
+   Vollbild für Bilder und Diagramme (#67) — geöffnet von `PageBody`, nur bei
+   Fingerbedienung. Eine Fassung für alle: im Text verkleinert, hier in voller
+   Größe mit Zwei-Finger-Zoom (die Seite sperrt den Zoom nicht).
+   ========================================================================= */
+.bild-vollbild {
+  width: 100vw;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+.bild-vollbild[open] {
+  display: flex;
+  flex-direction: column;
+}
+.bild-vollbild-leiste {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  padding-top: max(var(--space-2), env(safe-area-inset-top));
+  border-bottom: var(--rule-hair) solid var(--color-border);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+.bild-vollbild-leiste .grow {
+  flex: 1;
+  min-width: 0;
+}
+.bild-vollbild-flaeche {
+  flex: 1;
+  overflow: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-x pan-y pinch-zoom;
+  display: grid;
+  place-items: center;
+}
+.bild-vollbild-flaeche img {
+  max-width: 100%;
+  max-height: 100%;
+  height: auto;
+}
+.bild-vollbild-flaeche[data-original] {
+  place-items: start;
+}
+.bild-vollbild-flaeche[data-original] img {
+  max-width: none;
+  max-height: none;
+}
+
+/* =========================================================================
+   Zielgrößen bei Fingerbedienung (#68)
+
+   Entscheidung vom 2026-09-27: Unter `pointer: coarse` hat jedes
+   Bedienelement mindestens `--control-h` × `--control-h` Trefferfläche —
+   unabhängig von der Breite, also auch auf dem Tablet. Mit Maus bleibt die
+   dichte Desktop-Optik. Wo das Element sichtbar klein bleiben soll, legt
+   `::after` die Fläche unsichtbar darüber (Muster `.btn.small` in
+   `40-schaltflaeche.css`); Eingabefelder wachsen sichtbar, weil sie kein
+   `::after` tragen können.
+
+   Bewusst NICHT erfasst: die Punkte der Minikarte im Graph (`.dotm`, 9 px,
+   dicht untereinander) und die SVG-Knoten der Bühne — eine 44-px-Fläche
+   überdeckte dort die Nachbarn, und welcher Punkt einen Tipp bekommt, wäre
+   Zufall. Die Graph-Ansicht ist auf dem Telefon ohnehin kein Ziel (#62).
+   ========================================================================= */
+@media (pointer: coarse) {
+  :is(.brand-home, .search, .avatar, .crumbs a, .subbar-version, .etoggle, button.chip, a.chip) {
+    position: relative;
+  }
+  :is(.brand-home, .search, .avatar, .crumbs a, .subbar-version, .etoggle, button.chip, a.chip)::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    translate: -50% -50%;
+    width: max(100%, var(--control-h));
+    height: max(100%, var(--control-h));
+  }
+  /* `.btn.small` hat seine Fläche schon, aber nur in der Höhe — sie wird hier
+     auch in der Breite zugesichert („Nach unten verschieben", 32 px). */
+  .btn.small::after {
+    min-width: var(--control-h);
+  }
+  :is(input:not([type='checkbox'], [type='radio'], [type='range'], [type='color']), select) {
+    min-height: var(--control-h);
+  }
+}

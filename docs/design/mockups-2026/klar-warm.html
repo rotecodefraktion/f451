@@ -1,0 +1,2531 @@
+<!doctype html>
+<html lang="de" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>f451 — Entwurf „Klar &amp; Warm“</title>
+<style>
+/* ============================================================
+   TOKENS — Hell
+   Alle Bausteine weiter unten benutzen ausschließlich var(--token).
+   `.scope-light` / `.scope-dark` sind Doppelgänger derselben Werte,
+   damit die Token-Tabelle beide Themes gleichzeitig zeigen kann.
+   ============================================================ */
+:root,
+.scope-light {
+  color-scheme: light;
+
+  /* Flächen — warme Papiertöne statt klinischem Grau */
+  --color-bg:            #f6f1ea;
+  --color-bg-raised:     #fffdfa;
+  --color-bg-sunken:     #ece4d9;
+  --color-bg-hover:      #f1e9de;
+  --color-bg-active:     #e7dccd;
+
+  /* Text */
+  --color-text:          #241d17;
+  --color-text-muted:    #6b6055;
+  --color-text-faint:    #7a6d5f;
+
+  /* Akzent — gebrannte Terrakotta */
+  --color-accent:        #a1462a;
+  --color-accent-strong: #863620;
+  --color-accent-contrast:#fffdfa;
+  --color-accent-soft:   #f7e7de;
+  --color-accent-line:   #e3bda9;
+
+  /* Linien */
+  --color-border:        #e4dad0;
+  --color-border-strong: #cbbdad;
+
+  /* Fokus — bewusst kühl, damit er nie mit dem Akzent verwechselt wird */
+  --color-focus:         #2a5f8f;
+
+  /* Abdunklung hinter modalen Dialogen */
+  --color-backdrop:      rgba(36, 29, 23, 0.45);
+
+  /* Gefahr */
+  --color-danger:        #b32218;
+  --color-danger-soft:   #fbe6e3;
+  --color-danger-line:   #efb9b1;
+
+  /* Workflow-Status */
+  --color-status-working:      #3c5e8a;
+  --color-status-working-soft: #e6ecf5;
+  --color-status-working-line: #c3d2e6;
+  --color-status-review:       #8a5205;
+  --color-status-review-soft:  #f9ecd8;
+  --color-status-review-line:  #e8cfa4;
+  --color-status-released:     #3f6b3a;
+  --color-status-released-soft:#e4eddf;
+  --color-status-released-line:#c2d6ba;
+  --color-status-archived:     #6b6055;
+  --color-status-archived-soft:#ece7e0;
+  --color-status-archived-line:#d6cdc2;
+
+  /* Hinweisblock-Rollen */
+  --color-info:          #2a5f8f;
+  --color-info-soft:     #e5edf5;
+  --color-info-line:     #bcd0e2;
+  --color-warning:       #8a5205;
+  --color-warning-soft:  #f9ecd8;
+  --color-warning-line:  #e8cfa4;
+  --color-success:       #3f6b3a;
+  --color-success-soft:  #e4eddf;
+  --color-success-line:  #c2d6ba;
+
+  /* Code */
+  --color-code-bg:       #2b2118;
+  --color-code-text:     #f3ece3;
+  --color-code-line:     #453729;
+  --color-code-comment:  #b1a094;
+  --color-code-string:   #f0b088;
+  --color-code-keyword:  #d7c48a;
+
+  /* Schrift */
+  --font-sans: "Hanken Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-display: "Schibsted Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  --text-scale: 1;
+  --text-xs:  calc(0.75rem  * var(--text-scale));
+  --text-sm:  calc(0.875rem * var(--text-scale));
+  --text-md:  calc(1rem     * var(--text-scale));
+  --text-lg:  calc(1.125rem * var(--text-scale));
+  --text-xl:  calc(1.5rem   * var(--text-scale));
+  --text-2xl: calc(2rem     * var(--text-scale));
+  --text-3xl: calc(2.5rem   * var(--text-scale));
+
+  --leading-tight:   1.2;
+  --leading-snug:    1.35;
+  --leading-normal:  1.6;
+  --leading-relaxed: 1.75;
+
+  --weight-regular:  400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+  --weight-bold:     700;
+
+  --tracking-tight: -0.015em;
+  --tracking-wide:   0.06em;
+
+  /* Abstände — eine Einheit steuert die gesamte Dichte */
+  --space-unit: 0.25rem;
+  --space-1:  calc(var(--space-unit) * 1);
+  --space-2:  calc(var(--space-unit) * 2);
+  --space-3:  calc(var(--space-unit) * 3);
+  --space-4:  calc(var(--space-unit) * 4);
+  --space-5:  calc(var(--space-unit) * 5);
+  --space-6:  calc(var(--space-unit) * 6);
+  --space-7:  calc(var(--space-unit) * 7);
+  --space-8:  calc(var(--space-unit) * 8);
+  --space-9:  calc(var(--space-unit) * 10);
+  --space-10: calc(var(--space-unit) * 14);
+
+  /* Layout */
+  --measure:       72ch;
+  --measure-block: 88ch;
+  --figure-max:    26rem;
+  --nav-width:  19rem;
+  --rail-width: 17rem;
+  --tap-min:    2.75rem;
+  --tap-comfortable: 3rem;
+  --border-width: 1px;
+  --border-width-strong: 2px;
+  --focus-width: 3px;
+  --focus-offset: 2px;
+
+  /* Radien — weich, aber nicht verspielt */
+  --radius-sm:   0.375rem;
+  --radius-md:   0.625rem;
+  --radius-lg:   1rem;
+  --radius-xl:   1.5rem;
+  --radius-pill: 999px;
+
+  /* Schatten — warm getönt, nie schwarz */
+  --shadow-sm:     0 1px 2px rgba(60, 42, 25, 0.07);
+  --shadow-md:     0 14px 34px rgba(60, 42, 25, 0.14);
+  --shadow-accent: 0 2px 10px rgba(161, 70, 42, 0.28);
+  --shadow-inset:  inset 0 1px 0 rgba(255, 253, 250, 0.6);
+
+  /* Bewegung */
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --easing: cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+/* ============================================================
+   TOKENS — Dunkel (warmes Kohlebraun, kein Neutralschwarz)
+   ============================================================ */
+:root[data-theme='dark'],
+.scope-dark {
+  color-scheme: dark;
+
+  --color-bg:            #181410;
+  --color-bg-raised:     #221d18;
+  --color-bg-sunken:     #12100d;
+  --color-bg-hover:      #2c251e;
+  --color-bg-active:     #362d24;
+
+  --color-text:          #f3ece3;
+  --color-text-muted:    #b0a294;
+  --color-text-faint:    #9a8d7e;
+
+  --color-accent:        #e08a5f;
+  --color-accent-strong: #f0a37c;
+  --color-accent-contrast:#231208;
+  --color-accent-soft:   #3a2519;
+  --color-accent-line:   #6b4229;
+
+  --color-border:        #3a322a;
+  --color-border-strong: #574c40;
+
+  --color-focus:         #9fc6e8;
+  --color-backdrop:      rgba(9, 7, 5, 0.62);
+
+  --color-danger:        #f08a80;
+  --color-danger-soft:   #3a1e1a;
+  --color-danger-line:   #6d332c;
+
+  --color-status-working:      #9dbbe0;
+  --color-status-working-soft: #1e2733;
+  --color-status-working-line: #3b4d64;
+  --color-status-review:       #e5b45f;
+  --color-status-review-soft:  #2f2312;
+  --color-status-review-line:  #5f461d;
+  --color-status-released:     #96c98a;
+  --color-status-released-soft:#1d2a1b;
+  --color-status-released-line:#3d5a37;
+  --color-status-archived:     #b0a294;
+  --color-status-archived-soft:#2a241e;
+  --color-status-archived-line:#4a4137;
+
+  --color-info:          #9dbbe0;
+  --color-info-soft:     #1e2733;
+  --color-info-line:     #3b4d64;
+  --color-warning:       #e5b45f;
+  --color-warning-soft:  #2f2312;
+  --color-warning-line:  #5f461d;
+  --color-success:       #96c98a;
+  --color-success-soft:  #1d2a1b;
+  --color-success-line:  #3d5a37;
+
+  --color-code-bg:       #12100d;
+  --color-code-text:     #f3ece3;
+  --color-code-line:     #322920;
+  --color-code-comment:  #9a8d7e;
+  --color-code-string:   #f0b088;
+  --color-code-keyword:  #ddc98f;
+
+  --shadow-sm:     0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md:     0 14px 34px rgba(0, 0, 0, 0.6);
+  --shadow-accent: 0 2px 10px rgba(224, 138, 95, 0.3);
+  --shadow-inset:  inset 0 1px 0 rgba(255, 253, 250, 0.05);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --color-bg:            #181410;
+    --color-bg-raised:     #221d18;
+    --color-bg-sunken:     #12100d;
+    --color-bg-hover:      #2c251e;
+    --color-bg-active:     #362d24;
+    --color-text:          #f3ece3;
+    --color-text-muted:    #b0a294;
+    --color-text-faint:    #9a8d7e;
+    --color-accent:        #e08a5f;
+    --color-accent-strong: #f0a37c;
+    --color-accent-contrast:#231208;
+    --color-accent-soft:   #3a2519;
+    --color-accent-line:   #6b4229;
+    --color-border:        #3a322a;
+    --color-border-strong: #574c40;
+    --color-focus:         #9fc6e8;
+  --color-backdrop:      rgba(9, 7, 5, 0.62);
+    --color-danger:        #f08a80;
+    --color-danger-soft:   #3a1e1a;
+    --color-danger-line:   #6d332c;
+    --color-status-working:      #9dbbe0;
+    --color-status-working-soft: #1e2733;
+    --color-status-working-line: #3b4d64;
+    --color-status-review:       #e5b45f;
+    --color-status-review-soft:  #2f2312;
+    --color-status-review-line:  #5f461d;
+    --color-status-released:     #96c98a;
+    --color-status-released-soft:#1d2a1b;
+    --color-status-released-line:#3d5a37;
+    --color-status-archived:     #b0a294;
+    --color-status-archived-soft:#2a241e;
+    --color-status-archived-line:#4a4137;
+    --color-info:          #9dbbe0;
+    --color-info-soft:     #1e2733;
+    --color-info-line:     #3b4d64;
+    --color-warning:       #e5b45f;
+    --color-warning-soft:  #2f2312;
+    --color-warning-line:  #5f461d;
+    --color-success:       #96c98a;
+    --color-success-soft:  #1d2a1b;
+    --color-success-line:  #3d5a37;
+    --color-code-bg:       #12100d;
+    --color-code-text:     #f3ece3;
+    --color-code-line:     #322920;
+    --color-code-comment:  #9a8d7e;
+    --color-code-string:   #f0b088;
+    --color-code-keyword:  #ddc98f;
+    --shadow-sm:     0 1px 2px rgba(0, 0, 0, 0.5);
+    --shadow-md:     0 14px 34px rgba(0, 0, 0, 0.6);
+    --shadow-accent: 0 2px 10px rgba(224, 138, 95, 0.3);
+    --shadow-inset:  inset 0 1px 0 rgba(255, 253, 250, 0.05);
+  }
+}
+
+/* ============================================================
+   Grundlagen
+   ============================================================ */
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  line-height: var(--leading-normal);
+}
+h1, h2, h3, h4, h5 {
+  font-family: var(--font-display);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-tight);
+  margin: 0;
+}
+p { margin: 0; }
+a { color: var(--color-accent); text-underline-offset: 0.2em; }
+:focus-visible {
+  outline: var(--focus-width) solid var(--color-focus);
+  outline-offset: var(--focus-offset);
+  border-radius: var(--radius-sm);
+}
+::selection { background: var(--color-accent-soft); color: var(--color-text); }
+svg { display: block; }
+
+/* ============================================================
+   Entwurfskopf
+   ============================================================ */
+.brief {
+  border-bottom: var(--border-width) solid var(--color-border);
+  background: var(--color-bg-raised);
+  padding: var(--space-8) var(--space-8);
+}
+.brief-inner {
+  max-width: 82rem;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+  align-items: flex-end;
+  justify-content: space-between;
+}
+.brief-eyebrow {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  font-weight: var(--weight-semibold);
+  margin-bottom: var(--space-2);
+}
+.brief h1 {
+  font-size: var(--text-3xl);
+  margin-bottom: var(--space-3);
+}
+.brief-lead {
+  max-width: 54ch;
+  color: var(--color-text-muted);
+  font-size: var(--text-lg);
+  line-height: var(--leading-snug);
+}
+.theme-switch {
+  display: inline-flex;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  background: var(--color-bg-sunken);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-pill);
+}
+.theme-switch button {
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  min-height: var(--tap-min);
+  padding-inline: var(--space-5);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  transition: background var(--motion-fast) var(--easing), color var(--motion-fast) var(--easing);
+}
+.theme-switch button[aria-pressed='true'] {
+  background: var(--color-bg-raised);
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
+}
+.theme-switch svg { width: var(--space-5); height: var(--space-5); }
+
+/* ============================================================
+   Abschnittsrahmen des Mockups
+   ============================================================ */
+.section {
+  max-width: 82rem;
+  margin: 0 auto;
+  padding: var(--space-10) var(--space-8) var(--space-8);
+}
+.section.full { max-width: none; }
+.section-head { margin-bottom: var(--space-7); max-width: 70ch; }
+.section-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-8);
+  height: var(--space-8);
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  border: var(--border-width) solid var(--color-accent-line);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  margin-bottom: var(--space-3);
+}
+.section-head h2 { font-size: var(--text-2xl); margin-bottom: var(--space-3); }
+.section-head p { color: var(--color-text-muted); }
+
+.skip {
+  position: absolute;
+  left: var(--space-4);
+  top: calc(var(--space-4) * -10);
+  z-index: 50;
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  font-weight: var(--weight-semibold);
+}
+.skip:focus { top: var(--space-4); }
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ============================================================
+   App-Rahmen — Kopfleiste, Navigation, Inhalt, Info-Leiste
+   ============================================================ */
+.app {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  background: var(--color-bg-raised);
+  box-shadow: var(--shadow-sm);
+}
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-3) var(--space-5);
+  background: var(--color-bg-raised);
+  border-bottom: var(--border-width) solid var(--color-border);
+  flex-wrap: wrap;
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-family: var(--font-display);
+  font-weight: var(--weight-bold);
+  font-size: var(--text-lg);
+  letter-spacing: var(--tracking-tight);
+  text-decoration: none;
+  color: var(--color-text);
+  min-height: var(--tap-min);
+}
+.brand-mark {
+  width: var(--space-8);
+  height: var(--space-8);
+  border-radius: var(--radius-md);
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-sm);
+  box-shadow: var(--shadow-accent);
+}
+.spacepick {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--tap-min);
+  padding: var(--space-2) var(--space-4);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.spacepick:hover { background: var(--color-bg-hover); }
+.spacepick b { font-weight: var(--weight-semibold); }
+.spacepick .sub { color: var(--color-text-muted); }
+.spacepick svg { width: var(--space-4); height: var(--space-4); color: var(--color-text-muted); }
+
+.searchbar {
+  flex: 1 1 18rem;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--tap-comfortable);
+  padding: 0 var(--space-4);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  text-align: left;
+}
+.searchbar:hover { background: var(--color-bg-hover); border-color: var(--color-border-strong); }
+.searchbar svg { width: var(--space-5); height: var(--space-5); flex: none; }
+.searchbar .hint {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-2);
+  background: var(--color-bg-raised);
+}
+.topbar-right { display: flex; align-items: center; gap: var(--space-2); margin-left: auto; }
+.avatar {
+  width: var(--tap-min);
+  height: var(--tap-min);
+  border-radius: var(--radius-pill);
+  background: var(--color-bg-sunken);
+  border: var(--border-width) solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Ein-/Ausklappen der Leisten: die beiden Spaltenbreiten sind Zustands-
+   Variablen auf `.app`. Ohne JavaScript stehen sie im `data-`-Attribut des
+   Markups und wirken trotzdem — JS merkt sich nur die letzte Wahl. */
+.app { --nav-col: var(--nav-width); --rail-col: var(--rail-width); }
+.app[data-nav='zu']  { --nav-col: 0; }
+.app[data-rail='zu'] { --rail-col: 0; }
+.app[data-nav='zu'] .nav { display: none; }
+.app[data-rail='zu'] .rail { display: none; }
+
+.shell {
+  display: grid;
+  grid-template-columns: var(--nav-col) minmax(0, 1fr) var(--rail-col);
+  align-items: start;
+}
+/* Feste Spaltenzuweisung — ZWINGEND, weil die Leisten im eingeklappten Zustand
+   auf `display: none` gehen: ein ausgeblendetes Kind faellt aus dem Raster,
+   die drei Spalten bleiben aber bestehen, und die automatische Platzierung
+   rueckt den Inhalt in Spalte 1 nach (Breite 0) — der Text bricht dann Wort
+   fuer Wort um, waehrend rechts die ganze Flaeche leer bleibt. */
+.shell > .nav  { grid-column: 1; }
+.shell > .doc  { grid-column: 2; min-width: 0; }
+.shell > .rail { grid-column: 3; }
+
+/* Beschriftung wechselt mit dem Zustand — auch ohne JavaScript */
+.app[data-nav='auf']  .nav-toggle  .t-show { display: none; }
+.app[data-nav='zu']   .nav-toggle  .t-hide { display: none; }
+.app[data-rail='auf'] .rail-toggle .t-show { display: none; }
+.app[data-rail='zu']  .rail-toggle .t-hide { display: none; }
+.wide-toggle .t-on { display: none; }
+.app[data-nav='zu'][data-rail='zu'] .wide-toggle .t-off { display: none; }
+.app[data-nav='zu'][data-rail='zu'] .wide-toggle .t-on { display: inline; }
+.app[data-nav='zu'][data-rail='zu'] .wide-toggle {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent-line);
+  color: var(--color-accent);
+}
+.btn kbd { margin-left: var(--space-1); }
+.viewctl { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+
+/* Gegenueberstellung „eingeklappt“ */
+.compare { margin-top: var(--space-9); display: grid; gap: var(--space-5); }
+.compare-head { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: flex-start; justify-content: space-between; }
+.compare-head h3 { font-size: var(--text-lg); margin-bottom: var(--space-2); }
+.compare-head p { color: var(--color-text-muted); max-width: var(--measure); font-size: var(--text-sm); line-height: var(--leading-normal); }
+
+/* --- Linke Navigation ------------------------------------- */
+.nav {
+  border-right: var(--border-width) solid var(--color-border);
+  background: var(--color-bg);
+  padding: var(--space-5) var(--space-4) var(--space-8);
+  min-height: 100%;
+}
+.nav-group + .nav-group { margin-top: var(--space-7); }
+.nav-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 0 var(--space-3) var(--space-2);
+}
+.nav-title h3 {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  font-weight: var(--weight-semibold);
+}
+.nav-hint {
+  padding: 0 var(--space-3) var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--color-text-faint);
+  line-height: var(--leading-snug);
+}
+.tree { list-style: none; margin: 0; padding: 0; }
+.tree ul { list-style: none; margin: 0; padding: 0 0 0 var(--space-4); }
+.tree a {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--tap-min);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  text-decoration: none;
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+}
+.tree a:hover { background: var(--color-bg-hover); }
+.tree a[aria-current='page'] {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-weight: var(--weight-semibold);
+  box-shadow: inset 0 0 0 var(--border-width) var(--color-accent-line);
+}
+.tree .dot {
+  width: var(--space-2);
+  height: var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-border-strong);
+  flex: none;
+}
+.tree a[aria-current='page'] .dot { background: var(--color-accent); }
+.tree .count { margin-left: auto; font-size: var(--text-xs); color: var(--color-text-faint); }
+
+/* Werkzeuge: Name + Erklärung — die Antwort auf „ich finde nichts“ */
+.tools { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); }
+.tool {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-1) var(--space-3);
+  align-items: start;
+  min-height: var(--tap-comfortable);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  color: var(--color-text);
+  border: var(--border-width) solid transparent;
+}
+.tool:hover { background: var(--color-bg-raised); border-color: var(--color-border); }
+.tool svg { width: var(--space-5); height: var(--space-5); grid-row: span 2; color: var(--color-accent); margin-top: var(--space-1); }
+.tool-name { font-size: var(--text-sm); font-weight: var(--weight-semibold); line-height: var(--leading-snug); }
+.tool-desc { font-size: var(--text-xs); color: var(--color-text-muted); line-height: var(--leading-snug); }
+.tool .badge-new {
+  font-size: var(--text-xs);
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+  border: var(--border-width) solid var(--color-accent-line);
+  border-radius: var(--radius-pill);
+  padding: 0 var(--space-2);
+  margin-left: var(--space-2);
+  font-weight: var(--weight-semibold);
+}
+
+/* --- Inhaltsspalte ---------------------------------------- */
+.doc { background: var(--color-bg-raised); padding: var(--space-7) var(--space-8) var(--space-10); min-width: 0; }
+/* KEINE Deckelung des Inhaltsbereichs: gewonnene Breite geht an Tabellen,
+   Code und Diagramme, nicht an leere Raender. Die Zeilenlaenge begrenzen
+   weiter unten ausschliesslich die Fliesstext-Elemente selbst. */
+.doc-inner { max-width: none; }
+.crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-4);
+}
+.crumbs a { color: var(--color-text-muted); text-decoration: none; border-radius: var(--radius-sm); }
+.crumbs a:hover { color: var(--color-accent); text-decoration: underline; }
+.crumbs .sep { color: var(--color-text-faint); }
+.crumbs b { color: var(--color-text); font-weight: var(--weight-semibold); }
+
+.doc-head { display: flex; flex-wrap: wrap; gap: var(--space-5); align-items: flex-start; }
+.doc-head h1 { font-size: var(--text-2xl); flex: 1 1 20rem; }
+.doc-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+
+.metaline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+  margin-top: var(--space-4);
+  padding-bottom: var(--space-5);
+  border-bottom: var(--border-width) solid var(--color-border);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+.metaline .item { display: inline-flex; align-items: center; gap: var(--space-2); }
+.metaline svg { width: var(--space-4); height: var(--space-4); color: var(--color-text-faint); }
+
+/* Lesetext */
+.prose { font-size: var(--text-md); line-height: var(--leading-relaxed); }
+.prose > * + * { margin-top: var(--space-5); }
+
+/* Zeilenlaenge gilt NUR fuer Fliesstext — genau wie im Produkt heute
+   (`globals.css`: 72ch auf `.page-body p` und `ul/ol`, nicht auf dem
+   Inhaltsbereich). Tabellen, Codebloecke und Diagramme bleiben ungedeckelt. */
+.prose > p,
+.prose > ul,
+.prose > ol,
+.prose > blockquote,
+.prose > h2,
+.prose > h3,
+figcaption { max-width: var(--measure); }
+/* Hinweisbloecke sind Kaesten um Fliesstext — etwas breiter erlaubt, aber
+   ebenfalls begrenzt, damit die Zeile beim Ausklappen nicht ausufert. */
+.nutshell, .note { max-width: var(--measure-block); }
+.table-wrap, .code, figure, figure .frame { max-width: none; }
+/* Ein Diagramm skaliert mit der Breite; die Hoehe bekommt eine Obergrenze,
+   damit ein breites Fenster keine 700 Pixel hohe Abbildung erzeugt. */
+figure svg { max-height: var(--figure-max); }
+.prose h2 {
+  font-size: var(--text-xl);
+  margin-top: var(--space-9);
+  padding-top: var(--space-2);
+}
+.prose h3 { font-size: var(--text-lg); margin-top: var(--space-7); }
+.prose h2 + p, .prose h3 + p { margin-top: var(--space-3); }
+.prose ol, .prose ul { margin-left: 0; padding-left: var(--space-6); }
+.prose li + li { margin-top: var(--space-3); }
+.prose code {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  background: var(--color-bg-sunken);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-1);
+}
+.prose strong { font-weight: var(--weight-semibold); }
+.lede {
+  font-size: var(--text-lg);
+  line-height: var(--leading-snug);
+  color: var(--color-text-muted);
+}
+
+/* „In einem Satz“ — Einstieg für Gelegenheitsleser */
+.nutshell {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-5) var(--space-6);
+  background: var(--color-accent-soft);
+  border: var(--border-width) solid var(--color-accent-line);
+  border-radius: var(--radius-lg);
+}
+.nutshell svg { width: var(--space-6); height: var(--space-6); color: var(--color-accent); grid-row: span 2; }
+.nutshell h4 {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-accent);
+  font-weight: var(--weight-semibold);
+}
+.nutshell p { line-height: var(--leading-snug); }
+
+/* Status-Chips */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--space-7);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  border: var(--border-width) solid var(--color-border);
+  background: var(--color-bg-sunken);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+.chip svg { width: var(--space-4); height: var(--space-4); }
+.chip.working  { color: var(--color-status-working);  background: var(--color-status-working-soft);  border-color: var(--color-status-working-line); }
+.chip.review   { color: var(--color-status-review);   background: var(--color-status-review-soft);   border-color: var(--color-status-review-line); }
+.chip.released { color: var(--color-status-released); background: var(--color-status-released-soft); border-color: var(--color-status-released-line); }
+.chip.archived { color: var(--color-status-archived); background: var(--color-status-archived-soft); border-color: var(--color-status-archived-line); }
+
+/* Hinweisblöcke */
+.note {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  border: var(--border-width) solid var(--color-border);
+  border-left: var(--space-1) solid var(--color-border-strong);
+  background: var(--color-bg-sunken);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+.note svg { width: var(--space-5); height: var(--space-5); grid-row: span 2; margin-top: var(--space-1); }
+.note h4 { font-size: var(--text-sm); font-weight: var(--weight-semibold); font-family: var(--font-sans); }
+.note .note-body > * + * { margin-top: var(--space-2); }
+.note ul { margin: 0; padding-left: var(--space-5); }
+.note.info    { background: var(--color-info-soft);    border-color: var(--color-info-line);    border-left-color: var(--color-info); }
+.note.info svg, .note.info h4 { color: var(--color-info); }
+.note.warning { background: var(--color-warning-soft); border-color: var(--color-warning-line); border-left-color: var(--color-warning); }
+.note.warning svg, .note.warning h4 { color: var(--color-warning); }
+.note.error   { background: var(--color-danger-soft);  border-color: var(--color-danger-line);  border-left-color: var(--color-danger); }
+.note.error svg, .note.error h4 { color: var(--color-danger); }
+.note.success { background: var(--color-success-soft);  border-color: var(--color-success-line); border-left-color: var(--color-success); }
+.note.success svg, .note.success h4 { color: var(--color-success); }
+
+/* Tabellen */
+.table-wrap {
+  overflow-x: auto;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-raised);
+}
+table { border-collapse: collapse; width: 100%; font-size: var(--text-sm); }
+th, td {
+  text-align: left;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: var(--border-width) solid var(--color-border);
+  vertical-align: top;
+  line-height: var(--leading-snug);
+}
+thead th {
+  background: var(--color-bg-sunken);
+  font-family: var(--font-sans);
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover { background: var(--color-bg-hover); }
+td code { font-family: var(--font-mono); font-size: var(--text-xs); }
+
+/* Codeblöcke */
+.code {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: var(--border-width) solid var(--color-code-line);
+  background: var(--color-code-bg);
+}
+.code-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: var(--border-width) solid var(--color-code-line);
+  color: var(--color-code-comment);
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+}
+.code-head .lang {
+  color: var(--color-code-text);
+  background: var(--color-code-line);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-2);
+}
+.code-copy {
+  margin-left: auto;
+  min-height: var(--tap-min);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: transparent;
+  border: 0;
+  color: var(--color-code-comment);
+  font: inherit;
+  font-size: var(--text-xs);
+  font-family: var(--font-sans);
+  cursor: pointer;
+  padding-inline: var(--space-2);
+  border-radius: var(--radius-sm);
+}
+.code-copy:hover { color: var(--color-code-text); }
+.code pre {
+  margin: 0;
+  padding: var(--space-4) var(--space-5);
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--color-code-text);
+}
+.code .c { color: var(--color-code-comment); }
+.code .s { color: var(--color-code-string); }
+.code .k { color: var(--color-code-keyword); }
+
+/* Diagramm */
+figure { margin: 0; }
+figure .frame {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg);
+  padding: var(--space-6);
+}
+figure svg { width: 100%; height: auto; }
+figcaption {
+  margin-top: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  line-height: var(--leading-snug);
+}
+.dg-box { fill: var(--color-bg-raised); stroke: var(--color-border-strong); }
+.dg-box-accent { fill: var(--color-accent-soft); stroke: var(--color-accent-line); }
+.dg-box-ok { fill: var(--color-success-soft); stroke: var(--color-success-line); }
+.dg-label { fill: var(--color-text); font-family: var(--font-sans); font-size: var(--text-sm); font-weight: var(--weight-semibold); }
+.dg-sub { fill: var(--color-text-muted); font-family: var(--font-sans); font-size: var(--text-xs); }
+.dg-line { stroke: var(--color-border-strong); fill: none; }
+.dg-line-accent { stroke: var(--color-accent); fill: none; }
+.dg-arrow { fill: var(--color-border-strong); }
+.dg-arrow-accent { fill: var(--color-accent); }
+.dg-zone { fill: var(--color-bg-sunken); stroke: var(--color-border); }
+
+/* --- Rechte Info-Leiste ----------------------------------- */
+.rail {
+  border-left: var(--border-width) solid var(--color-border);
+  background: var(--color-bg);
+  padding: var(--space-5) var(--space-4) var(--space-8);
+  display: grid;
+  gap: var(--space-4);
+  align-content: start;
+  position: sticky;
+  top: 0;
+}
+.rp {
+  background: var(--color-bg-raised);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+}
+.rp h4 {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  font-weight: var(--weight-semibold);
+  margin-bottom: var(--space-3);
+}
+.rp .rp-hint { font-size: var(--text-xs); color: var(--color-text-faint); margin-bottom: var(--space-3); line-height: var(--leading-snug); }
+.toc { list-style: none; margin: 0; padding: 0; }
+.toc a {
+  display: block;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  text-decoration: none;
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  border-left: var(--border-width-strong) solid transparent;
+}
+.toc a:hover { background: var(--color-bg-hover); color: var(--color-text); }
+.toc a[aria-current='true'] {
+  color: var(--color-accent);
+  border-left-color: var(--color-accent);
+  background: var(--color-accent-soft);
+  font-weight: var(--weight-semibold);
+}
+.toc .lvl3 { padding-left: var(--space-6); }
+.tags { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--space-7);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--color-bg-sunken);
+  border: var(--border-width) solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  text-decoration: none;
+}
+.tag:hover { background: var(--color-bg-active); color: var(--color-text); }
+.tag .h { color: var(--color-text-faint); margin-right: var(--space-1); }
+.meta-dl { margin: 0; display: grid; grid-template-columns: 1fr; gap: var(--space-1); font-size: var(--text-sm); }
+.meta-dl dt { font-size: var(--text-xs); color: var(--color-text-faint); }
+.meta-dl dd { margin: 0 0 var(--space-3); color: var(--color-text); line-height: var(--leading-snug); }
+.rel-group + .rel-group { margin-top: var(--space-4); }
+.rel-type { font-size: var(--text-xs); color: var(--color-text-faint); margin-bottom: var(--space-2); }
+.rel-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); }
+.rel-list a {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap-min);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  text-decoration: none;
+  line-height: var(--leading-snug);
+}
+.rel-list a:hover { background: var(--color-bg-hover); }
+.rel-list svg { width: var(--space-4); height: var(--space-4); color: var(--color-text-faint); flex: none; }
+.mini-node { fill: var(--color-bg-sunken); stroke: var(--color-border-strong); }
+.mini-node-self { fill: var(--color-accent-soft); stroke: var(--color-accent); }
+.mini-edge { stroke: var(--color-border-strong); }
+.mini-label { fill: var(--color-text-muted); font-family: var(--font-sans); font-size: var(--text-xs); }
+
+/* ============================================================
+   Bausteine
+   ============================================================ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--tap-min);
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-md);
+  border: var(--border-width) solid transparent;
+  font: inherit;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-snug);
+  cursor: pointer;
+  text-decoration: none;
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  box-shadow: var(--shadow-accent);
+  transition: background var(--motion-fast) var(--easing), box-shadow var(--motion-fast) var(--easing),
+    transform var(--motion-fast) var(--easing);
+}
+.btn:hover { background: var(--color-accent-strong); }
+.btn:active { transform: translateY(var(--border-width)); }
+.btn svg { width: var(--space-5); height: var(--space-5); }
+.btn.secondary {
+  background: var(--color-bg-raised);
+  color: var(--color-text);
+  border-color: var(--color-border-strong);
+  box-shadow: var(--shadow-sm);
+}
+.btn.secondary:hover { background: var(--color-bg-hover); }
+.btn.ghost { background: transparent; color: var(--color-text-muted); box-shadow: none; }
+.btn.ghost:hover { background: var(--color-bg-hover); color: var(--color-text); }
+.btn.danger {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+  border-color: var(--color-danger-line);
+  box-shadow: none;
+}
+.btn.danger:hover { background: var(--color-danger); color: var(--color-bg-raised); }
+.btn[disabled], .btn[aria-disabled='true'] {
+  background: var(--color-bg-sunken);
+  color: var(--color-text-faint);
+  border-color: var(--color-border);
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
+}
+.btn.wide { width: 100%; }
+.btn.big { min-height: var(--tap-comfortable); font-size: var(--text-md); padding-inline: var(--space-6); }
+
+.field { display: grid; gap: var(--space-2); }
+.field label { font-size: var(--text-sm); font-weight: var(--weight-semibold); }
+.field .help { font-size: var(--text-xs); color: var(--color-text-muted); line-height: var(--leading-snug); }
+.field input[type='text'],
+.field input[type='search'],
+.field select,
+.field textarea {
+  font: inherit;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  min-height: var(--tap-comfortable);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  border: var(--border-width) solid var(--color-border-strong);
+  background: var(--color-bg-raised);
+  color: var(--color-text);
+  width: 100%;
+}
+.field textarea { min-height: calc(var(--space-10) * 2); line-height: var(--leading-normal); resize: vertical; }
+.field input::placeholder, .field textarea::placeholder { color: var(--color-text-faint); }
+.field.invalid input { border-color: var(--color-danger); }
+.field .error-text {
+  font-size: var(--text-xs);
+  color: var(--color-danger);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.field .error-text svg { width: var(--space-4); height: var(--space-4); }
+.choice {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  min-height: var(--tap-comfortable);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-raised);
+  cursor: pointer;
+}
+.choice:hover { background: var(--color-bg-hover); }
+.choice input { margin-top: var(--space-1); accent-color: var(--color-accent); width: var(--space-5); height: var(--space-5); }
+.choice .t { font-size: var(--text-sm); font-weight: var(--weight-semibold); }
+.choice .d { font-size: var(--text-xs); color: var(--color-text-muted); line-height: var(--leading-snug); }
+
+.card {
+  background: var(--color-bg-raised);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-sm);
+}
+.card h4 { font-size: var(--text-md); margin-bottom: var(--space-2); }
+.card p { font-size: var(--text-sm); color: var(--color-text-muted); line-height: var(--leading-snug); }
+a.card { display: block; text-decoration: none; color: var(--color-text); }
+a.card:hover { border-color: var(--color-accent-line); background: var(--color-accent-soft); }
+
+.tabs { border-bottom: var(--border-width) solid var(--color-border); display: flex; gap: var(--space-1); flex-wrap: wrap; }
+.tabs button {
+  font: inherit;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  min-height: var(--tap-comfortable);
+  padding: 0 var(--space-4);
+  background: transparent;
+  border: 0;
+  border-bottom: var(--border-width-strong) solid transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+.tabs button:hover { background: var(--color-bg-hover); color: var(--color-text); }
+.tabs button[aria-selected='true'] {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+  font-weight: var(--weight-semibold);
+}
+.tabpanel { padding-top: var(--space-4); font-size: var(--text-sm); color: var(--color-text-muted); }
+
+dialog {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-bg-raised);
+  color: var(--color-text);
+  box-shadow: var(--shadow-md);
+  padding: 0;
+  max-width: 34rem;
+  width: calc(100% - var(--space-8));
+}
+dialog::backdrop { background: var(--color-backdrop); }
+.dialog-head { padding: var(--space-6) var(--space-6) var(--space-3); }
+.dialog-head h3 { font-size: var(--text-lg); margin-bottom: var(--space-2); }
+.dialog-head p { font-size: var(--text-sm); color: var(--color-text-muted); line-height: var(--leading-snug); }
+.dialog-body { padding: var(--space-3) var(--space-6); display: grid; gap: var(--space-4); }
+.dialog-foot {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+  padding: var(--space-5) var(--space-6);
+  border-top: var(--border-width) solid var(--color-border);
+  background: var(--color-bg);
+  border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+  flex-wrap: wrap;
+}
+
+.skeleton { display: grid; gap: var(--space-3); }
+.sk-line {
+  height: var(--space-4);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--color-bg-sunken), var(--color-bg-hover), var(--color-bg-sunken));
+  background-size: 200% 100%;
+  animation: sk 1.4s var(--easing) infinite;
+}
+.sk-line.short { width: 40%; }
+.sk-line.mid { width: 70%; }
+@keyframes sk { from { background-position: 200% 0; } to { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .sk-line { animation: none; }
+  * { transition-duration: 1ms !important; }
+}
+
+.empty {
+  text-align: center;
+  padding: var(--space-9) var(--space-6);
+  border: var(--border-width-strong) dashed var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg);
+}
+.empty svg { width: var(--space-10); height: var(--space-10); color: var(--color-text-faint); margin: 0 auto var(--space-4); }
+.empty h4 { font-size: var(--text-md); margin-bottom: var(--space-2); }
+.empty p { font-size: var(--text-sm); color: var(--color-text-muted); max-width: 44ch; margin: 0 auto var(--space-5); line-height: var(--leading-snug); }
+
+/* Baustein-Galerie-Raster */
+.gallery { display: grid; gap: var(--space-5); grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr)); align-items: start; }
+.panel {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-raised);
+  padding: var(--space-5);
+}
+.panel > h3 {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  font-weight: var(--weight-semibold);
+  margin-bottom: var(--space-4);
+}
+.row { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
+.stack { display: grid; gap: var(--space-4); }
+
+/* ============================================================
+   Navigation & Suche
+   ============================================================ */
+.nav-demo { display: grid; gap: var(--space-6); grid-template-columns: 1.2fr 1fr; align-items: start; }
+
+.palette {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-bg-raised);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+.palette-input {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: var(--border-width) solid var(--color-border);
+  font-size: var(--text-lg);
+}
+.palette-input svg { width: var(--space-6); height: var(--space-6); color: var(--color-text-muted); }
+.palette-input .typed { color: var(--color-text); }
+.palette-input .caret {
+  width: var(--border-width-strong);
+  height: var(--space-6);
+  background: var(--color-accent);
+  display: inline-block;
+}
+.palette-group { padding: var(--space-3) var(--space-2) var(--space-2); }
+.palette-group + .palette-group { border-top: var(--border-width) solid var(--color-border); }
+.palette-group h4 {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+  font-weight: var(--weight-semibold);
+  padding: 0 var(--space-3) var(--space-2);
+}
+.palette-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: var(--space-1) var(--space-4);
+  align-items: center;
+  min-height: var(--tap-comfortable);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  color: var(--color-text);
+}
+.palette-item:hover, .palette-item.sel { background: var(--color-accent-soft); }
+.palette-item.sel { box-shadow: inset 0 0 0 var(--border-width) var(--color-accent-line); }
+.palette-item svg { width: var(--space-5); height: var(--space-5); color: var(--color-accent); grid-row: span 2; }
+.palette-item .t { font-size: var(--text-sm); font-weight: var(--weight-semibold); }
+.palette-item .d { font-size: var(--text-xs); color: var(--color-text-muted); grid-column: 2; line-height: var(--leading-snug); }
+.palette-item .where {
+  grid-row: span 2;
+  font-size: var(--text-xs);
+  color: var(--color-text-faint);
+  white-space: nowrap;
+}
+.palette-foot {
+  display: flex;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  border-top: var(--border-width) solid var(--color-border);
+  background: var(--color-bg);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  flex-wrap: wrap;
+}
+kbd {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-bottom-width: var(--border-width-strong);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-2);
+  background: var(--color-bg-raised);
+  color: var(--color-text);
+}
+
+.spacemenu { border: var(--border-width) solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-bg-raised); overflow: hidden; }
+.spacemenu h4 {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+  font-weight: var(--weight-semibold);
+  padding: var(--space-4) var(--space-5) var(--space-2);
+}
+.spacemenu a {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: var(--space-1) var(--space-4);
+  align-items: center;
+  min-height: var(--tap-comfortable);
+  padding: var(--space-3) var(--space-5);
+  text-decoration: none;
+  color: var(--color-text);
+  border-top: var(--border-width) solid var(--color-border);
+}
+.spacemenu a:hover { background: var(--color-bg-hover); }
+.spacemenu a .t { font-size: var(--text-sm); font-weight: var(--weight-semibold); }
+.spacemenu a .d { grid-column: 2; font-size: var(--text-xs); color: var(--color-text-muted); line-height: var(--leading-snug); }
+.spacemenu .sq {
+  grid-row: span 2;
+  width: var(--space-8);
+  height: var(--space-8);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-sunken);
+  border: var(--border-width) solid var(--color-border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  color: var(--color-text-muted);
+}
+.spacemenu a[aria-current='true'] .sq { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-accent-contrast); }
+.spacemenu .check { grid-row: span 2; width: var(--space-5); height: var(--space-5); color: var(--color-accent); }
+
+/* „Was kann ich hier tun?“ */
+.starter {
+  border: var(--border-width) solid var(--color-accent-line);
+  background: var(--color-accent-soft);
+  border-radius: var(--radius-xl);
+  padding: var(--space-7);
+}
+.starter h3 { font-size: var(--text-xl); margin-bottom: var(--space-2); }
+.starter > p { color: var(--color-text-muted); max-width: 60ch; margin-bottom: var(--space-6); }
+.starter-grid { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); }
+.starter-card {
+  background: var(--color-bg-raised);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  text-decoration: none;
+  color: var(--color-text);
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+}
+.starter-card:hover { border-color: var(--color-accent); box-shadow: var(--shadow-sm); }
+.starter-card svg { width: var(--space-7); height: var(--space-7); color: var(--color-accent); }
+.starter-card .t { font-size: var(--text-md); font-weight: var(--weight-semibold); font-family: var(--font-display); }
+.starter-card .d { font-size: var(--text-sm); color: var(--color-text-muted); line-height: var(--leading-snug); }
+
+.toolgrid { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); }
+.toolcard {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-raised);
+  text-decoration: none;
+  color: var(--color-text);
+  align-content: start;
+}
+.toolcard:hover { border-color: var(--color-accent-line); background: var(--color-accent-soft); }
+.toolcard .ic {
+  width: var(--space-9);
+  height: var(--space-9);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-sunken);
+  border: var(--border-width) solid var(--color-border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-accent);
+}
+.toolcard .ic svg { width: var(--space-6); height: var(--space-6); }
+.toolcard .t { font-family: var(--font-display); font-size: var(--text-md); font-weight: var(--weight-semibold); }
+.toolcard .d { font-size: var(--text-sm); color: var(--color-text-muted); line-height: var(--leading-snug); }
+.toolcard .ex { font-size: var(--text-xs); color: var(--color-text-faint); line-height: var(--leading-snug); }
+
+/* ============================================================
+   Token-Tabelle
+   ============================================================ */
+.tokentable td { font-size: var(--text-xs); }
+.tokentable td:first-child { font-family: var(--font-mono); color: var(--color-text); white-space: nowrap; }
+.tokentable .val { font-family: var(--font-mono); color: var(--color-text-muted); white-space: nowrap; }
+.sw {
+  display: inline-block;
+  width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-sm);
+  border: var(--border-width) solid var(--color-border-strong);
+  vertical-align: middle;
+  margin-right: var(--space-2);
+}
+.tokentable .group td {
+  background: var(--color-bg-sunken);
+  font-family: var(--font-sans);
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.tokentable tbody tr.group:hover td { background: var(--color-bg-sunken); }
+mark { background: var(--color-accent-soft); color: var(--color-accent); border-radius: var(--radius-sm); padding: 0 var(--space-1); font-weight: var(--weight-semibold); }
+.tokennote { font-size: var(--text-sm); color: var(--color-text-muted); margin-top: var(--space-4); max-width: 70ch; line-height: var(--leading-snug); }
+
+.mockup-foot {
+  border-top: var(--border-width) solid var(--color-border);
+  padding: var(--space-8);
+  text-align: center;
+  color: var(--color-text-faint);
+  font-size: var(--text-sm);
+}
+
+/* ============================================================
+   Responsiv — Breakpoints sind der einzige Ort mit festen px
+   (CSS erlaubt in Media Queries keine Variablen).
+   ============================================================ */
+@media (max-width: 1240px) {
+  .app[data-rail] { --rail-col: 0; }
+  .rail, .rail-toggle, .wide-toggle { display: none; }
+  .nav-demo { grid-template-columns: 1fr; }
+}
+@media (max-width: 900px) {
+  .app[data-nav] { --nav-col: 0; }
+  .nav, .nav-toggle { display: none; }
+  .doc { padding: var(--space-5) var(--space-5) var(--space-8); }
+  .section { padding: var(--space-8) var(--space-5) var(--space-6); }
+  .brief { padding: var(--space-6) var(--space-5); }
+  .topbar { gap: var(--space-3); }
+  .searchbar { order: 3; flex-basis: 100%; }
+  .mobile-nav { display: flex; }
+}
+.mobile-nav {
+  display: none;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+  border-bottom: var(--border-width) solid var(--color-border);
+  background: var(--color-bg);
+  overflow-x: auto;
+}
+.mobile-nav a {
+  flex: none;
+  min-height: var(--tap-min);
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  border: var(--border-width) solid var(--color-border);
+  background: var(--color-bg-raised);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  text-decoration: none;
+  white-space: nowrap;
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#leseansicht">Zum Inhalt springen</a>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-pages" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A1.5 1.5 0 015.5 4H10l2 2h6.5A1.5 1.5 0 0120 7.5v11A1.5 1.5 0 0118.5 20h-13A1.5 1.5 0 014 18.5z"/></symbol>
+  <symbol id="i-template" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 9h16M9 9v11"/></symbol>
+  <symbol id="i-schema" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h6M4 12h10M4 17h7"/><circle cx="18" cy="7" r="2"/><circle cx="19" cy="17" r="2"/></symbol>
+  <symbol id="i-report" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9.5 12.5l2 2 3.5-3.5"/></symbol>
+  <symbol id="i-graph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="17" r="2.5"/><circle cx="17" cy="18" r="2.5"/><circle cx="12" cy="6" r="2.5"/><path d="M8 15.4l3-7M13.7 8l2.6 7.7M8.5 17.3h6"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9a2.1 2.1 0 00-3-3L5 17z"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 7.5V12l3 2"/></symbol>
+  <symbol id="i-space" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 9h8M8 13h5"/></symbol>
+  <symbol id="i-version" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="6" r="2.4"/><circle cx="7" cy="18" r="2.4"/><circle cx="17" cy="12" r="2.4"/><path d="M7 8.4v7.2M9.3 7.2c3.4.4 5 1.8 5.4 3.8"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5M12 7.8v.4"/></symbol>
+  <symbol id="i-warning" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.5l8.5 15h-17z"/><path d="M12 10v4.2M12 17.2v.3"/></symbol>
+  <symbol id="i-error" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M9.2 9.2l5.6 5.6M14.8 9.2l-5.6 5.6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M8.4 12.3l2.6 2.6 4.6-5"/></symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 18h5M10 21h4"/><path d="M12 3a6 6 0 00-3.5 10.9c.6.5.9 1.1 1 1.8l.1.8h4.8l.1-.8c.1-.7.4-1.3 1-1.8A6 6 0 0012 3z"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 13.5a3.5 3.5 0 005 0l3-3a3.54 3.54 0 00-5-5l-1.4 1.4"/><path d="M13.5 10.5a3.5 3.5 0 00-5 0l-3 3a3.54 3.54 0 005 5l1.4-1.4"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 6.5A2.5 2.5 0 0012.5 4h-6A2.5 2.5 0 004 6.5v6A2.5 2.5 0 006.5 15"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.6a2.5 2.5 0 114 2.3c-.8.5-1.1 1-1.1 1.9M12 17.2v.3"/></symbol>
+  <symbol id="i-empty" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="M3.5 10h17M8 14.5h8"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 019.5 4a8.5 8.5 0 1010.5 10.5z"/></symbol>
+  <symbol id="i-panel-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2.5"/><path d="M9.5 4.5v15"/><path d="M5.6 9.5h2.2M5.6 12.5h2.2"/></symbol>
+  <symbol id="i-panel-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2.5"/><path d="M14.5 4.5v15"/><path d="M16.2 9.5h2.2M16.2 12.5h2.2"/></symbol>
+  <symbol id="i-wide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 8L5 12l4.5 4M14.5 8l4.5 4-4.5 4"/><path d="M12 5.5v13"/></symbol>
+  <symbol id="i-review" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H12l-4 3.5v-3.5H4z"/><path d="M8.5 10.5h7"/></symbol>
+</svg>
+<header class="brief">
+  <div class="brief-inner">
+    <div>
+      <div class="brief-eyebrow">Design-Entwurf 2026 · These
+      </div>
+      <h1>Klar &amp; Warm</h1>
+      <p class="brief-lead">Betriebswissen gehört allen im Haus — nicht nur denen, die die Plattform täglich benutzen. Warme Neutraltöne, ruhige Führung, große Klickflächen und Beschriftungen, die erklären, was sie tun.</p>
+    </div>
+    <div class="theme-switch" role="group" aria-label="Farbschema">
+      <button type="button" id="theme-light" aria-pressed="true"><svg aria-hidden="true"><use href="#i-sun"/></svg>Hell</button>
+      <button type="button" id="theme-dark" aria-pressed="false"><svg aria-hidden="true"><use href="#i-moon"/></svg>Dunkel</button>
+    </div>
+  </div>
+</header>
+<main id="mockup">
+
+<section class="section full" id="leseansicht">
+  <div class="section-head">
+    <div class="section-num">1</div>
+    <h2>Leseansicht</h2>
+    <p>Die Ansicht, in der 90 Prozent der Zeit verbracht wird. Ruhige Papierfläche, links eine Navigation, die ihre Werkzeuge beim Namen nennt und erklärt — und zwei benannte Schalter, mit denen sich die Leisten einzeln wegklappen lassen. Begrenzt ist allein die <em>Zeilenlänge des Fließtexts</em>; Tabellen, Codeblöcke und Diagramme nehmen immer die volle verfügbare Breite.</p>
+  </div>
+
+  <div class="app" id="app-lese" data-nav="auf" data-rail="auf" data-persist="1">
+    <div class="topbar">
+      <a class="brand" href="#leseansicht"><span class="brand-mark" aria-hidden="true">f</span>f451</a>
+      <button type="button" class="btn secondary nav-toggle" aria-expanded="true" aria-controls="nav-lese"
+              title="Blendet den Seitenbaum aus, damit Tabellen und Diagramme breiter werden. Taste: eckige Klammer auf">
+        <svg aria-hidden="true"><use href="#i-panel-left"/></svg>
+        <span class="t-hide">Seitenbaum ausblenden</span>
+        <span class="t-show">Seitenbaum einblenden</span>
+        <kbd aria-hidden="true">[</kbd>
+      </button>
+      <button type="button" class="spacepick" aria-haspopup="menu" aria-expanded="false">
+        <svg aria-hidden="true"><use href="#i-space"/></svg>
+        <span><b>handbuch</b> <span class="sub">· Betriebshandbuch</span></span>
+        <svg aria-hidden="true"><use href="#i-chevron"/></svg>
+      </button>
+      <button type="button" class="searchbar">
+        <svg aria-hidden="true"><use href="#i-search"/></svg>
+        <span>Seiten, Werkzeuge und Aktionen durchsuchen</span>
+        <span class="hint" aria-hidden="true">Strg K</span>
+      </button>
+      <div class="topbar-right viewctl">
+        <button type="button" class="btn secondary wide-toggle" aria-pressed="false"
+                title="Blendet beide Leisten aus und gibt dem Inhalt die volle Fensterbreite. Taste: Rueckstrich">
+          <svg aria-hidden="true"><use href="#i-wide"/></svg>
+          <span class="t-off">Volle Breite</span>
+          <span class="t-on">Leisten wieder zeigen</span>
+          <kbd aria-hidden="true">\</kbd>
+        </button>
+        <button type="button" class="btn secondary rail-toggle" aria-expanded="true" aria-controls="rail-lese"
+                title="Blendet die Info-Leiste mit Inhaltsverzeichnis und Angaben aus. Taste: eckige Klammer zu">
+          <svg aria-hidden="true"><use href="#i-panel-right"/></svg>
+          <span class="t-hide">Info-Leiste ausblenden</span>
+          <span class="t-show">Info-Leiste einblenden</span>
+          <kbd aria-hidden="true">]</kbd>
+        </button>
+        <a class="btn ghost" href="#navigation"><svg aria-hidden="true"><use href="#i-help"/></svg>Was kann ich hier tun?</a>
+        <span class="avatar" title="Angemeldet als D. Krcek">DK</span>
+      </div>
+    </div>
+
+    <nav class="mobile-nav" aria-label="Bereiche (schmale Ansicht)">
+      <a href="#leseansicht">Seiten</a>
+      <a href="#navigation">Vorlagen</a>
+      <a href="#navigation">Schema</a>
+      <a href="#navigation">Bericht</a>
+      <a href="#navigation">Graph</a>
+    </nav>
+
+    <div class="shell">
+      <nav class="nav" id="nav-lese" aria-label="Space-Navigation">
+        <div class="nav-group">
+          <div class="nav-title">
+            <h3>Seiten</h3>
+            <a class="btn ghost" href="#bausteine" title="Neue Seite anlegen" aria-label="Neue Seite anlegen"><svg aria-hidden="true"><use href="#i-plus"/></svg></a>
+          </div>
+          <ul class="tree">
+            <li>
+              <a href="#leseansicht"><span class="dot" aria-hidden="true"></span>Azure Betrieb<span class="count">12</span></a>
+              <ul>
+                <li><a href="#leseansicht"><span class="dot" aria-hidden="true"></span>Landing Zone</a></li>
+                <li>
+                  <a href="#leseansicht" aria-current="page"><span class="dot" aria-hidden="true"></span>Backup &amp; Restore</a>
+                  <ul>
+                    <li><a href="#leseansicht"><span class="dot" aria-hidden="true"></span>Wiederherstellung üben</a></li>
+                    <li><a href="#leseansicht"><span class="dot" aria-hidden="true"></span>Aufbewahrungsfristen</a></li>
+                  </ul>
+                </li>
+                <li><a href="#leseansicht"><span class="dot" aria-hidden="true"></span>Monitoring &amp; Alerting</a></li>
+              </ul>
+            </li>
+            <li>
+              <a href="#leseansicht"><span class="dot" aria-hidden="true"></span>SAP HANA<span class="count">23</span></a>
+              <ul>
+                <li><a href="#leseansicht"><span class="dot" aria-hidden="true"></span>Kerneltausch</a></li>
+                <li><a href="#leseansicht"><span class="dot" aria-hidden="true"></span>MaxDB-Altsysteme</a></li>
+              </ul>
+            </li>
+            <li><a href="#leseansicht"><span class="dot" aria-hidden="true"></span>Notfallhandbuch<span class="count">7</span></a></li>
+          </ul>
+        </div>
+
+        <div class="nav-group">
+          <div class="nav-title"><h3>Werkzeuge dieses Space</h3></div>
+          <p class="nav-hint">Alles, was über das Lesen und Schreiben einzelner Seiten hinausgeht — mit einem Satz dazu, wofür es gut ist.</p>
+          <ul class="tools">
+            <li><a class="tool" href="#navigation">
+              <svg aria-hidden="true"><use href="#i-template"/></svg>
+              <span class="tool-name">Vorlagen</span>
+              <span class="tool-desc">Fertige Gerüst-Seiten, damit ein neues HOW-TO nicht bei null anfängt.</span>
+            </a></li>
+            <li><a class="tool" href="#navigation">
+              <svg aria-hidden="true"><use href="#i-schema"/></svg>
+              <span class="tool-name">Schema</span>
+              <span class="tool-desc">Legt fest, welche Angaben eine Seite tragen muss — System, SID, Verantwortlich.</span>
+            </a></li>
+            <li><a class="tool" href="#navigation">
+              <svg aria-hidden="true"><use href="#i-report"/></svg>
+              <span class="tool-name">Bericht <span class="badge-new">2 offen</span></span>
+              <span class="tool-desc">Findet defekte Links und Seiten, die sich nicht verarbeiten lassen.</span>
+            </a></li>
+            <li><a class="tool" href="#navigation">
+              <svg aria-hidden="true"><use href="#i-graph"/></svg>
+              <span class="tool-name">Graph</span>
+              <span class="tool-desc">Zeigt, welche Seiten aufeinander verweisen — gut vor großen Umbauten.</span>
+            </a></li>
+            <li><a class="tool" href="#navigation">
+              <svg aria-hidden="true"><use href="#i-review"/></svg>
+              <span class="tool-name">Offene Reviews</span>
+              <span class="tool-desc">Änderungen, die auf eine Freigabe warten — hier auch deine eigenen.</span>
+            </a></li>
+          </ul>
+        </div>
+      </nav>
+
+      <div class="doc">
+        <div class="doc-inner">
+          <nav class="crumbs" aria-label="Pfad">
+            <a href="#leseansicht">handbuch</a><span class="sep" aria-hidden="true">/</span>
+            <a href="#leseansicht">azure betrieb</a><span class="sep" aria-hidden="true">/</span>
+            <a href="#leseansicht">backup restore</a><span class="sep" aria-hidden="true">/</span>
+            <b aria-current="page">Backup &amp; Restore</b>
+          </nav>
+
+          <div class="doc-head">
+            <h1>Backup &amp; Restore — SAP HANA auf Azure</h1>
+            <div class="doc-actions">
+              <span class="chip released"><svg aria-hidden="true"><use href="#i-check"/></svg>Freigegeben</span>
+              <a class="btn" href="#bausteine"><svg aria-hidden="true"><use href="#i-edit"/></svg>Bearbeiten</a>
+            </div>
+          </div>
+
+          <div class="metaline">
+            <span class="item"><svg aria-hidden="true"><use href="#i-clock"/></svg>Aktualisiert 25.07.2026</span>
+            <span class="item"><svg aria-hidden="true"><use href="#i-space"/></svg>Space handbuch</span>
+            <span class="item"><svg aria-hidden="true"><use href="#i-version"/></svg>Version 1.2.0</span>
+            <span class="item"><svg aria-hidden="true"><use href="#i-pages"/></svg>Lesezeit etwa 9 Minuten</span>
+          </div>
+
+          <div class="prose">
+            <div class="nutshell">
+              <svg aria-hidden="true"><use href="#i-bulb"/></svg>
+              <h4>In einem Satz</h4>
+              <p>Die Produktivdatenbank <code>HDB</code> (SID <code>PRD</code>) wird täglich per Backint in einen Recovery Services Vault gesichert; diese Seite beschreibt die tägliche Prüfung und den Weg zurück, wenn eine Wiederherstellung nötig wird.</p>
+            </div>
+
+            <div class="note warning">
+              <svg aria-hidden="true"><use href="#i-warning"/></svg>
+              <h4>Zwei Verweise auf dieser Seite gehen ins Leere</h4>
+              <div class="note-body">
+                <p>Beim letzten Durchlauf des Berichts wurden zwei Ziele nicht gefunden. Die Seite ist trotzdem vollständig lesbar.</p>
+                <ul>
+                  <li><code>azure-betrieb/vault-rotation</code> — Seite wurde verschoben oder umbenannt</li>
+                  <li><code>sap-hana/hdbuserstore</code> — Seite existiert nicht (mehr)</li>
+                </ul>
+                <p><a href="#navigation">Im Bericht ansehen und zuordnen</a></p>
+              </div>
+            </div>
+            <h2 id="geltungsbereich">Geltungsbereich</h2>
+            <p class="lede">Gilt für alle HANA-Instanzen der Produktivlandschaft in der Region Westeurope. Nicht-produktive Systeme folgen demselben Verfahren, aber mit kürzerer Aufbewahrung.</p>
+            <div class="table-wrap">
+              <table>
+                <caption class="sr-only">Systeme, Sicherungsverfahren und Zielwerte</caption>
+                <thead>
+                  <tr><th scope="col">System</th><th scope="col">SID</th><th scope="col">Verfahren</th><th scope="col">Aufbewahrung</th><th scope="col">RPO / RTO</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>HANA Produktion</td><td><code>PRD</code></td><td>Backint in Recovery Services Vault</td><td>35 Tage, 12 Monatsstände</td><td>15 Min / 4 Std</td></tr>
+                  <tr><td>HANA Qualität</td><td><code>QAS</code></td><td>Backint, täglich vollständig</td><td>14 Tage</td><td>24 Std / 8 Std</td></tr>
+                  <tr><td>HANA Entwicklung</td><td><code>DEV</code></td><td>Dateisicherung auf Azure Files</td><td>7 Tage</td><td>24 Std / nach Aufwand</td></tr>
+                  <tr><td>MaxDB-Altsystem</td><td><code>LEG</code></td><td>Storage-Snapshot, wöchentlich</td><td>90 Tage</td><td>7 Tage / 2 Tage</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h2 id="verfahren">Sicherungsverfahren im Überblick</h2>
+            <p>Das Datenbank-Backup läuft nicht über das Dateisystem, sondern über die Backint-Schnittstelle: HANA übergibt die Datenströme direkt an den Azure-Agenten, der sie in den Vault schreibt. Der Sicherungskatalog bleibt dabei in der Datenbank und ist die Grundlage jeder späteren Wiederherstellung.</p>
+            <figure>
+              <div class="frame">
+                <svg viewBox="0 0 720 260" role="img" aria-labelledby="dg-title dg-desc">
+                  <title id="dg-title">Sicherungsweg von der HANA-Datenbank in den Vault</title>
+                  <desc id="dg-desc">Die Datenbank übergibt Daten- und Log-Sicherungen über den Backint-Agenten an den Recovery Services Vault, der georedundant in eine zweite Region repliziert wird. Parallel läuft ein wöchentlicher Storage-Snapshot.</desc>
+                  <rect class="dg-zone" x="8" y="8" width="238" height="244" rx="14"/>
+                  <text class="dg-sub" x="24" y="32">Virtuelles Netz — Produktion</text>
+                  <rect class="dg-zone" x="266" y="8" width="446" height="244" rx="14"/>
+                  <text class="dg-sub" x="284" y="32">Azure Backup</text>
+
+                  <rect class="dg-box-accent" x="32" y="56" width="190" height="66" rx="12"/>
+                  <text class="dg-label" x="48" y="84">SAP HANA · PRD</text>
+                  <text class="dg-sub" x="48" y="104">hana-prd-01, SYSTEMDB + HDB</text>
+
+                  <rect class="dg-box" x="32" y="152" width="190" height="66" rx="12"/>
+                  <text class="dg-label" x="48" y="180">Backint-Agent</text>
+                  <text class="dg-sub" x="48" y="200">hdbbackint, Kanal 1–4</text>
+
+                  <path class="dg-line-accent" d="M127 122 L127 146"/>
+                  <path class="dg-arrow-accent" d="M127 152 l-5 -8 h10 z"/>
+
+                  <rect class="dg-box" x="300" y="104" width="180" height="66" rx="12"/>
+                  <text class="dg-label" x="316" y="132">Recovery Services Vault</text>
+                  <text class="dg-sub" x="316" y="152">Richtlinie „hana-prd-täglich“</text>
+
+                  <path class="dg-line-accent" d="M222 185 C262 185 262 137 294 137"/>
+                  <path class="dg-arrow-accent" d="M300 137 l-8 -5 v10 z"/>
+
+                  <rect class="dg-box-ok" x="524" y="104" width="168" height="66" rx="12"/>
+                  <text class="dg-label" x="540" y="132">Zweitregion</text>
+                  <text class="dg-sub" x="540" y="152">georedundant, Northeurope</text>
+                  <path class="dg-line" d="M480 137 L518 137"/>
+                  <path class="dg-arrow" d="M524 137 l-8 -5 v10 z"/>
+
+                  <rect class="dg-box" x="300" y="196" width="180" height="44" rx="12"/>
+                  <text class="dg-sub" x="316" y="223">Storage-Snapshot, wöchentlich</text>
+                  <path class="dg-line" d="M222 205 C258 205 258 218 294 218"/>
+                  <path class="dg-arrow" d="M300 218 l-8 -5 v10 z"/>
+                </svg>
+              </div>
+              <figcaption>Abbildung 1 — Datenweg der täglichen Sicherung. Der Sicherungskatalog verbleibt in der Datenbank; ohne ihn ist eine Wiederherstellung nur über den Vault-Katalog möglich.</figcaption>
+            </figure>
+
+            <h2 id="taegliche-pruefung">Tägliche Prüfung</h2>
+            <p>Die Prüfung dauert zwei Minuten und gehört in die Morgenrunde. Sie beantwortet genau eine Frage: <strong>Gibt es für die letzten 24 Stunden eine erfolgreiche Datensicherung und eine lückenlose Kette von Log-Sicherungen?</strong></p>
+            <div class="code">
+              <div class="code-head">
+                <span class="lang">bash</span>
+                <span>hana-prd-01 · Benutzer prdadm</span>
+                <button type="button" class="code-copy"><svg aria-hidden="true" style="width:var(--space-4);height:var(--space-4)"><use href="#i-copy"/></svg>Kopieren</button>
+              </div>
+<pre><code><span class="c"># Letzte erfolgreiche Datensicherung je Dienst</span>
+hdbsql -i 00 -d SYSTEMDB -U BACKUP <span class="s">\
+  "SELECT ENTRY_TYPE_NAME, STATE_NAME, SYS_START_TIME
+     FROM M_BACKUP_CATALOG
+    WHERE ENTRY_TYPE_NAME = 'complete data backup'
+    ORDER BY SYS_START_TIME DESC LIMIT 5"</span>
+
+<span class="c"># Lücken in der Log-Sicherung der letzten 24 Stunden</span>
+hdbsql -i 00 -d SYSTEMDB -U BACKUP <span class="s">\
+  "SELECT COUNT(*) AS FEHLGESCHLAGEN
+     FROM M_BACKUP_CATALOG
+    WHERE STATE_NAME <span class="k">&lt;&gt;</span> 'successful'
+      AND SYS_START_TIME &gt; ADD_DAYS(CURRENT_TIMESTAMP, -1)"</span></code></pre>
+            </div>
+            <p>Liefert die zweite Abfrage einen Wert größer null, ist die Log-Kette unterbrochen — ab diesem Zeitpunkt ist keine punktgenaue Wiederherstellung mehr möglich. In diesem Fall sofort eine vollständige Datensicherung anstoßen und den Vorfall im Betriebsprotokoll vermerken.</p>
+
+            <div class="note info">
+              <svg aria-hidden="true"><use href="#i-info"/></svg>
+              <h4>Warum nicht das Azure-Portal?</h4>
+              <div class="note-body"><p>Das Portal zeigt den Auftragsstatus des Vaults, nicht den Zustand des HANA-Katalogs. Beide können auseinanderlaufen — maßgeblich ist immer <code>M_BACKUP_CATALOG</code>.</p></div>
+            </div>
+
+            <h2 id="wiederherstellung">Wiederherstellung</h2>
+            <p>Der Ablauf gilt für die vollständige Wiederherstellung der Mandantendatenbank <code>HDB</code> auf denselben Host. Ein Restore auf einen anderen Host verlangt zusätzlich die Freigabe des Vault-Zugriffs für das Zielsystem.</p>
+            <ol>
+              <li><strong>Freigabe einholen.</strong> Eine Wiederherstellung der Produktion wird ausschließlich nach schriftlicher Freigabe des Anwendungsverantwortlichen gestartet.</li>
+              <li><strong>SAP-System stoppen.</strong> <code>stopsap ALL</code> auf allen Applikationsservern, danach Sperren der Anmeldung.</li>
+              <li><strong>Zielzeitpunkt festlegen.</strong> Entweder der letzte konsistente Zustand oder ein Zeitpunkt aus der Log-Kette. Den Zeitpunkt vor dem Start schriftlich festhalten.</li>
+              <li><strong>Recovery starten.</strong> Über HANA Cockpit oder <code>hdbsql</code> mit <code>RECOVER DATABASE UNTIL TIMESTAMP</code>; Backint liefert die Sicherungen aus dem Vault.</li>
+              <li><strong>Prüfen und freigeben.</strong> Konsistenzprüfung, Start des SAP-Systems, fachliche Stichprobe durch den Anwendungsverantwortlichen, erst danach Anmeldung wieder öffnen.</li>
+            </ol>
+
+            <div class="note error">
+              <svg aria-hidden="true"><use href="#i-error"/></svg>
+              <h4>Nicht ohne Sicherungskatalog wiederherstellen</h4>
+              <div class="note-body"><p>Wird der Katalog vor dem Recovery überschrieben, lässt sich die Log-Kette nicht mehr auflösen und es bleibt nur die letzte vollständige Datensicherung — im schlechtesten Fall ein Datenverlust von 24 Stunden.</p></div>
+            </div>
+
+            <h2 id="haeufige-fehler">Häufige Fehler</h2>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th scope="col">Meldung</th><th scope="col">Ursache</th><th scope="col">Vorgehen</th></tr></thead>
+                <tbody>
+                  <tr><td><code>UserErrorNoBackupFound</code></td><td>Richtlinie greift nicht, System nach dem letzten Lauf angelegt</td><td>Sicherung einmalig manuell anstoßen, danach Richtlinienzuordnung prüfen</td></tr>
+                  <tr><td><code>BackintError 189</code></td><td>Abgelaufene Anmeldeinformationen des Agenten</td><td>Agent neu registrieren, danach Testsicherung fahren</td></tr>
+                  <tr><td><code>log backup failed</code></td><td>Vollgelaufenes Log-Verzeichnis</td><td>Platz schaffen, Log-Sicherung nachziehen, Kette prüfen</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="note success">
+              <svg aria-hidden="true"><use href="#i-check"/></svg>
+              <h4>Letzte geübte Wiederherstellung: 12.06.2026</h4>
+              <div class="note-body"><p>Wiederherstellung von <code>PRD</code> auf das Testsystem, Dauer 2 Stunden 40 Minuten — innerhalb der zugesagten vier Stunden. Nächste Übung im Dezember 2026.</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="rail" id="rail-lese" aria-label="Angaben zu dieser Seite">
+        <section class="rp">
+          <h4>Auf dieser Seite</h4>
+          <ul class="toc">
+            <li><a href="#geltungsbereich">Geltungsbereich</a></li>
+            <li><a href="#verfahren" aria-current="true">Sicherungsverfahren im Überblick</a></li>
+            <li><a href="#taegliche-pruefung">Tägliche Prüfung</a></li>
+            <li><a href="#wiederherstellung">Wiederherstellung</a></li>
+            <li><a class="lvl3" href="#wiederherstellung">Ablauf in fünf Schritten</a></li>
+            <li><a href="#haeufige-fehler">Häufige Fehler</a></li>
+          </ul>
+        </section>
+
+        <section class="rp">
+          <h4>Schlagworte</h4>
+          <div class="tags">
+            <a class="tag" href="#navigation"><span class="h" aria-hidden="true">#</span>hana</a>
+            <a class="tag" href="#navigation"><span class="h" aria-hidden="true">#</span>backup</a>
+            <a class="tag" href="#navigation"><span class="h" aria-hidden="true">#</span>azure</a>
+            <a class="tag" href="#navigation"><span class="h" aria-hidden="true">#</span>notfall</a>
+          </div>
+        </section>
+
+        <section class="rp">
+          <h4>Angaben</h4>
+          <p class="rp-hint">Kommen aus dem Schema dieses Space.</p>
+          <dl class="meta-dl">
+            <dt>Stand</dt><dd><span class="chip released"><svg aria-hidden="true"><use href="#i-check"/></svg>Freigegeben</span></dd>
+            <dt>Verantwortlich</dt><dd>Team Basis-Betrieb</dd>
+            <dt>System</dt><dd>SAP HANA 2.0 SPS07</dd>
+            <dt>Kritikalität</dt><dd>Hoch — produktionsrelevant</dd>
+            <dt>Nächste Prüfung</dt><dd>31.12.2026</dd>
+          </dl>
+        </section>
+
+        <section class="rp">
+          <h4>Verwandte Seiten</h4>
+          <svg viewBox="0 0 240 120" role="img" aria-label="Kleiner Graph: diese Seite in der Mitte, vier verknüpfte Seiten ringsum" style="width:100%;height:auto;margin-bottom:var(--space-3)">
+            <path class="mini-edge" d="M120 60 L48 30 M120 60 L200 32 M120 60 L44 94 M120 60 L196 96"/>
+            <circle class="mini-node" cx="48" cy="30" r="9"/>
+            <circle class="mini-node" cx="200" cy="32" r="9"/>
+            <circle class="mini-node" cx="44" cy="94" r="9"/>
+            <circle class="mini-node" cx="196" cy="96" r="9"/>
+            <circle class="mini-node-self" cx="120" cy="60" r="14"/>
+            <text class="mini-label" x="120" y="88" text-anchor="middle">diese Seite</text>
+          </svg>
+          <div class="rel-group">
+            <div class="rel-type">Setzt voraus</div>
+            <ul class="rel-list">
+              <li><a href="#leseansicht"><svg aria-hidden="true"><use href="#i-link"/></svg>Landing Zone — Netzwerk und Vault</a></li>
+              <li><a href="#leseansicht"><svg aria-hidden="true"><use href="#i-link"/></svg>Berechtigungen im Basis-Betrieb</a></li>
+            </ul>
+          </div>
+          <div class="rel-group">
+            <div class="rel-type">Gehört zu</div>
+            <ul class="rel-list">
+              <li><a href="#leseansicht"><svg aria-hidden="true"><use href="#i-link"/></svg>Notfallhandbuch</a></li>
+            </ul>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </div>
+
+  <div class="compare">
+    <div class="compare-head">
+      <div>
+        <h3>Derselbe Inhalt, beide Leisten eingeklappt</h3>
+        <p>So sieht es aus, wenn jemand auf <strong>„Volle Breite“</strong> geklickt hat. Die 36 rem der beiden Leisten gehen vollständig an den Inhalt: Die Betriebstabelle und das Diagramm werden breiter, der Fließtext bleibt bei seinen 72 Zeichen stehen und wandert nicht mit. Der Weg zurück steht in derselben Schaltfläche — jetzt beschriftet mit „Leisten wieder zeigen“.</p>
+      </div>
+      <span class="chip working"><svg aria-hidden="true"><use href="#i-wide"/></svg>Volle Breite aktiv</span>
+    </div>
+
+    <div class="app" id="app-breit" data-nav="zu" data-rail="zu">
+      <div class="topbar">
+        <a class="brand" href="#leseansicht"><span class="brand-mark" aria-hidden="true">f</span>f451</a>
+        <button type="button" class="btn secondary nav-toggle" aria-expanded="false" aria-controls="nav-breit"
+                title="Zeigt den Seitenbaum wieder. Taste: eckige Klammer auf">
+          <svg aria-hidden="true"><use href="#i-panel-left"/></svg>
+          <span class="t-hide">Seitenbaum ausblenden</span>
+          <span class="t-show">Seitenbaum einblenden</span>
+          <kbd aria-hidden="true">[</kbd>
+        </button>
+        <button type="button" class="searchbar">
+          <svg aria-hidden="true"><use href="#i-search"/></svg>
+          <span>Seiten, Werkzeuge und Aktionen durchsuchen</span>
+          <span class="hint" aria-hidden="true">Strg K</span>
+        </button>
+        <div class="topbar-right viewctl">
+          <button type="button" class="btn secondary wide-toggle" aria-pressed="true"
+                  title="Zeigt beide Leisten wieder. Taste: Rückstrich">
+            <svg aria-hidden="true"><use href="#i-wide"/></svg>
+            <span class="t-off">Volle Breite</span>
+            <span class="t-on">Leisten wieder zeigen</span>
+            <kbd aria-hidden="true">\</kbd>
+          </button>
+          <button type="button" class="btn secondary rail-toggle" aria-expanded="false" aria-controls="rail-breit"
+                  title="Zeigt die Info-Leiste wieder. Taste: eckige Klammer zu">
+            <svg aria-hidden="true"><use href="#i-panel-right"/></svg>
+            <span class="t-hide">Info-Leiste ausblenden</span>
+            <span class="t-show">Info-Leiste einblenden</span>
+            <kbd aria-hidden="true">]</kbd>
+          </button>
+        </div>
+      </div>
+
+      <div class="shell">
+        <nav class="nav" id="nav-breit" aria-label="Space-Navigation (eingeklappt)">
+          <div class="nav-group">
+            <div class="nav-title"><h3>Seiten</h3></div>
+            <ul class="tree"><li><a href="#leseansicht" aria-current="page"><span class="dot" aria-hidden="true"></span>Backup &amp; Restore</a></li></ul>
+          </div>
+        </nav>
+
+        <div class="doc">
+          <div class="doc-inner">
+            <nav class="crumbs" aria-label="Pfad">
+              <a href="#leseansicht">handbuch</a><span class="sep" aria-hidden="true">/</span>
+              <a href="#leseansicht">azure betrieb</a><span class="sep" aria-hidden="true">/</span>
+              <b aria-current="page">Backup &amp; Restore</b>
+            </nav>
+            <div class="prose">
+              <h2>Geltungsbereich</h2>
+              <p>Der Fließtext behält seine Zeilenlänge — er wird nicht mitgezogen, weil längere Zeilen sich schlechter lesen. Die Tabelle darunter dagegen nutzt jetzt die gesamte Breite und braucht kein seitliches Schieben mehr.</p>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr><th scope="col">System</th><th scope="col">SID</th><th scope="col">Host</th><th scope="col">Verfahren</th><th scope="col">Zeitfenster</th><th scope="col">Aufbewahrung</th><th scope="col">RPO / RTO</th><th scope="col">Letzter Lauf</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>HANA Produktion</td><td><code>PRD</code></td><td><code>hana-prd-01</code></td><td>Backint in Recovery Services Vault</td><td>22:00–23:30</td><td>35 Tage, 12 Monatsstände</td><td>15 Min / 4 Std</td><td>25.07.2026 22:04 · erfolgreich</td></tr>
+                    <tr><td>HANA Qualität</td><td><code>QAS</code></td><td><code>hana-qas-01</code></td><td>Backint, täglich vollständig</td><td>01:00–02:00</td><td>14 Tage</td><td>24 Std / 8 Std</td><td>25.07.2026 01:12 · erfolgreich</td></tr>
+                    <tr><td>HANA Entwicklung</td><td><code>DEV</code></td><td><code>hana-dev-01</code></td><td>Dateisicherung auf Azure Files</td><td>03:00–03:40</td><td>7 Tage</td><td>24 Std / nach Aufwand</td><td>25.07.2026 03:07 · erfolgreich</td></tr>
+                    <tr><td>MaxDB-Altsystem</td><td><code>LEG</code></td><td><code>maxdb-leg-02</code></td><td>Storage-Snapshot, wöchentlich</td><td>So 04:00</td><td>90 Tage</td><td>7 Tage / 2 Tage</td><td>19.07.2026 04:02 · erfolgreich</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <figure>
+                <div class="frame">
+                  <svg viewBox="0 0 720 260" role="img" aria-label="Dasselbe Sicherungsdiagramm, jetzt über die volle Inhaltsbreite">
+                    <rect class="dg-zone" x="8" y="8" width="238" height="244" rx="14"/>
+                    <text class="dg-sub" x="24" y="32">Virtuelles Netz — Produktion</text>
+                    <rect class="dg-zone" x="266" y="8" width="446" height="244" rx="14"/>
+                    <text class="dg-sub" x="284" y="32">Azure Backup</text>
+                    <rect class="dg-box-accent" x="32" y="56" width="190" height="66" rx="12"/>
+                    <text class="dg-label" x="48" y="84">SAP HANA · PRD</text>
+                    <text class="dg-sub" x="48" y="104">hana-prd-01, SYSTEMDB + HDB</text>
+                    <rect class="dg-box" x="32" y="152" width="190" height="66" rx="12"/>
+                    <text class="dg-label" x="48" y="180">Backint-Agent</text>
+                    <text class="dg-sub" x="48" y="200">hdbbackint, Kanal 1–4</text>
+                    <path class="dg-line-accent" d="M127 122 L127 146"/>
+                    <path class="dg-arrow-accent" d="M127 152 l-5 -8 h10 z"/>
+                    <rect class="dg-box" x="300" y="104" width="180" height="66" rx="12"/>
+                    <text class="dg-label" x="316" y="132">Recovery Services Vault</text>
+                    <text class="dg-sub" x="316" y="152">Richtlinie „hana-prd-täglich“</text>
+                    <path class="dg-line-accent" d="M222 185 C262 185 262 137 294 137"/>
+                    <path class="dg-arrow-accent" d="M300 137 l-8 -5 v10 z"/>
+                    <rect class="dg-box-ok" x="524" y="104" width="168" height="66" rx="12"/>
+                    <text class="dg-label" x="540" y="132">Zweitregion</text>
+                    <text class="dg-sub" x="540" y="152">georedundant, Northeurope</text>
+                    <path class="dg-line" d="M480 137 L518 137"/>
+                    <path class="dg-arrow" d="M524 137 l-8 -5 v10 z"/>
+                    <rect class="dg-box" x="300" y="196" width="180" height="44" rx="12"/>
+                    <text class="dg-sub" x="316" y="223">Storage-Snapshot, wöchentlich</text>
+                    <path class="dg-line" d="M222 205 C258 205 258 218 294 218"/>
+                    <path class="dg-arrow" d="M300 218 l-8 -5 v10 z"/>
+                  </svg>
+                </div>
+                <figcaption>Abbildung 1 — dasselbe Diagramm, jetzt über die volle Inhaltsbreite.</figcaption>
+              </figure>
+            </div>
+          </div>
+        </div>
+
+        <aside class="rail" id="rail-breit" aria-label="Angaben zu dieser Seite (eingeklappt)">
+          <section class="rp"><h4>Auf dieser Seite</h4></section>
+        </aside>
+      </div>
+    </div>
+
+    <div class="note info">
+      <svg aria-hidden="true"><use href="#i-info"/></svg>
+      <h4>Kein verstecktes Kürzel</h4>
+      <div class="note-body"><p>Beide Schalter tragen einen Namen und sagen im Klartext, was sie tun; das Tastenkürzel steht als Zusatz daneben, nicht als Ersatz. Der zuletzt gewählte Zustand wird gemerkt — wer die Leisten einmal zugeklappt hat, findet sie beim nächsten Öffnen genauso vor, samt sichtbarer Schaltfläche zum Zurückholen.</p></div>
+    </div>
+  </div>
+</section>
+<section class="section" id="bausteine">
+  <div class="section-head">
+    <div class="section-num">2</div>
+    <h2>Bausteine</h2>
+    <p>Ein System, keine Sammlung: eine Höhe für alle Bedienelemente (mindestens 44 Pixel), eine Radien-Familie, ein Fokusring, ein Abstandsraster. Jede Beschriftung sagt, was passiert — nicht, wie die Funktion intern heißt.</p>
+  </div>
+
+  <div class="gallery">
+    <div class="panel">
+      <h3>Schaltflächen</h3>
+      <div class="stack">
+        <div class="row">
+          <button type="button" class="btn"><svg aria-hidden="true"><use href="#i-edit"/></svg>Bearbeiten</button>
+          <button type="button" class="btn secondary">Review anfordern</button>
+          <button type="button" class="btn ghost">Abbrechen</button>
+        </div>
+        <div class="row">
+          <button type="button" class="btn danger"><svg aria-hidden="true"><use href="#i-error"/></svg>Seite löschen</button>
+          <button type="button" class="btn" disabled>Freigeben</button>
+        </div>
+        <p class="tokennote">Deaktiviert heißt nie „stumm“: der Grund steht immer daneben — hier <em>„Freigabe erst nach abgeschlossenem Review möglich“</em>.</p>
+        <button type="button" class="btn big wide"><svg aria-hidden="true"><use href="#i-plus"/></svg>Neue Seite anlegen</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Eingaben</h3>
+      <div class="stack">
+        <div class="field">
+          <label for="f-title">Titel der Seite</label>
+          <input id="f-title" type="text" value="Kerneltausch HANA 2.0" />
+          <span class="help">Wird zugleich zur Adresse der Seite — spätere Umbenennungen bleiben verlinkbar.</span>
+        </div>
+        <div class="field">
+          <label for="f-space">Space</label>
+          <select id="f-space">
+            <option>handbuch — Betriebshandbuch</option>
+            <option>notfall — Notfallverfahren</option>
+            <option>projekt — Migrationsprojekt</option>
+          </select>
+        </div>
+        <div class="field invalid">
+          <label for="f-sid">SID</label>
+          <input id="f-sid" type="text" value="prd1" aria-describedby="f-sid-err" />
+          <span class="error-text" id="f-sid-err"><svg aria-hidden="true"><use href="#i-error"/></svg>Drei Großbuchstaben erwartet, zum Beispiel PRD.</span>
+        </div>
+        <label class="choice">
+          <input type="radio" name="vorlage" checked />
+          <span><span class="t">Vorlage „Betriebs-HOW-TO“</span><br /><span class="d">Bringt Geltungsbereich, Ablauf, Fehlerbilder und Ansprechpartner bereits mit.</span></span>
+        </label>
+        <label class="choice">
+          <input type="radio" name="vorlage" />
+          <span><span class="t">Leere Seite</span><br /><span class="d">Nur Titel und Angaben — der Rest bleibt dir überlassen.</span></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Status und Schlagworte</h3>
+      <div class="stack">
+        <div class="row">
+          <span class="chip working"><svg aria-hidden="true"><use href="#i-edit"/></svg>Entwurf</span>
+          <span class="chip review"><svg aria-hidden="true"><use href="#i-review"/></svg>In Review</span>
+          <span class="chip released"><svg aria-hidden="true"><use href="#i-check"/></svg>Freigegeben</span>
+          <span class="chip archived"><svg aria-hidden="true"><use href="#i-clock"/></svg>Archiviert</span>
+        </div>
+        <p class="tokennote">Jeder Status trägt Farbe <em>und</em> Symbol <em>und</em> Wort — die Farbe allein entscheidet nie.</p>
+        <div class="row">
+          <span class="tag"><span class="h" aria-hidden="true">#</span>hana</span>
+          <span class="tag"><span class="h" aria-hidden="true">#</span>maxdb</span>
+          <span class="tag"><span class="h" aria-hidden="true">#</span>kerneltausch</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Karten</h3>
+      <div class="stack">
+        <a class="card" href="#navigation">
+          <h4>Kerneltausch HANA 2.0</h4>
+          <p>Schrittweiser Austausch des Datenbankkernels inklusive Rückfallweg. Zuletzt geändert vor 3 Tagen.</p>
+        </a>
+        <div class="card">
+          <h4>Aufbewahrungsfristen</h4>
+          <p>Welche Sicherung wie lange vorgehalten wird — abgestimmt mit der Revision.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Reiter</h3>
+      <div class="tabs" role="tablist" aria-label="Ansicht der Seite">
+        <button type="button" role="tab" id="t1" aria-controls="p1" aria-selected="true">Inhalt</button>
+        <button type="button" role="tab" id="t2" aria-controls="p2" aria-selected="false">Verlauf</button>
+        <button type="button" role="tab" id="t3" aria-controls="p3" aria-selected="false">Angaben</button>
+      </div>
+      <div class="tabpanel" role="tabpanel" id="p1" aria-labelledby="t1">Die freigegebene Fassung 1.2.0, wie sie alle Leser sehen.</div>
+      <div class="tabpanel" role="tabpanel" id="p2" aria-labelledby="t2" hidden>Sieben Änderungen seit Januar 2026, jeweils mit Freigabe und Kommentar.</div>
+      <div class="tabpanel" role="tabpanel" id="p3" aria-labelledby="t3" hidden>Verantwortlich, System, Kritikalität und nächster Prüfungstermin.</div>
+    </div>
+
+    <div class="panel">
+      <h3>Dialog</h3>
+      <div class="stack">
+        <button type="button" class="btn secondary" id="open-dialog">Dialog „Review anfordern“ zeigen</button>
+        <dialog id="demo-dialog" aria-labelledby="dlg-title">
+          <div class="dialog-head">
+            <h3 id="dlg-title">Review anfordern</h3>
+            <p>Deine Änderung wird als Vorschlag eingereicht. Sie wird erst sichtbar, wenn jemand aus dem Team sie freigibt.</p>
+          </div>
+          <div class="dialog-body">
+            <div class="field">
+              <label for="dlg-note">Was hast du geändert?</label>
+              <textarea id="dlg-note">Prüfabfragen auf den Sicherungskatalog umgestellt und Fehlerbild BackintError 189 ergänzt.</textarea>
+              <span class="help">Ein Satz genügt — er steht später im Verlauf der Seite.</span>
+            </div>
+          </div>
+          <div class="dialog-foot">
+            <button type="button" class="btn ghost" id="close-dialog">Abbrechen</button>
+            <button type="button" class="btn">Review anfordern</button>
+          </div>
+        </dialog>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Hinweisblöcke</h3>
+      <div class="stack">
+        <div class="note info"><svg aria-hidden="true"><use href="#i-info"/></svg><h4>Zur Einordnung</h4><div class="note-body"><p>Diese Seite beschreibt den Soll-Zustand ab Mai 2026.</p></div></div>
+        <div class="note warning"><svg aria-hidden="true"><use href="#i-warning"/></svg><h4>Wartungsfenster beachten</h4><div class="note-body"><p>Änderungen an der Sicherungsrichtlinie nur außerhalb der Abschlusswoche.</p></div></div>
+        <div class="note error"><svg aria-hidden="true"><use href="#i-error"/></svg><h4>Seite konnte nicht verarbeitet werden</h4><div class="note-body"><p>Der Kopfbereich enthält ungültiges YAML in Zeile 7.</p></div></div>
+        <div class="note success"><svg aria-hidden="true"><use href="#i-check"/></svg><h4>Freigabe erteilt</h4><div class="note-body"><p>Version 1.2.0 ist seit dem 25.07.2026 für alle sichtbar.</p></div></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Laden und Leerzustand</h3>
+      <div class="stack">
+        <div class="skeleton" aria-hidden="true">
+          <div class="sk-line short"></div>
+          <div class="sk-line"></div>
+          <div class="sk-line mid"></div>
+        </div>
+        <div class="empty">
+          <svg aria-hidden="true"><use href="#i-empty"/></svg>
+          <h4>Noch keine Vorlagen in diesem Space</h4>
+          <p>Vorlagen sind Gerüst-Seiten: Wer ein neues HOW-TO anlegt, startet damit nicht bei einer leeren Datei. Die erste Vorlage entsteht in einer Minute aus einer bestehenden Seite.</p>
+          <button type="button" class="btn"><svg aria-hidden="true"><use href="#i-plus"/></svg>Erste Vorlage anlegen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<section class="section" id="navigation">
+  <div class="section-head">
+    <div class="section-num">3</div>
+    <h2>Navigation und Suche</h2>
+    <p>Der Kern dieser These: Eine Funktion, die niemand kennt, existiert nicht. Werkzeuge tragen deshalb überall denselben Namen, dieselbe Erklärung und dasselbe Symbol — in der Seitenleiste, in der Suche und auf der Space-Startseite.</p>
+  </div>
+
+  <div class="stack">
+    <div class="starter">
+      <h3>Was kann ich hier tun?</h3>
+      <p>Steht auf jeder Space-Startseite ganz oben — und ist der Einstieg für alle, die f451 nicht täglich benutzen. Drei Wege, mehr nicht.</p>
+      <div class="starter-grid">
+        <a class="starter-card" href="#leseansicht">
+          <svg aria-hidden="true"><use href="#i-search"/></svg>
+          <span class="t">Etwas nachschlagen</span>
+          <span class="d">Volltextsuche über alle Seiten dieses Space, auch in Codeblöcken und Tabellen.</span>
+        </a>
+        <a class="starter-card" href="#bausteine">
+          <svg aria-hidden="true"><use href="#i-plus"/></svg>
+          <span class="t">Wissen festhalten</span>
+          <span class="d">Neue Seite aus einer Vorlage. Nichts geht direkt live — es wird zuerst vorgeschlagen.</span>
+        </a>
+        <a class="starter-card" href="#bausteine">
+          <svg aria-hidden="true"><use href="#i-edit"/></svg>
+          <span class="t">Einen Fehler melden</span>
+          <span class="d">Wer etwas Falsches findet, korrigiert es direkt — die Freigabe übernimmt das Fachteam.</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="nav-demo">
+      <div class="palette" role="dialog" aria-label="Suche">
+        <div class="palette-input">
+          <svg aria-hidden="true"><use href="#i-search"/></svg>
+          <span class="typed">vorlage</span><span class="caret" aria-hidden="true"></span>
+        </div>
+
+        <div class="palette-group">
+          <h4>Werkzeuge</h4>
+          <a class="palette-item sel" href="#navigation">
+            <svg aria-hidden="true"><use href="#i-template"/></svg>
+            <span class="t">Vorlagen verwalten</span>
+            <span class="where">handbuch</span>
+            <span class="d">Gerüst-Seiten anlegen, bearbeiten und für alle Spaces freigeben.</span>
+          </a>
+          <a class="palette-item" href="#navigation">
+            <svg aria-hidden="true"><use href="#i-schema"/></svg>
+            <span class="t">Schema dieses Space</span>
+            <span class="where">handbuch</span>
+            <span class="d">Festlegen, welche Angaben jede Seite tragen muss.</span>
+          </a>
+        </div>
+
+        <div class="palette-group">
+          <h4>Aktionen</h4>
+          <a class="palette-item" href="#bausteine">
+            <svg aria-hidden="true"><use href="#i-plus"/></svg>
+            <span class="t">Neue Seite aus Vorlage anlegen</span>
+            <span class="where">Strg N</span>
+            <span class="d">Vorlage wählen, Titel vergeben, direkt im Editor weiterschreiben.</span>
+          </a>
+        </div>
+
+        <div class="palette-group">
+          <h4>Seiten</h4>
+          <a class="palette-item" href="#leseansicht">
+            <svg aria-hidden="true"><use href="#i-pages"/></svg>
+            <span class="t">Vorlage: Betriebs-HOW-TO</span>
+            <span class="where">handbuch / vorlagen</span>
+            <span class="d">… enthält Geltungsbereich, Ablauf, Fehlerbilder und Ansprechpartner.</span>
+          </a>
+          <a class="palette-item" href="#leseansicht">
+            <svg aria-hidden="true"><use href="#i-pages"/></svg>
+            <span class="t">Kerneltausch HANA 2.0</span>
+            <span class="where">handbuch / sap hana</span>
+            <span class="d">… wurde aus der <mark>Vorlage</mark> „Betriebs-HOW-TO“ erstellt.</span>
+          </a>
+        </div>
+
+        <div class="palette-foot">
+          <span><kbd>Pfeiltasten</kbd> auswählen</span>
+          <span><kbd>Enter</kbd> öffnen</span>
+          <span><kbd>Esc</kbd> schließen</span>
+        </div>
+      </div>
+
+      <div class="stack">
+        <div class="spacemenu">
+          <h4>Space wechseln</h4>
+          <a href="#leseansicht" aria-current="true">
+            <span class="sq" aria-hidden="true">h</span>
+            <span class="t">handbuch</span>
+            <svg class="check" aria-hidden="true"><use href="#i-check"/></svg>
+            <span class="d">Betriebshandbuch SAP und Azure — 42 Seiten</span>
+          </a>
+          <a href="#leseansicht">
+            <span class="sq" aria-hidden="true">n</span>
+            <span class="t">notfall</span>
+            <span></span>
+            <span class="d">Notfallverfahren und Eskalationswege — 7 Seiten</span>
+          </a>
+          <a href="#leseansicht">
+            <span class="sq" aria-hidden="true">m</span>
+            <span class="t">migration</span>
+            <span></span>
+            <span class="d">Projektdokumentation MaxDB-Ableitung — 19 Seiten</span>
+          </a>
+          <a href="#navigation">
+            <span class="sq" aria-hidden="true"><svg style="width:var(--space-5);height:var(--space-5)" aria-hidden="true"><use href="#i-plus"/></svg></span>
+            <span class="t">Space verbinden</span>
+            <span></span>
+            <span class="d">Ein weiteres Git-Repository als Space aufnehmen</span>
+          </a>
+        </div>
+
+        <div class="note info">
+          <svg aria-hidden="true"><use href="#i-info"/></svg>
+          <h4>Rechte kommen aus Git</h4>
+          <div class="note-body"><p>Wer im Repository schreiben darf, darf hier vorschlagen und freigeben. f451 führt keine eigenen Rollen.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <h3 style="font-size:var(--text-lg);margin-bottom:var(--space-4)">Werkzeuge dieses Space — mit Namen und Erklärung</h3>
+      <div class="toolgrid">
+        <a class="toolcard" href="#navigation">
+          <span class="ic"><svg aria-hidden="true"><use href="#i-template"/></svg></span>
+          <span class="t">Vorlagen</span>
+          <span class="d">Gerüst-Seiten für wiederkehrende Dokumenttypen.</span>
+          <span class="ex">Zum Beispiel: „Betriebs-HOW-TO“, „Wartungsfenster“, „Notfallblatt“.</span>
+        </a>
+        <a class="toolcard" href="#navigation">
+          <span class="ic"><svg aria-hidden="true"><use href="#i-schema"/></svg></span>
+          <span class="t">Schema</span>
+          <span class="d">Welche Angaben jede Seite tragen muss, und in welcher Form.</span>
+          <span class="ex">Zum Beispiel: Verantwortlich, System, Kritikalität, nächste Prüfung.</span>
+        </a>
+        <a class="toolcard" href="#navigation">
+          <span class="ic"><svg aria-hidden="true"><use href="#i-report"/></svg></span>
+          <span class="t">Bericht</span>
+          <span class="d">Was im Space kaputt ist: defekte Verweise, unlesbare Kopfbereiche.</span>
+          <span class="ex">Derzeit: 2 defekte Links, 1 Seite mit ungültigem YAML.</span>
+        </a>
+        <a class="toolcard" href="#navigation">
+          <span class="ic"><svg aria-hidden="true"><use href="#i-graph"/></svg></span>
+          <span class="t">Graph</span>
+          <span class="d">Welche Seiten aufeinander verweisen — und welche allein stehen.</span>
+          <span class="ex">Hilft vor Umbauten und beim Aufspüren verwaister Seiten.</span>
+        </a>
+        <a class="toolcard" href="#navigation">
+          <span class="ic"><svg aria-hidden="true"><use href="#i-review"/></svg></span>
+          <span class="t">Offene Reviews</span>
+          <span class="d">Vorgeschlagene Änderungen, die auf Freigabe warten.</span>
+          <span class="ex">3 offen, davon 1 von dir eingereicht.</span>
+        </a>
+        <a class="toolcard" href="#navigation">
+          <span class="ic"><svg aria-hidden="true"><use href="#i-link"/></svg></span>
+          <span class="t">Verbindungen</span>
+          <span class="d">Git-Konten und API-Zugänge für diesen Arbeitsplatz.</span>
+          <span class="ex">Forgejo verbunden, Token läuft am 14.09.2026 ab.</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+<section class="section" id="tokens">
+  <div class="section-head">
+    <div class="section-num">4</div>
+    <h2>Token-Tabelle</h2>
+    <p>Die Übergabe an die Themefähigkeit. Jeder Baustein oben benutzt ausschließlich diese Variablen — kein Hex-Wert und keine feste Pixelangabe steht im Komponenten-CSS. Wer die Werte tauscht, tauscht das gesamte Erscheinungsbild, ohne eine Zeile Layout anzufassen.</p>
+  </div>
+
+  <div class="table-wrap">
+    <table class="tokentable">
+      <thead><tr><th scope="col">Token</th><th scope="col">Hell</th><th scope="col">Dunkel</th><th scope="col">Rolle</th></tr></thead>
+      <tbody>
+        <tr class="group"><td colspan="4">Flächen</td></tr>
+        <tr><td>--color-bg</td><td class="scope-light"><span class="sw" style="background:var(--color-bg)"></span><span class="val">#f6f1ea</span></td><td class="scope-dark"><span class="sw" style="background:var(--color-bg)"></span><span class="val">#181410</span></td><td>Äußere Papierfläche, Navigation, Fußleisten</td></tr>
+        <tr><td>--color-bg-raised</td><td class="scope-light"><span class="sw" style="background:var(--color-bg-raised)"></span><span class="val">#fffdfa</span></td><td class="scope-dark"><span class="sw" style="background:var(--color-bg-raised)"></span><span class="val">#221d18</span></td><td>Lesespalte, Karten, Panels, Dialoge</td></tr>
+        <tr><td>--color-bg-sunken</td><td class="scope-light"><span class="sw" style="background:var(--color-bg-sunken)"></span><span class="val">#ece4d9</span></td><td class="scope-dark"><span class="sw" style="background:var(--color-bg-sunken)"></span><span class="val">#12100d</span></td><td>Tabellenkopf, Inline-Code, neutrale Chips</td></tr>
+        <tr><td>--color-bg-hover</td><td class="scope-light"><span class="sw" style="background:var(--color-bg-hover)"></span><span class="val">#f1e9de</span></td><td class="scope-dark"><span class="sw" style="background:var(--color-bg-hover)"></span><span class="val">#2c251e</span></td><td>Zeiger über Zeilen, Baumeinträgen, Reitern</td></tr>
+        <tr><td>--color-bg-active</td><td class="scope-light"><span class="sw" style="background:var(--color-bg-active)"></span><span class="val">#e7dccd</span></td><td class="scope-dark"><span class="sw" style="background:var(--color-bg-active)"></span><span class="val">#362d24</span></td><td>Gedrückter Zustand, aktives Schlagwort</td></tr>
+
+        <tr class="group"><td colspan="4">Text</td></tr>
+        <tr><td>--color-text</td><td class="scope-light"><span class="sw" style="background:var(--color-text)"></span><span class="val">#241d17</span></td><td class="scope-dark"><span class="sw" style="background:var(--color-text)"></span><span class="val">#f3ece3</span></td><td>Fließtext und Überschriften (warmes Tiefbraun statt Schwarz)</td></tr>
+        <tr><td>--color-text-muted</td><td class="scope-light"><span class="sw" style="background:var(--color-text-muted)"></span><span class="val">#6b6055</span></td><td class="scope-dark"><span class="sw" style="background:var(--color-text-muted)"></span><span class="val">#b0a294</span></td><td>Metazeile, Erklärungen, Beschriftungen (AA erfüllt)</td></tr>
+        <tr><td>--color-text-faint</td><td class="scope-light"><span class="sw" style="background:var(--color-text-faint)"></span><span class="val">#7a6d5f</span></td><td class="scope-dark"><span class="sw" style="background:var(--color-text-faint)"></span><span class="val">#9a8d7e</span></td><td>Dritte Stufe: Zähler, Trenner, Beispieltexte</td></tr>
+
+        <tr class="group"><td colspan="4">Akzent</td></tr>
+        <tr><td>--color-accent</td><td class="scope-light"><span class="sw" style="background:var(--color-accent)"></span><span class="val">#a1462a</span></td><td class="scope-dark"><span class="sw" style="background:var(--color-accent)"></span><span class="val">#e08a5f</span></td><td>Marke, Primärschaltfläche, aktiver Eintrag, Links</td></tr>
+        <tr><td>--color-accent-strong</td><td class="scope-light"><span class="sw" style="background:var(--color-accent-strong)"></span><span class="val">#863620</span></td><td class="scope-dark"><span class="sw" style="background:var(--color-accent-strong)"></span><span class="val">#f0a37c</span></td><td>Zeiger- und Druckzustand des Akzents</td></tr>
+        <tr><td>--color-accent-contrast</td><td class="scope-light"><span class="sw" style="background:var(--color-accent-contrast)"></span><span class="val">#fffdfa</span></td><td class="scope-dark"><span class="sw" style="background:var(--color-accent-contrast)"></span><span class="val">#231208</span></td><td>Schrift auf Akzentfläche</td></tr>
+        <tr><td>--color-accent-soft</td><td class="scope-light"><span class="sw" style="background:var(--color-accent-soft)"></span><span class="val">#f7e7de</span></td><td class="scope-dark"><span class="sw" style="background:var(--color-accent-soft)"></span><span class="val">#3a2519</span></td><td>Wäsche für „In einem Satz“, aktiver Baumeintrag, Treffer</td></tr>
+        <tr><td>--color-accent-line</td><td class="scope-light"><span class="sw" style="background:var(--color-accent-line)"></span><span class="val">#e3bda9</span></td><td class="scope-dark"><span class="sw" style="background:var(--color-accent-line)"></span><span class="val">#6b4229</span></td><td>Rand zu Akzentflächen</td></tr>
+
+        <tr class="group"><td colspan="4">Linien und Fokus</td></tr>
+        <tr><td>--color-border</td><td class="scope-light"><span class="sw" style="background:var(--color-border)"></span><span class="val">#e4dad0</span></td><td class="scope-dark"><span class="sw" style="background:var(--color-border)"></span><span class="val">#3a322a</span></td><td>Haarlinie zwischen Flächen</td></tr>
+        <tr><td>--color-border-strong</td><td class="scope-light"><span class="sw" style="background:var(--color-border-strong)"></span><span class="val">#cbbdad</span></td><td class="scope-dark"><span class="sw" style="background:var(--color-border-strong)"></span><span class="val">#574c40</span></td><td>Rand bedienbarer Elemente (Eingaben, Sekundärschaltfläche)</td></tr>
+        <tr><td>--color-focus</td><td class="scope-light"><span class="sw" style="background:var(--color-focus)"></span><span class="val">#2a5f8f</span></td><td class="scope-dark"><span class="sw" style="background:var(--color-focus)"></span><span class="val">#9fc6e8</span></td><td>Tastaturfokus — bewusst kühl, nie mit dem Akzent verwechselbar</td></tr>
+        <tr><td>--color-backdrop</td><td class="val">rgba(36,29,23,.45)</td><td class="val">rgba(9,7,5,.62)</td><td>Abdunklung hinter modalen Dialogen</td></tr>
+
+        <tr class="group"><td colspan="4">Signale</td></tr>
+        <tr><td>--color-danger</td><td class="scope-light"><span class="sw" style="background:var(--color-danger)"></span><span class="val">#b32218</span></td><td class="scope-dark"><span class="sw" style="background:var(--color-danger)"></span><span class="val">#f08a80</span></td><td>Zerstörende Aktionen, Fehlermeldungen</td></tr>
+        <tr><td>--color-danger-soft / -line</td><td class="scope-light"><span class="sw" style="background:var(--color-danger-soft)"></span><span class="sw" style="background:var(--color-danger-line)"></span><span class="val">#fbe6e3 / #efb9b1</span></td><td class="scope-dark"><span class="sw" style="background:var(--color-danger-soft)"></span><span class="sw" style="background:var(--color-danger-line)"></span><span class="val">#3a1e1a / #6d332c</span></td><td>Fläche und Rand des Fehler-Hinweisblocks</td></tr>
+        <tr><td>--color-info / -soft / -line</td><td class="scope-light"><span class="sw" style="background:var(--color-info)"></span><span class="sw" style="background:var(--color-info-soft)"></span><span class="sw" style="background:var(--color-info-line)"></span><span class="val">#2a5f8f</span></td><td class="scope-dark"><span class="sw" style="background:var(--color-info)"></span><span class="sw" style="background:var(--color-info-soft)"></span><span class="sw" style="background:var(--color-info-line)"></span><span class="val">#9dbbe0</span></td><td>Hinweisblock „Zur Einordnung“</td></tr>
+        <tr><td>--color-warning / -soft / -line</td><td class="scope-light"><span class="sw" style="background:var(--color-warning)"></span><span class="sw" style="background:var(--color-warning-soft)"></span><span class="sw" style="background:var(--color-warning-line)"></span><span class="val">#8a5205</span></td><td class="scope-dark"><span class="sw" style="background:var(--color-warning)"></span><span class="sw" style="background:var(--color-warning-soft)"></span><span class="sw" style="background:var(--color-warning-line)"></span><span class="val">#e5b45f</span></td><td>Warnung, defekte Links</td></tr>
+        <tr><td>--color-success / -soft / -line</td><td class="scope-light"><span class="sw" style="background:var(--color-success)"></span><span class="sw" style="background:var(--color-success-soft)"></span><span class="sw" style="background:var(--color-success-line)"></span><span class="val">#3f6b3a</span></td><td class="scope-dark"><span class="sw" style="background:var(--color-success)"></span><span class="sw" style="background:var(--color-success-soft)"></span><span class="sw" style="background:var(--color-success-line)"></span><span class="val">#96c98a</span></td><td>Erfolg, erteilte Freigabe</td></tr>
+
+        <tr class="group"><td colspan="4">Workflow-Status (je Status Farbe, Fläche, Rand)</td></tr>
+        <tr><td>--color-status-working*</td><td class="scope-light"><span class="sw" style="background:var(--color-status-working)"></span><span class="sw" style="background:var(--color-status-working-soft)"></span><span class="sw" style="background:var(--color-status-working-line)"></span><span class="val">#3c5e8a</span></td><td class="scope-dark"><span class="sw" style="background:var(--color-status-working)"></span><span class="sw" style="background:var(--color-status-working-soft)"></span><span class="sw" style="background:var(--color-status-working-line)"></span><span class="val">#9dbbe0</span></td><td>Entwurf</td></tr>
+        <tr><td>--color-status-review*</td><td class="scope-light"><span class="sw" style="background:var(--color-status-review)"></span><span class="sw" style="background:var(--color-status-review-soft)"></span><span class="sw" style="background:var(--color-status-review-line)"></span><span class="val">#8a5205</span></td><td class="scope-dark"><span class="sw" style="background:var(--color-status-review)"></span><span class="sw" style="background:var(--color-status-review-soft)"></span><span class="sw" style="background:var(--color-status-review-line)"></span><span class="val">#e5b45f</span></td><td>In Review</td></tr>
+        <tr><td>--color-status-released*</td><td class="scope-light"><span class="sw" style="background:var(--color-status-released)"></span><span class="sw" style="background:var(--color-status-released-soft)"></span><span class="sw" style="background:var(--color-status-released-line)"></span><span class="val">#3f6b3a</span></td><td class="scope-dark"><span class="sw" style="background:var(--color-status-released)"></span><span class="sw" style="background:var(--color-status-released-soft)"></span><span class="sw" style="background:var(--color-status-released-line)"></span><span class="val">#96c98a</span></td><td>Freigegeben</td></tr>
+        <tr><td>--color-status-archived*</td><td class="scope-light"><span class="sw" style="background:var(--color-status-archived)"></span><span class="sw" style="background:var(--color-status-archived-soft)"></span><span class="sw" style="background:var(--color-status-archived-line)"></span><span class="val">#6b6055</span></td><td class="scope-dark"><span class="sw" style="background:var(--color-status-archived)"></span><span class="sw" style="background:var(--color-status-archived-soft)"></span><span class="sw" style="background:var(--color-status-archived-line)"></span><span class="val">#b0a294</span></td><td>Archiviert</td></tr>
+
+        <tr class="group"><td colspan="4">Code</td></tr>
+        <tr><td>--color-code-bg</td><td class="scope-light"><span class="sw" style="background:var(--color-code-bg)"></span><span class="val">#2b2118</span></td><td class="scope-dark"><span class="sw" style="background:var(--color-code-bg)"></span><span class="val">#12100d</span></td><td>Codefläche — auch im Hellmodus dunkel und warm getönt</td></tr>
+        <tr><td>--color-code-text</td><td class="scope-light"><span class="sw" style="background:var(--color-code-text)"></span><span class="val">#f3ece3</span></td><td class="scope-dark"><span class="sw" style="background:var(--color-code-text)"></span><span class="val">#f3ece3</span></td><td>Codeschrift</td></tr>
+        <tr><td>--color-code-line</td><td class="scope-light"><span class="sw" style="background:var(--color-code-line)"></span><span class="val">#453729</span></td><td class="scope-dark"><span class="sw" style="background:var(--color-code-line)"></span><span class="val">#322920</span></td><td>Rand und Kopfleiste des Codeblocks</td></tr>
+        <tr><td>--color-code-comment</td><td class="scope-light"><span class="sw" style="background:var(--color-code-comment)"></span><span class="val">#b1a094</span></td><td class="scope-dark"><span class="sw" style="background:var(--color-code-comment)"></span><span class="val">#9a8d7e</span></td><td>Kommentare</td></tr>
+        <tr><td>--color-code-string</td><td class="scope-light"><span class="sw" style="background:var(--color-code-string)"></span><span class="val">#f0b088</span></td><td class="scope-dark"><span class="sw" style="background:var(--color-code-string)"></span><span class="val">#f0b088</span></td><td>Zeichenketten</td></tr>
+        <tr><td>--color-code-keyword</td><td class="scope-light"><span class="sw" style="background:var(--color-code-keyword)"></span><span class="val">#d7c48a</span></td><td class="scope-dark"><span class="sw" style="background:var(--color-code-keyword)"></span><span class="val">#ddc98f</span></td><td>Schlüsselwörter</td></tr>
+
+        <tr class="group"><td colspan="4">Schrift</td></tr>
+        <tr><td>--font-sans</td><td class="val" colspan="2">Hanken Grotesk, danach System-Stack</td><td>Fließtext und Bedienelemente</td></tr>
+        <tr><td>--font-display</td><td class="val" colspan="2">Schibsted Grotesk, danach System-Stack</td><td>Überschriften, Marke, Kartentitel</td></tr>
+        <tr><td>--font-mono</td><td class="val" colspan="2">JetBrains Mono, danach System-Stack</td><td>Code, Tastenkürzel, Token-Namen</td></tr>
+        <tr><td>--text-scale</td><td class="val" colspan="2">1</td><td>Ein Regler für die gesamte Schriftgröße — alle Stufen leiten sich davon ab</td></tr>
+        <tr><td>--text-xs … --text-3xl</td><td class="val" colspan="2">0.75 · 0.875 · 1 · 1.125 · 1.5 · 2 · 2.5 rem × Scale</td><td>Sieben Stufen, davon 3xl neu für den Entwurfskopf</td></tr>
+        <tr><td>--leading-tight / -snug / -normal / -relaxed</td><td class="val" colspan="2">1.2 · 1.35 · 1.6 · 1.75</td><td>Fließtext läuft auf „relaxed“ — die Antwort auf lange Prozeduren</td></tr>
+        <tr><td>--weight-regular … -bold</td><td class="val" colspan="2">400 · 500 · 600 · 700</td><td>Vier Gewichte, mehr nicht</td></tr>
+        <tr><td>--tracking-tight / -wide</td><td class="val" colspan="2">-0.015em · 0.06em</td><td>Überschriften enger, Kleinversalien weiter</td></tr>
+
+        <tr class="group"><td colspan="4">Abstand und Dichte</td></tr>
+        <tr><td>--space-unit</td><td class="val" colspan="2">0.25rem</td><td>Dichte-Regler: alle Abstände sind Vielfache davon</td></tr>
+        <tr><td>--space-1 … --space-10</td><td class="val" colspan="2">1 · 2 · 3 · 4 · 5 · 6 · 7 · 8 · 10 · 14 × unit</td><td>Zehn Stufen (9 und 10 neu, für großzügige Abschnittsabstände)</td></tr>
+
+        <tr class="group"><td colspan="4">Layout</td></tr>
+        <tr><td>--measure</td><td class="val" colspan="2">72ch</td><td>Zeilenlänge des Fließtexts — liegt auf Absätzen und Listen, <strong>nicht</strong> auf dem Inhaltsbereich</td></tr>
+        <tr><td>--measure-block</td><td class="val" colspan="2">88ch</td><td>Breite der Hinweisblöcke und des „In einem Satz“-Kastens</td></tr>
+        <tr><td>--figure-max</td><td class="val" colspan="2">26rem</td><td>Höhenbegrenzung für Diagramme, damit ein breites Fenster keine überhohe Abbildung erzeugt</td></tr>
+        <tr><td>--nav-width / --rail-width</td><td class="val" colspan="2">19rem / 17rem</td><td>Breite der Seitenleisten im ausgeklappten Zustand</td></tr>
+        <tr><td>--nav-col / --rail-col</td><td class="val" colspan="2">= Leistenbreite bzw. 0</td><td>Zustandsvariablen des Rasters: Einklappen setzt die Spalte auf 0, die Breite geht an den Inhalt</td></tr>
+        <tr><td>--tap-min / --tap-comfortable</td><td class="val" colspan="2">2.75rem (44px) / 3rem</td><td>Mindest- und Komfortgröße jeder Klickfläche</td></tr>
+        <tr><td>--border-width / -strong</td><td class="val" colspan="2">1px / 2px</td><td>Zwei Linienstärken</td></tr>
+        <tr><td>--focus-width / --focus-offset</td><td class="val" colspan="2">3px / 2px</td><td>Fokusring, überall gleich</td></tr>
+
+        <tr class="group"><td colspan="4">Radien</td></tr>
+        <tr><td>--radius-sm / -md / -lg / -xl / -pill</td><td class="val" colspan="2">0.375 · 0.625 · 1 · 1.5 rem · 999px</td><td>Weiche Familie; Pille für Chips, Suche und Space-Auswahl</td></tr>
+
+        <tr class="group"><td colspan="4">Schatten und Bewegung</td></tr>
+        <tr><td>--shadow-sm</td><td class="val">0 1px 2px rgba(60,42,25,.07)</td><td class="val">0 1px 2px rgba(0,0,0,.5)</td><td>Karten — warm getönt, nie schwarz</td></tr>
+        <tr><td>--shadow-md</td><td class="val">0 14px 34px rgba(60,42,25,.14)</td><td class="val">0 14px 34px rgba(0,0,0,.6)</td><td>Dialog, Suchfenster</td></tr>
+        <tr><td>--shadow-accent</td><td class="val">0 2px 10px rgba(161,70,42,.28)</td><td class="val">0 2px 10px rgba(224,138,95,.3)</td><td>Primärschaltfläche</td></tr>
+        <tr><td>--shadow-inset</td><td class="val" colspan="2">inset 0 1px 0 (Lichtkante)</td><td>Feine obere Lichtkante auf erhöhten Flächen</td></tr>
+        <tr><td>--motion-fast / --motion-base / --easing</td><td class="val" colspan="2">120ms · 200ms · cubic-bezier(.2,.7,.3,1)</td><td>Ruhige, kurze Übergänge; bei „weniger Bewegung“ abgeschaltet</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="tokennote">Einzige Ausnahme von der Token-Regel sind die Haltepunkte der Media Queries (1240px, 900px) — CSS erlaubt dort keine Variablen. Die Farbfelder dieser Tabelle beziehen ihre Werte über <code>.scope-light</code> und <code>.scope-dark</code>, damit beide Themes nebeneinander stehen können, ohne dass irgendwo ein Hex-Wert im Baustein landet.</p>
+</section>
+
+<footer class="mockup-foot">
+  Entwurf „Klar &amp; Warm“ — Leseansicht, Bausteine, Navigation und Tokens in Hell und Dunkel. Eine Datei, keine externen Ressourcen.
+</footer>
+</main>
+<script>
+(function () {
+  var root = document.documentElement;
+  var b1 = document.getElementById('theme-light');
+  var b2 = document.getElementById('theme-dark');
+  function set(mode) {
+    root.setAttribute('data-theme', mode);
+    b1.setAttribute('aria-pressed', String(mode === 'light'));
+    b2.setAttribute('aria-pressed', String(mode === 'dark'));
+  }
+  b1.addEventListener('click', function () { set('light'); });
+  b2.addEventListener('click', function () { set('dark'); });
+
+  // Leisten ein- und ausklappen. Der Zustand steht als data-Attribut im
+  // Markup und wirkt auch ohne JavaScript; JS uebernimmt nur das Umschalten,
+  // das Merken und die Tastenkuerzel.
+  var apps = Array.prototype.slice.call(document.querySelectorAll('.app[data-nav]'));
+  apps.forEach(function (app) {
+    var persist = app.getAttribute('data-persist') === '1';
+    var key = 'f451-leisten';
+
+    function apply(nav, rail, save) {
+      app.setAttribute('data-nav', nav);
+      app.setAttribute('data-rail', rail);
+      var navBtn = app.querySelector('.nav-toggle');
+      var railBtn = app.querySelector('.rail-toggle');
+      var wideBtn = app.querySelector('.wide-toggle');
+      if (navBtn) navBtn.setAttribute('aria-expanded', String(nav === 'auf'));
+      if (railBtn) railBtn.setAttribute('aria-expanded', String(rail === 'auf'));
+      if (wideBtn) wideBtn.setAttribute('aria-pressed', String(nav === 'zu' && rail === 'zu'));
+      if (save && persist) {
+        try { window.localStorage.setItem(key, nav + '|' + rail); } catch (e) { /* egal */ }
+      }
+    }
+
+    function state(name) { return app.getAttribute('data-' + name); }
+    function flip(value) { return value === 'auf' ? 'zu' : 'auf'; }
+
+    if (persist) {
+      try {
+        var saved = (window.localStorage.getItem(key) || '').split('|');
+        if (saved.length === 2) apply(saved[0], saved[1], false);
+      } catch (e) { /* egal */ }
+    }
+
+    var navBtn = app.querySelector('.nav-toggle');
+    var railBtn = app.querySelector('.rail-toggle');
+    var wideBtn = app.querySelector('.wide-toggle');
+    if (navBtn) navBtn.addEventListener('click', function () { apply(flip(state('nav')), state('rail'), true); });
+    if (railBtn) railBtn.addEventListener('click', function () { apply(state('nav'), flip(state('rail')), true); });
+    if (wideBtn) wideBtn.addEventListener('click', function () {
+      var voll = state('nav') === 'zu' && state('rail') === 'zu';
+      apply(voll ? 'auf' : 'zu', voll ? 'auf' : 'zu', true);
+    });
+
+    // Tastenkuerzel nur fuer die echte Leseansicht, und nie waehrend einer
+    // Texteingabe.
+    if (!persist) return;
+    document.addEventListener('keydown', function (event) {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      var el = document.activeElement;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+      if (event.key === '[') { apply(flip(state('nav')), state('rail'), true); }
+      else if (event.key === ']') { apply(state('nav'), flip(state('rail')), true); }
+      else if (event.key === '\\') {
+        var voll = state('nav') === 'zu' && state('rail') === 'zu';
+        apply(voll ? 'auf' : 'zu', voll ? 'auf' : 'zu', true);
+      }
+    });
+  });
+
+  // Reiter — nur Demonstration
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('[role="tab"]'));
+  tabs.forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      tabs.forEach(function (other) {
+        var selected = other === tab;
+        other.setAttribute('aria-selected', String(selected));
+        var panel = document.getElementById(other.getAttribute('aria-controls'));
+        if (panel) panel.hidden = !selected;
+      });
+    });
+  });
+
+  // Dialog — nur Demonstration
+  var dlg = document.getElementById('demo-dialog');
+  var openBtn = document.getElementById('open-dialog');
+  var closeBtn = document.getElementById('close-dialog');
+  if (dlg && openBtn) {
+    openBtn.addEventListener('click', function () { dlg.showModal(); });
+    closeBtn.addEventListener('click', function () { dlg.close(); });
+    dlg.addEventListener('click', function (event) { if (event.target === dlg) dlg.close(); });
+  }
+
+  // Inhaltsverzeichnis folgt der Leseposition
+  var tocLinks = Array.prototype.slice.call(document.querySelectorAll('.toc a[href^="#"]'));
+  var targets = tocLinks
+    .map(function (a) { return document.getElementById(a.getAttribute('href').slice(1)); })
+    .filter(Boolean);
+  if (targets.length && 'IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        tocLinks.forEach(function (a) {
+          a.setAttribute('aria-current', String(a.getAttribute('href') === '#' + entry.target.id));
+        });
+      });
+    }, { rootMargin: '0px 0px -70% 0px' });
+    targets.forEach(function (t) { io.observe(t); });
+  }
+})();
+</script>
+</body>
+</html>

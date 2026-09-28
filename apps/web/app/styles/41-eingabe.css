@@ -1,0 +1,177 @@
+/* 41-eingabe.css — Teilschritt C des Bausteinsystem-Umbaus.
+   Eingabefelder, Auswahl, Kontrollkaestchen
+
+   Diese Datei gehoert AUSSCHLIESSLICH Teilschritt C. Andere Teilschritte
+   schreiben hier nicht hinein — die Aufteilung existiert genau deshalb,
+   damit mehrere Bearbeiter gleichzeitig arbeiten koennen.
+
+   Die Nummer im Dateinamen ist die Besitz-Nummer, nicht die Reihenfolge;
+   massgeblich fuer die Kaskade ist allein die Importreihenfolge in
+   ../globals.css (s. Kommentar dort).
+
+   ── Was hier entsteht ─────────────────────────────────────────────────────
+   Die Bestandsaufnahme (§2.2) zaehlt 12 Auspraegungen von Eingabefeldern mit
+   vier Fokus-Verhalten. Es gab weder `.select` noch `.check`, und die
+   Fehlerdarstellung lief ueber die Klasse `.mf-invalid` statt ueber das
+   Zustandsattribut `aria-invalid` — die Klasse musste im Markup von Hand mit
+   dem Attribut synchron gehalten werden (metadata-panel.tsx:98/102 setzt
+   heute beides).
+
+   Hier steht ab jetzt: `.field` (Beschriftung + Feld + Hinweis + Fehler),
+   `.input`, `.select`/`.selectwrap` und `label.check` — alle auf derselben
+   Zielgroesse `--control-h` und demselben Innenabstand `--control-pad-y`.
+   Der Fehlerzustand haengt an `[aria-invalid='true']`.
+
+   Die EINE Fokusregel steht in 40-schaltflaeche.css und deckt die Bausteine
+   beider Dateien ab. Hier steht bewusst keine zweite.
+
+   ── Zwei Namensfragen, die im Bestand schon vergeben waren ────────────────
+   `.check` ist heute das Haekchen-Zeichen in den Wechsler-Menues
+   (`<span class="check">`, 60-chrome-topbar.css:170/193). Der Baustein des
+   Entwurfs ist dagegen ein `<label>`, das ein Kontrollkaestchen umschliesst.
+   Er ist deshalb als `label.check` geschrieben — das trifft die vorhandenen
+   `<span>` nicht, und H1 muss den Namen im Wechsler-Menue nicht umbenennen.
+
+   `.field` und `.input` sind als BLOSSE Klassen im Markup frei; belegt sind
+   nur zusammengesetzte Namen (`mf-field`, `mf-input`, `page-title-field`).
+
+   ── Der Uebergang ist abgeschlossen (Teilschritt I) ───────────────────────
+   Wie in 40-schaltflaeche.css hielt bis Teilschritt I ein Uebergangsblock am
+   Dateifuss die Eigenschaften zurueck, die keine Altregel setzt
+   (`min-height`, `line-height`, Fokus-Abstand). Der Block ist entfernt; die
+   Bruecke `.mf-input` liefert dem Metadaten-Formular des Editors jetzt die
+   Zielgroesse `--control-h`.
+   ========================================================================= */
+
+/* =========================================================================
+   Das Feld: Beschriftung, Eingabe, Hinweis, Fehler
+   ========================================================================= */
+
+/* Ein Raster statt Aussenabstaenden an vier Einzelteilen. `.field` bringt den
+   Abstand mit, die Teile bringen keinen mit — das war bisher an jeder
+   Fundstelle neu erfunden. */
+.field {
+  display: grid;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+}
+.field > .label {
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+.field .hint {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  line-height: var(--leading-ui);
+  color: var(--color-text-muted);
+}
+/* Der Fehlertext steht UNTER dem Feld und traegt Wort, nicht nur Farbe
+   (Spec „Zugesicherte Eigenschaften", Punkt 3). */
+.field .err {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  line-height: var(--leading-ui);
+  color: var(--color-danger);
+}
+
+/* =========================================================================
+   Eingabe und Auswahl
+
+   `.mf-input` steht in der Selektorliste mit: das ist die duenne Bruecke fuer
+   H2 (Regel 2 aus §7.4 des Plans). Bis 62-editor.css seine Altregel abgibt,
+   gewinnt diese — bis auf `min-height` und `line-height`, die sie nicht
+   setzt und die deshalb unten im Uebergangsblock stehen.
+   ========================================================================= */
+.input,
+.select,
+textarea.input,
+.mf-input {
+  width: 100%;
+  min-height: var(--control-h);
+  padding: var(--control-pad-y) var(--space-3);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: var(--rule-hair) solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+}
+/* Platzhalter und Hover bewusst OHNE die Bruecke `.mf-input`: die Altregel
+   setzt beides nicht, die Zeilen wuerden also sofort durchschlagen. H2 holt
+   sie mit dem Klassenwechsel. */
+.input::placeholder,
+textarea.input::placeholder {
+  color: var(--color-text-muted);
+}
+.input:hover,
+.select:hover {
+  border-color: var(--color-text-muted);
+}
+/* Ungueltig ueber das Zustandsattribut statt ueber eine zweite Klasse. Das
+   Attribut ist ohnehin noetig (Vorlesesoftware); die Klasse war reine
+   Doppelfuehrung. */
+.input[aria-invalid='true'],
+.select[aria-invalid='true'],
+textarea.input[aria-invalid='true'] {
+  border-color: var(--color-danger);
+  background: var(--color-danger-wash);
+}
+/* Die Bruecke `.mf-invalid` (der Vorgaenger von `[aria-invalid]`) ist mit
+   Teilschritt I entfallen: H2 hat die Doppelfuehrung von Klasse UND Attribut
+   im Markup aufgeloest (`metadata-panel.tsx` setzte beides), die Klasse kommt
+   nirgends mehr vor. */
+
+/* Auswahl: eigenes Dreieck statt des Systemzeichens, damit die Hoehe nicht
+   von der Plattform abhaengt. `.selectwrap` traegt es, weil ein `<select>`
+   keine Pseudoelemente hat. */
+.select {
+  appearance: none;
+  padding-right: var(--space-8);
+  cursor: pointer;
+}
+.selectwrap {
+  position: relative;
+}
+.selectwrap .caret {
+  position: absolute;
+  right: var(--space-3);
+  top: 50%;
+  translate: 0 -50%;
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+/* =========================================================================
+   Kontrollkaestchen
+
+   Das Kaestchen selbst ist klein; die Zielgroesse traegt das `<label>` — es
+   ist der eigentliche Klickbereich. Deshalb `min-height` am Label, nicht am
+   `input`. `align-items: flex-start` haelt das Kaestchen bei mehrzeiliger
+   Beschriftung an der ersten Zeile.
+   ========================================================================= */
+label.check {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-height: var(--control-h);
+  padding-block: var(--control-pad-y);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+  cursor: pointer;
+}
+label.check input {
+  width: var(--space-5);
+  height: var(--space-5);
+  margin-top: var(--space-1);
+  accent-color: var(--color-accent);
+}
+
+/* Der Uebergangsblock, der `min-height` und `line-height` der Bruecke
+   `.mf-input` bis Teilschritt I auf dem Wert vor dem Umbau hielt, ist
+   entfernt (Schalter `<html data-altlasten="weg">`, s. Kopf von
+   `40-schaltflaeche.css`). Die Metadaten-Felder des Editors sind damit
+   44 statt 36 px hoch — die zugesicherte Zielgroesse, gemessen. */

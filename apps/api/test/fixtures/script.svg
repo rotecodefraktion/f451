@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10" onload="alert('root')">
+  <script>alert('böse')</script>
+  <circle cx="5" cy="5" r="4" fill="red" onclick="alert('klick')" />
+  <a href="javascript:alert('href')">
+    <rect x="0" y="0" width="2" height="2" />
+  </a>
+</svg>

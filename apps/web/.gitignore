@@ -1,0 +1,8 @@
+# generiert von sync-tokens (pre(dev|build)) aus @f451/design-tokens
+/app/tokens.css
+
+# Playwright-E2E (Task 6): Artefakte + Stack-State-Dateien
+/test-results/
+/playwright-report/
+/e2e/.stack-state.json
+/e2e/.stack-pid

@@ -1,0 +1,1196 @@
+/* =========================================================================
+   Editor — Statuszeile, Werkzeugleiste, Editierfläche, Metadaten, Schema
+
+   Statuszeile des Entwurfszustands, schlanke Formatier-Toolbar, die
+   ProseMirror-Wurzel (`.doc`), Format-/Link-Popover, `/`-Befehlsmenü,
+   `[[`-Autocomplete, Medien-Upload-Zeile, Fußzeile mit Validierung,
+   Validierungs-Popover, Titelfeld, Metadaten-Erfassformular und
+   Metadaten-Schema-Editor (2303-3455 alt).
+
+   Besitzer im weiteren Umbau: Teilschritt H2 (Editor) — ausgeführt.
+
+   ── ERLEDIGT (Teilschritt H2): welche Altlast wohin gegangen ist ───────────
+   Diese Datei war mit 1161 Zeilen der größte Ansichtsblock und laut
+   Bestandsaufnahme der mit den meisten eigenen Schaltflächen-, Eingabe- und
+   Marken-Ausprägungen. Entfallen sind hier die lokalen Wiederholungen; das
+   Markup unter `components/editor/` trägt jetzt die Baustein-Klassen:
+
+     .dbadge                  → `chip working`     (42-marke)
+     .valid                   → `chip review` / `chip released`  (42-marke)
+     .metadata-missing-badge  → `chip review`      (42-marke)
+     .linkpop .litem .mk      → `chip working`     (42-marke)
+     .pop .pf .k              → `.kbd`             (42-marke)
+     .cmdmenu .item .kbd      → `.kbd`             (42-marke)
+     .dmenu a                 → `.menu-item`       (44-dialog)
+     .dmenu .sep              → `.menu-sep`        (44-dialog)
+     .cmdmenu .item           → `.menu-item`       (44-dialog)
+     .linkpop .litem          → `.menu-item`       (44-dialog)
+     .conflict-head/-actions  → `.dialog-head`/`.dialog-actions` (44-dialog)
+     .mf-input                → `.input`           (41-eingabe)
+     .mf-invalid              → `[aria-invalid]`   (41-eingabe)
+     .page-title-input        → `.input` + Größe   (41-eingabe)
+     .linkpop input           → `.input`           (41-eingabe)
+     .metadata-panel-toggle   → `btn quiet`        (40-schaltflaeche)
+     .mf-chip-remove          → `btn quiet`        (40-schaltflaeche)
+     .discard > .btn          → entfallen (zwei Größen statt vier)
+     .btn.small               → entfallen (stand hier ein zweites Mal)
+     .card auf `.metadata-panel` → im Markup gestrichen (§2.4)
+     .search-dialog-status im Vorlagen-Dialog → `.callout` (43-flaeche)
+
+   Bedeutungsumkehr bei den Schaltflächen (s. Kopf von
+   `40-schaltflaeche.css`): aus `class="btn"` wurde `class="btn primary"`, aus
+   `class="btn ghost"` wurde `class="btn"`. Die Hauptaktion trägt jetzt Tinte
+   statt Akzentfarbe. **Das wird erst richtig, wenn H1 den alten `.btn`-Block
+   in `60-chrome-topbar.css` entfernt hat** — solange er steht, gewinnt seine
+   Akzentfläche für das nackte `.btn`. Die Abhängigkeit ist im Umbaubericht
+   von H2 benannt.
+
+   NICHT angefasst (mit Begründung, für Teilschritt I):
+   `.page-body`/`.doc` (Risikostelle §6.1); `.notice.*` — die drei
+   Hinweis-Klassen des Editors hängen an der `.notice`-Basis in `61-lese.css`,
+   die Leseansicht, Editor UND Review teilen (§6.6), der Wechsel auf
+   `.callout` ist deshalb ein gemeinsamer Schritt von H1/H2/H3; `.finding`,
+   `.findings-empty`, `.hint`, `.mf-field` — für sie hat kein Baustein ein
+   Pendant.
+
+   ERLEDIGT (Teilschritt G) — `.seg` war ZWEIMAL definiert
+   (Bestandsaufnahme §6.2): Block A stand in DIESER Datei
+   (alt globals.css:2964-2992), Block B in `63-review.css`
+   (alt globals.css:3759-3788). Da `63-review.css` später importiert wird,
+   gewann Block B bei gleicher Spezifität für ALLE Vorkommen; Block A war
+   vollständig wirkungslos. Teilschritt G hat Block A ersatzlos gelöscht und
+   Block B als `.segmented` nach `styles/45-auswahl.css` verlegt. Der
+   Fussteil-Umschalter trägt jetzt `.segmented`, hier steht dazu nichts mehr.
+
+   ACHTUNG: `.doc` teilt sich das CSS mit `.page-body` (s. `61-lese.css`);
+   `.node-actions .btn.ghost` und `.newpage-body …` sind
+   Spezifitäts-Tricks (§6.3).
+
+   ── Teilschritt I: die EINE Änderung, die hier nachgetragen ist ────────────
+   H2 hatte `.tb` (Werkzeugleisten-Taste) als unbestellt liegen gelassen: kein
+   Baustein-Teilschritt hatte dafür eine Größe oder eine Brücke angelegt, die
+   Taste blieb bei 30 × 30 px und verletzte damit die zugesicherte Zielgröße
+   von 44 × 44 px. Nachgetragen ist genau eine Regel — Begründung, Spezifität
+   und Messwerte stehen direkt an ihr (`:where(:root[data-altlasten='weg'])
+   .tb`, s. unten). Sonst ist an dieser Datei nichts geändert.
+
+   Herkunft: `app/globals.css` Zeilen 2303-3455 (Stand vor der Aufteilung,
+   4522 Zeilen). Teilschritt A war rein mechanisch: kein Wert, kein Selektor,
+   keine Reihenfolge geändert. Die Kaskadenreihenfolge steht ausschließlich
+   in der @import-Liste von `app/globals.css` — NICHT in den Dateinamen.
+   ========================================================================= */
+/* =========================================================================
+   Editor — Statuszeile, Toolbar, Editierfläche (Phase 2c Task 3)
+   Struktur/Werte 1:1 aus docs/design/mockups/editor.html, mit EINER bewussten
+   Abweichung: `.doc` bekommt KEIN eigenes, dupliziertes Typografie-Regelwerk
+   (die Kopie des kompletten `.page-body`-Blocks wäre reine Duplikation) —
+   `wysiwyg-editor.tsx` setzt stattdessen BEIDE Klassen auf den ProseMirror-
+   Wurzelknoten (`class: 'doc page-body'`), sodass die komplette Leseansicht-
+   Typografie (h1–h6, p, strong, code, blockquote, Listen, Bilder, Alerts)
+   verlustfrei mitgilt. Nur wo Tiptaps tatsächliches DOM vom gerenderten
+   Lese-HTML abweicht (Tabellen ohne <thead>/<tbody>, Task-Listen über
+   `data-type`/`data-checked` statt der Pipeline-Klassen), ergänzt `.doc`
+   gezielte Overrides unten — dieselben Token-Werte wie `.page-body`.
+   ========================================================================= */
+
+/* ---- Statuszeile (Entwurfs-Zustand) ----
+   Redesign Phase 3: Der Editor-Kopf (Statuszeile · Lock-Banner · Titelfeld ·
+   Metadaten-Panel) sind Geschwister des Editor-`.body` in derselben
+   `.main.card`-Spalte. Vorher hatte JEDE dieser Zeilen ihre eigene, andere
+   horizontale Einrückung (`--space-4` hier, `--space-4` im Titelfeld, GAR
+   keine im Metadaten-Panel) — daher der bemängelte Treppeneffekt. Alle vier
+   Blöcke teilen jetzt exakt die Geometrie aus `.body`, sodass Statuszeile,
+   Titel, „METADATEN" und der Editor-Text auf EINER Kante stehen.
+
+   Erscheinungsbild 2026, Breitenstufen (Etappe 3): Die gemeinsame Kante ist
+   nicht mehr „760px, zentriert, 48px seitlich", sondern „kein Maximum, Steg
+   aus `--layout-gutter`" — die Breitengrenze liegt jetzt auf dem INHALT
+   (`--measure`/`--measure-wide`/`--measure-full`, s. Stufenleiter in
+   `61-lese.css`), nicht auf dem Container; mit 760px war der Fließtext auf 65
+   statt 68 Zeichen eingeschnürt. `--layout-gutter` ist `--space-9` = 3rem und
+   damit exakt der bisherige 48px-Wert; die vier Blöcke stehen weiter auf
+   einer Kante. */
+.statusbar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--layout-gutter);
+  border-bottom: 1px solid var(--color-border);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: var(--color-bg);
+}
+.statusbar .grow {
+  flex: 1;
+}
+/* Die „ENTWURF"-Marke der Statuszeile war bis Teilschritt H2 eine eigene
+   Klasse `.dbadge` mit eigenem Radius, Innenabstand, Schriftschnitt und
+   Randton. Sie ist jetzt die Statusmarke des Bausteinsystems
+   (`styles/42-marke.css`): das Markup traegt `chip working`
+   (status-bar.tsx). */
+.saved {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-display);
+}
+.saved .sdot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-status-released);
+  box-shadow: 0 0 0 3px var(--rel-bg);
+  animation: pulse 2.4s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+.saved svg {
+  width: 13px;
+  height: 13px;
+}
+/* Warnton im Fehlzustand (Task 4 — kein Mockup-Vorbild für diese Variante,
+   Farbwert konsistent mit den übrigen Danger-Stellen, z. B. `.dmenu a.danger`). */
+.saved.error {
+  color: var(--color-danger);
+}
+.saved.error svg {
+  color: var(--color-danger);
+}
+/* Offline-Zustand (Phase 4b Task 2) — bewusst NICHT der Danger-Ton von
+   `.saved.error`: `offline` ist selbstheilend (Autosave puffert lokal und
+   schiebt automatisch nach, kein Nutzer-Handeln nötig), deshalb derselbe
+   mildere Warnton wie `.notice.warn` (Review-Status-Token, kein eigener
+   „Warn"-Token im System). */
+.saved.offline {
+  color: var(--color-status-review);
+}
+.saved.offline svg {
+  color: var(--color-status-review);
+}
+.discard {
+  position: relative;
+}
+/* `.discard > .btn` fuehrte einen sechsten Innenabstand fuer Schaltflaechen
+   (`6px var(--space-2)`). Teilschritt C hat die vier Sondergroessen auf zwei
+   zusammengefuehrt (`styles/40-schaltflaeche.css`); die Zeile ist damit
+   ersatzlos entfallen. */
+.discard svg.cv {
+  width: 12px;
+  height: 12px;
+  margin-left: -1px;
+}
+/* Klappmenue der Statuszeile. Flaeche, Rahmen, Radius, Schatten und
+   Innenabstand kommen seit Teilschritt F aus dem Menue-Baustein
+   (`styles/44-dialog.css`, Alias `.dmenu`); hier bleibt nur, was diesem
+   einen Menue eigen ist — wo es haengt und wie breit es ist. */
+.dmenu {
+  top: calc(100% + 6px);
+  right: 0;
+  width: 220px;
+}
+/* Die Zeilen selbst sind `.menu-item` (Markup: status-bar.tsx). Die eigene
+   Zeilenregel — vierter Innenabstand fuer dieselbe Gattung „Eintrag im
+   Klappmenue" — ist entfallen. */
+.dmenu a svg {
+  width: 15px;
+  height: 15px;
+  color: var(--color-text-muted);
+  flex: none;
+}
+.dmenu a.danger {
+  color: var(--color-danger);
+}
+.dmenu a.danger svg {
+  color: var(--color-danger);
+}
+.dmenu a.danger:hover {
+  background: var(--color-danger-wash);
+}
+/* Die Trennlinie ist `.menu-sep` (styles/44-dialog.css) — wertgleich. */
+
+/* ---- Schlanke Formatier-Toolbar ---- */
+.etoolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--panel-2);
+  position: sticky;
+  /* Redesign Phase 2: `.main.card` (nächste scrollende Vorfahrin) ist jetzt
+     ein EIGENER Scrollbereich statt der ganzen Seite — die Topbar liegt
+     außerhalb dieses Scrollkontexts und überlappt ihn nicht mehr, ein
+     Kompensationswert für ihre Höhe ist daher nicht mehr nötig (vorher 52px). */
+  top: 0;
+  z-index: 15;
+}
+/* Positionierter Anker für das Format-Menü (`position: absolute` aus dem
+   Menü-Baustein, s. Popover-Ergänzungen unten) — ohne das ankert das Menü an
+   der nächsten positionierten Vorfahrin, hier sonst der sticky `.etoolbar`
+   selbst. */
+.selbox {
+  position: relative;
+  display: block;
+}
+.tgrp {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.tgrp.rel {
+  position: relative;
+}
+.tsep {
+  width: 1px;
+  height: 22px;
+  background: var(--color-border-strong);
+  margin: 0 var(--space-2);
+}
+.tb {
+  height: 30px;
+  min-width: 30px;
+  padding: 0 7px;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-family: var(--font-sans);
+}
+/* Zielgröße der Werkzeugleisten-Knöpfe (zugesicherte Eigenschaft 4:
+   44 × 44 px, auch ohne Wortmarke). Teilschritt I: `.tb` war in keinem
+   Baustein-Teilschritt vertreten — weder mit einer Größe noch mit einer
+   Brücke — und blieb deshalb bei 30 × 30 px, der kleinsten Zielfläche des
+   Editors.
+
+   Warum die echte MINDESTGRÖSSE und nicht die unsichtbare Trefferfläche aus
+   `40-schaltflaeche.css`: Die Knöpfe stehen in Gruppen mit 2 px
+   (`.tgrp`) bzw. 4 px (`.etoolbar`) Abstand. Ein 44 px breites `::after` über
+   einem 30 px breiten Knopf ragt 7 px nach jeder Seite und fängt damit Klicks
+   auf den Nachbarknopf ab — genau der Grund, aus dem die Trefferflächen-Regel
+   dort am Übergangsschalter hängt. Eine echte Mindestgröße hat dieses Problem
+   nicht.
+
+   Warum trotzdem am Schalter `<html data-altlasten="weg">`: 30 → 44 px ist
+   eine sichtbare Änderung (die Leiste wächst von 30 auf 44 px Tastenhöhe und
+   bricht auf schmalen Fenstern eher um — `.etoolbar` trägt `flex-wrap: wrap`,
+   waagerechter Überlauf entsteht nicht, gemessen bis 700 px). Sie gehört damit
+   in denselben Zug wie alle anderen Zielgrößen der Anwendung, statt als
+   einzelne Insel vorzupreschen. Der Schalter steht inzwischen in
+   `app/layout.tsx`; die Größe ist also in Kraft, und sie fällt mit dem
+   Schalter zusammen weg, wenn der Übergangsblock verschwindet.
+
+   Warum der Schalter in `:where()` steht: `:root[data-altlasten='weg'] .tb`
+   wäre (0,3,0) und schlüge damit auch `.tb.fmt` (0,2,0) — im Versuch fiel das
+   Format-Menü messbar von 104 auf 57,2 px zusammen. `:where()` trägt nichts
+   zur Spezifität bei; die Regel liegt damit bei (0,1,0): sie gewinnt gegen
+   `.tb` (steht später), verliert aber gegen jede Variante mit zwei Klassen. */
+:where(:root[data-altlasten='weg']) .tb {
+  min-height: var(--control-h);
+  min-width: var(--control-h);
+}
+.tb:hover {
+  background: var(--color-bg);
+  border-color: var(--color-border-strong);
+}
+.tb.on {
+  background: var(--color-accent-wash);
+  border-color: var(--color-accent-line);
+  color: var(--color-accent);
+}
+.tb svg {
+  width: 16px;
+  height: 16px;
+}
+.tb .cv {
+  width: 11px;
+  height: 11px;
+  color: var(--color-text-muted);
+}
+.tb.fmt {
+  font-weight: var(--weight-strong);
+  min-width: 104px;
+  justify-content: space-between;
+}
+.tb.b {
+  font-weight: var(--weight-strong);
+}
+.tb.i {
+  font-style: italic;
+  font-weight: var(--weight-display);
+  font-family: Georgia, serif;
+}
+.tb.mono {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-strong);
+}
+.tb.plus {
+  color: var(--color-accent);
+}
+.tb.plus:hover {
+  background: var(--color-accent-wash);
+  border-color: var(--color-accent-line);
+}
+/* Deckkraft und Cursor stehen seit Teilschritt I EINMAL, in
+   `40-schaltflaeche.css` (`[disabled], [aria-disabled='true']`). Hier bleibt
+   nur die Unterdrueckung des Ueberfahr-Zustands — ein abgeschalteter Knopf
+   darf nicht so aussehen, als koenne man ihn druecken. */
+.tb:disabled:hover {
+  background: transparent;
+  border-color: transparent;
+}
+.etoolbar .grow {
+  flex: 1;
+}
+.wordcount {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  font-weight: var(--weight-display);
+}
+
+/* ---- Editier-Fläche (ProseMirror-Wurzel — s. Kopfkommentar oben) ---- */
+.doc table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: var(--space-2) 0 var(--space-5);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+}
+.doc th {
+  text-align: left;
+  font-weight: var(--weight-strong);
+  font-size: var(--text-xs);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  background: var(--panel-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border-strong);
+  border-right: 1px solid var(--color-border);
+}
+.doc td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  border-right: 1px solid var(--color-border);
+}
+.doc th:last-child,
+.doc td:last-child {
+  border-right: 0;
+}
+.doc tr:last-child td {
+  border-bottom: 0;
+}
+/* Aufgabenlisten: Tiptap rendert `data-type`/`data-checked` statt der
+   Lesepipeline-Klassen (`contains-task-list`/`task-list-item`, s. Kopfkommentar). */
+.doc ul[data-type='taskList'] {
+  list-style: none;
+  padding-left: 0;
+}
+.doc li[data-type='taskItem'] {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+.doc li[data-type='taskItem'] label {
+  flex: none;
+  margin-top: 0.28em;
+}
+.doc li[data-type='taskItem'] input[type='checkbox'] {
+  margin: 0;
+  accent-color: var(--color-accent);
+}
+
+/* Diagramm-Node im Editor (Phase 3e): Bild + schwebender Bearbeiten-Button
+   (s. lib/editor/ui-extensions.ts#imageWithMediaSrc — nur Diagramm-Bilder
+   .drawio.svg/.excalidraw.svg bekommen diesen Wrapper, normale Bilder bleiben
+   ein einfaches <img>). Nur bestehende Tokens (tokens.css), keine Hex-Werte. */
+.doc .diagram-node {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+.doc .diagram-node img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+.doc .diagram-node .diagram-edit {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.doc .diagram-node:hover .diagram-edit,
+.doc .diagram-node .diagram-edit:focus-visible {
+  opacity: 1;
+}
+
+/* Alert-Titel im Editor (Issue #22 Fix): renderHTML liefert kein statisches
+   Titel-<p> mehr — ProseMirrors DOMSerializer verlangt, dass das Content-Loch (`0`)
+   das alleinige Kind seines Eltern-Arrays ist; ein Titel-<p> daneben crashte jeden
+   Editor-Mount mit einer Alert-Node ("Content hole must be the only child of its
+   parent node", s. packages/editor/src/nodes/alert.ts). Der Titel ist ohnehin kein
+   editierbarer Inhalt (s. Kommentar dort), daher rein visuell per `::before`
+   nachgebildet — Text und Farben exakt wie `.page-body .alert-title`/ALERT_TITLES
+   oben. Die Box selbst (Hintergrund/Rahmen/Abstand) kommt bereits über
+   `.page-body .alert` (Editor-Wurzel trägt beide Klassen `doc page-body`, s.
+   Kopfkommentar), hier nur die fehlende Titel-Darstellung. */
+.doc .alert::before {
+  display: block;
+  font-weight: var(--weight-strong);
+  text-transform: uppercase;
+  font-size: var(--text-xs);
+  letter-spacing: 0.05em;
+  margin: 0 0 var(--space-1);
+}
+.doc .alert-note::before {
+  content: 'Hinweis';
+  color: var(--color-status-working);
+}
+.doc .alert-tip::before {
+  content: 'Tipp';
+  color: var(--color-status-released);
+}
+.doc .alert-important::before {
+  content: 'Wichtig';
+  color: var(--color-accent);
+}
+.doc .alert-warning::before {
+  content: 'Warnung';
+  color: var(--color-status-review);
+}
+.doc .alert-caution::before {
+  content: 'Achtung';
+  color: var(--color-danger);
+}
+
+/* youtubeEmbed im Editor (Phase 3d): statisches Thumbnail + URL, kein Player. */
+.ProseMirror .yt-embed-editor {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-3) 0;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+}
+.ProseMirror .yt-embed-editor img {
+  width: 120px;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+}
+.ProseMirror .yt-embed-editor .yt-embed-editor-url {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  word-break: break-all;
+}
+.ProseMirror .yt-embed-editor.ProseMirror-selectednode {
+  outline: 2px solid var(--color-accent);
+}
+
+/* ---- Popover-Ergänzungen: Format-Dropdown / Verweis-Popover ----
+
+   Die vier Klappflächen des Editors (Format-Menü, Verweis-Popover,
+   `/`-Befehlsmenü, `[[`-Vervollständigung) tragen seit H2 `.menu`
+   (styles/44-dialog.css) statt `.pop`.
+
+   ── Positionierung: übernommen aus einer Regel, die H1 gelöscht hat ────────
+   Fläche, Rahmen, Radius, Schatten und `position: absolute` bringt der
+   Menü-Baustein mit. Wo ein Menü HÄNGT, bringt er bewusst nicht mit — jedes
+   hängt an einem anderen Punkt. Bis Teilschritt H1 kamen `top`, `right`,
+   `min-width` und `font-size` aus der Sammelregel `.pop` in
+   `60-chrome-topbar.css`; H1 hat sie gelöscht und für die drei
+   Kopfleisten-Menüs an ihren Anker verschoben. Dieselben vier Werte stehen
+   hier für die vier Klappflächen des Editors — unverändert übernommen, nur an
+   der Stelle, an der sie gebraucht werden.
+
+   `min-width` steht nur beim Format-Menü: die drei anderen führen eine eigene
+   feste Breite (300/312/340 px) und lagen damit schon vorher darüber. */
+.selbox .menu,
+.findings-pop,
+.cmdmenu,
+.linkpop {
+  top: calc(100% + 8px);
+  font-size: var(--text-sm);
+}
+/* Rechtsbündig wie die Kopfleisten-Menüs (Konto, Sprache, Space), die am
+   rechten Bildschirmrand hängen. */
+.findings-pop,
+.cmdmenu,
+.linkpop {
+  right: 0;
+}
+.selbox .menu {
+  min-width: 220px;
+  /* LINKSbündig, anders als die drei Klappflächen oben. Der Format-
+     Umschalter steht ganz links in der Werkzeugleiste: rechtsbündig wuchs
+     sein Menü nach links aus der Inhaltsspalte heraus und verschwand unter
+     dem Seitenbaum. Sichtbar blieb nur der rechte Rand, und da `.menu-item`
+     linksbündig setzt, lag der Text der Einträge vollständig im verdeckten
+     Teil — das Menü wirkte leer. */
+  left: 0;
+}
+
+.menu .ph {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-strong);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  padding: 6px var(--space-3) 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.linkpop {
+  width: 300px;
+}
+/* Das Eingabefeld des Verweis-Popovers traegt jetzt `.input`
+   (editor-toolbar.tsx) und kommt damit aus `styles/41-eingabe.css`. Die
+   eigene Feldregel und die dreizeilige Fokus-Ersatzregel (`outline: none` +
+   Rand + 3-px-Schattenring), die im Bestand sechsmal woertlich stand, sind
+   entfallen — den Ring stellt jetzt die EINE Fokusregel in
+   `styles/40-schaltflaeche.css`. */
+.linkpop .fld {
+  padding: 4px var(--space-2) var(--space-2);
+}
+.menu .pf {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  padding: 6px var(--space-3);
+  border-top: 1px solid var(--color-border);
+  margin-top: var(--space-1);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+/* Das Tastenkuerzel in der Popover-Fusszeile ist `.kbd`
+   (styles/42-marke.css); die vierte Auspraegung desselben Kaestchens ist
+   entfallen. */
+
+/* ---- Popup: `/`-Befehlsmenü (Task 5) — die Zeile ist der Menü-Baustein,
+   was hier bleibt, sind die Kinder EINER Zeile (Symbolkachel, Textspalte).
+   Sie sind unter `.cmdmenu` verankert; früher stand die Zeilenklasse
+   zusätzlich im Selektor, damit die damals zu breit geschnittene Regel
+   `.pop .item` unberührt blieb. Die Regel gibt es nicht mehr. ---- */
+.cmdmenu {
+  width: 312px;
+}
+/* Die Zeile selbst ist `.menu-item` (Markup: slash-menu.tsx) — eigene
+   Zeilenregel und eigener Hover entfallen; beides steht einmal im
+   Menue-Baustein (`styles/44-dialog.css`). Die Kinder darunter sind nur noch
+   unter `.cmdmenu` verankert statt zusaetzlich unter der Zeilenklasse: das
+   nimmt jedem dieser Selektoren eine Klasse (Plan §7.4, Regel 4).
+
+   Der ausgewaehlte Eintrag wird ueber EIN Merkmal erkannt: `aria-selected`,
+   das die Rolle `option` ohnehin verlangt. Die Zustandsklasse `.sel`, die
+   daneben stand, ist im Markup entfallen — genau die Doppelfuehrung, die
+   Bestandsaufnahme §6.2 am Editor-Umschalter gefunden hat. */
+.cmdmenu .ic {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: var(--panel-2);
+  border: 1px solid var(--color-border-strong);
+  display: grid;
+  place-items: center;
+  color: var(--color-text-muted);
+  flex: none;
+}
+.cmdmenu .ic svg {
+  width: 17px;
+  height: 17px;
+}
+.cmdmenu [aria-selected='true'] .ic {
+  color: var(--color-accent);
+  border-color: var(--color-accent-line);
+  background: var(--color-accent-wash);
+}
+.cmdmenu .tx {
+  min-width: 0;
+  flex: 1;
+}
+.cmdmenu .tx b {
+  display: block;
+  font-weight: var(--weight-strong);
+  font-size: var(--text-sm);
+}
+.cmdmenu .tx span {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+/* Das Kaestchen selbst ist `.kbd` (styles/42-marke.css). Sein `margin-left:
+   auto` ist mit dem Menue-Baustein ueberfluessig geworden: `.menu-item` ist
+   volle Breite und `.tx` traegt `flex: 1`, die Taste steht also ohnehin am
+   Zeilenende. Nachgemessen ist beides — der berechnete Aussenabstand war schon
+   0. Die Zeile MUSSTE weg: `.cmdmenu .kbd` trifft auch die Taste in der
+   Fusszeile des Menues, und dort gab es freien Raum, in den `auto` sie
+   verschoben haette (gemessen 198,7 px nach rechts). */
+
+/* ---- Popup: `[[`-Autocomplete (Task 5) ---- */
+.linkpop .ph .q {
+  font-family: var(--font-mono);
+  color: var(--color-accent);
+  text-transform: none;
+  letter-spacing: 0;
+}
+/* Wie beim Befehlsmenue: die Zeile ist `.menu-item` (Markup:
+   wiki-link-popup.tsx), eigene Zeilenregel und Hover entfallen. */
+.linkpop .lic {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  display: grid;
+  place-items: center;
+  background: var(--panel-2);
+  border: 1px solid var(--color-border-strong);
+  color: var(--color-text-muted);
+  flex: none;
+}
+.linkpop .lic svg {
+  width: 14px;
+  height: 14px;
+}
+.linkpop [aria-selected='true'] .lic {
+  color: var(--color-accent);
+  border-color: var(--color-accent-line);
+}
+.linkpop .lt {
+  min-width: 0;
+  flex: 1;
+}
+.linkpop .lt b {
+  display: block;
+  font-weight: var(--weight-strong);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.linkpop .path {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.linkpop .path .s {
+  opacity: 0.55;
+}
+/* Die „Entwurf"-Marke am Ende der Zeile ist die Statusmarke `chip working`
+   (styles/42-marke.css, Markup: wiki-link-popup.tsx). Wie beim Befehlsmenue
+   entfaellt ihr `margin-left: auto`: `.lt` traegt `flex: 1` und schiebt die
+   Marke ans Zeilenende. */
+
+/* ---- Typing-Trigger (`/`, `[[`) — Suggestion-Decoration (Task 5), Werte aus dem
+   Mockup. Der blinkende `.caret` des Mockups entfällt bewusst (statischer Demo-Trick
+   ohne echtes Textfeld) — der Browser zeigt an derselben Stelle bereits den echten
+   Eingabe-Cursor. ---- */
+.trigger {
+  background: var(--color-accent-wash);
+  border-radius: var(--radius-sm);
+  padding: 0 3px;
+  color: var(--color-accent);
+  font-weight: var(--weight-strong);
+}
+
+/* Das verborgene Datei-Feld des Upload-Flusses (wysiwyg-editor.tsx). Stand
+   bis H2 als Inline-Stil im Markup (Bestandsaufnahme §4.3) — derselbe Wert,
+   nur an der Stelle, an der Gestalt in diesem Projekt steht.
+
+   `display: none` ist hier KEIN Verstoß gegen die zugesicherte Eigenschaft 2
+   („visuell Verborgenes nie per display:none"): das Feld ist kein Inhalt,
+   sondern der Auslöser des Dateidialogs, und es hat mit dem sichtbaren
+   Werkzeugleisten-Knopf einen vollwertigen Stellvertreter im
+   Zugänglichkeitsbaum. Mit der `.sr-only`-Technik stünde es zusätzlich im
+   Tabulator-Lauf und böte dort zwei Wege zur selben Handlung. */
+.upload-input {
+  display: none;
+}
+
+/* ---- Media-Upload-Statuszeile (Task 5) — neutraler Zwischenzustand zwischen
+   `.notice.warn` (Achtung nötig) und `.notice.broken` (Fehler): dieselbe
+   Amber-Tonalität wie die „Entwurf"-Badges (`--work-*`), signalisiert „läuft gerade",
+   nicht „Problem". ---- */
+.notice.info {
+  background: var(--color-status-working-wash);
+  border-color: var(--work-ln);
+  color: var(--color-text);
+}
+.notice.info .ic {
+  color: var(--color-status-working);
+}
+
+.hint {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin: 4px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* ---- Footer: WYSIWYG | Markdown + Validierung (verdrahtet: Task 6,
+   components/editor/mode-switch.tsx + findings-panel.tsx) ---- */
+.editorfoot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--color-border);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  background: var(--panel-2);
+}
+/* Der Umschalter „WYSIWYG | Markdown" im Fussteil ist seit Teilschritt G die
+   segmentierte Auswahl `.segmented` aus `styles/45-auswahl.css`. Der frühere
+   Block A der `.seg`-Doppeldefinition (alt globals.css:2964-2992) stand hier
+   und ist ersatzlos entfallen — er war seit Entstehung von Block B
+   vollständig wirkungslos (gleiche Selektoren, gleiche Spezifität, aber
+   `63-review.css` wird später importiert; Bestandsaufnahme §6.2). Das
+   Aussehen des Umschalters kam also schon vorher aus Block B und kommt jetzt
+   unverändert aus `.segmented`. */
+.editorfoot .grow {
+  flex: 1;
+}
+/* Der Validierungs-Auslöser war eine eigene Marke `.valid` mit eigenem
+   Radius, Innenabstand und den Handoff-Literalen `--rev-bg`/`--rev-ln`. Er
+   ist jetzt die Statusmarke `chip review` bzw. `chip released`
+   (styles/42-marke.css, Markup: findings-panel.tsx) — dieselbe Marke, die
+   die Review-Ansicht schon führt. Der Zustand „keine Befunde" ist jetzt die
+   Variante `released` statt eines grünen Wortes in einer bernsteinfarbenen
+   Marke — Zeichen, Wort und Fläche sagen damit dasselbe (Spec „Zugesicherte
+   Eigenschaften", Punkt 3). Hier bleibt nur, was nicht zur Marke gehört,
+   sondern zu ihrer Rolle als Schaltfläche. */
+.findings-trigger .chip {
+  cursor: pointer;
+}
+
+/* =========================================================================
+   Validierungs-Popover (Task 6, components/editor/findings-panel.tsx)
+   `.findings-pop` erweitert den Menü-Baustein (`styles/44-dialog.css`) —
+   eigener Wrapper `.findings-trigger` statt `.account`,
+   weil der Auslöser hier IM `.editorfoot`-Fluss steht, nicht in der Topbar.
+   ========================================================================= */
+.findings-trigger {
+  position: relative;
+}
+.findings-pop {
+  width: 340px;
+  max-height: 320px;
+  overflow: auto;
+}
+.findings-empty {
+  margin: 0;
+  padding: var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+.findings-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.finding {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: 6px var(--space-2);
+  border-radius: var(--radius-sm);
+}
+.finding.clickable {
+  cursor: pointer;
+}
+.finding.clickable:hover {
+  background: var(--color-accent-wash);
+}
+.fi-icon {
+  flex: none;
+  margin-top: 1px;
+}
+.fi-icon svg {
+  width: 15px;
+  height: 15px;
+}
+.fi-icon.unsupported {
+  color: var(--color-danger);
+}
+.fi-icon.normalization,
+.fi-icon.frontmatter {
+  color: var(--color-status-review);
+}
+.fi-text {
+  min-width: 0;
+  flex: 1;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--color-text);
+}
+.fi-line {
+  flex: none;
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  color: var(--color-text-muted);
+}
+
+/* =========================================================================
+   Titelfeld + Archivieren-Toggle (components/editor/title-field.tsx) — OBEN
+   im Editor, zwischen Statuszeile/Lock-Banner und dem Metadaten-Panel.
+   `.mf-input` (s. unten) wäre hier zu klein/unauffällig — ein eigenes,
+   größeres Eingabefeld für den prominenten Titel.
+   ========================================================================= */
+.page-title-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: 0;
+  /* Redesign Phase 3: identische Lesespalten-Geometrie wie `.statusbar`/
+     `.metadata-panel`/`.body` — s. Sammelkommentar bei `.statusbar`. */
+  padding: var(--space-4) var(--layout-gutter) 0;
+}
+/* Das Feld ist `.input` (styles/41-eingabe.css, Markup: title-field.tsx);
+   hier bleibt nur, was den Titel vom gewöhnlichen Feld unterscheidet — seine
+   Größe und sein Platz in der Zeile. Feldrahmen, Fläche und die dreizeilige
+   Fokus-Ersatzregel sind entfallen. */
+.page-title-input {
+  flex: 1;
+  /* Ohne das nimmt ein `<input>` als Flex-Kind seine Standardbreite als
+     Mindestbreite und schiebt den Archivieren-Schalter aus der Zeile. */
+  min-width: 0;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-strong);
+}
+.page-title-archived {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-display);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  cursor: pointer;
+}
+/* =========================================================================
+   Metadaten-Erfass-Formular (Metadaten-Feature M3, components/editor/
+   metadata-panel.tsx) — auf-/zuklappbares `.card.rp` zwischen Statuszeile/
+   Lock-Banner und dem eigentlichen Editor. `.rp`/`.rp h4` (Rail-Kartenoptik,
+   s. oben) für den Rahmen, eigene `.mf-*`-Klassen für die Formularfelder
+   selbst (an `.newpage-body`/`.newpage-body input[type='text']` angelehnt).
+   ========================================================================= */
+.metadata-panel {
+  /* Redesign Phase 3: gleiche Lesespalten-Geometrie wie die übrigen
+     Editor-Kopfzeilen (s. Sammelkommentar bei `.statusbar`) — vorher hatte
+     dieses Panel als EINZIGE Kopfzeile gar kein horizontales Padding, die
+     „METADATEN"-Eyebrow stand dadurch weiter links als Titelfeld und
+     Editor-Text. Der Karten-Look wird hier zurückgenommen (die Sektion ist
+     im Handoff kein eigener Rahmen, sondern eine Eyebrow-Sektion), nur eine
+     Hairline nach unten trennt sie vom Editor-Text. */
+  margin-bottom: 0;
+  padding: var(--space-4) var(--layout-gutter);
+  border-bottom: 1px solid var(--color-border);
+}
+/* Der Auf-/Zuklapper ist seit H2 die zurückgenommene Schaltfläche
+   `btn quiet` (styles/40-schaltflaeche.css, Markup: metadata-panel.tsx) —
+   Rahmen, Fläche, Zeiger, Schriftfamilie und der Fokusring kommen von dort.
+   Was hier bleibt, ist die Abweichung, die der Baustein nicht kennen kann:
+   die Zeile spannt die volle Breite und trägt KEINEN eigenen Innenabstand.
+   Der Grund steht im Sammelkommentar bei `.statusbar`: die vier Kopfzeilen
+   des Editors stehen auf EINER Kante; ein Innenabstand hier brächte den
+   behobenen Treppeneffekt zurück. */
+.metadata-panel-toggle {
+  width: 100%;
+  justify-content: flex-start;
+  padding: 0;
+  text-align: left;
+}
+.metadata-panel-toggle h4 {
+  margin: 0;
+}
+.metadata-panel-toggle .grow {
+  flex: 1;
+}
+.metadata-panel-toggle svg {
+  width: 14px;
+  height: 14px;
+  color: var(--color-text-muted);
+  transition: transform 0.15s ease;
+  flex: none;
+}
+.metadata-panel-toggle[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+/* Die „N fehlen"-Marke ist `chip review` (styles/42-marke.css, Markup:
+   metadata-panel.tsx). */
+.metadata-panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+.mf-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.mf-field label {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-display);
+}
+.mf-required {
+  color: var(--color-danger);
+}
+/* Die Felder des Metadaten-Formulars sind `.input`
+   (styles/41-eingabe.css, Markup: metadata-panel.tsx). Entfallen sind: die
+   vollständige Feldkopie, die dreizeilige Fokus-Ersatzregel und `.mf-invalid`
+   — der Fehlerzustand hängt jetzt am Zustandsattribut `aria-invalid`, das das
+   Markup ohnehin schon setzte (Doppelführung von Klasse und Attribut).
+   Geblieben ist die Breitenbegrenzung: ein einspaltiges Formular, in dem ein
+   Eingabefeld über die ganze Lesespalte läuft, ist nicht lesbar.
+
+   `.mf-input` steht hier noch mit, weil drei Ansichten AUSSERHALB des Editors
+   dieselbe Klasse führen (Schema-Editor, Vorlagen-Pflege, API-Token-Formular
+   — Bestandsaufnahme §6.6). Sie beziehen ihre Feldgestalt seit Teilschritt C
+   aus der Brücke in `styles/41-eingabe.css`; nur diese eine Zeile fehlte
+   ihnen sonst. Teilschritt H4 nimmt sie mit. */
+.mf-input,
+.metadata-panel-body .input {
+  max-width: 420px;
+}
+.mf-error {
+  color: var(--color-danger);
+}
+.mf-auto-value {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+.mf-required-hint {
+  color: var(--color-status-review);
+}
+.mf-chip-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.mf-chip-toggle button {
+  font-family: var(--font-sans);
+  cursor: pointer;
+}
+.mf-chip-on {
+  border-color: var(--color-accent-line);
+  background: var(--color-accent-wash);
+  color: var(--color-accent);
+}
+.mf-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: 420px;
+}
+.mf-chip {
+  gap: 6px;
+}
+/* Das „×" am Schlagwort ist die zurückgenommene Schaltfläche `btn quiet`
+   (Markup: metadata-panel.tsx). Es war mit `padding: 0` die kleinste
+   Klickfläche der ganzen Anwendung; Teilschritt C legt ihm dafür eine
+   unsichtbare Trefferfläche von `--control-h` unter (`::after`-Block in
+   `styles/40-schaltflaeche.css`) und nennt es dort ausdrücklich beim Namen.
+   Die BAUgröße bleibt hier klein — der Chip gibt nicht mehr her. */
+.mf-chip .mf-chip-remove {
+  padding: 0;
+}
+/* Der Warnton beim Überfahren bleibt — er ist die einzige Ankündigung, dass
+   dieser Knopf etwas ENTFERNT. Zwei Klassen im Selektor sind dafür nötig:
+   `.btn.quiet:hover` (0,3,0) in `styles/40-schaltflaeche.css` würde ein
+   einklassiges `.mf-chip-remove:hover` (0,2,0) schlagen und die Farbe auf die
+   gewöhnliche Textfarbe ziehen. */
+.mf-chip .mf-chip-remove:hover {
+  color: var(--color-danger);
+}
+.mf-chip-input {
+  flex: 1;
+  min-width: 120px;
+  border: 0;
+  background: transparent;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  color: var(--color-text);
+  padding: 2px 0;
+}
+/* Hier stand ein `outline: none` OHNE Ersatz — eine der fünf Stellen, an
+   denen der Bestand den Fokusring ersatzlos entfernte (Bestandsaufnahme §3).
+   Der Name steht in der Selektorliste der EINEN Fokusregel
+   (`styles/40-schaltflaeche.css`); mit der Löschung hier greift sie. */
+
+/* =========================================================================
+   Metadaten-Schema-Editor (Metadaten-Feature M4, schema/page.tsx +
+   components/editor/metadata-schema-editor.tsx) — eigene, aber schmale
+   `.schema-*`-Klassen, an `.mf-*` (Formularfelder, s. oben) und
+   `.newpage-body`/`.conflict-actions` (Kopf-/Fußzeilen-Layout) angelehnt.
+   Bewusst KEINE neuen Farbwerte — nur bestehende Tokens (`--space-*`,
+   `--line-2`, `--panel*`, `--color-*`, `--dgr-fg`, `--work-fg`).
+   ========================================================================= */
+.schema-field-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+/* Redesign Phase 3: Die Feldboxen wirkten „ungestylt" — sie hatten zwar
+   `.card`-Rahmen, aber knappes Innen-Padding, eine kaum abgesetzte Kopfzeile
+   und Labels in derselben Größe wie die Eingaben. Jetzt: großzügiger
+   Innenraum, abgesetzte Kopfzeile mit Hairline, Eyebrow-Labels über den
+   Feldern (dieselbe 11px/600/uppercase-Stufe wie `.rp h4`/`.grp` im Rest der
+   App) und Eingaben, die ihre Gitterzelle voll ausfüllen. */
+.schema-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-6) var(--space-6);
+}
+.schema-field-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+.schema-field-index {
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-display);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.schema-field-move {
+  display: flex;
+  gap: var(--space-1);
+}
+.schema-field-remove {
+  color: var(--color-danger);
+}
+.schema-field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-4) var(--space-4);
+}
+/* Eyebrow-Labels (s. Kommentar bei `.schema-field`) — die Beschriftung steht
+   als Textknoten VOR dem Eingabefeld im selben `<label>`, deshalb wird sie
+   über das Label selbst typografiert und das Feld darunter zurückgesetzt. */
+.schema-field-grid label,
+.schema-field-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-display);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+/* Eingaben füllen ihre Gitterzelle (die generische `.mf-input`-Maximalbreite
+   von 420px gilt dem einspaltigen Metadaten-Formular, nicht diesem Raster)
+   und tragen wieder die normale Textgröße statt der Eyebrow-Stufe. */
+.schema-field-grid .mf-input,
+.schema-field-options .mf-input {
+  max-width: none;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-text);
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--color-text);
+}
+/* Checkbox-Zeilen sind KEINE Eyebrow-Labels — hier steht die Beschriftung
+   neben der Box und behält Normalschrift/-größe.
+
+   Teilschritt I: hier standen ACHT `!important` — die acht von elf, die die
+   Bestandsaufnahme §3 als abzubauen ausweist. Sie waren nötig, weil die
+   Eyebrow-Regel `.schema-field-grid label` (0,2,0) diese einklassige Regel
+   (0,1,0) schlug. Statt der Ausrufezeichen steht jetzt derselbe Block ein
+   zweites Mal unter dem Raster im Selektor: `.schema-field-grid
+   .schema-field-required` ist ebenfalls (0,2,0), steht aber SPÄTER und
+   gewinnt damit im Gleichstand — ohne die Deklarationen zu wiederholen und
+   ohne einen dritten Klassennamen (Plan §7.4, Regeln 3 und 4).
+
+   Beide Selektoren sind nötig, weil zwei der drei Fundstellen (`user`- und
+   `date`-Feld, `metadata-schema-editor.tsx`) NICHT im Raster stehen. */
+.schema-field-required,
+.schema-field-grid .schema-field-required {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-text);
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--color-text);
+  align-self: end;
+  padding-bottom: 7px;
+}
+/* Formular-Checkboxen/Radios in der Akzentfarbe statt Browser-Blau
+   (Editor-Task-Listen setzen accent-color separat/spezifischer, unberührt). */
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: var(--color-accent);
+  width: 1rem;
+  height: 1rem;
+}
+.schema-field-textarea {
+  max-width: none;
+  font-family: var(--font-mono);
+  resize: vertical;
+}
+.schema-editor-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+.schema-editor-actions .grow {
+  flex: 1;
+}
+/* Die drei `.schema-editor-status`-Regeln (neutral / Fehler / Erfolg) sind mit
+   Teilschritt I ersatzlos entfallen. H4 hat den Schema-Editor, die Vorlagen
+   und die API-Token-Spalte auf den Hinweisblock `.callout` umgestellt
+   (`43-flaeche.css`) und den Aussenabstand auf `.tool-status`
+   (`64-werkzeuge-einstellungen.css`) zusammengezogen; der Klassenname kam
+   danach in keinem Markup mehr vor — drei Regeln ohne einen einzigen Leser. */
+/* Die kleine Schaltfläche `.btn.small` stand hier ein zweites Mal — mit
+   einem eigenen Innenabstand. Sie ist seit Teilschritt C ein Baustein
+   (`styles/40-schaltflaeche.css`), der die vier Sondergrößen des Bestands
+   zusammenführt. Die Kopie ist entfallen; damit gilt sie überall gleich,
+   auch außerhalb des Editors. */
+

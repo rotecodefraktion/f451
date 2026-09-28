@@ -1,0 +1,385 @@
+/* 43-flaeche.css — Teilschritt E des Bausteinsystem-Umbaus.
+   Karten (.card), Hinweisbloecke (.callout), Skelett- und Leerzustand
+
+   Diese Datei gehoert AUSSCHLIESSLICH Teilschritt E. Andere Teilschritte
+   schreiben hier nicht hinein — die Aufteilung existiert genau deshalb,
+   damit mehrere Bearbeiter gleichzeitig arbeiten koennen.
+
+   Die Nummer im Dateinamen ist die Besitz-Nummer, nicht die Reihenfolge;
+   massgeblich fuer die Kaskade ist allein die Importreihenfolge in
+   ../globals.css (s. Kommentar dort).
+
+   ── Wo diese Datei in der Kaskade steht ───────────────────────────────────
+   VOR allen Ansichtsdateien (60-chrome-*, 61-lese, 62-editor, 63-review,
+   64-werkzeuge-*) und vor `../graph.css`, das `app/layout.tsx` getrennt
+   nachlädt. Wo eine Ansicht dieselbe Klasse (bzw. dieselbe Eigenschaft am
+   selben Knoten) deklariert, GEWINNT WEITERHIN DIE ANSICHT. Das ist Absicht:
+   der Baustein entsteht jetzt, sichtbar wird er, wenn H1–H5 die lokalen
+   Wiederholungen abräumen. Teilschritt E änderte deshalb bewusst NICHTS am
+   damaligen Aussehen; nachgewiesen ist das mit getComputedStyle über 71
+   Proben × 41 Eigenschaften × Hell/Dunkel (Ergebnis im Umbau-Bericht:
+   Abweichungen ausschließlich bei den vier neuen Klassen `.callout`,
+   `.card.plain`, `.skeleton`, `.empty`, die vorher gar keine Regel hatten).
+
+   Stand nach Teilschritt I: die Übergangs-Klammer und vier der fünf
+   Alt-Klassen-Aliase sind entfallen (s. jeweils dort). Übrig bleiben zwei
+   Rollen-Aliase, deren Altname noch im Markup steht.
+
+   NICHT Teil dieser Datei: `.page-body .alert` (Bestandsaufnahme §2.5
+   System B). `.page-body` trägt Leseansicht, Editor UND Review-Diff
+   gleichzeitig, und die Klassennamen darin kommen aus `packages/markdown`,
+   nicht aus dem Web-Paket (§6.1). Das ist die größte Risikostelle der
+   Bestandsaufnahme und bleibt unangetastet; Ziel von Etappe 2 sind
+   ZWEI Hinweis-Systeme (`.callout` + `.page-body .alert`), nicht eins.
+   ========================================================================= */
+
+/* =========================================================================
+   Karte
+
+   Befund (Bestandsaufnahme §2.4): `.card` steht an neun Stellen im Markup
+   und wird an sechs davon sofort wieder aufgehoben — `.tree.card`,
+   `.main.card`, `.rail .card.rp`, `.metadata-panel`, `.minitree.card`
+   (graph) und `.stage` setzen Rahmen, Radius und Schatten Zeile für Zeile
+   zurück. Eine Basis, die man überall zurücknimmt, ist keine Basis: „Karte"
+   bedeutet dann je nach Nachbarklasse etwas anderes. Kartenartige Flächen
+   tragen heute fünf Radien (12px, 9px, 10px, 14px, 0).
+
+   Hier steht genau EINE Karte — Haarlinie, EIN Radius, EIN Innenraum — und
+   daneben `.plain` als ausdrücklich rahmenlose Variante. Wer keine
+   Umrandung will, sagt das (`.card.plain`), statt die Basis zurückzudrehen.
+
+   Werte laut Plan §7.2 Zeile E: `--rule-hair`, `--radius-md`, `--space-5`.
+   Kein Schatten — der Entwurf setzt die Karte als „Papier auf Papier" mit
+   einer Linie (editorial.html:1100-1113); der heutige `--shadow-sm` bleibt
+   bis H1 wirksam, weil `60-chrome-raster.css` später steht.
+
+   Nicht übernommen: die `--rule-strong`-Kopflinie des Entwurfs
+   (`border-top` in Textfarbe + `border-radius: 0 0 md md`). Sie brächte
+   einen zweiten Radienwert in diese Datei und ist eine Gestaltungszutat der
+   Leseansicht, keine Zusage des Bausteins — sie gehört zu Etappe 3, wenn
+   der Satzspiegel steht.
+   ========================================================================= */
+.card {
+  padding: var(--space-5);
+  background: var(--color-bg);
+  border: var(--rule-hair) solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+/* Rahmenlose Variante: dieselbe Karte ohne Umrandung, Radius und Schatten —
+   für Flächen, die sich in ihre Umgebung einfügen sollen (Seitenbaum,
+   Hauptspalte, Rail-Abschnitte, Metadaten-Panel, Graph-Bühne). Der Innenraum
+   BLEIBT, denn er ist das, was diese Flächen weiterhin brauchen; wer auch
+   ihn nicht will, setzt in seiner Ansichtsdatei `padding` — eine einzelne
+   Eigenschaft statt vier Rücknahmen.
+
+   Die Variante ist spezifischer (0,2,0) als die Basis (0,1,0). H1/H2/H5
+   können sie deshalb im Markup ergänzen, BEVOR sie ihre lokalen
+   Rücknahme-Blöcke löschen; die Reihenfolge der beiden Schritte ist damit
+   egal. Wo eine Fläche ohnehin vollständig eigene Regeln trägt (`.main`,
+   `.tree`), ist das Streichen von `.card` im Markup der noch geradere Weg. */
+.card.plain {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* ── Die Übergangs-Klammer ist entfallen (Teilschritt I) ──────────────────
+   Hier stand `:where(.main, .tree, .stage, .pop).card { padding: 0 }`. Vier
+   Knoten trugen `.card` im Markup, waren aber keine Karten, und ihre
+   Ansichtsregeln setzten ALLES aus der Basis zurück — nur `padding` nicht,
+   denn die Basis hatte bisher keins. Ohne die Klammer hätten Hauptspalte,
+   Seitenbaum, Graph-Bühne und Graph-Popover 20px Innenabstand bekommen.
+
+   H5 hat `.stage` und `.minitree` aus dem Markup gelöst, H1 seine Selektoren
+   `.card`-unabhängig geschrieben (`.main`, `.tree`, `.rail .rp` statt
+   `.main.card`, `.tree.card`, `.rail .card.rp`) — aber `main card`,
+   `tree card`, `card rp` und `pop card` standen noch in dreizehn Dateien
+   außerhalb seines Teilschritts. Teilschritt I hat sie dort gestrichen.
+   Damit sagt `.card` im Markup dieser Anwendung wieder genau eine Sache:
+   das hier ist eine Karte.
+
+   Wer künftig eine rahmenlose Fläche mit Innenraum braucht, nimmt
+   `.card.plain` — nicht eine neue Rücknahme. */
+
+/* =========================================================================
+   Hinweisblock
+
+   Befund (Bestandsaufnahme §2.5): fünf parallele Systeme für „Hinweis /
+   Warnung / Fehler / Erfolg".
+
+     A `.notice` (+ 7 Varianten)      Leseansicht, Editor, Review
+     B `.page-body .alert` (5 Typen)  gerendertes Markdown — bleibt (s. Kopf)
+     C `.login-error`                 11 Fundstellen, 10 davon außerhalb der
+                                      Anmeldeseite
+     D `.search-dialog-status.error`  Suchdialog PLUS fünf Baum- und
+                                      Dialog-Komponenten (zweckentfremdet)
+     E `.schema-editor-status`,
+       `.conn-error`                  Schema-Editor, Vorlagen, API-Tokens
+
+   A, C, D und E laufen hier auf EINEN `.callout` mit vier Varianten
+   zusammen: `info`, `warn`, `error`, `ok` (Entwurf editorial.html:892-910).
+
+   Aufbau wie im Entwurf: Markerlinie links (`--rule-marker`), getönte
+   Fläche, darin eine Kopfzeile mit Zeichen und Wort. Die Farbe ist NIE
+   alleiniger Träger (Spec, „Zugesicherte Eigenschaften" Punkt 3) — der
+   Fließtext bleibt in Textfarbe auf der Tönung, ausgezeichnet wird nur die
+   Kopfzeile. Das ist zugleich die Kontrast-Zusage: Fließtext erreicht so in
+   beiden Modi zweistellige Kontrastwerte.
+
+   Die Variante setzt nur zwei Variablen; alles andere steht einmal in der
+   Basis. Das macht die Alt-Klassen-Aliase weiter unten zu Zweizeilern.
+
+   Kein `margin`: der Abstand nach außen gehört dem Kontext (die Ansichten
+   stapeln Hinweise heute schon in Flex-Containern mit `gap`). Ein Baustein,
+   der eigenen Außenabstand mitbringt, müsste an jeder zweiten Fundstelle
+   zurückgesetzt werden — genau der Fehler, den §2.4 bei der Karte zeigt.
+   Auch keine `max-width`: Breitenstufen (`--measure*`) sind Etappe 3.
+   ========================================================================= */
+/* Der Kasten-Alias `.login-error` stand bis Teilschritt I in derselben
+   Selektorliste, damit H4 den zweiten Hinweisblock in
+   `64-werkzeuge-einstellungen.css` ersatzlos löschen konnte, ohne die elf
+   Fundstellen unformatiert dastehen zu lassen. H4 hat alle elf auf
+   `callout error` umgeschrieben; der Klassenname kommt im Markup nicht mehr
+   vor, der Alias ist gestrichen. */
+.callout {
+  /* Neutralton: `--color-text-muted`, nicht `--color-border-strong` wie im
+     Entwurf. Unsere `--color-border-strong` liegt bei 8 % Text über der
+     Randfarbe — eine 3px-Markerlinie darin ist auf der eigenen Tönung nicht
+     mehr zu sehen (gemessen 1,4:1), und die Kopfzeile wäre unlesbar. */
+  --callout-signal: var(--color-text-muted);
+  --callout-wash: var(--color-bg-raised);
+  padding: var(--space-4) var(--space-5);
+  background: var(--callout-wash);
+  border-left: var(--rule-marker) solid var(--callout-signal);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  color: var(--color-text);
+}
+/* Randabstände der Kinder gehören dem Kasten, nicht dem Text darin. */
+.callout > :first-child {
+  margin-top: 0;
+}
+.callout > :last-child {
+  margin-bottom: 0;
+}
+/* Kopfzeile: Zeichen + Wort in der Signalfarbe. `.callout__head` ist die
+   einzige Stelle, an der die Variantenfarbe als TEXT erscheint — und damit
+   die einzige, die AA (4,5:1) erfüllen muss statt 3:1.
+
+   Die reine Signalfarbe reicht dafür im HELLMODUS nicht: auf der eigenen
+   Tönung gemessen 3,84 (info), 4,32 (warn), 4,07 (error), 4,33 (ok) — alle
+   knapp unter AA, im Dunkelmodus dagegen 5,5-8,5. Der Text bekommt deshalb
+   12 % Textfarbe beigemischt; dieselbe Vorschrift wirkt in beide Richtungen,
+   weil `--color-text` hell dunkel und dunkel hell ist: 4,55-5,08 (hell),
+   6,1-8,9 (dunkel). Kein neues Literal, nur zwei Katalog-Tokens — dieselbe
+   Bauart wie `--link` in `10-ableitungen.css`.
+
+   Die Markerlinie und das Zeichen behalten die REINE Signalfarbe: sie sind
+   kein Text und müssen 3:1 erreichen (gemessen 3,84-4,33 hell, 5,5-8,5
+   dunkel). Die eigentliche Ursache liegt eine Ebene tiefer — die vier
+   Signalfarben des Katalogs sind im Hellmodus für Text auf ihrer eigenen
+   Tönung 0,2-0,7 Punkte zu hell. Das ist eine Token-Frage (Etappe 3), keine
+   Baustein-Frage, und darum hier gemeldet statt hier repariert. */
+.callout__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-2);
+  color: color-mix(in srgb, var(--callout-signal) 88%, var(--color-text));
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+  line-height: var(--leading-ui);
+}
+/* Das Zeichen wächst mit der Kopfzeile mit (`1em` statt eines px-Literals) —
+   damit trägt es keine eigene Größenstufe in die Datei und folgt jedem
+   Theme, das `--text-sm` verstellt. */
+.callout__head svg {
+  flex: none;
+  width: 1em;
+  height: 1em;
+}
+
+/* ── Varianten und Alt-Klassen-Aliase ─────────────────────────────────────
+   Die Zuordnung folgt dem HEUTIGEN Ton der jeweiligen Alt-Klasse, damit der
+   Wechsel in H1–H5 keinen Farbsprung auslöst.
+
+   Es gab zwei Sorten Alias. Der KASTEN-Alias (`.login-error`) und vier der
+   fünf ROLLEN-Aliase (`.schema-editor-status.*`, `.conn-error`) sind mit
+   Teilschritt I entfallen: H4 hat alle Fundstellen auf `callout` umgestellt,
+   die Klassennamen kommen im Markup nicht mehr vor.
+
+   Übrig bleiben die Rollen-Aliase, deren Altname noch im Markup steht:
+   `.notice.*` (Leseansicht, Editor, Review — ein fremd gebauter Kasten mit
+   eigenem Radius und eigener Rahmenlogik) und `.search-dialog-status.error`
+   (blanker Text ohne Fläche). Sie bekommen weiterhin nur die ROLLE: zwei
+   Variablen. Ihnen hier den ganzen Kasten zu geben wäre eine Sichtänderung,
+   die nicht in dieser Datei entschieden wird — der `.notice`-Kasten gehört
+   zur Leseansicht und damit zu Etappe 3.
+
+   Bewusst als getrennte Selektoren geschrieben, NICHT als `:is(…)`: `:is()`
+   nimmt die höchste Spezifität der Liste an und würde damit spätere
+   Ansichtsregeln schlagen — aus einer stillen Rolle würde eine
+   Sichtänderung. */
+
+/* Hinweis — „läuft gerade / zur Kenntnis" */
+.callout.info,
+.notice.info {
+  --callout-signal: var(--color-status-working);
+  --callout-wash: var(--color-status-working-wash);
+}
+
+/* Warnung — „Achtung nötig, aber nichts ist kaputt" */
+.callout.warn,
+.notice.warn,
+.notice.draft,
+.notice.lock {
+  --callout-signal: var(--color-status-review);
+  --callout-wash: var(--color-status-review-wash);
+}
+
+/* Fehler. `.login-error`, `.conn-error` und `.schema-editor-status.error`
+   standen bis Teilschritt I mit in dieser Liste; alle drei Klassennamen sind
+   aus dem Markup verschwunden (H4), die Rollen-Aliase deshalb gestrichen.
+   Übrig bleiben die zwei Altnamen, die es im Markup noch gibt. */
+.callout.error,
+.notice.broken,
+.notice.conflict,
+.search-dialog-status.error {
+  --callout-signal: var(--color-danger);
+  --callout-wash: var(--color-danger-wash);
+}
+
+/* Erfolg. `.schema-editor-status.success` stand bis Teilschritt I mit hier —
+   der Klassenname ist aus dem Markup verschwunden (H4), der Alias gestrichen.
+   Er hatte zugleich eine Farbe korrigiert: die Klasse färbte in
+   `--color-status-working` (Indigo), also im Arbeits- statt im Erfolgston.
+   Übrig bleibt `.notice.rel`, das auf den abgenommenen Handoff-Literalen
+   `--rel-bg/-ln` liegt statt auf `--color-status-released-wash`; hier
+   gewinnt die Rolle, nicht die Vorgeschichte. */
+.callout.ok,
+.notice.rel {
+  --callout-signal: var(--color-status-released);
+  --callout-wash: var(--color-status-released-wash);
+}
+
+/* =========================================================================
+   Ladezustand (Skelett)
+
+   Befund (§2.8): Es gibt in der ganzen Anwendung keine Klasse `skeleton`,
+   `spinner`, `loading` — Ladehinweise sind reiner Text in der jeweils
+   lokalen Statusklasse (fünf verschiedene). Der Baustein ist neu und
+   kollidiert mit nichts.
+
+   Aufbau: `<div class="skeleton" aria-hidden="true">` mit je einem `<span>`
+   pro Platzhalterzeile. Das `aria-hidden` gehört ins Markup und nicht hierher
+   — ein Skelett ist Dekoration; die Meldung „lädt" muss aus einer
+   Live-Region kommen, sonst fällt sie aus dem Zugänglichkeitsbaum (Spec,
+   „Zugesicherte Eigenschaften" Punkt 2).
+
+   Abweichung vom Entwurf (editorial.html:1148-1159): dort trennt
+   `margin-bottom` die Zeilen, hier `gap`. Ein Zwischenraum, der zum letzten
+   Kind keinen Rand mehr hinzufügt, muss nicht am Ende zurückgenommen werden.
+   ========================================================================= */
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.skeleton > span {
+  display: block;
+  height: var(--space-4);
+  /* Radius bewusst `--radius-sm`: das hier sind Textzeilen-Platzhalter, keine
+     Fläche — die kartenartigen Radien dieser Datei bleiben bei EINEM Wert. */
+  border-radius: var(--radius-sm);
+  /* Beide Stufen mischen in `--color-bg`, also in die Kartenfläche — das ist
+     die einzige Bauart, die den Panel/Page-Flip des Dunkelmodus übersteht
+     (s. `10-ableitungen.css`). Der Entwurf nimmt `--color-bg-raised` als
+     Ruhefarbe; hier wäre das im Dunkeln exakt die Kartenfläche selbst, der
+     Balken also unsichtbar (gemessen 1,00:1). Mit 6 % (Ruhe) und der
+     kräftigeren Randstufe (Welle) steht der Balken in beiden Modi. */
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-hover),
+    var(--color-border-strong),
+    var(--color-surface-hover)
+  );
+  background-size: 300% 100%;
+  animation: skeleton-shimmer 1.6s linear infinite;
+}
+/* Unterschiedliche Längen, damit der Block wie Text aussieht und nicht wie
+   ein Balkendiagramm. Die erste Zeile bleibt voll. */
+.skeleton > span:nth-child(2) {
+  width: 92%;
+}
+.skeleton > span:nth-child(3) {
+  width: 78%;
+}
+.skeleton > span:nth-child(4) {
+  width: 86%;
+}
+@keyframes skeleton-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+/* Der Schimmer ist die einzige Endlos-Bewegung, die dieser Baustein braucht —
+   und Endlos-Bewegung ist genau das, was Punkt „prefers-reduced-motion"
+   meint. Ohne Animation stünde der Verlauf still sichtbar im Bild; deshalb
+   hier zusätzlich eine ruhige Fläche statt eines eingefrorenen Verlaufs. */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton > span {
+    animation: none;
+    background: var(--color-surface-hover);
+  }
+}
+
+/* =========================================================================
+   Leerzustand
+
+   Befund (§2.8): Es gibt genau eine eigene Leerzustands-Klasse
+   (`.findings-empty`, eine Textzeile); sonst freier `hint`-Text oder gar
+   keine Klasse plus Inline-Style. Der Entwurf liefert einen Baustein mit
+   gestricheltem Rahmen und Handlungsangebot (editorial.html:1161-1168):
+   ein leerer Bereich soll erkennbar leer sein und sagen, was man tun kann —
+   nicht wie ein Ladefehler aussehen.
+
+   Der gestrichelte Rahmen ist das Unterscheidungsmerkmal zur Karte: gleiche
+   Geometrie (`--radius-md`), aber `dashed` statt `solid` — „hier könnte
+   etwas stehen" statt „hier steht etwas".
+
+   Markup: Überschrift, ein Satz, optional eine Schaltfläche.
+   ========================================================================= */
+.empty {
+  padding: var(--space-9) var(--space-6);
+  /* `--color-glyph-state` statt `--color-border-strong` (Entwurf): der
+     gestrichelte Rahmen IST hier das Zeichen für „leer" und muss deshalb
+     3:1 erreichen (Spec, Punkt 5). `--color-border-strong` liegt auf der
+     Kartenfläche bei 1,4:1 — sichtbar nur, wer weiß, dass da etwas ist.
+     `--color-glyph-state` ist das Katalog-Token für genau diese Rolle und
+     wurde bisher von keiner Regel gelesen (Bestandsaufnahme §1.2). */
+  border: var(--rule-hair) dashed var(--color-glyph-state);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+.empty h4 {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-strong);
+  line-height: var(--leading-heading);
+}
+.empty p {
+  /* Die halbe Lesespalte: ein Leerzustand ist ein Satz, kein Absatz. */
+  max-width: calc(var(--measure) / 2);
+  margin: 0 auto var(--space-5);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+}
+.empty > :last-child {
+  margin-bottom: 0;
+}

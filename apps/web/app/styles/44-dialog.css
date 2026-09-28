@@ -1,0 +1,761 @@
+/* =========================================================================
+   Dialog + Menü — Bausteine (Teilschritt F)
+
+   Zusammenführung von `44-dialog-suche.css`, `44-dialog-editor.css` und
+   `44-dialog-review.css` (Bestandsaufnahme §7.2, Zeile F).
+
+   ── Was hier neu ist ──────────────────────────────────────────────────────
+   1. EINE Dialogbasis auf dem `dialog`-Element. Die acht Dialogklassen sagen
+      nur noch, wie groß und wo sie stehen. Vorher wiederholten fünf von
+      ihnen denselben zwölfzeiligen Block wörtlich.
+   2. `::backdrop` genau EINMAL, über `--color-scrim` statt fünfmal einem
+      rohen Schwarz-Literal mit 50 % Deckung.
+   3. Die `:not([open])`-Gegenregel genau EINMAL statt fünfmal (samt fünfmal
+      wiederholtem Erklärkommentar).
+   4. `.conflict-head`/`.conflict-actions` heißen jetzt `.dialog-head`/
+      `.dialog-actions`. Die Altnamen standen bis Teilschritt I als Alias im
+      selben Selektor; das Markup ist umbenannt, die Aliase sind weg.
+   5. Ein Menü-Baustein (`.menu`/`.menu-item`) mit EINEM Zeilen-Innenabstand
+      für die vormals fünf verschiedenen Menüzeilen. Von den fünf Aliasen
+      sind nach Teilschritt I zwei übrig (s. Aliasblock unten).
+
+   ── Warum diese Datei an DIESER Stelle der @import-Liste steht ────────────
+   Die drei Ausgangsdateien lagen an drei verschiedenen Stellen der Kaskade
+   (zwischen `60-chrome-leiste` und `62-editor`, zwischen `62-editor` und
+   `62-editor-rohtext`, hinter `63-review`). Zusammenlegen heißt Regeln in der
+   Kaskade verschieben — bei gleicher Spezifität entscheidet die Reihenfolge,
+   also kann das die Sicht ändern, ohne dass eine Zeile Inhalt sich ändert.
+
+   Geprüft wurde das mit einer Paaranalyse über alle 648 Regeln: für jedes
+   Paar (Regel aus einer Dialogdatei, Regel aus einer anderen Datei) mit
+   GLEICHER Spezifität, gleicher Eigenschaft und verträglichem rechtestem
+   Compound wurde geprüft, ob sich die Reihenfolge umdreht. Für die hier
+   gewählte Zielposition — im Bausteine-Block, hinter `43-flaeche.css` —
+   bleiben 22 Kandidaten übrig; alle 22 sind Scheintreffer, weil die
+   Vorfahren-Bedingungen sich ausschließen (z. B. `.conflict-col pre` gegen
+   `.page-body pre`: eine Dialogspalte steht nie im Artikelkörper). Die
+   Prüfung ignoriert Vorfahren absichtlich — sie meldet dadurch zu viel,
+   nie zu wenig.
+
+   Der Bausteine-Block ist die richtige Stelle, weil die Aliase unten davon
+   leben, dass die ANSICHTSREGELN gewinnen, solange es sie noch gibt: die
+   heutigen Werte bleiben in Kraft, der neue Baustein greift erst, wenn
+   H1–H5 die Ansichts-Wiederholungen entfernen.
+
+   ── Gemessen ──────────────────────────────────────────────────────────────
+   Zusätzlich zur Paaranalyse wurden beide Stände (drei Dateien alt / eine
+   Datei neu) in Chromium gegeneinander gerechnet: eine Musterseite mit dem
+   Markup aller acht Dialoge und aller fünf Menüfamilien, jeder Knoten mit
+   allen aufgelösten Rechenwerten (var() aufgelöst, color-mix() ausgerechnet)
+   und seinem Rechteck, in Hell UND Dunkel. Ergebnis: KEIN einziger
+   Rechteck-Unterschied, und außer dem Schleier (s. u.) nur eine einzige
+   Wertänderung — `.newpage-dialog` erbt jetzt `display: flex` aus der Basis
+   statt Blockfluss zu benutzen. Der Unterschied ist rein rechnerisch: die
+   beiden Kinder (Kopfzeile und `<form>`) sind randlos und volle Breite, ihre
+   Rechtecke sind vorher wie nachher auf den Hundertstel gleich; sichtbar
+   wird nur, dass Flex-Kinder `min-height: auto` statt `0px` berechnen.
+   ========================================================================= */
+
+/* =========================================================================
+   1. Dialogbasis
+   Alle elf `<dialog>`-Elemente der Anwendung tragen eine der fünf
+   Größenklassen weiter unten; der Element-Selektor ist deshalb sicher und
+   mit (0,0,1) so schwach, dass jede Klasse ihn überstimmt.
+   ========================================================================= */
+dialog {
+  padding: 0;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg);
+  color: var(--color-text);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  /* Kopf / Inhalt / Fußzeile untereinander, Inhalt scrollt. */
+  display: flex;
+  flex-direction: column;
+  /* Zentriert; die vier Dialoge mit Abstand von oben setzen eigene Werte. */
+  margin: auto;
+}
+
+/* Der Schleier hinter dem Modal. Stand bis Teilschritt F fünfmal als rohes
+   Schwarz-Literal mit 50 % Deckung in der Datei, obwohl der Katalog
+   `--color-scrim` dafür mitliefert. Der Token ist bewusst wärmer und dichter
+   (#0b0a09 mit 62 % Deckung, Entwurf `editorial.html:1158`, Token-Tabelle
+   Zeile `--color-scrim`) — gemessen also
+   rgb(0 0 0 / 0.5) → rgb(11 10 9 / 0.62), in Hell wie Dunkel derselbe Wert.
+   Das ist die EINZIGE beabsichtigte Sichtänderung dieses Teilschritts; die
+   Bestandsaufnahme führt sie in §7.2 als Abnahmekriterium („kein rohes
+   Schwarz-Literal mehr"). */
+dialog::backdrop {
+  background: var(--color-scrim);
+}
+
+/* Bugfix (Phase 2c Task 7, im E2E-Flow entdeckt): das `display: flex` oben
+   gilt als Autoren-Regel IMMER, unabhängig vom `open`-Attribut — Autoren-
+   Styles schlagen die UA-Default-Regel `dialog:not([open]) { display: none }`
+   unabhängig von deren Spezifität (Cascade-Origin, nicht nur Spezifität).
+   Ohne diese Gegenregel bleibt ein nicht geöffnetes `<dialog>` als normales
+   Flow-Element sichtbar UND klickbar stehen (real beobachtet: es fing
+   „Bearbeiten"-Klicks auf der Wiki-Seite ab). Bis Teilschritt F stand diese
+   Regel samt Kommentar fünfmal in der Datei. */
+dialog:not([open]) {
+  display: none;
+}
+
+/* Kopfzeile und Fußzeile eines Dialogs. Beide werden von ALLEN acht Dialogen
+   benutzt, hießen aber nach einem von ihnen (`.conflict-…`). Die Altnamen
+   standen bis Teilschritt I als Alias im selben Selektor; Teilschritt I hat
+   die vier Markup-Dateien umbenannt (`tree-node-actions`, `new-page-button`,
+   `review-view`, `mode-switch`) und die Aliase gestrichen — die Umbenennung
+   ist reiner Namenswechsel, dieselben Deklarationen an denselben Knoten. */
+.dialog-head {
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+  flex: none;
+}
+.dialog-head h2 {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-lg);
+}
+.dialog-head p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--color-border);
+  flex: none;
+}
+
+/* =========================================================================
+   2. Die acht Dialoge — nur noch Größe und Platzierung
+
+   Warum nicht wirklich „nur die Breite": der Abstand von oben (`margin`) und
+   die Höhengrenze sind je Dialog inhaltlich begründet und unterschiedlich
+   (ein Zwei-Spalten-Konflikt braucht mehr Höhe als eine Rückfrage). Sie hier
+   zu vereinheitlichen wäre eine Sichtänderung ohne Auftrag. Alles andere —
+   Rahmen, Radius, Fläche, Textfarbe, Schatten, Überlauf, Flussrichtung,
+   Innenabstand — kommt aus der Basis oben.
+   ========================================================================= */
+
+/* Suche — ⌘K-Dialog (components/search-dialog.tsx) */
+.search-dialog {
+  width: min(600px, 92vw);
+  max-height: min(70vh, 560px);
+  margin: 10vh auto auto;
+}
+
+/* Tastenkürzel-Übersicht (components/shortcuts-dialog.tsx) — sechs Zeilen aus
+   Taste und Beschreibung. Mehr Satzbreite braucht keine der Beschreibungen,
+   und der Dialog bleibt so sichtbar schmaler als die Suche. Keine
+   Höhengrenze — der Inhalt ist fest und kurz.
+   Das px-Literal steht hier absichtlich: für Dialogbreiten gibt es keinen
+   Token, und alle Nachbardialoge oben und unten setzen ihre Breite genauso.
+   Vorher stand hier die Summe von `--layout-nav-w` und `--layout-rail-w` —
+   die traf dieses Maß nur zufällig und hätte den Dialog mitverschoben,
+   sobald jemand eine der beiden Leisten verbreitert. */
+.shortcuts-dialog {
+  width: min(544px, 92vw);
+  margin: 12vh auto auto;
+}
+
+/* Konflikt-Dialog (components/editor/conflict-dialog.tsx) — breiter für die
+   zwei nebeneinander scrollbaren Fassungs-Spalten. Drei weitere Dialoge
+   tragen diese Klasse zusätzlich und ändern nur die Breite. */
+.conflict-dialog {
+  width: min(920px, 94vw);
+  max-height: min(80vh, 720px);
+  margin: 8vh auto auto;
+}
+
+/* Moduswechsel-Bestätigung (components/editor/mode-switch.tsx) */
+.mode-confirm-dialog {
+  width: min(560px, 92vw);
+  max-height: min(70vh, 520px);
+  margin: 12vh auto auto;
+}
+
+/* Neue Seite / Umbenennen / Verschieben / Als Vorlage speichern
+   (components/new-page-button.tsx, tree-node-actions.tsx,
+   editor/save-template-dialog.tsx) — schmal, ohne Höhengrenze. */
+.newpage-dialog {
+  width: min(420px, 92vw);
+  margin: 16vh auto auto;
+}
+
+/* draw.io / Excalidraw (components/editor/{drawio,excalidraw}-dialog.tsx) —
+   nahezu vollflächig, der iframe bzw. die Excalidraw-Komponente braucht die
+   Fläche. Drei Abweichungen von der Basis, alle mit Grund:
+   `padding` (der Rahmen soll den Editor umfassen, nicht bündig abschneiden),
+   `gap` (Abstand zwischen Zeichenfläche und Fußzeile) und `overflow`, das
+   hier ausdrücklich auf dem UA-Default `visible` bleiben muss: Excalidraw
+   klappt eigene Menüs innerhalb des Dialogs auf, die ein `hidden` der Basis
+   abschneiden würde. */
+.diagram-dialog {
+  width: min(96vw, 1400px);
+  height: min(92vh, 900px);
+  padding: var(--space-2);
+  gap: var(--space-2);
+  overflow: visible;
+}
+
+/* Die drei Dialoge, die sich Kopf/Rahmen über die zusätzlich gesetzte Klasse
+   `.conflict-dialog` holen und wirklich nur ihre Breite eigen haben. */
+.reset-recovery-dialog {
+  width: min(680px, 92vw);
+}
+.offline-recovery-dialog {
+  width: min(560px, 92vw);
+}
+.update-strategy-dialog {
+  width: min(640px, 92vw);
+}
+
+/* =========================================================================
+   3. Dialog-Inhalte
+
+   Reihenfolge wie in den drei Ausgangsdateien (Suche → Editor → Review),
+   damit innerhalb dieser Datei keine Regel an einer anderen vorbeizieht.
+   ========================================================================= */
+
+/* ---- Suchdialog ---------------------------------------------------------- */
+.search-dialog-input-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  flex: none;
+}
+.search-dialog-input-row svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  color: var(--color-text-muted);
+}
+.search-dialog-input-row input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  /* Hier stand `outline: 0` OHNE Ersatz — eine der fünf Stellen, an denen der
+     Bestand den Fokusring ersatzlos entfernte (Bestandsaufnahme §3). Das Feld
+     bekommt jetzt den globalen Ring aus `20-basis.css`; es trägt bewusst
+     KEINEN `.input`-Baustein, weil es randlos in der Kopfzeile des Dialogs
+     sitzt und dort seine Umrandung von der Zeile bekommt. */
+  background: transparent;
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-lg);
+}
+.search-dialog-input-row input::placeholder {
+  color: var(--color-text-muted);
+}
+.search-dialog-input-row .kbd {
+  flex: none;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-display);
+  background: var(--panel-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+  color: var(--color-text-muted);
+}
+.search-dialog-body {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+.search-dialog-status {
+  margin: 0;
+  padding: var(--space-7) var(--space-4);
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+.search-dialog-status.error {
+  color: var(--color-danger);
+}
+.search-results {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-2);
+}
+.search-result-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.search-result-item .row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.search-result-item .title {
+  flex: 1;
+  min-width: 0;
+  font-weight: var(--weight-strong);
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.search-result-item .snippet {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.search-result-item mark.hl {
+  background: var(--color-accent-wash);
+  color: var(--color-accent);
+  font-weight: var(--weight-strong);
+  border-radius: var(--radius-sm);
+  padding: 0 1px;
+}
+.search-result-item.active,
+.search-result-item:hover {
+  background: var(--color-accent-wash);
+}
+
+/* ---- Tastenkürzel-Übersicht ---------------------------------------------- */
+/* Kopfzeile und Rahmen kommen aus `.dialog-head` und der Dialogbasis oben;
+   eigen ist hier nur der Körper mit seinen drei Gruppen. */
+.shortcuts-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-4) var(--space-5);
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+/* Gruppentitel als leise Versalzeile — er ordnet, er benennt nichts, was man
+   anklicken könnte, und darf deshalb nicht lauter sein als die Kürzel. */
+.shortcuts-group h3 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-strong);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+/* Zwei Spalten (Taste · Beschreibung) über die GANZE Gruppe: das Raster liegt
+   auf der Liste, die Zeilen-`<div>`s reichen ihre beiden Kinder mit
+   `display: contents` durch — nur so stehen die Tasten einer Gruppe
+   untereinander bündig. */
+.shortcuts-list {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-3);
+  margin: 0;
+}
+.shortcuts-row {
+  display: contents;
+}
+.shortcuts-list dt {
+  justify-self: start;
+}
+.shortcuts-list dd {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+  color: var(--color-text);
+}
+
+/* ---- Konflikt-Dialog: die zwei Fassungs-Spalten -------------------------- */
+.conflict-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  overflow: hidden;
+  flex: 1;
+  min-height: 0;
+}
+.conflict-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.conflict-col h3 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+}
+.conflict-col pre {
+  margin: 0;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: var(--color-code-bg);
+  color: var(--color-code-text);
+  border: 1px solid var(--code-line);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ---- Wiederherstellung nach fehlgeschlagenem Reset ----------------------- */
+/* Eine Inhaltsspalte statt zwei; eigener Innenabstand, weil das
+   `.conflict-cols`-Grid hier ausgelassen wird. */
+.reset-recovery-col {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: var(--space-4) var(--space-5);
+  overflow: hidden;
+  flex: 1;
+}
+.reset-recovery-col h3 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+}
+.reset-recovery-col pre {
+  margin: 0;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: var(--color-code-bg);
+  color: var(--color-code-text);
+  border: 1px solid var(--code-line);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ---- Moduswechsel-Bestätigung: Befundliste ------------------------------- */
+.mode-confirm-findings {
+  margin: 0;
+  padding: var(--space-2) var(--space-5);
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+.mode-confirm-findings li {
+  margin: var(--space-1) 0;
+}
+
+/* ---- Neue-Seite-Dialog: Formular ----------------------------------------- */
+.newpage-body {
+  padding: var(--space-4) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.newpage-body label {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-display);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+/* Das Titelfeld ist seit Teilschritt I der Baustein `.input`
+   (`41-eingabe.css`, Markup `new-page-button.tsx`). Entfallen sind hier die
+   vollständige Feldkopie und die sechste — letzte — wörtlich wiederholte
+   Fokus-Ersatzregel des Bestands (`outline: none` + `border-color` +
+   `box-shadow: 0 0 0 3px …`, Bestandsaufnahme §2.2). Damit ist die
+   Fokusdarstellung der Eingabefelder in der ganzen Anwendung EINE Regel. */
+/* Eltern-Seiten-Feld (Finding 2, Fix-Runde 1) — `<fieldset>` statt eines
+   zweiten `label`, damit „Aktuelle Seite"/„Space-Wurzel" als eine benannte
+   Gruppe (Legende) statt als zwei lose Radios erkennbar sind. */
+.newpage-parent {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.newpage-parent legend {
+  padding: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-display);
+}
+/* Höhere Selektor-Spezifität als `.newpage-body label` oben nötig — sonst
+   gewinnt dessen `flex-direction: column`/`font-weight: 600` (Label+Radio
+   sollen hier nebeneinander stehen, nicht bold sein). Bleibt einer der vier
+   Spezifitätstricks aus §6.3; er wird erst überflüssig, wenn Teilschritt C
+   die Beschriftung zu einem eigenen Baustein macht. */
+.newpage-body .newpage-parent-option {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-text);
+  color: var(--color-text);
+}
+.newpage-parent-fixed {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+/* Vorlagen-Feld (Phase 3c Task 5) — gleiches Muster wie `.newpage-parent`
+   oben, nur mit zweizeiligem Label-Inhalt (Name + Beschreibung), deshalb
+   `align-items: flex-start` statt `center`. */
+.newpage-template {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.newpage-template legend {
+  padding: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-display);
+}
+.newpage-body .newpage-template-option {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-text);
+  color: var(--color-text);
+}
+.newpage-template-option input[type='radio'] {
+  margin-top: 3px;
+  flex: none;
+}
+.newpage-template-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.newpage-template-name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.newpage-template-info small {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+/* Die „Global"-Marke der Vorlagenliste im Dialog trug bis Teilschritt I die
+   Klasse `.badge.tpl-global` mit zwei eigenen `color-mix`-Ausdrücken. Das
+   Markup schreibt `class="tag"` (Schlagwort-Baustein, `42-marke.css`); die
+   Regel hatte danach keinen Leser mehr und ist ersatzlos entfallen. */
+
+/* ---- Entwurf-aktualisieren-Dialog: die zwei Options-Karten --------------- */
+.strategy-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+}
+@media (max-width: 560px) {
+  .strategy-options {
+    grid-template-columns: 1fr;
+  }
+}
+.strategy-option {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+}
+.strategy-option h3 {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+}
+.strategy-option p {
+  margin: 0;
+  flex: 1;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+.strategy-option .btn {
+  align-self: flex-start;
+}
+
+/* ---- Diagramm-Dialog ----------------------------------------------------- */
+.diagram-dialog .diagram-frame {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+.diagram-dialog-status {
+  margin: 0;
+  padding: var(--space-2) 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+.diagram-dialog-error {
+  margin: 0;
+  padding: var(--space-2) 0;
+  font-size: var(--text-sm);
+  color: var(--color-danger);
+}
+.diagram-dialog-close {
+  align-self: flex-end;
+}
+/* Excalidraw (Phase 3e Task 5) — die eingebettete React-Komponente bringt ihre
+   eigene Höhe-100%-Regel mit (kein `.diagram-frame`-Iframe wie bei draw.io)
+   und braucht dafür nur einen Elternknoten mit definierter Höhe.
+   ACHTUNG (§6.5): die 88px sind eine von Hand gerechnete Fußzeilenhöhe —
+   ändert sich der Innenabstand von `.diagram-dialog-actions`, verschiebt sich
+   die Zeichenfläche stillschweigend. */
+.diagram-canvas {
+  height: calc(100% - 88px);
+}
+.diagram-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+/* =========================================================================
+   4. Menü-Baustein
+
+   Heute gibt es fünf Umsetzungen derselben Sache „anklickbare Zeile in einem
+   Klappmenü" mit vier verschiedenen Innenabständen (Bestandsaufnahme §2.1,
+   Nummern 14/15/16/17/20):
+     `.pop .item`      6px var(--space-3)   Konto-, Space-, Sprach-, Format-Menü
+     `.dmenu a`        7px var(--space-2)   Entwurfs-Menü der Statuszeile
+     `.cmdmenu .item`  6px var(--space-2)   `/`-Befehlsmenü
+     `.linkpop .litem` 7px var(--space-2)   `[[`-Verweis-Vervollständigung
+     `.changes a`      6px var(--space-2)   Änderungsliste der Review-Ansicht
+   Der Baustein setzt EINEN Wert: `--control-pad-y --control-pad-x`, also
+   dasselbe Innenabstands-Paar, das der Katalog für alle Bedienelemente
+   vorsieht (§3, Ziel „2 Kombinationen statt 15").
+
+   ── Warum der Baustein heute noch nichts verändert ────────────────────────
+   Die fünf Altregeln stehen in `60-chrome-topbar.css`, `62-editor.css` und
+   `63-review.css` — Dateien, die Teilschritt F nicht anfassen darf, und die
+   in der @import-Liste NACH dieser stehen. Sie gewinnen also weiter. Der
+   Aliasblock unten führt deshalb ausschließlich Eigenschaften, die alle fünf
+   Altregeln selbst setzen (`display`, `align-items`, `gap`, `padding`,
+   `border-radius`) oder die für sie folgenlos sind (`flex-direction: row`
+   ist der Vorgabewert für alle außer `.pop .item`, das ausdrücklich `column`
+   setzt). Damit ist die Zusammenführung heute wertneutral und wird wirksam,
+   sobald H1–H5 die Altregeln entfernen.
+
+   ── §6.3: die zwei Spezifitätstricks sind überflüssig geworden ────────────
+   `.pop.space-switcher-menu .item` und `.pop.lang-switcher-menu .item`
+   (60-chrome-topbar.css) existieren nur, um mit drei Klassen die zu allgemein
+   geschnittene, gleich spezifische, aber später stehende Regel `.pop .item`
+   zu schlagen — sonst bräche das ✓ hinter dem Space- bzw. Sprachnamen unter
+   das Label um. Der Fehler liegt in `.pop .item`: es macht das Zweizeilen-
+   Layout des KONTO-Menüs (Name über Beschreibung) zum Standard aller
+   Menüzeilen. Der Baustein dreht das um — Standard ist die Zeile (`row`),
+   das Zweizeilige ist die Ausnahme `.menu-item.stacked`. Sobald H1 das
+   Konto-Menü darauf umstellt, sagen beide Tricks nur noch dasselbe wie der
+   Baustein. H1 hat sie in `60-chrome-topbar.css` genau deshalb gelöscht; hier
+   sind sie bewusst NICHT nachgebaut (Plan §7.4, Regel 4: kein Selektor mit
+   mehr als zwei Klassen).
+   ========================================================================= */
+
+/* Die Fläche eines Klappmenüs. Aliase: `.pop` (Konto-, Space-, Sprach-,
+   Format-Menü, Slash-Menü, Verweis-Popover, Befund-Popover, Graph-Popover)
+   und `.dmenu` (Entwurfs-Menü). Beide setzen alle fünf Eigenschaften unten
+   selbst nochmals — der Alias ist heute wertneutral. */
+.menu,
+.pop,
+.dmenu {
+  position: absolute;
+  z-index: 25;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: var(--space-1);
+}
+
+/* Die Zeile. Vollständige Fassung für neue Verwendungen und für den Zustand
+   nach H1–H5; `min-height: var(--control-h)` ist die vom Entwurf zugesicherte
+   Zielgröße von 44 px („Zugesicherte Eigenschaften", Punkt 4). Sie steht
+   bewusst NUR hier und nicht im Aliasblock darunter: die Altklassen setzen
+   keine Höhe, eine Höhe im Alias wäre also sofort sichtbar. */
+.menu-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--control-h);
+  padding: var(--control-pad-y) var(--control-pad-x);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+/* Zweizeilige Ausnahme (Konto-Menü: Name über Beschreibung) — der Grund,
+   aus dem `.pop .item` heute `column` als Standard führt. Als Variante
+   benannt, damit der Standard die Zeile bleiben kann. */
+.menu-item.stacked {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+}
+.menu-item:hover,
+.menu-item.sel,
+.menu-item[aria-selected='true'] {
+  background: var(--color-accent-wash);
+  text-decoration: none;
+}
+/* Der abgeschaltete Zustand steht seit Teilschritt I EINMAL, in
+   `40-schaltflaeche.css` (`[disabled], [aria-disabled='true']`) — die lokale
+   Wiederholung mit ihrer eigenen Deckkraft (0.6) und ihrem eigenen Cursor
+   (`default`) ist entfallen. */
+/* Trennlinie zwischen zwei Gruppen (heute `.dmenu .sep`). Kein Alias auf
+   `.sep`: der Name ist zu allgemein, um ihn global zu belegen. */
+.menu-sep {
+  height: var(--rule-hair);
+  background: var(--color-border);
+  margin: var(--space-1) 0;
+}
+
+/* Dünne Aliase — EIN Zeilen-Innenabstand für die Altklassen, die es im Markup
+   noch gibt. Von den fünf sind drei mit Teilschritt I entfallen: `.item`
+   (Konto-, Space-, Sprach-, Format- und Befehlsmenü) und `.litem`
+   (Verweis-Popover) kommen im Markup nicht mehr vor — H1 und H2 haben sie
+   gegen `.menu-item` getauscht.
+
+   Übrig bleiben `.dmenu a` (Entwurfs-Menü der Statuszeile; die Anker tragen
+   inzwischen ebenfalls `menu-item`, die Zeile ist damit wertgleiche
+   Doppelung und fällt mit der nächsten Berührung von `62-editor.css`) und
+   `.changes a` (Sprungmarken der Review-Leiste — eine Menüzeile, die kein
+   Menü ist, s. `63-review.css`). */
+.dmenu a,
+.changes a {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--control-pad-y) var(--control-pad-x);
+  border-radius: var(--radius-sm);
+}

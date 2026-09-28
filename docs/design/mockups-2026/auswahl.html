@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="de" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>f451 — Entwurf als Vorlage wählen</title>
+<style>
+/* ==========================================================================
+   Auswahlseite: die fünf Entwürfe 2026 als Vorlagen-Alternativen.
+   Eine Datei, keine externen Ressourcen. Die Entwürfe selbst bleiben
+   unverändert; diese Seite verweist nur auf sie.
+   ========================================================================== */
+:root {
+  --f-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --f-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --sp-1: .25rem; --sp-2: .5rem; --sp-3: .75rem; --sp-4: 1rem;
+  --sp-5: 1.5rem; --sp-6: 2rem; --sp-7: 3rem; --sp-8: 4rem;
+  --r-sm: 6px; --r-md: 10px; --r-lg: 16px;
+  --line: 1px;
+}
+:root, [data-theme='light'] {
+  --bg: #faf9f7; --bg-raised: #ffffff; --bg-sunken: #f0eeea;
+  --text: #1b1a18; --muted: #64615c; --border: #e0ddd7; --border-strong: #c9c5bd;
+  --accent: #b3341c; --accent-soft: #fbeeea; --on-accent: #ffffff;
+  --ok: #1f6b3a; --ok-soft: #e7f3ec;
+  --warn: #8a5a06; --warn-soft: #fbf1de;
+  --bad: #8e1b1b; --bad-soft: #fbeaea;
+  --shadow: 0 1px 2px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.06);
+}
+[data-theme='dark'] {
+  --bg: #161514; --bg-raised: #201f1d; --bg-sunken: #100f0e;
+  --text: #ece8e1; --muted: #a29c93; --border: #33302b; --border-strong: #4a4640;
+  --accent: #f4795c; --accent-soft: #2c1a15; --on-accent: #16130f;
+  --ok: #6fcf8f; --ok-soft: #16241b;
+  --warn: #e0b04e; --warn-soft: #2a2113;
+  --bad: #f08a80; --bad-soft: #2a1615;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.45);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #161514; --bg-raised: #201f1d; --bg-sunken: #100f0e;
+    --text: #ece8e1; --muted: #a29c93; --border: #33302b; --border-strong: #4a4640;
+    --accent: #f4795c; --accent-soft: #2c1a15; --on-accent: #16130f;
+    --ok: #6fcf8f; --ok-soft: #16241b;
+    --warn: #e0b04e; --warn-soft: #2a2113;
+    --bad: #f08a80; --bad-soft: #2a1615;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.45);
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font-family: var(--f-sans); font-size: 15px; line-height: 1.55;
+  -webkit-text-size-adjust: 100%;
+}
+.wrap { max-width: 84rem; margin: 0 auto; padding: var(--sp-6) var(--sp-5) var(--sp-8); }
+a { color: var(--accent); }
+
+/* --- Kopf --------------------------------------------------------------- */
+.top {
+  display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--sp-4);
+  justify-content: space-between; margin-bottom: var(--sp-6);
+}
+.top h1 { margin: 0 0 var(--sp-2); font-size: 1.9rem; letter-spacing: -.02em; }
+.top p { margin: 0; color: var(--muted); max-width: 46rem; }
+.eyebrow {
+  font-size: .72rem; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--muted); font-weight: 600; margin-bottom: var(--sp-2);
+}
+.btn {
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+  min-height: 2.25rem; padding: var(--sp-2) var(--sp-4);
+  border: var(--line) solid var(--border-strong); border-radius: var(--r-sm);
+  background: var(--bg-raised); color: var(--text);
+  font: inherit; font-size: .88rem; cursor: pointer; text-decoration: none;
+}
+.btn:hover { background: var(--bg-sunken); }
+.btn--primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+.btn--primary:hover { filter: brightness(1.08); background: var(--accent); }
+.btn[aria-pressed='true'] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+
+/* --- Gewählte Vorlage --------------------------------------------------- */
+.choice {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4); margin-bottom: var(--sp-6);
+  border: var(--line) solid var(--border); border-left: 3px solid var(--border-strong);
+  border-radius: var(--r-sm); background: var(--bg-raised); color: var(--muted);
+}
+.choice[data-set='1'] { border-left-color: var(--accent); background: var(--accent-soft); color: var(--text); }
+.choice strong { color: var(--text); }
+
+/* --- Karten ------------------------------------------------------------- */
+.cards { display: grid; gap: var(--sp-5); grid-template-columns: repeat(auto-fill, minmax(23rem, 1fr)); align-items: start; }
+.card {
+  display: flex; flex-direction: column; min-width: 0;
+  border: var(--line) solid var(--border); border-radius: var(--r-lg);
+  background: var(--bg-raised); overflow: hidden; box-shadow: var(--shadow);
+}
+.card.is-chosen { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft), var(--shadow); }
+
+.shot {
+  position: relative; height: 15rem; background: var(--bg-sunken);
+  border-bottom: var(--line) solid var(--border); overflow: hidden;
+}
+.shot iframe {
+  position: absolute; top: 0; left: 0; width: 1600px; height: 1000px;
+  border: 0; transform: scale(.28); transform-origin: 0 0; pointer-events: none;
+}
+.shot .placeholder {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  color: var(--muted); font-size: .82rem;
+}
+.shot .veil { position: absolute; inset: 0; cursor: pointer; background: transparent; border: 0; }
+
+.card__body { padding: var(--sp-4) var(--sp-4) var(--sp-3); display: grid; gap: var(--sp-3); }
+.card__head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-3); }
+.card__head h2 { margin: 0; font-size: 1.15rem; letter-spacing: -.01em; }
+.card__file { font-family: var(--f-mono); font-size: .74rem; color: var(--muted); }
+.card__claim { margin: 0; color: var(--muted); font-size: .9rem; }
+
+.facts { display: grid; grid-template-columns: auto 1fr; gap: var(--sp-1) var(--sp-3); font-size: .82rem; margin: 0; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; font-family: var(--f-mono); }
+
+.verdict {
+  display: flex; align-items: flex-start; gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3); border-radius: var(--r-sm);
+  font-size: .82rem; line-height: 1.45;
+}
+.verdict--ok   { background: var(--ok-soft);   color: var(--ok); }
+.verdict--warn { background: var(--warn-soft); color: var(--warn); }
+.verdict--bad  { background: var(--bad-soft);  color: var(--bad); }
+.verdict b { display: block; }
+.verdict ul { margin: var(--sp-1) 0 0; padding-left: 1.1em; }
+.verdict li { margin: 0 0 var(--sp-1); }
+
+.card__foot {
+  display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center;
+  padding: var(--sp-3) var(--sp-4) var(--sp-4); margin-top: auto;
+  border-top: var(--line) solid var(--border);
+}
+.card__foot .grow { flex: 1; }
+
+.note {
+  margin-top: var(--sp-7); padding-top: var(--sp-4);
+  border-top: var(--line) solid var(--border);
+  color: var(--muted); font-size: .84rem; max-width: 52rem;
+}
+.note code { font-family: var(--f-mono); font-size: .95em; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-sm); }
+
+@media (max-width: 640px) {
+  .cards { grid-template-columns: 1fr; }
+  .shot { height: 11rem; }
+  .shot iframe { transform: scale(.2); }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div>
+    <div class="eyebrow">f451 · Wissensplattform · Entwürfe 2026</div>
+    <h1>Entwurf als Vorlage wählen</h1>
+    <p>
+      Fünf fertige Gestaltungsentwürfe stehen zur Wahl. Jede Karte zeigt eine Vorschau,
+      die gemessenen Breiten im Zustand „beide Leisten zu“ (Fenster 1600 px) und das
+      Ergebnis der Layout-Prüfung im Browser. Die Wahl wird lokal gemerkt.
+    </p>
+  </div>
+  <div style="display:flex; gap:var(--sp-2)">
+    <button class="btn" type="button" id="theme-btn">Dunkel</button>
+    <button class="btn" type="button" id="preview-btn" aria-pressed="false">Vorschauen laden</button>
+  </div>
+</header>
+
+<div class="choice" id="choice" data-set="0">
+  <span id="choice-text">Noch keine Vorlage gewählt.</span>
+  <span class="grow" style="flex:1"></span>
+  <button class="btn" type="button" id="choice-reset" hidden>Wahl aufheben</button>
+</div>
+
+<div class="cards" id="cards"></div>
+
+<p class="note">
+  Die Vorschauen werden erst auf Klick geladen, damit die Seite schnell bleibt — jeder
+  Entwurf ist eine vollständige, eigenständige HTML-Datei von rund 120–155 kB.
+  Die Prüfvermerke stammen aus einer Browser-Prüfung aller vier Leisten-Zustände
+  (beide offen, nur Seitenbaum zu, nur Info-Leiste zu, beide zu) in Hell und Dunkel
+  bei 1600 px, 1200 px und 800 px Fensterbreite. „Fließtext“ ist die gemessene
+  Zeilenbreite eines Absatzes im Haupttext, „Tabelle“ die Breite der mehrspaltigen
+  Datentabelle in der Leseansicht.
+</p>
+
+</div>
+
+<script>
+(function () {
+  var STORE = 'f451.entwurf.wahl';
+
+  var ENTWUERFE = [
+    {
+      id: 'klar-warm',
+      name: 'Klar & Warm',
+      claim: 'Warme Papierfläche, ruhige Typografie, großzügige Kästen. Überschrift und Tabelle wachsen mit der gewonnenen Breite.',
+      tabelle: '1468 px', text: '797 px', titel: '599 → 1175 px',
+      stufe: 'ok',
+      urteil: 'Ohne Befund',
+      punkte: ['In allen vier Leisten-Zuständen, beiden Themes und allen drei Fensterbreiten fehlerfrei.', 'Kein waagerechter Überlauf, keine Überlappung, Zustand wird korrekt wiederhergestellt.']
+    },
+    {
+      id: 'werkbank',
+      name: 'Werkbank',
+      claim: 'Dichtes Werkzeug-Layout mit Git-Zustand, Statusleiste und Tastenbedienung. Inhalt nutzt die Breite am konsequentesten.',
+      tabelle: '1462 px', text: '1407 px', titel: '942 → 1462 px',
+      stufe: 'bad',
+      urteil: 'Ein grober Fehler',
+      punkte: [
+        'Dauerhafter waagerechter Bildlauf: der Seitenkopf ragt in jedem Zustand 20 px über das Fenster hinaus (unter 900 px: 12 px).',
+        'Statusleiste meldet bei 1200 px und 800 px „Leisten: beide offen“, obwohl die Leisten ausgeblendet sind.',
+        'Die klebende Werkzeugleiste der Leseansicht klebt nicht (übergeordnetes overflow: hidden).'
+      ]
+    },
+    {
+      id: 'editorial',
+      name: 'Editorial',
+      claim: 'Buchsatz mit hängenden Ziffern und Randnotizen. Ruhig zu lesen, Tabellen wachsen deutlich.',
+      tabelle: '1404 px', text: '696 px', titel: '860 → 1404 px',
+      stufe: 'warn',
+      urteil: 'Zwei Fehler',
+      punkte: [
+        'Bei 1200 px und beiden Leisten offen bricht der Brotkrumenpfad Wort für Wort in eine ~100 px schmale Spalte um.',
+        'Der Fließtext läuft 3–12 px in die Randnotiz hinein (shape-outside: content-box) — bei 1600/1400 px beide offen, bei 1200 px einseitig, bei 1000 px.'
+      ]
+    },
+    {
+      id: 'system-raster',
+      name: 'System / Raster',
+      claim: 'Striktes Raster, Markenwahl, Dichte-Stufen. Sehr systematisch, sehr kontrolliert.',
+      tabelle: '1450 px', text: '681 px', titel: '605 px (unverändert)',
+      stufe: 'warn',
+      urteil: 'Ein Fehler',
+      punkte: [
+        'Gewonnene Breite verpufft: Inhaltsspalte wächst 956 → 1516 px, aber Titel (605 px, zwei Zeilen), Vorspann und Fließtext bleiben unverändert — rechts bleiben ~800 px leer.',
+        'Sonst sauber: kein Überlauf, keine Überlappung, Zustand wird korrekt wiederhergestellt.'
+      ]
+    },
+    {
+      id: 'fokus',
+      name: 'Fokus',
+      claim: 'Leisten als überlagernde Ebenen, ein schwebender Griff als einzige Dauerfläche. Am eigenständigsten — und am empfindlichsten.',
+      tabelle: '1166 px (Fläche nur 1088 px)', text: '544 px', titel: '544 px (unverändert)',
+      stufe: 'bad',
+      urteil: 'Vier Fehler',
+      punkte: [
+        'Die neunspaltige Tabelle passt in keinem Zustand und bei keiner Fensterbreite hinein — die Obergrenze der Inhaltsfläche (72 rem) liegt unter der Mindestbreite der Tabelle.',
+        'Der schwebende Griff verdeckt in jedem Zustand einen Streifen Inhalt (Fließtext, letzte Tabellenzeile).',
+        'Bei 800 px verdecken beide Ebenen gemeinsam die gesamte Lesefläche und überlagern sich gegenseitig; Beschriftungen des Seitenbaums werden mittendrin abgeschnitten.',
+        'Die eingebaute Breitenanzeige nennt die Breite der Hülle, nicht die der Tabelle („Tabelle 1096 px“ bei tatsächlich 1166 px).'
+      ]
+    }
+  ];
+
+  var cards = document.getElementById('cards');
+  var choiceBox = document.getElementById('choice');
+  var choiceText = document.getElementById('choice-text');
+  var choiceReset = document.getElementById('choice-reset');
+  var previewBtn = document.getElementById('preview-btn');
+  var gewaehlt = null;
+
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+
+  ENTWUERFE.forEach(function (e) {
+    var art = document.createElement('article');
+    art.className = 'card';
+    art.id = 'karte-' + e.id;
+    art.innerHTML =
+      '<div class="shot" data-shot="' + esc(e.id) + '">' +
+        '<span class="placeholder">Vorschau — klicken zum Laden</span>' +
+        '<button class="veil" type="button" aria-label="Vorschau von ' + esc(e.name) + ' laden"></button>' +
+      '</div>' +
+      '<div class="card__body">' +
+        '<div class="card__head"><h2>' + esc(e.name) + '</h2>' +
+        '<span class="card__file">' + esc(e.id) + '.html</span></div>' +
+        '<p class="card__claim">' + esc(e.claim) + '</p>' +
+        '<dl class="facts">' +
+          '<dt>Tabelle</dt><dd>' + esc(e.tabelle) + '</dd>' +
+          '<dt>Fließtext</dt><dd>' + esc(e.text) + '</dd>' +
+          '<dt>Titel</dt><dd>' + esc(e.titel) + '</dd>' +
+        '</dl>' +
+        '<div class="verdict verdict--' + e.stufe + '">' +
+          '<div><b>Layout-Prüfung: ' + esc(e.urteil) + '</b>' +
+          '<ul>' + e.punkte.map(function (p) { return '<li>' + esc(p) + '</li>'; }).join('') + '</ul></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="card__foot">' +
+        '<a class="btn" href="' + esc(e.id) + '.html">Entwurf öffnen</a>' +
+        '<span class="grow"></span>' +
+        '<button class="btn btn--primary" type="button" data-choose="' + esc(e.id) + '">Als Vorlage wählen</button>' +
+      '</div>';
+    cards.appendChild(art);
+  });
+
+  function ladeVorschau(shot) {
+    if (shot.dataset.loaded) return;
+    shot.dataset.loaded = '1';
+    var f = document.createElement('iframe');
+    f.setAttribute('loading', 'lazy');
+    f.setAttribute('title', 'Vorschau ' + shot.dataset.shot);
+    f.setAttribute('tabindex', '-1');
+    f.src = shot.dataset.shot + '.html';
+    shot.insertBefore(f, shot.firstChild);
+    var ph = shot.querySelector('.placeholder');
+    if (ph) ph.remove();
+  }
+
+  cards.addEventListener('click', function (ev) {
+    var veil = ev.target.closest('.veil');
+    if (veil) { ladeVorschau(veil.parentElement); return; }
+    var pick = ev.target.closest('[data-choose]');
+    if (pick) waehle(pick.getAttribute('data-choose'), true);
+  });
+
+  previewBtn.addEventListener('click', function () {
+    var an = previewBtn.getAttribute('aria-pressed') !== 'true';
+    previewBtn.setAttribute('aria-pressed', String(an));
+    previewBtn.textContent = an ? 'Vorschauen geladen' : 'Vorschauen laden';
+    if (an) Array.prototype.forEach.call(document.querySelectorAll('.shot'), ladeVorschau);
+  });
+
+  function waehle(id, merken) {
+    gewaehlt = id;
+    var e = ENTWUERFE.filter(function (x) { return x.id === id; })[0];
+    Array.prototype.forEach.call(cards.children, function (c) {
+      c.classList.toggle('is-chosen', c.id === 'karte-' + id);
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-choose]'), function (b) {
+      var an = b.getAttribute('data-choose') === id;
+      b.textContent = an ? 'Gewählte Vorlage' : 'Als Vorlage wählen';
+      b.classList.toggle('btn--primary', !an);
+      b.setAttribute('aria-pressed', String(an));
+    });
+    if (e) {
+      choiceBox.setAttribute('data-set', '1');
+      choiceText.innerHTML = 'Gewählte Vorlage: <strong>' + esc(e.name) + '</strong> — <code>' + esc(e.id) + '.html</code>';
+      choiceReset.hidden = false;
+    }
+    if (merken) { try { localStorage.setItem(STORE, id); } catch (err) {} }
+  }
+
+  choiceReset.addEventListener('click', function () {
+    gewaehlt = null;
+    try { localStorage.removeItem(STORE); } catch (err) {}
+    choiceBox.setAttribute('data-set', '0');
+    choiceText.textContent = 'Noch keine Vorlage gewählt.';
+    choiceReset.hidden = true;
+    Array.prototype.forEach.call(cards.children, function (c) { c.classList.remove('is-chosen'); });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-choose]'), function (b) {
+      b.textContent = 'Als Vorlage wählen';
+      b.classList.add('btn--primary');
+      b.setAttribute('aria-pressed', 'false');
+    });
+  });
+
+  /* Theme */
+  var root = document.documentElement;
+  var themeBtn = document.getElementById('theme-btn');
+  function setTheme(m) {
+    root.setAttribute('data-theme', m);
+    themeBtn.textContent = m === 'dark' ? 'Hell' : 'Dunkel';
+    try { localStorage.setItem('f451.auswahl.theme', m); } catch (err) {}
+  }
+  themeBtn.addEventListener('click', function () {
+    setTheme(root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+  });
+  try {
+    var t = localStorage.getItem('f451.auswahl.theme');
+    setTheme(t || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+  } catch (err) { setTheme('light'); }
+
+  try {
+    var g = localStorage.getItem(STORE);
+    if (g) waehle(g, false);
+  } catch (err) {}
+})();
+</script>
+</body>
+</html>

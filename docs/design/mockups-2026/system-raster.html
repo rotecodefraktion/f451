@@ -1,0 +1,3020 @@
+<!doctype html>
+<html lang="de" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>f451 — Entwurf „System / Raster“</title>
+<style>
+/* ============================================================================
+   f451 — Design-Entwurf „System / Raster“
+   ----------------------------------------------------------------------------
+   REGEL DIESES ENTWURFS:
+   Hartcodierte Werte existieren AUSSCHLIESSLICH in den Token-Definitionen
+   unten (:root / [data-theme]). Jeder Baustein ab Abschnitt 2 verwendet
+   ausnahmslos var(--token). Erlaubt bleiben nur strukturelle Konstanten
+   ohne Gestaltungswirkung: 0, 1fr, 100%, auto, none, currentColor.
+   ========================================================================== */
+
+/* --- 0 · TOKENS: HELL ---------------------------------------------------- */
+:root {
+  /* Basiseinheit — erzeugt die gesamte Abstandsskala */
+  --unit: 0.25rem;
+
+  --space-1: calc(var(--unit) * 1);
+  --space-2: calc(var(--unit) * 2);
+  --space-3: calc(var(--unit) * 3);
+  --space-4: calc(var(--unit) * 4);
+  --space-5: calc(var(--unit) * 6);
+  --space-6: calc(var(--unit) * 8);
+  --space-7: calc(var(--unit) * 12);
+  --space-8: calc(var(--unit) * 16);
+  --space-9: calc(var(--unit) * 24);
+
+  /* Raster */
+  --grid-unit: calc(var(--unit) * 4);
+  --grid-columns: 12;
+  --grid-line: color-mix(in srgb, var(--color-accent) 22%, transparent);
+
+  /* Kante — EINE, für alles */
+  --radius: 0.125rem;
+  --radius-sm: var(--radius);
+  --radius-md: var(--radius);
+  --radius-lg: var(--radius);
+
+  --border-width: 0.0625rem;
+  --border-width-strong: 0.125rem;
+
+  /* Bedienelemente & Maße */
+  --control-h: calc(var(--unit) * 11);
+  --control-h-inline: calc(var(--unit) * 6);
+  --sidebar-w: calc(var(--unit) * 68);
+  --rail-w: calc(var(--unit) * 72);
+
+  /* Breitenstufen — dritte Systemregel neben Abstandsskala und Zustandsmodell.
+     Stufe 1 Lesespalte (nur Fließtext) · Stufe 2 breit (volle Spalte) ·
+     Stufe 3 volle Fläche (bricht über den Dokumentrand hinaus).
+     Kein Baustein wählt eine Breite, er wählt eine Stufe. */
+  --dok-rand: var(--space-6);
+  --breite-lese: 68ch;
+  --breite-breit: 100%;
+  --breite-voll: calc(100% + var(--dok-rand) * 2);
+  --measure: var(--breite-lese);
+
+  /* Schrift — EINE Familie, Rollen entstehen durch Grad, Gewicht, Laufweite */
+  --font-sans: "Helvetica Neue", Helvetica, Inter, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  --font-display: var(--font-sans);
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+  --text-3xl: 2.375rem;
+  --text-4xl: 3.25rem;
+
+  --leading-tight: 1.1;
+  --leading-snug: 1.3;
+  --leading-normal: 1.45;
+  --leading-loose: 1.7;
+
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0em;
+  --tracking-wide: 0.09em;
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-bold: 700;
+
+  /* Mischverhältnisse — steuern ALLE abgeleiteten Flächen und Linien */
+  --mix-wash: 10%;
+  --mix-line: 45%;
+
+  /* Farbe — Fläche & Text */
+  --color-bg: #ffffff;
+  --color-bg-raised: #f6f6f3;
+  --color-bg-sunken: #eaeae5;
+  --color-text: #17171a;
+  --color-text-muted: #55555c;
+  --color-border: #d9d9d3;
+  --color-border-strong: #8e8e87;
+
+  /* Farbe — Marke */
+  --color-accent: #dd2b0f;
+  --color-accent-strong: #bf2810;
+  --color-accent-contrast: #ffffff;
+
+  /* Farbe — Signal */
+  --color-danger: #cf2020;
+  --color-warning: #9c4a06;
+  --color-success: #13703a;
+  --color-info: #1d4ed8;
+
+  /* Farbe — Workflow-Status */
+  --color-status-working: #4f46e5;
+  --color-status-review: #9c4a06;
+  --color-status-released: #13703a;
+  --color-status-archived: #55555c;
+
+  /* Zustandsmodell — gilt identisch für JEDEN Baustein */
+  --color-focus: #17171a;
+  --focus-width: 0.125rem;
+  --focus-offset: 0.125rem;
+  --state-hover: color-mix(in srgb, var(--color-text) 6%, var(--color-bg));
+  --state-active: color-mix(in srgb, var(--color-text) 13%, var(--color-bg));
+  --state-selected: color-mix(in srgb, var(--color-accent) 12%, var(--color-bg));
+  --state-disabled-opacity: 0.42;
+
+  /* Schatten — dieses System trennt mit Linien, nicht mit Weichzeichnern */
+  --shadow-sm: none;
+  --shadow-md: 0 0.5rem 2rem rgba(23, 23, 26, 0.18);
+  --shadow-accent: none;
+}
+
+/* --- 0 · TOKENS: DUNKEL -------------------------------------------------- */
+[data-theme="dark"] {
+  --color-bg: #0c0c0e;
+  --color-bg-raised: #16161a;
+  --color-bg-sunken: #050506;
+  --color-text: #f2f2f4;
+  --color-text-muted: #a5a5ad;
+  --color-border: #2b2b31;
+  --color-border-strong: #6a6a74;
+
+  --color-accent: #ff6a4d;
+  --color-accent-strong: #ff8f78;
+  --color-accent-contrast: #17171a;
+
+  --color-danger: #f87171;
+  --color-warning: #fbbf24;
+  --color-success: #4ade80;
+  --color-info: #93b0ff;
+
+  --color-status-working: #a5b4fc;
+  --color-status-review: #fbbf24;
+  --color-status-released: #4ade80;
+  --color-status-archived: #a5a5ad;
+
+  --color-focus: #fafafa;
+  --state-hover: color-mix(in srgb, var(--color-text) 10%, var(--color-bg));
+  --state-active: color-mix(in srgb, var(--color-text) 18%, var(--color-bg));
+  --state-selected: color-mix(in srgb, var(--color-accent) 20%, var(--color-bg));
+  --state-disabled-opacity: 0.38;
+
+  --shadow-md: 0 0.5rem 2rem rgba(0, 0, 0, 0.6);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-bg: #0c0c0e;
+    --color-bg-raised: #16161a;
+    --color-bg-sunken: #050506;
+    --color-text: #f2f2f4;
+    --color-text-muted: #a5a5ad;
+    --color-border: #2b2b31;
+    --color-border-strong: #6a6a74;
+    --color-accent: #ff6a4d;
+    --color-accent-strong: #ff8f78;
+    --color-accent-contrast: #17171a;
+    --color-danger: #f87171;
+    --color-warning: #fbbf24;
+    --color-success: #4ade80;
+    --color-info: #93b0ff;
+    --color-status-working: #a5b4fc;
+    --color-status-review: #fbbf24;
+    --color-status-released: #4ade80;
+    --color-status-archived: #a5a5ad;
+    --color-focus: #fafafa;
+    --state-hover: color-mix(in srgb, var(--color-text) 10%, var(--color-bg));
+    --state-active: color-mix(in srgb, var(--color-text) 18%, var(--color-bg));
+    --state-selected: color-mix(in srgb, var(--color-accent) 20%, var(--color-bg));
+    --state-disabled-opacity: 0.38;
+    --shadow-md: 0 0.5rem 2rem rgba(0, 0, 0, 0.6);
+  }
+}
+
+/* Dichte — ein einziger Token verschiebt die gesamte Komposition */
+[data-density="kompakt"] { --unit: 0.1875rem; }
+[data-density="weit"]    { --unit: 0.3125rem; }
+
+/* --- 1 · GRUNDLAGE ------------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--color-bg-sunken);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  line-height: var(--leading-normal);
+  font-weight: var(--weight-regular);
+}
+
+:focus-visible {
+  outline: var(--focus-width) solid var(--color-focus);
+  outline-offset: var(--focus-offset);
+}
+
+::selection { background: var(--color-accent); color: var(--color-accent-contrast); }
+
+/* Sichtbares Raster — Umschalter im Kopf */
+[data-raster="an"] .raster-flaeche { position: relative; }
+[data-raster="an"] .raster-flaeche::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  background-image:
+    repeating-linear-gradient(to right, var(--grid-line) 0 var(--border-width), transparent var(--border-width) var(--grid-unit)),
+    repeating-linear-gradient(to bottom, var(--grid-line) 0 var(--border-width), transparent var(--border-width) var(--grid-unit));
+}
+
+/* --- 2 · TYPOROLLEN ------------------------------------------------------ */
+.t-display {
+  font-family: var(--font-display);
+  font-size: var(--text-4xl);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  font-weight: var(--weight-bold);
+  margin: 0;
+}
+.t-titel {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  font-weight: var(--weight-bold);
+  margin: 0;
+}
+.t-abschnitt {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-tight);
+  font-weight: var(--weight-bold);
+  margin: 0;
+}
+.t-unter {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  line-height: var(--leading-snug);
+  font-weight: var(--weight-bold);
+  margin: 0;
+}
+.t-fliess {
+  font-size: var(--text-lg);
+  line-height: var(--leading-loose);
+  font-weight: var(--weight-regular);
+  margin: 0;
+}
+.t-ui { font-size: var(--text-md); line-height: var(--leading-normal); }
+.t-sek {
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--color-text-muted);
+}
+.t-label {
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  font-weight: var(--weight-bold);
+}
+.t-mono {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+/* --- 3 · SEITENGERÜST DES ENTWURFS --------------------------------------- */
+.blatt {
+  max-width: calc(var(--unit) * 380);
+  margin: 0 auto;
+  background: var(--color-bg);
+  border-inline: var(--border-width) solid var(--color-border);
+}
+
+.sek-kopf {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: baseline;
+  gap: var(--space-4);
+  padding: var(--space-6) var(--space-6) var(--space-4);
+  border-top: var(--border-width-strong) solid var(--color-text);
+  background: var(--color-bg);
+}
+.sek-kopf .nr {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  color: var(--color-accent-strong);
+}
+.sek-kopf .titel { margin: 0; font-size: var(--text-xl); font-weight: var(--weight-bold); letter-spacing: var(--tracking-tight); }
+.sek-kopf .pfad { font-size: var(--text-xs); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--color-text-muted); }
+.sek-koerper { padding: var(--space-6); border-bottom: var(--border-width) solid var(--color-border); }
+
+.regel-text {
+  max-width: var(--measure);
+  font-size: var(--text-md);
+  line-height: var(--leading-loose);
+  color: var(--color-text-muted);
+  margin: 0 0 var(--space-5);
+}
+
+/* --- 4 · ZUSTANDSMODELL (identisch für alle Bausteine) ------------------- */
+/*  Ruhe · Hover · Fokus · Aktiv · Deaktiviert · Fehler
+    Die Klassen .is-* bilden die Pseudoklassen für die Zustandsmatrix ab. */
+.z {
+  --z-flaeche: var(--color-bg);
+  --z-linie: var(--color-border-strong);
+  --z-text: var(--color-text);
+  background: var(--z-flaeche);
+  border: var(--border-width) solid var(--z-linie);
+  color: var(--z-text);
+  border-radius: var(--radius);
+  transition: background-color 0.12s linear, border-color 0.12s linear, color 0.12s linear;
+}
+.z:hover:not(:disabled):not(.is-disabled),
+.z.is-hover { --z-flaeche: var(--state-hover); }
+
+.z:active:not(:disabled):not(.is-disabled),
+.z.is-active {
+  --z-flaeche: var(--state-active);
+  --z-linie: var(--color-text);
+}
+.z.is-focus {
+  outline: var(--focus-width) solid var(--color-focus);
+  outline-offset: var(--focus-offset);
+}
+.z:disabled, .z.is-disabled {
+  opacity: var(--state-disabled-opacity);
+  cursor: not-allowed;
+}
+.z.is-error, .z[aria-invalid="true"] {
+  --z-linie: var(--color-danger);
+  --z-flaeche: color-mix(in srgb, var(--color-danger) var(--mix-wash), var(--color-bg));
+}
+.z.is-selected {
+  --z-flaeche: var(--state-selected);
+  --z-linie: var(--color-accent);
+}
+
+/* --- 5 · BAUSTEIN: BUTTON ------------------------------------------------ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--control-h);
+  min-width: var(--control-h);
+  padding-inline: var(--space-4);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn--primaer {
+  --z-flaeche: var(--color-accent);
+  --z-linie: var(--color-accent);
+  --z-text: var(--color-accent-contrast);
+}
+.btn--primaer:hover:not(:disabled):not(.is-disabled), .btn--primaer.is-hover {
+  --z-flaeche: color-mix(in srgb, var(--color-text) 15%, var(--color-accent));
+  --z-linie: color-mix(in srgb, var(--color-text) 15%, var(--color-accent));
+}
+.btn--primaer:active:not(:disabled):not(.is-disabled), .btn--primaer.is-active {
+  --z-flaeche: color-mix(in srgb, var(--color-text) 30%, var(--color-accent));
+  --z-linie: color-mix(in srgb, var(--color-text) 30%, var(--color-accent));
+}
+.btn--gefahr {
+  --z-flaeche: var(--color-bg);
+  --z-linie: var(--color-danger);
+  --z-text: var(--color-danger);
+}
+.btn--gefahr:hover:not(:disabled):not(.is-disabled), .btn--gefahr.is-hover {
+  --z-flaeche: color-mix(in srgb, var(--color-danger) var(--mix-wash), var(--color-bg));
+}
+.btn--gefahr:active:not(:disabled):not(.is-disabled), .btn--gefahr.is-active {
+  --z-flaeche: var(--color-danger);
+  --z-text: var(--color-bg);
+}
+.btn--still { --z-linie: transparent; }
+.btn--still:hover:not(:disabled):not(.is-disabled), .btn--still.is-hover { --z-linie: var(--color-border); }
+.btn .ico { width: var(--space-4); height: var(--space-4); flex: none; }
+
+.btn-reihe { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
+
+/* --- 6 · BAUSTEIN: EINGABE ---------------------------------------------- */
+.feld { display: grid; gap: var(--space-2); }
+.feld > label {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  font-weight: var(--weight-bold);
+  color: var(--color-text-muted);
+}
+.eingabe {
+  min-height: var(--control-h);
+  padding: var(--space-2) var(--space-3);
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  line-height: var(--leading-normal);
+  width: 100%;
+}
+textarea.eingabe { min-height: calc(var(--unit) * 24); resize: vertical; }
+select.eingabe { appearance: none; padding-right: var(--space-7); }
+.feld .hilfe { font-size: var(--text-xs); color: var(--color-text-muted); }
+.feld .fehler {
+  font-size: var(--text-xs);
+  color: var(--color-danger);
+  font-weight: var(--weight-bold);
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+.select-huelle { position: relative; display: block; }
+.select-huelle .ico {
+  position: absolute;
+  right: var(--space-3);
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--space-4);
+  height: var(--space-4);
+  pointer-events: none;
+  color: var(--color-text-muted);
+}
+
+.wahl { display: flex; align-items: center; gap: var(--space-3); min-height: var(--control-h); cursor: pointer; font-size: var(--text-md); }
+.wahl input { position: absolute; opacity: 0; width: 0; height: 0; }
+.wahl .kasten {
+  width: var(--space-5);
+  height: var(--space-5);
+  flex: none;
+  border: var(--border-width-strong) solid var(--color-border-strong);
+  background: var(--color-bg);
+  border-radius: var(--radius);
+  display: grid;
+  place-items: center;
+  color: var(--color-accent-contrast);
+}
+.wahl .kasten.rund { border-radius: 100%; }
+.wahl input:checked + .kasten { background: var(--color-accent); border-color: var(--color-accent); }
+.wahl input:focus-visible + .kasten { outline: var(--focus-width) solid var(--color-focus); outline-offset: var(--focus-offset); }
+.wahl .kasten .ico { width: var(--space-4); height: var(--space-4); opacity: 0; }
+.wahl input:checked + .kasten .ico { opacity: 1; }
+.wahl input:disabled + .kasten { opacity: var(--state-disabled-opacity); }
+
+.schalter { display: flex; align-items: center; gap: var(--space-3); min-height: var(--control-h); cursor: pointer; }
+.schalter input { position: absolute; opacity: 0; }
+.schalter .bahn {
+  width: calc(var(--unit) * 11);
+  height: var(--space-5);
+  border: var(--border-width-strong) solid var(--color-border-strong);
+  background: var(--color-bg-raised);
+  border-radius: var(--radius);
+  position: relative;
+  flex: none;
+}
+.schalter .bahn::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 50%;
+  background: var(--color-border-strong);
+  transition: transform 0.12s linear;
+}
+.schalter input:checked + .bahn { border-color: var(--color-accent); background: var(--state-selected); }
+.schalter input:checked + .bahn::after { background: var(--color-accent); transform: translateX(100%); }
+.schalter input:focus-visible + .bahn { outline: var(--focus-width) solid var(--color-focus); outline-offset: var(--focus-offset); }
+
+/* --- 7 · BAUSTEIN: KARTE / FLÄCHE --------------------------------------- */
+.karte {
+  background: var(--color-bg);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius);
+  display: grid;
+}
+.karte > .kopf {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: var(--border-width) solid var(--color-border);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  font-weight: var(--weight-bold);
+  color: var(--color-text-muted);
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  align-items: center;
+}
+.karte > .koerper { padding: var(--space-4); display: grid; gap: var(--space-3); }
+.karte > .fuss {
+  padding: var(--space-3) var(--space-4);
+  border-top: var(--border-width) solid var(--color-border);
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+}
+.karte--klickbar { cursor: pointer; text-decoration: none; color: inherit; }
+.karte--klickbar:hover { background: var(--state-hover); border-color: var(--color-border-strong); }
+
+/* --- 8 · BAUSTEIN: CHIP / STATUS ---------------------------------------- */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-h-inline);
+  padding: 0 var(--space-2);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-text);
+  white-space: nowrap;
+}
+/* Form trägt die Bedeutung mit — Farbe ist nie alleiniger Träger */
+.chip .marke {
+  width: var(--space-3);
+  height: var(--space-3);
+  flex: none;
+  border: var(--border-width-strong) solid currentColor;
+  position: relative;
+  overflow: hidden;
+}
+.chip--entwurf   { color: var(--color-status-working);  border-color: color-mix(in srgb, var(--color-status-working) var(--mix-line), var(--color-border)); background: color-mix(in srgb, var(--color-status-working) var(--mix-wash), var(--color-bg)); }
+.chip--review    { color: var(--color-status-review);   border-color: color-mix(in srgb, var(--color-status-review) var(--mix-line), var(--color-border)); background: color-mix(in srgb, var(--color-status-review) var(--mix-wash), var(--color-bg)); }
+.chip--released  { color: var(--color-status-released); border-color: color-mix(in srgb, var(--color-status-released) var(--mix-line), var(--color-border)); background: color-mix(in srgb, var(--color-status-released) var(--mix-wash), var(--color-bg)); }
+.chip--archiviert{ color: var(--color-status-archived); border-color: color-mix(in srgb, var(--color-status-archived) var(--mix-line), var(--color-border)); background: color-mix(in srgb, var(--color-status-archived) var(--mix-wash), var(--color-bg)); }
+.chip--review .marke::after   { content: ""; position: absolute; inset: 0 50% 0 0; background: currentColor; }
+.chip--released .marke        { background: currentColor; }
+.chip--archiviert .marke::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: var(--border-width-strong); background: currentColor; transform: rotate(-45deg); }
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-h-inline);
+  padding: 0 var(--space-2);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  text-decoration: none;
+  background: var(--color-bg-raised);
+}
+a.tag:hover { color: var(--color-text); border-color: var(--color-border-strong); background: var(--state-hover); }
+
+/* --- 9 · BAUSTEIN: HINWEISBLOCK ----------------------------------------- */
+.hinweis {
+  --h-farbe: var(--color-info);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: var(--border-width) solid color-mix(in srgb, var(--h-farbe) var(--mix-line), var(--color-border));
+  border-left: var(--border-width-strong) solid var(--h-farbe);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--h-farbe) var(--mix-wash), var(--color-bg));
+}
+.hinweis--warnung { --h-farbe: var(--color-warning); }
+.hinweis--fehler  { --h-farbe: var(--color-danger); }
+.hinweis--erfolg  { --h-farbe: var(--color-success); }
+.hinweis > .ico { width: var(--space-5); height: var(--space-5); color: var(--h-farbe); flex: none; margin-top: calc(var(--unit) * 0.5); }
+.hinweis .h-titel {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--h-farbe);
+  margin: 0 0 var(--space-2);
+}
+.hinweis .h-text { font-size: var(--text-md); line-height: var(--leading-loose); margin: 0; }
+.hinweis .h-text + .btn-reihe { margin-top: var(--space-3); }
+
+/* --- 10 · BAUSTEIN: TABS (ohne JS) -------------------------------------- */
+.tabs { display: grid; }
+.tabs > input { position: absolute; opacity: 0; width: 0; height: 0; }
+.tab-leiste {
+  display: flex;
+  gap: 0;
+  border-bottom: var(--border-width) solid var(--color-border);
+  overflow-x: auto;
+}
+.tab-leiste > label {
+  min-height: var(--control-h);
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  border-bottom: var(--border-width-strong) solid transparent;
+  margin-bottom: calc(var(--border-width) * -1);
+  white-space: nowrap;
+}
+.tab-leiste > label:hover { background: var(--state-hover); color: var(--color-text); }
+.tab-inhalt { display: none; padding: var(--space-5) 0 0; }
+#tab-a:checked ~ .tab-leiste label[for="tab-a"],
+#tab-b:checked ~ .tab-leiste label[for="tab-b"],
+#tab-c:checked ~ .tab-leiste label[for="tab-c"] {
+  color: var(--color-text);
+  border-bottom-color: var(--color-accent);
+}
+#tab-a:focus-visible ~ .tab-leiste label[for="tab-a"],
+#tab-b:focus-visible ~ .tab-leiste label[for="tab-b"],
+#tab-c:focus-visible ~ .tab-leiste label[for="tab-c"] {
+  outline: var(--focus-width) solid var(--color-focus);
+  outline-offset: calc(var(--focus-offset) * -1);
+}
+#tab-a:checked ~ #panel-a,
+#tab-b:checked ~ #panel-b,
+#tab-c:checked ~ #panel-c { display: block; }
+
+/* --- 11 · BAUSTEIN: DIALOG ---------------------------------------------- */
+.dialog-flaeche {
+  width: 100%;
+  max-width: calc(var(--unit) * 130);
+  background: var(--color-bg);
+  border: var(--border-width-strong) solid var(--color-text);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  display: grid;
+}
+.dialog-flaeche > .kopf {
+  padding: var(--space-4);
+  border-bottom: var(--border-width) solid var(--color-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+}
+.dialog-flaeche > .koerper { padding: var(--space-4); display: grid; gap: var(--space-4); }
+.dialog-flaeche > .fuss {
+  padding: var(--space-4);
+  border-top: var(--border-width) solid var(--color-border);
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+}
+dialog {
+  border: 0; padding: 0; background: transparent; color: var(--color-text);
+  width: min(calc(var(--unit) * 160), 92vw);
+  max-width: 100%;
+}
+.sr {
+  position: absolute; width: 1px; height: 1px;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+dialog::backdrop { background: color-mix(in srgb, var(--color-text) 55%, transparent); }
+
+/* --- 12 · BAUSTEIN: LADEN / LEER ---------------------------------------- */
+.skelett {
+  background: linear-gradient(
+    to right,
+    var(--color-bg-raised) 0%,
+    var(--color-bg-sunken) 50%,
+    var(--color-bg-raised) 100%
+  );
+  background-size: 200% 100%;
+  animation: schieben 1.4s linear infinite;
+  border-radius: var(--radius);
+  height: var(--space-4);
+}
+@keyframes schieben { from { background-position: 200% 0; } to { background-position: 0 0; } }
+@media (prefers-reduced-motion: reduce) { .skelett { animation: none; } }
+
+.leerzustand {
+  border: var(--border-width) dashed var(--color-border-strong);
+  border-radius: var(--radius);
+  padding: var(--space-7) var(--space-5);
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  text-align: center;
+  background: var(--color-bg-raised);
+}
+.leerzustand .ico { width: var(--space-7); height: var(--space-7); color: var(--color-text-muted); }
+
+/* --- 13 · LESEANSICHT: GERÜST ------------------------------------------- */
+/* Die Spalten der Leisten sind „auto“ — eine ausgeblendete Leiste belegt
+   dadurch keine Spur mehr, die gewonnene Breite fällt vollständig an die
+   Inhaltsspalte und damit an die Breitenstufen 2 und 3. */
+.app {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--border-width);
+  background: var(--color-border);
+  border-block: var(--border-width) solid var(--color-border);
+}
+.app > * { background: var(--color-bg); min-width: 0; }
+/* Feste Spaltenzuweisung: eine ausgeblendete Leiste darf die übrigen
+   Bausteine nicht in eine andere Spur rutschen lassen. */
+.app > .nav           { grid-column: 1; width: var(--sidebar-w); }
+.app > .inhalt-spalte { grid-column: 2; }
+.app > .rail          { grid-column: 3; width: var(--rail-w); }
+
+/* Lesefläche ist steuerbar: beide Leisten einzeln, auch am Desktop.
+   Zustand steht auf <html>, wird gemerkt und am Knopf als aria-expanded geführt. */
+[data-nav="zu"]  .app > .nav  { display: none; }
+[data-rail="zu"] .app > .rail { display: none; }
+
+.leiste {
+  display: grid;
+  /* Der Pfad behält eine Mindestbreite; wird es eng, bricht die Knopfreihe um,
+     statt den Breadcrumb wegzuschneiden. */
+  grid-template-columns: auto minmax(calc(var(--unit) * 56), 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: var(--border-width) solid var(--color-border);
+  background: var(--color-bg-raised);
+}
+.leisten-knopf { padding-inline: var(--space-2); gap: var(--space-2); }
+.leisten-knopf .ico { width: var(--space-5); height: var(--space-5); }
+.leisten-knopf .ico--zu { display: none; }
+.leisten-knopf[aria-expanded="false"] .ico--auf { display: none; }
+.leisten-knopf[aria-expanded="false"] .ico--zu  { display: block; }
+.leisten-knopf[aria-pressed="true"] { --z-flaeche: var(--state-selected); --z-linie: var(--color-accent); }
+
+/* Linke Navigation */
+.nav { display: grid; align-content: start; }
+.nav .space-wahl {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--control-h);
+  padding: var(--space-2) var(--space-3);
+  margin: var(--space-3);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  width: calc(100% - var(--space-5) - var(--space-1));
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  color: var(--color-text);
+  text-align: left;
+}
+.nav .space-wahl:hover { background: var(--state-hover); }
+.nav .space-wahl .marke {
+  width: var(--space-5); height: var(--space-5); flex: none;
+  background: var(--color-accent); color: var(--color-accent-contrast);
+  display: grid; place-items: center;
+  font-size: var(--text-xs); font-weight: var(--weight-bold);
+  border-radius: var(--radius);
+}
+.nav .space-wahl .txt { flex: 1; font-weight: var(--weight-bold); }
+.nav .space-wahl .ico { width: var(--space-4); height: var(--space-4); color: var(--color-text-muted); }
+
+.suche-knopf {
+  display: flex; align-items: center; gap: var(--space-3);
+  min-height: var(--control-h);
+  margin: 0 var(--space-3) var(--space-3);
+  padding: 0 var(--space-3);
+  width: calc(100% - var(--space-5) - var(--space-1));
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg-raised);
+  color: var(--color-text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  text-align: left;
+}
+.suche-knopf:hover { background: var(--state-hover); border-color: var(--color-border-strong); }
+.suche-knopf .ico { width: var(--space-4); height: var(--space-4); flex: none; }
+.suche-knopf .txt { flex: 1; }
+.kbd {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius);
+  padding: 0 var(--space-1);
+  color: var(--color-text-muted);
+  background: var(--color-bg);
+  white-space: nowrap;
+}
+
+.nav-gruppe { padding: var(--space-3) 0; border-top: var(--border-width) solid var(--color-border); }
+.nav-gruppe > .titel {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  font-weight: var(--weight-bold);
+  color: var(--color-text-muted);
+  padding: var(--space-2) var(--space-4);
+}
+.baum { list-style: none; margin: 0; padding: 0; }
+.baum a {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-h);
+  padding: var(--space-2) var(--space-4);
+  padding-left: calc(var(--space-4) + var(--ebene, 0) * var(--space-4));
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  text-decoration: none;
+  border-left: var(--border-width-strong) solid transparent;
+}
+.baum a:hover { background: var(--state-hover); }
+.baum a[aria-current="page"] {
+  background: var(--state-selected);
+  border-left-color: var(--color-accent);
+  font-weight: var(--weight-bold);
+}
+.baum a .ico { width: var(--space-4); height: var(--space-4); flex: none; color: var(--color-text-muted); }
+.baum a[aria-current="page"] .ico { color: var(--color-accent-strong); }
+.baum .zahl { margin-left: auto; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-muted); }
+
+/* Inhaltsspalte */
+/* minmax(0,1fr) statt auto: der Ausbruch der Stufe 3 darf die Spalte
+   nicht aufblähen, er nutzt sie nur aus.
+   container-type: die Kopfleiste richtet sich nach der tatsächlichen
+   Lesefläche — nicht nach dem Fenster. Wer eine Leiste einklappt, ändert
+   damit auch das Verhalten der Bausteine darin. */
+.inhalt-spalte {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  container-type: inline-size;
+  container-name: spalte;
+}
+/* Zu eng für eine Zeile: der Pfad bekommt die volle Breite,
+   die Knopfreihe rückt darunter. */
+@container spalte (max-width: 1100px) {
+  .leiste { grid-template-columns: auto minmax(0, 1fr); }
+  .leiste > .btn-reihe { grid-column: 1 / -1; justify-content: flex-end; }
+}
+.brotkrumen {
+  display: flex; flex-wrap: nowrap; align-items: center; gap: var(--space-2);
+  overflow-x: auto;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+.brotkrumen a { color: var(--color-text-muted); text-decoration: none; }
+.brotkrumen a:hover { color: var(--color-accent-strong); text-decoration: underline; }
+.brotkrumen .sep { color: var(--color-border-strong); }
+.brotkrumen .jetzt { color: var(--color-text); font-weight: var(--weight-bold); }
+
+.dokument { padding: var(--dok-rand) var(--dok-rand) var(--space-9); }
+.dok-kopf { display: grid; gap: var(--space-3); max-width: var(--breite-lese); }
+.dok-kopf .zeile { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.meta-zeile {
+  display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  padding-top: var(--space-3);
+  border-top: var(--border-width) solid var(--color-border);
+}
+.meta-zeile .punkt { color: var(--color-border-strong); }
+.meta-zeile b { color: var(--color-text); font-weight: var(--weight-medium); }
+
+/* BREITENSTUFEN — Regel, nicht Ausnahme.
+   Der Inhaltsbereich selbst ist NIE gedeckelt. Grundzustand jedes Kindes ist
+   Stufe 2 (volle Spaltenbreite); allein der Fließtext wird auf Stufe 1
+   (Lesespalte) verengt. Genau so hält es das Produkt heute: in globals.css
+   steht max-width auf .page-body p und ul/ol — nicht auf dem Inhaltsbereich. */
+.prosa { max-width: var(--breite-breit); }
+.prosa > * { margin: 0; max-width: var(--breite-breit); }
+.prosa > p,
+.prosa > ol,
+.prosa > ul,
+.prosa > blockquote,
+.prosa > h2,
+.prosa > h3,
+.prosa > .hinweis { max-width: var(--breite-lese); }
+.prosa > * + * { margin-top: var(--space-5); }
+
+/* Die drei Stufen als benannte, überall verwendbare Klassen. */
+.stufe-lese  { max-width: var(--breite-lese); }
+.stufe-breit { max-width: var(--breite-breit); }
+.stufe-voll {
+  max-width: var(--breite-voll);
+  width: var(--breite-voll);
+  margin-inline: calc(var(--dok-rand) * -1);
+}
+.stufe-voll > figcaption { padding-inline: var(--dok-rand); }
+.stufe-voll > .rahmen,
+.stufe-voll.tab-huelle,
+.stufe-voll.code { border-inline: 0; border-radius: 0; }
+.prosa h2 {
+  font-size: var(--text-2xl);
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-tight);
+  font-weight: var(--weight-bold);
+  margin-top: var(--space-8);
+  padding-top: var(--space-4);
+  border-top: var(--border-width-strong) solid var(--color-text);
+  display: grid;
+  grid-template-columns: calc(var(--unit) * 10) 1fr;
+}
+.prosa h2 .nr { font-family: var(--font-mono); font-size: var(--text-md); color: var(--color-accent-strong); }
+.prosa h3 {
+  font-size: var(--text-xl);
+  line-height: var(--leading-snug);
+  font-weight: var(--weight-bold);
+  margin-top: var(--space-7);
+  display: grid;
+  grid-template-columns: calc(var(--unit) * 10) 1fr;
+}
+.prosa h3 .nr { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--color-text-muted); }
+.prosa p { font-size: var(--text-lg); line-height: var(--leading-loose); }
+.prosa a { color: var(--color-accent-strong); text-decoration-thickness: var(--border-width); text-underline-offset: var(--space-1); }
+.prosa a:hover { background: var(--state-selected); }
+.prosa ol, .prosa ul { font-size: var(--text-lg); line-height: var(--leading-loose); padding-left: var(--space-6); }
+.prosa li + li { margin-top: var(--space-3); }
+.prosa ol { list-style: none; counter-reset: schritt; padding-left: 0; }
+.prosa ol > li {
+  counter-increment: schritt;
+  display: grid;
+  grid-template-columns: calc(var(--unit) * 10) 1fr;
+  gap: var(--space-3);
+}
+.prosa ol > li::before {
+  content: counter(schritt, decimal-leading-zero);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  color: var(--color-accent-strong);
+  border-top: var(--border-width-strong) solid var(--color-accent);
+  padding-top: var(--space-1);
+}
+.prosa code {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  background: var(--color-bg-raised);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 0 var(--space-1);
+}
+.prosa strong { font-weight: var(--weight-bold); }
+
+.tab-huelle { overflow-x: auto; border: var(--border-width) solid var(--color-border); border-radius: var(--radius); }
+table.daten { border-collapse: collapse; width: 100%; font-size: var(--text-sm); }
+table.daten th, table.daten td {
+  text-align: left;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: var(--border-width) solid var(--color-border);
+  vertical-align: top;
+}
+table.daten thead th {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  background: var(--color-bg-raised);
+  border-bottom: var(--border-width-strong) solid var(--color-text);
+  position: sticky;
+  top: 0;
+}
+table.daten tbody tr:last-child td { border-bottom: 0; }
+table.daten tbody tr:hover { background: var(--state-hover); }
+table.daten td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.code {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg-raised);
+  overflow: hidden;
+}
+.code > .kopf {
+  display: flex; justify-content: space-between; align-items: center; gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: var(--border-width) solid var(--color-border);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  background: var(--color-bg);
+}
+.code pre {
+  margin: 0;
+  padding: var(--space-4);
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--color-text);
+}
+.code .kom { color: var(--color-text-muted); }
+.code .sch { color: var(--color-accent-strong); }
+.code .zei { color: var(--color-info); }
+
+.figur { display: grid; gap: var(--space-3); }
+.figur .rahmen {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg-raised);
+  padding: var(--space-5);
+  overflow-x: auto;
+}
+.figur figcaption {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-3);
+}
+.figur figcaption .nr { font-family: var(--font-mono); font-weight: var(--weight-bold); color: var(--color-text); }
+
+/* Inline-SVG-Diagramme — alle Farben über Tokens.
+   Die Schriftgrade in .dg-* sind SVG-Nutzereinheiten INNERHALB des viewBox
+   (sie skalieren mit der Zeichnung mit) und keine Bildschirm-Pixel — deshalb
+   sind sie hier korrekt und nicht als Token geführt. */
+.dg { display: block; width: 100%; height: auto; }
+.dg-flaeche { fill: var(--color-bg); }
+.dg-flaeche-2 { fill: var(--color-bg-sunken); }
+.dg-linie { stroke: var(--color-border-strong); fill: none; stroke-width: 1.5; }
+.dg-linie-akz { stroke: var(--color-accent); fill: none; stroke-width: 2; }
+.dg-fuell-akz { fill: var(--color-accent); }
+.dg-text { fill: var(--color-text); font-family: var(--font-sans); font-size: 11px; font-weight: 500; }
+.dg-text-klein { fill: var(--color-text-muted); font-family: var(--font-mono); font-size: 9px; }
+.dg-text-akz { fill: var(--color-accent-contrast); font-family: var(--font-sans); font-size: 11px; font-weight: 700; }
+
+/* Rechte Info-Leiste */
+.rail { display: grid; align-content: start; }
+.rail-block { border-bottom: var(--border-width) solid var(--color-border); padding: var(--space-4); display: grid; gap: var(--space-3); }
+.rail-block > h4 {
+  margin: 0;
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  font-weight: var(--weight-bold);
+  color: var(--color-text-muted);
+}
+.toc { list-style: none; margin: 0; padding: 0; border-left: var(--border-width) solid var(--color-border); }
+.toc a {
+  display: block;
+  padding: var(--space-2) var(--space-3);
+  padding-left: calc(var(--space-3) + var(--ebene, 0) * var(--space-4));
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  text-decoration: none;
+  border-left: var(--border-width-strong) solid transparent;
+  margin-left: calc(var(--border-width) * -1);
+}
+.toc a:hover { color: var(--color-text); background: var(--state-hover); }
+.toc a[aria-current="true"] { color: var(--color-text); border-left-color: var(--color-accent); font-weight: var(--weight-bold); }
+.chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+dl.meta { display: grid; grid-template-columns: auto 1fr; gap: var(--space-2) var(--space-3); margin: 0; font-size: var(--text-sm); }
+dl.meta dt { color: var(--color-text-muted); }
+dl.meta dd { margin: 0; }
+.rel-gruppe { display: grid; gap: var(--space-2); }
+.rel-typ {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.rel-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); }
+.rel-liste a {
+  display: flex; align-items: center; gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  text-decoration: none;
+  padding: var(--space-1) var(--space-2);
+  border-left: var(--border-width-strong) solid var(--color-border);
+}
+.rel-liste a:hover { background: var(--state-hover); border-left-color: var(--color-accent); }
+
+/* --- 14 · RASTER-DEMONSTRATION ------------------------------------------ */
+.raster-demo {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius);
+  background-color: var(--color-bg);
+  background-image:
+    repeating-linear-gradient(to right, var(--grid-line) 0 var(--border-width), transparent var(--border-width) var(--grid-unit)),
+    repeating-linear-gradient(to bottom, var(--grid-line) 0 var(--border-width), transparent var(--border-width) var(--grid-unit));
+  padding: var(--grid-unit);
+}
+.spalten {
+  display: grid;
+  grid-template-columns: repeat(var(--grid-columns), 1fr);
+  gap: var(--grid-unit);
+}
+.spalten > span {
+  height: calc(var(--unit) * 16);
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  border-top: var(--border-width-strong) solid var(--color-accent);
+  display: grid;
+  justify-items: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-accent-strong);
+  padding-top: var(--space-1);
+}
+/* Breitenstufen — maßstabsgetreue Vorführung: dieselben Tokens, echte Spalte */
+.stufen-demo {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg-sunken);
+  overflow: hidden;
+}
+.stufen-spalte {
+  background: var(--color-bg);
+  padding: var(--dok-rand);
+  display: grid;
+  gap: var(--space-3);
+}
+.stufen-balken {
+  display: block;
+  padding: var(--space-2) var(--space-3);
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  border-top: var(--border-width-strong) solid var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-accent-strong);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.stufen-rand {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  padding: var(--space-2) var(--space-3);
+}
+.skala { display: grid; gap: var(--space-2); }
+.skala-zeile { display: grid; grid-template-columns: calc(var(--unit) * 22) calc(var(--unit) * 22) 1fr; align-items: center; gap: var(--space-3); }
+.skala-zeile code { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text); }
+.skala-zeile .wert { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-muted); }
+.skala-zeile .balken { height: var(--space-4); background: var(--color-accent); border-radius: var(--radius); }
+
+.typo-zeile {
+  display: grid;
+  grid-template-columns: calc(var(--unit) * 34) 1fr;
+  gap: var(--space-4);
+  padding: var(--space-4) 0;
+  border-top: var(--border-width) solid var(--color-border);
+  align-items: baseline;
+}
+.typo-zeile .kenn { display: grid; gap: var(--space-1); }
+.typo-zeile .kenn code { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-accent-strong); }
+.typo-zeile .kenn .rolle { font-size: var(--text-xs); letter-spacing: var(--tracking-wide); text-transform: uppercase; font-weight: var(--weight-bold); }
+.typo-zeile .kenn .wert { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-muted); }
+.typo-zeile .probe { overflow: hidden; }
+
+/* Zustandsmatrix */
+.matrix { overflow-x: auto; border: var(--border-width) solid var(--color-border); border-radius: var(--radius); }
+.matrix table { border-collapse: collapse; width: 100%; }
+.matrix th, .matrix td { border: var(--border-width) solid var(--color-border); padding: var(--space-3); vertical-align: middle; }
+.matrix thead th {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  background: var(--color-bg-raised);
+  white-space: nowrap;
+  text-align: left;
+}
+.matrix tbody th {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--color-text);
+  background: var(--color-bg-raised);
+  white-space: nowrap;
+}
+.matrix td { background: var(--color-bg); }
+
+/* --- 15 · NAVIGATION & SUCHE -------------------------------------------- */
+.palette {
+  border: var(--border-width-strong) solid var(--color-text);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  display: grid;
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+.palette .eingabe-zeile {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: 0 var(--space-4);
+  min-height: calc(var(--unit) * 14);
+  border-bottom: var(--border-width) solid var(--color-border);
+}
+.palette .eingabe-zeile .ico { width: var(--space-5); height: var(--space-5); color: var(--color-text-muted); flex: none; }
+.palette .eingabe-zeile input {
+  flex: 1; border: 0; background: transparent; color: var(--color-text);
+  font-family: var(--font-sans); font-size: var(--text-lg); min-height: var(--control-h);
+}
+.palette .eingabe-zeile input:focus { outline: none; }
+.palette .gruppe { padding: var(--space-2) 0; border-bottom: var(--border-width) solid var(--color-border); }
+.palette .gruppe:last-child { border-bottom: 0; }
+.palette .gruppe > .titel {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  padding: var(--space-2) var(--space-4);
+  font-weight: var(--weight-bold);
+}
+.treffer {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--control-h);
+  padding: var(--space-2) var(--space-4);
+  color: var(--color-text);
+  text-decoration: none;
+  border-left: var(--border-width-strong) solid transparent;
+}
+.treffer:hover, .treffer.is-hover { background: var(--state-hover); border-left-color: var(--color-accent); }
+.treffer .ico { width: var(--space-4); height: var(--space-4); color: var(--color-text-muted); }
+.treffer .txt { display: grid; }
+.treffer .txt b { font-size: var(--text-md); font-weight: var(--weight-medium); }
+.treffer .txt span { font-size: var(--text-xs); color: var(--color-text-muted); font-family: var(--font-mono); }
+.treffer mark { background: var(--state-selected); color: var(--color-text); font-weight: var(--weight-bold); }
+
+.werkzeuge { display: grid; grid-template-columns: repeat(auto-fit, minmax(calc(var(--unit) * 60), 1fr)); gap: var(--space-4); }
+.werkzeug {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: var(--border-width) solid var(--color-border);
+  border-top: var(--border-width-strong) solid var(--color-text);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  text-decoration: none;
+  color: inherit;
+}
+.werkzeug:hover { background: var(--state-hover); border-top-color: var(--color-accent); }
+.werkzeug .ico { width: var(--space-5); height: var(--space-5); color: var(--color-accent-strong); }
+.werkzeug .name { font-size: var(--text-md); font-weight: var(--weight-bold); margin: 0 0 var(--space-1); }
+.werkzeug .was { font-size: var(--text-sm); color: var(--color-text-muted); margin: 0; line-height: var(--leading-normal); }
+.werkzeug .pfad { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-muted); margin-top: var(--space-2); display: block; }
+
+/* --- 16 · TOKEN-TABELLE ------------------------------------------------- */
+.token-tab { overflow-x: auto; border: var(--border-width) solid var(--color-border); border-radius: var(--radius); }
+.token-tab table { border-collapse: collapse; width: 100%; font-size: var(--text-sm); }
+.token-tab th, .token-tab td { padding: var(--space-2) var(--space-3); border-bottom: var(--border-width) solid var(--color-border); text-align: left; vertical-align: middle; }
+.token-tab thead th {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  background: var(--color-bg-raised);
+  border-bottom: var(--border-width-strong) solid var(--color-text);
+  position: sticky; top: 0;
+}
+.token-tab tbody tr:hover { background: var(--state-hover); }
+.token-tab .gruppen-zeile th {
+  background: var(--color-bg-sunken);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  font-weight: var(--weight-bold);
+  color: var(--color-text);
+}
+.token-tab code { font-family: var(--font-mono); font-size: var(--text-xs); white-space: nowrap; }
+.token-tab .wert { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-muted); white-space: nowrap; }
+.fleck {
+  display: inline-block;
+  width: var(--space-5);
+  height: var(--space-5);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius);
+  vertical-align: middle;
+  margin-right: var(--space-2);
+}
+.neu {
+  display: inline-block;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-accent-contrast);
+  background: var(--color-accent);
+  padding: 0 var(--space-1);
+  border-radius: var(--radius);
+}
+
+/* --- 17 · KOPF DES ENTWURFS --------------------------------------------- */
+.entwurf-kopf {
+  border-bottom: var(--border-width-strong) solid var(--color-text);
+  background: var(--color-bg);
+  padding: var(--space-7) var(--space-6) var(--space-5);
+  display: grid;
+  gap: var(--space-5);
+}
+.kopf-oben { display: grid; grid-template-columns: 1fr auto; gap: var(--space-5); align-items: start; }
+.marke-zeile { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-3); }
+.marke-zeile .quadrat { width: var(--space-6); height: var(--space-6); background: var(--color-accent); border-radius: var(--radius); }
+.marke-zeile .wort { font-size: var(--text-md); font-weight: var(--weight-bold); letter-spacing: var(--tracking-wide); text-transform: uppercase; }
+.leitidee { max-width: var(--measure); font-size: var(--text-lg); line-height: var(--leading-loose); color: var(--color-text-muted); margin: var(--space-4) 0 0; }
+.bauregel {
+  display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4);
+  padding-top: var(--space-4);
+  border-top: var(--border-width) solid var(--color-border);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+.bauregel b { color: var(--color-text); font-weight: var(--weight-bold); }
+.schalter-feld { display: grid; gap: var(--space-3); justify-items: end; }
+.schalter-gruppe { display: flex; align-items: center; gap: var(--space-2); }
+.schalter-gruppe > .t-label { color: var(--color-text-muted); margin-right: var(--space-2); }
+.segment { display: flex; border: var(--border-width) solid var(--color-border-strong); border-radius: var(--radius); overflow: hidden; }
+.segment button {
+  min-height: var(--control-h);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-left: var(--border-width) solid var(--color-border-strong);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.segment button:first-child { border-left: 0; }
+.segment button:hover { background: var(--state-hover); }
+.segment button[aria-pressed="true"] { background: var(--color-text); color: var(--color-bg); }
+.marken-wahl { display: flex; gap: var(--space-2); }
+.marken-wahl button {
+  width: var(--control-h);
+  height: var(--control-h);
+  border: var(--border-width-strong) solid var(--color-border-strong);
+  border-radius: var(--radius);
+  cursor: pointer;
+  padding: 0;
+}
+.marken-wahl button[aria-pressed="true"] { border-color: var(--color-text); }
+
+.sprung {
+  position: absolute;
+  left: var(--space-3);
+  top: var(--space-3);
+  transform: translateY(-200%);
+  background: var(--color-text);
+  color: var(--color-bg);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius);
+  z-index: 10;
+  text-decoration: none;
+}
+.sprung:focus { transform: translateY(0); }
+
+.gitter { display: grid; gap: var(--space-5); }
+.gitter--2 { grid-template-columns: repeat(auto-fit, minmax(calc(var(--unit) * 72), 1fr)); }
+.gitter--3 { grid-template-columns: repeat(auto-fit, minmax(calc(var(--unit) * 52), 1fr)); }
+.block-titel {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  font-weight: var(--weight-bold);
+  color: var(--color-text);
+  padding-bottom: var(--space-2);
+  border-bottom: var(--border-width) solid var(--color-border);
+  margin: 0 0 var(--space-4);
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.block-titel span { color: var(--color-text-muted); font-weight: var(--weight-regular); font-family: var(--font-mono); text-transform: none; letter-spacing: var(--tracking-normal); }
+.abstand { display: grid; gap: var(--space-4); }
+
+.fuss-zeile {
+  padding: var(--space-6);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  border-top: var(--border-width-strong) solid var(--color-text);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: space-between;
+}
+
+/* --- 18 · RESPONSIV ------------------------------------------------------ */
+/* Unterhalb der Haltepunkte gilt derselbe Zustand — nur nicht mehr wählbar.
+   Die Regeln greifen, weil für „auf“ bewusst keine Gegenregel existiert. */
+@media (max-width: 1200px) {
+  .app > .rail { display: none; }
+  #k-rail, #k-voll { display: none; }
+}
+@media (max-width: 900px) {
+  .app > .nav { display: none; }
+  #k-nav { display: none; }
+  /* --dok-rand muss an der Wurzel wechseln: --breite-voll wird dort gebildet. */
+  :root { --dok-rand: var(--space-4); }
+  .dokument { padding: var(--space-5) var(--dok-rand) var(--space-8); }
+  .leiste { grid-template-columns: minmax(0, 1fr); }
+  .sek-kopf { grid-template-columns: auto 1fr; padding-inline: var(--space-4); }
+  .sek-kopf .pfad { display: none; }
+  .sek-koerper { padding: var(--space-4); }
+  .entwurf-kopf { padding: var(--space-5) var(--space-4); }
+  .kopf-oben { grid-template-columns: 1fr; }
+  .schalter-feld { justify-items: start; }
+  .prosa h2, .prosa h3 { grid-template-columns: 1fr; }
+  .prosa h2 .nr, .prosa h3 .nr { display: block; }
+}
+@media print { .schalter-feld, .sprung { display: none; } }
+</style>
+</head>
+<body>
+<a class="sprung" href="#leseansicht">Zum Inhalt springen</a>
+
+<svg style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true" focusable="false">
+  <symbol id="i-suche" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></symbol>
+  <symbol id="i-seite" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></symbol>
+  <symbol id="i-ordner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M3 6h6l2 3h10v11H3z"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-haken" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><path d="m5 12 5 5 9-10"/></symbol>
+  <symbol id="i-warnung" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M12 3 22 20H2z"/><path d="M12 9v5"/><path d="M12 17h.01"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><rect x="3" y="3" width="18" height="18"/><path d="M12 11v6"/><path d="M12 7h.01"/></symbol>
+  <symbol id="i-fehler" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><rect x="3" y="3" width="18" height="18"/><path d="m8 8 8 8M16 8l-8 8"/></symbol>
+  <symbol id="i-erfolg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><rect x="3" y="3" width="18" height="18"/><path d="m7 12 3.5 3.5L17 9"/></symbol>
+  <symbol id="i-vorlage" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><rect x="3" y="3" width="18" height="18"/><path d="M3 9h18M9 9v12"/></symbol>
+  <symbol id="i-schema" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><rect x="3" y="4" width="18" height="6"/><rect x="3" y="14" width="18" height="6"/><path d="M7 10v4"/></symbol>
+  <symbol id="i-bericht" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M4 20V8M10 20V4M16 20v-8M22 20H2"/></symbol>
+  <symbol id="i-graph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><circle cx="5" cy="18" r="2.5"/><circle cx="12" cy="6" r="2.5"/><circle cx="19" cy="17" r="2.5"/><path d="m6.8 16.1 3.6-7.6M13.6 8l4 6.8"/></symbol>
+  <symbol id="i-stift" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M4 20h4L20 8l-4-4L4 16z"/></symbol>
+  <symbol id="i-zweig" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><circle cx="6" cy="5" r="2.5"/><circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="12" r="2.5"/><path d="M6 7.5v9M8.5 5H14a4 4 0 0 1 4 4v.5"/></symbol>
+  <symbol id="i-buch" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M4 4h9a3 3 0 0 1 3 3v13H7a3 3 0 0 0-3 3z"/><path d="M20 4v16"/></symbol>
+  <symbol id="i-leer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"><rect x="3" y="3" width="18" height="18" stroke-dasharray="3 3"/><path d="M9 12h6"/></symbol>
+  <symbol id="i-pfeil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-leiste-links-auf" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><rect x="3" y="4" width="18" height="16"/><rect x="3" y="4" width="6" height="16" fill="currentColor"/></symbol>
+  <symbol id="i-leiste-links-zu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><rect x="3" y="4" width="18" height="16"/><path d="M9 4v16" stroke-dasharray="3 3"/></symbol>
+  <symbol id="i-leiste-rechts-auf" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><rect x="3" y="4" width="18" height="16"/><rect x="15" y="4" width="6" height="16" fill="currentColor"/></symbol>
+  <symbol id="i-leiste-rechts-zu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><rect x="3" y="4" width="18" height="16"/><path d="M15 4v16" stroke-dasharray="3 3"/></symbol>
+  <symbol id="i-vollbreite" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M3 5v14M21 5v14"/><path d="M7 12h10M10 9l-3 3 3 3M14 9l3 3-3 3"/></symbol>
+</svg>
+
+<main class="blatt">
+<!-- ====================================================================
+     01 · KOPFZEILE DES ENTWURFS
+     ==================================================================== -->
+<header class="entwurf-kopf">
+  <div class="kopf-oben">
+    <div>
+      <div class="marke-zeile">
+        <span class="quadrat" aria-hidden="true"></span>
+        <span class="wort">f451 — Design-Entwurf 03</span>
+      </div>
+      <h1 class="t-display">System&#8202;/&#8202;Raster</h1>
+      <p class="leitidee">
+        Die Ursache der Uneinheitlichkeit ist kein Geschmacksfehler, sondern ein fehlendes
+        Bausteinsystem — also ist das System selbst der Entwurf: eine Abstandsskala, eine
+        Typoskala mit festen Rollen, eine Kante, ein Zustandsmodell. Alles steht auf einem
+        sichtbaren Raster; wer die Regel abliest, kann jede neue Ansicht selbst korrekt bauen.
+      </p>
+    </div>
+
+    <div class="schalter-feld">
+      <div class="schalter-gruppe">
+        <span class="t-label">Erscheinung</span>
+        <div class="segment" role="group" aria-label="Farbschema umschalten">
+          <button type="button" id="b-hell" aria-pressed="true" onclick="setzeThema('light')">Hell</button>
+          <button type="button" id="b-dunkel" aria-pressed="false" onclick="setzeThema('dark')">Dunkel</button>
+        </div>
+      </div>
+      <div class="schalter-gruppe">
+        <span class="t-label">Raster</span>
+        <div class="segment" role="group" aria-label="Rasterlinien einblenden">
+          <button type="button" id="b-raster-aus" aria-pressed="true" onclick="setzeRaster('aus')">Aus</button>
+          <button type="button" id="b-raster-an" aria-pressed="false" onclick="setzeRaster('an')">Ein</button>
+        </div>
+      </div>
+      <div class="schalter-gruppe">
+        <span class="t-label">Dichte</span>
+        <div class="segment" role="group" aria-label="Dichte umschalten">
+          <button type="button" id="b-kompakt" aria-pressed="false" onclick="setzeDichte('kompakt')">Kompakt</button>
+          <button type="button" id="b-normal" aria-pressed="true" onclick="setzeDichte('normal')">Normal</button>
+          <button type="button" id="b-weit" aria-pressed="false" onclick="setzeDichte('weit')">Weit</button>
+        </div>
+      </div>
+      <div class="schalter-gruppe">
+        <span class="t-label">Marke</span>
+        <div class="marken-wahl" role="group" aria-label="Markenfarbe des Mandanten">
+          <button type="button" id="m-f451" aria-pressed="true" title="f451-Rot" style="background:#dd2b0f" onclick="setzeMarke('f451')"><span class="sr">f451-Rot</span></button>
+          <button type="button" id="m-kobalt" aria-pressed="false" title="Kobalt" style="background:#1d4ed8" onclick="setzeMarke('kobalt')"><span class="sr">Kobalt</span></button>
+          <button type="button" id="m-tanne" aria-pressed="false" title="Tanne" style="background:#0f6b45" onclick="setzeMarke('tanne')"><span class="sr">Tanne</span></button>
+          <button type="button" id="m-graphit" aria-pressed="false" title="Graphit" style="background:#3f3f46" onclick="setzeMarke('graphit')"><span class="sr">Graphit</span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="bauregel">
+    <span>Einheit <b>4&#8239;px</b> (<code>--unit</code>)</span>
+    <span>Abstände <b>9 Stufen</b></span>
+    <span>Typografie <b>8 Grade / 9 Rollen</b></span>
+    <span>Kante <b>1 Radius (2&#8239;px)</b></span>
+    <span>Linie <b>1&#8239;px / 2&#8239;px</b></span>
+    <span>Zustände <b>6, für jeden Baustein gleich</b></span>
+    <span>Breite <b>3 Stufen</b></span>
+    <span>Leisten <b>einzeln klappbar · [ ] \</b></span>
+    <span>Schrift <b>1 Familie + Mono</b></span>
+    <span>Schatten <b>nur Overlays</b></span>
+  </p>
+</header>
+
+<!-- ====================================================================
+     02 · LESEANSICHT
+     ==================================================================== -->
+<section id="leseansicht" aria-labelledby="h-lese">
+  <div class="sek-kopf">
+    <span class="nr">02</span>
+    <h2 class="titel" id="h-lese">Leseansicht</h2>
+    <span class="pfad">/wiki/handbuch/backup-restore</span>
+  </div>
+
+  <div class="app raster-flaeche">
+
+    <!-- Linke Navigation -->
+    <nav class="nav" id="app-nav" aria-label="Space-Navigation">
+      <button type="button" class="space-wahl" aria-haspopup="listbox">
+        <span class="marke" aria-hidden="true">HB</span>
+        <span class="txt">handbuch</span>
+        <svg class="ico" aria-hidden="true"><use href="#i-chevron"/></svg>
+      </button>
+
+      <button type="button" class="suche-knopf" onclick="oeffnePalette()">
+        <svg class="ico" aria-hidden="true"><use href="#i-suche"/></svg>
+        <span class="txt">Suchen &amp; springen</span>
+        <span class="kbd">Strg K</span>
+      </button>
+
+      <div class="nav-gruppe">
+        <div class="titel">Seiten</div>
+        <ul class="baum">
+          <li><a href="#leseansicht" style="--ebene:0"><svg class="ico" aria-hidden="true"><use href="#i-seite"/></svg>Einstieg &amp; Geltung</a></li>
+          <li><a href="#leseansicht" style="--ebene:0"><svg class="ico" aria-hidden="true"><use href="#i-ordner"/></svg>Azure Betrieb<span class="zahl">7</span></a></li>
+          <li><a href="#leseansicht" style="--ebene:1" aria-current="page"><svg class="ico" aria-hidden="true"><use href="#i-seite"/></svg>Backup &amp; Restore</a></li>
+          <li><a href="#leseansicht" style="--ebene:1"><svg class="ico" aria-hidden="true"><use href="#i-seite"/></svg>Recovery Services Vault</a></li>
+          <li><a href="#leseansicht" style="--ebene:1"><svg class="ico" aria-hidden="true"><use href="#i-seite"/></svg>Monitoring &amp; Alerts</a></li>
+          <li><a href="#leseansicht" style="--ebene:0"><svg class="ico" aria-hidden="true"><use href="#i-ordner"/></svg>SAP HANA<span class="zahl">12</span></a></li>
+          <li><a href="#leseansicht" style="--ebene:1"><svg class="ico" aria-hidden="true"><use href="#i-seite"/></svg>Kerneltausch</a></li>
+          <li><a href="#leseansicht" style="--ebene:1"><svg class="ico" aria-hidden="true"><use href="#i-seite"/></svg>Systemkopie PRD → QAS</a></li>
+          <li><a href="#leseansicht" style="--ebene:0"><svg class="ico" aria-hidden="true"><use href="#i-ordner"/></svg>MaxDB<span class="zahl">4</span></a></li>
+        </ul>
+      </div>
+
+      <div class="nav-gruppe">
+        <div class="titel">Werkzeuge des Space</div>
+        <ul class="baum">
+          <li><a href="#navigation" style="--ebene:0"><svg class="ico" aria-hidden="true"><use href="#i-vorlage"/></svg>Vorlagen<span class="zahl">6</span></a></li>
+          <li><a href="#navigation" style="--ebene:0"><svg class="ico" aria-hidden="true"><use href="#i-schema"/></svg>Schema</a></li>
+          <li><a href="#navigation" style="--ebene:0"><svg class="ico" aria-hidden="true"><use href="#i-bericht"/></svg>Bericht<span class="zahl">2</span></a></li>
+          <li><a href="#navigation" style="--ebene:0"><svg class="ico" aria-hidden="true"><use href="#i-graph"/></svg>Wissensgraph</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <!-- Inhaltsspalte -->
+    <div class="inhalt-spalte">
+      <div class="leiste">
+        <button type="button" class="z btn btn--still leisten-knopf" id="k-nav"
+                aria-expanded="true" aria-controls="app-nav" aria-keyshortcuts="["
+                title="Seitenbaum ein- oder ausklappen — Taste [" onclick="schalteLeiste('nav')">
+          <svg class="ico ico--auf" aria-hidden="true"><use href="#i-leiste-links-auf"/></svg>
+          <svg class="ico ico--zu" aria-hidden="true"><use href="#i-leiste-links-zu"/></svg>
+          <span class="sr">Seitenbaum ein- oder ausklappen</span>
+        </button>
+
+        <nav class="brotkrumen" aria-label="Pfad">
+          <a href="#leseansicht">handbuch</a><span class="sep" aria-hidden="true">/</span>
+          <a href="#leseansicht">azure betrieb</a><span class="sep" aria-hidden="true">/</span>
+          <a href="#leseansicht">backup restore</a><span class="sep" aria-hidden="true">/</span>
+          <span class="jetzt" aria-current="page">Backup &amp; Restore</span>
+        </nav>
+
+        <div class="btn-reihe">
+          <span class="chip chip--released"><span class="marke" aria-hidden="true"></span>Freigegeben</span>
+          <button type="button" class="z btn btn--still">
+            <svg class="ico" aria-hidden="true"><use href="#i-zweig"/></svg>Verlauf
+          </button>
+          <button type="button" class="z btn btn--primaer">
+            <svg class="ico" aria-hidden="true"><use href="#i-stift"/></svg>Bearbeiten
+          </button>
+          <button type="button" class="z btn btn--still leisten-knopf" id="k-voll"
+                  aria-pressed="false" aria-keyshortcuts="\"
+                  title="Vollbreite — beide Leisten zu, Taste \" onclick="schalteVollbreite()">
+            <svg class="ico" aria-hidden="true"><use href="#i-vollbreite"/></svg>
+            <span class="sr">Vollbreite: beide Leisten schließen</span>
+          </button>
+          <button type="button" class="z btn btn--still leisten-knopf" id="k-rail"
+                  aria-expanded="true" aria-controls="app-rail" aria-keyshortcuts="]"
+                  title="Info-Leiste ein- oder ausklappen — Taste ]" onclick="schalteLeiste('rail')">
+            <svg class="ico ico--auf" aria-hidden="true"><use href="#i-leiste-rechts-auf"/></svg>
+            <svg class="ico ico--zu" aria-hidden="true"><use href="#i-leiste-rechts-zu"/></svg>
+            <span class="sr">Info-Leiste ein- oder ausklappen</span>
+          </button>
+        </div>
+      </div>
+
+      <article class="dokument">
+        <div class="dok-kopf">
+          <h2 class="t-titel">Backup &amp; Restore — SAP HANA 2.0 auf Azure</h2>
+          <p class="t-fliess" style="color:var(--color-text-muted)">
+            Verbindliches Verfahren für Datensicherung, Protokollsicherung und Wiederherstellung
+            der HANA-Produktivsysteme im Azure-Mandanten <code>sap-prod-weu</code>.
+          </p>
+          <p class="meta-zeile">
+            <span>Aktualisiert <b>25.07.2026</b></span><span class="punkt" aria-hidden="true">·</span>
+            <span>Space <b>handbuch</b></span><span class="punkt" aria-hidden="true">·</span>
+            <span>Version <b>1.2.0</b></span><span class="punkt" aria-hidden="true">·</span>
+            <span>Verantwortlich <b>Team SAP Basis</b></span><span class="punkt" aria-hidden="true">·</span>
+            <span>Lesedauer <b>9 min</b></span>
+          </p>
+        </div>
+
+        <div class="prosa" style="margin-top:var(--space-6)">
+
+          <div class="hinweis hinweis--warnung" role="status">
+            <svg class="ico" aria-hidden="true"><use href="#i-warnung"/></svg>
+            <div>
+              <p class="h-titel">2 defekte Verweise in dieser Seite</p>
+              <p class="h-text">
+                <code>[[maxdb-sicherung]]</code> und <code>[[kerneltausch-checkliste]]</code> zeigen
+                auf Seiten, die im Space <b>handbuch</b> nicht mehr existieren. Beim letzten Import
+                wurden beide Seiten umbenannt.
+              </p>
+              <div class="btn-reihe">
+                <a class="z btn btn--still" href="#navigation">Bericht öffnen</a>
+                <a class="z btn btn--still" href="#navigation">Verweise reparieren</a>
+              </div>
+            </div>
+          </div>
+
+          <h2 id="k1"><span class="nr">1</span><span>Geltungsbereich</span></h2>
+          <p>
+            Das Verfahren gilt für alle HANA-Instanzen auf Azure-VMs der M-Serie mit
+            <code>HANA 2.0 SPS 07</code> und höher, die über das Backint-Interface an einen
+            Recovery Services Vault angebunden sind. Für MaxDB-Systeme gilt ein eigenes
+            Verfahren; Dateisystem-Sicherungen von <code>/hana/shared</code> laufen über
+            Azure-Files-Momentaufnahmen und sind hier mit beschrieben.
+          </p>
+          <p>
+            Abweichungen von diesem Verfahren sind genehmigungspflichtig und werden als
+            Ausnahme im Änderungsantrag dokumentiert. Jede Änderung an dieser Seite läuft
+            über einen Review-Zweig und wird vom Team SAP Basis freigegeben.
+          </p>
+
+          <h2 id="k2"><span class="nr">2</span><span>Sicherungsverfahren</span></h2>
+          <p>
+            Vier Sicherungsklassen laufen parallel. Die Aufbewahrung richtet sich nach der
+            Systemklasse; produktive Systeme werden zusätzlich georedundant abgelegt.
+          </p>
+
+          <div class="tab-huelle">
+            <table class="daten">
+              <caption class="t-sek" style="text-align:left;padding:var(--space-3) var(--space-4)">
+                Tabelle 1 — Sicherungsklassen der Produktivsysteme
+                <span class="t-mono" style="color:var(--color-accent-strong)">· Stufe 2 breit</span>
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Klasse</th>
+                  <th scope="col">Ziel</th>
+                  <th scope="col">Zeitpunkt</th>
+                  <th scope="col">Aufbewahrung</th>
+                  <th scope="col">RTO</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row" style="font-weight:var(--weight-medium)">Vollsicherung Daten</th>
+                  <td>Recovery Services Vault (Backint)</td>
+                  <td class="num">täglich 22:00</td>
+                  <td class="num">30 Tage</td>
+                  <td class="num">4 h</td>
+                </tr>
+                <tr>
+                  <th scope="row" style="font-weight:var(--weight-medium)">Deltasicherung</th>
+                  <td>Recovery Services Vault (Backint)</td>
+                  <td class="num">stündlich</td>
+                  <td class="num">7 Tage</td>
+                  <td class="num">2 h</td>
+                </tr>
+                <tr>
+                  <th scope="row" style="font-weight:var(--weight-medium)">Protokollsicherung</th>
+                  <td>Recovery Services Vault (Backint)</td>
+                  <td class="num">alle 15 min</td>
+                  <td class="num">14 Tage</td>
+                  <td class="num">30 min</td>
+                </tr>
+                <tr>
+                  <th scope="row" style="font-weight:var(--weight-medium)">/hana/shared</th>
+                  <td>Azure Files, Momentaufnahme</td>
+                  <td class="num">täglich 20:30</td>
+                  <td class="num">10 Tage</td>
+                  <td class="num">1 h</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3 id="k21"><span class="nr">2.1</span><span>Backint-Konfiguration</span></h3>
+          <p>
+            Die Anbindung wird ausschließlich über <code>global.ini</code> gesetzt — niemals über
+            <code>hdbsql</code>-Sitzungsparameter, weil diese beim Neustart des Index-Servers verloren gehen.
+          </p>
+
+          <div class="code">
+            <div class="kopf">
+              <span>/hana/shared/PRD/global/hdb/custom/config/global.ini</span>
+              <span>INI</span>
+            </div>
+<pre><span class="kom">[backup]</span>
+catalog_backup_using_backint    = <span class="sch">true</span>
+log_backup_using_backint        = <span class="sch">true</span>
+data_backup_parameter_file      = <span class="zei">/hana/shared/opt/backint/backint.cfg</span>
+log_backup_parameter_file       = <span class="zei">/hana/shared/opt/backint/backint.cfg</span>
+log_backup_timeout_s            = <span class="sch">900</span></pre>
+          </div>
+
+          <div class="code">
+            <div class="kopf">
+              <span>Vollsicherung manuell auslösen</span>
+              <span>SHELL</span>
+            </div>
+<pre><span class="kom"># als Benutzer prdadm auf dem Datenbankknoten</span>
+hdbsql -i 00 -d SYSTEMDB -U BACKUP_KEY \
+  <span class="zei">"BACKUP DATA USING BACKINT ('SYSTEMDB_VOLL_$(date +%Y%m%d)')"</span>
+
+<span class="kom"># Ergebnis im Katalog prüfen</span>
+hdbsql -i 00 -d SYSTEMDB -U BACKUP_KEY \
+  <span class="zei">"SELECT TOP 5 BACKUP_ID, STATE_NAME, SYS_END_TIME FROM M_BACKUP_CATALOG ORDER BY SYS_START_TIME DESC"</span></pre>
+          </div>
+
+          <figure class="figur stufe-voll">
+            <div class="rahmen">
+              <svg viewBox="0 0 720 236" class="dg" role="img" aria-labelledby="dg1-titel">
+                <title id="dg1-titel">Sicherungspfade: HANA-Instanz über Backint in den Recovery Services Vault, Dateisystem über Azure Files</title>
+                <!-- Ebene 1 -->
+                <rect class="dg-flaeche-2" x="8" y="8" width="200" height="220"/>
+                <text class="dg-text-klein" x="18" y="26">SAP-VM · M-Serie</text>
+                <rect class="dg-flaeche" x="26" y="42" width="164" height="52"/>
+                <rect x="26" y="42" width="164" height="52" class="dg-linie"/>
+                <text class="dg-text" x="42" y="66">HANA-Instanz PRD</text>
+                <text class="dg-text-klein" x="42" y="82">Index-Server · Port 30013</text>
+
+                <rect class="dg-flaeche" x="26" y="120" width="164" height="52"/>
+                <rect x="26" y="120" width="164" height="52" class="dg-linie"/>
+                <text class="dg-text" x="42" y="144">Backint-Agent</text>
+                <text class="dg-text-klein" x="42" y="160">backint.cfg</text>
+
+                <rect class="dg-flaeche" x="26" y="186" width="164" height="30"/>
+                <rect x="26" y="186" width="164" height="30" class="dg-linie"/>
+                <text class="dg-text" x="42" y="205">/hana/shared</text>
+
+                <path class="dg-linie-akz" d="M108 94v26"/>
+                <path class="dg-fuell-akz" d="M108 122l-4-8h8z"/>
+
+                <!-- Verbindung nach rechts -->
+                <path class="dg-linie-akz" d="M190 146h96"/>
+                <path class="dg-fuell-akz" d="M288 146l-8-4v8z"/>
+                <text class="dg-text-klein" x="206" y="138">TLS 1.2</text>
+
+                <path class="dg-linie" d="M190 201h96" stroke-dasharray="4 4"/>
+                <path class="dg-fuell-akz" d="M288 201l-8-4v8z"/>
+
+                <!-- Ebene 2 -->
+                <rect class="dg-flaeche-2" x="296" y="8" width="212" height="220"/>
+                <text class="dg-text-klein" x="306" y="26">Azure · West Europe</text>
+                <rect class="dg-fuell-akz" x="314" y="118" width="176" height="56"/>
+                <text class="dg-text-akz" x="330" y="142">Recovery Services Vault</text>
+                <text class="dg-text-akz" x="330" y="160" style="font-weight:400">sap-prod-weu-vault</text>
+
+                <rect class="dg-flaeche" x="314" y="182" width="176" height="34"/>
+                <rect x="314" y="182" width="176" height="34" class="dg-linie"/>
+                <text class="dg-text" x="330" y="203">Azure Files · Snapshot</text>
+
+                <rect class="dg-flaeche" x="314" y="42" width="176" height="52"/>
+                <rect x="314" y="42" width="176" height="52" class="dg-linie"/>
+                <text class="dg-text" x="330" y="66">Richtlinie „HANA-PRD“</text>
+                <text class="dg-text-klein" x="330" y="82">30 T · 7 T · 14 T</text>
+                <path class="dg-linie" d="M402 94v24" stroke-dasharray="4 4"/>
+
+                <!-- Ebene 3 -->
+                <path class="dg-linie-akz" d="M490 146h96"/>
+                <path class="dg-fuell-akz" d="M588 146l-8-4v8z"/>
+                <text class="dg-text-klein" x="504" y="138">GRS-Replikation</text>
+                <rect class="dg-flaeche-2" x="596" y="8" width="116" height="220"/>
+                <text class="dg-text-klein" x="606" y="26">Azure · North Europe</text>
+                <rect class="dg-flaeche" x="612" y="118" width="84" height="56"/>
+                <rect x="612" y="118" width="84" height="56" class="dg-linie"/>
+                <text class="dg-text" x="626" y="142">Georedundante</text>
+                <text class="dg-text" x="626" y="158">Kopie</text>
+              </svg>
+            </div>
+            <figcaption>
+              <span class="nr">Abb. 1</span>
+              <span>Sicherungspfade der Produktivsysteme. Durchgezogen = Backint über TLS, gestrichelt = Momentaufnahme bzw. Richtlinienbindung.
+                <span class="t-mono" style="color:var(--color-accent-strong)">· Stufe 3 volle Fläche</span></span>
+            </figcaption>
+          </figure>
+
+          <div class="hinweis hinweis--fehler">
+            <svg class="ico" aria-hidden="true"><use href="#i-fehler"/></svg>
+            <div>
+              <p class="h-titel">Achtung — vor jedem Kerneltausch</p>
+              <p class="h-text">
+                Vor dem Austausch des HANA-Kernels ist eine <b>Vollsicherung inklusive Katalog</b>
+                zwingend erforderlich und ihr Abschluss in <code>M_BACKUP_CATALOG</code> zu prüfen.
+                Ein Kerneltausch ohne gültigen Katalogeintrag ist nicht wiederherstellbar.
+              </p>
+            </div>
+          </div>
+
+          <h2 id="k3"><span class="nr">3</span><span>Wiederherstellung</span></h2>
+          <p>
+            Die Wiederherstellung erfolgt punktgenau (Point-in-Time) auf Basis der letzten
+            Vollsicherung und der nachfolgenden Protokollsicherungen. Schritte 1 bis 6 sind
+            in dieser Reihenfolge abzuarbeiten.
+          </p>
+          <ol>
+            <li><span>Änderungsantrag anlegen und Freigabe des Anwendungsbetriebs einholen. Ohne Freigabe keine Wiederherstellung auf einem Produktivsystem.</span></li>
+            <li><span>Zielzeitpunkt festlegen und im Katalog prüfen, dass die Protokollkette bis zu diesem Zeitpunkt lückenlos ist.</span></li>
+            <li><span>SAP-Anwendungsserver stoppen: <code>stopsap r3</code> auf allen Applikationsknoten der Instanz.</span></li>
+            <li><span>Wiederherstellung im HANA-Studio oder über <code>hdbsql</code> starten — siehe Befehl unten.</span></li>
+            <li><span>Konsistenzprüfung ausführen und das Ergebnis im Protokoll <code>restore-test-protokoll</code> ablegen.</span></li>
+            <li><span>Anwendungsserver starten, Kurztest durch den Fachbereich, Änderungsantrag schließen.</span></li>
+          </ol>
+
+          <div class="code">
+            <div class="kopf">
+              <span>Point-in-Time-Wiederherstellung der Mandanten-DB</span>
+              <span>SQL</span>
+            </div>
+<pre>RECOVER DATABASE FOR PRD
+  UNTIL TIMESTAMP <span class="zei">'2026-07-24 18:45:00'</span>
+  CLEAR LOG
+  USING <span class="sch">CATALOG BACKINT</span>
+  USING LOG PATH (<span class="zei">'/usr/sap/PRD/HDB00/backup/log'</span>)
+  CHECK ACCESS USING BACKINT;</pre>
+          </div>
+
+          <div class="hinweis">
+            <svg class="ico" aria-hidden="true"><use href="#i-info"/></svg>
+            <div>
+              <p class="h-titel">Verweis</p>
+              <p class="h-text">
+                Die Einrichtung des Vaults, die Vergabe der verwalteten Identität und die
+                Netzwerkregeln stehen in
+                <a href="#leseansicht">Recovery Services Vault einrichten</a>.
+                Der halbjährliche Wiederherstellungstest ist in
+                <a href="#leseansicht">restore-test-protokoll</a> dokumentiert.
+              </p>
+            </div>
+          </div>
+        </div>
+      </article>
+    </div>
+
+    <!-- Rechte Info-Leiste -->
+    <aside class="rail" id="app-rail" aria-label="Seiteninformationen">
+      <div class="rail-block">
+        <h4>Auf dieser Seite</h4>
+        <ul class="toc">
+          <li><a href="#k1" style="--ebene:0" aria-current="true">1 Geltungsbereich</a></li>
+          <li><a href="#k2" style="--ebene:0">2 Sicherungsverfahren</a></li>
+          <li><a href="#k21" style="--ebene:1">2.1 Backint-Konfiguration</a></li>
+          <li><a href="#k3" style="--ebene:0">3 Wiederherstellung</a></li>
+        </ul>
+      </div>
+
+      <div class="rail-block">
+        <h4>Schlagworte</h4>
+        <div class="chips">
+          <a class="tag" href="#navigation">#hana</a>
+          <a class="tag" href="#navigation">#azure</a>
+          <a class="tag" href="#navigation">#backup</a>
+          <a class="tag" href="#navigation">#betriebshandbuch</a>
+        </div>
+      </div>
+
+      <div class="rail-block">
+        <h4>Metadaten</h4>
+        <dl class="meta">
+          <dt>Status</dt><dd><span class="chip chip--released"><span class="marke" aria-hidden="true"></span>Freigegeben</span></dd>
+          <dt>Space</dt><dd>handbuch</dd>
+          <dt>Version</dt><dd>1.2.0</dd>
+          <dt>Aktualisiert</dt><dd>25.07.2026</dd>
+          <dt>Systemklasse</dt><dd>Produktiv</dd>
+          <dt>Verantwortlich</dt><dd>Team SAP Basis</dd>
+          <dt>Prüfintervall</dt><dd>6 Monate</dd>
+          <dt>Nächste Prüfung</dt><dd>25.01.2027</dd>
+        </dl>
+      </div>
+
+      <div class="rail-block">
+        <h4>Verknüpfte Seiten</h4>
+        <svg viewBox="0 0 260 132" class="dg" role="img" aria-label="Mini-Graph: Backup &amp; Restore ist mit vier Seiten verknüpft">
+          <path class="dg-linie" d="M130 66 44 30M130 66l86-36M130 66 44 108M130 66l86 42"/>
+          <circle class="dg-flaeche" cx="44" cy="30" r="7"/><circle cx="44" cy="30" r="7" class="dg-linie"/>
+          <circle class="dg-flaeche" cx="216" cy="30" r="7"/><circle cx="216" cy="30" r="7" class="dg-linie"/>
+          <circle class="dg-flaeche" cx="44" cy="108" r="7"/><circle cx="44" cy="108" r="7" class="dg-linie"/>
+          <circle class="dg-flaeche" cx="216" cy="108" r="7"/><circle cx="216" cy="108" r="7" class="dg-linie"/>
+          <rect class="dg-fuell-akz" x="120" y="56" width="20" height="20"/>
+          <text class="dg-text-klein" x="56" y="26">vault-einrichten</text>
+          <text class="dg-text-klein" x="150" y="26">kerneltausch</text>
+          <text class="dg-text-klein" x="56" y="122">restore-test</text>
+          <text class="dg-text-klein" x="140" y="122">maxdb-sicherung</text>
+        </svg>
+        <div class="rel-gruppe">
+          <div class="rel-typ">Setzt voraus</div>
+          <ul class="rel-liste">
+            <li><a href="#leseansicht"><svg class="ico" aria-hidden="true" style="width:var(--space-4);height:var(--space-4)"><use href="#i-seite"/></svg>Recovery Services Vault einrichten</a></li>
+          </ul>
+        </div>
+        <div class="rel-gruppe">
+          <div class="rel-typ">Wird benötigt von</div>
+          <ul class="rel-liste">
+            <li><a href="#leseansicht"><svg class="ico" aria-hidden="true" style="width:var(--space-4);height:var(--space-4)"><use href="#i-seite"/></svg>Kerneltausch HANA 2.0</a></li>
+            <li><a href="#leseansicht"><svg class="ico" aria-hidden="true" style="width:var(--space-4);height:var(--space-4)"><use href="#i-seite"/></svg>Systemkopie PRD → QAS</a></li>
+          </ul>
+        </div>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ====================================================================
+     03 · BAUSTEINE
+     ==================================================================== -->
+<section id="bausteine" aria-labelledby="h-bau">
+  <div class="sek-kopf">
+    <span class="nr">03</span>
+    <h2 class="titel" id="h-bau">Bausteine</h2>
+    <span class="pfad">Regelwerk vor Sammlung</span>
+  </div>
+
+  <!-- 3.1 Raster & Abstandsskala -->
+  <div class="sek-koerper">
+    <h3 class="block-titel">3.1 Raster<span>--unit · --grid-unit · --grid-columns</span></h3>
+    <p class="regel-text">
+      Alles steht auf einer Einheit von 4&#8239;px. Vier Einheiten bilden das Modul (16&#8239;px), auf dem
+      Spalten, Zeilenhöhen und Bedienelemente einrasten. Der Inhalt liegt in einem
+      Zwölfspaltenraster; Seitenleisten sind Vielfache derselben Einheit, keine krummen Restwerte.
+      Der Dichte-Umschalter oben verändert <code class="t-mono">--unit</code> — und nur diesen
+      einen Wert. Dass sich dabei die ganze Anwendung geschlossen mitbewegt, ist der Beweis,
+      dass die Skala trägt.
+    </p>
+
+    <div class="raster-demo" style="margin-bottom:var(--space-5)">
+      <div class="spalten">
+        <span>01</span><span>02</span><span>03</span><span>04</span><span>05</span><span>06</span>
+        <span>07</span><span>08</span><span>09</span><span>10</span><span>11</span><span>12</span>
+      </div>
+    </div>
+
+    <div class="gitter gitter--2">
+      <div>
+        <h4 class="block-titel">Abstandsskala<span>9 Stufen, keine Zwischenwerte</span></h4>
+        <div class="skala">
+          <div class="skala-zeile"><code>--space-1</code><span class="wert">1 × unit · 4 px</span><span class="balken" style="width:var(--space-1)"></span></div>
+          <div class="skala-zeile"><code>--space-2</code><span class="wert">2 × unit · 8 px</span><span class="balken" style="width:var(--space-2)"></span></div>
+          <div class="skala-zeile"><code>--space-3</code><span class="wert">3 × unit · 12 px</span><span class="balken" style="width:var(--space-3)"></span></div>
+          <div class="skala-zeile"><code>--space-4</code><span class="wert">4 × unit · 16 px</span><span class="balken" style="width:var(--space-4)"></span></div>
+          <div class="skala-zeile"><code>--space-5</code><span class="wert">6 × unit · 24 px</span><span class="balken" style="width:var(--space-5)"></span></div>
+          <div class="skala-zeile"><code>--space-6</code><span class="wert">8 × unit · 32 px</span><span class="balken" style="width:var(--space-6)"></span></div>
+          <div class="skala-zeile"><code>--space-7</code><span class="wert">12 × unit · 48 px</span><span class="balken" style="width:var(--space-7)"></span></div>
+          <div class="skala-zeile"><code>--space-8</code><span class="wert">16 × unit · 64 px</span><span class="balken" style="width:var(--space-8)"></span></div>
+          <div class="skala-zeile"><code>--space-9</code><span class="wert">24 × unit · 96 px</span><span class="balken" style="width:var(--space-9)"></span></div>
+        </div>
+      </div>
+      <div>
+        <h4 class="block-titel">Wofür welche Stufe<span>verbindliche Zuordnung</span></h4>
+        <div class="tab-huelle">
+          <table class="daten">
+            <thead><tr><th scope="col">Stufe</th><th scope="col">Verwendung</th></tr></thead>
+            <tbody>
+              <tr><td class="num">--space-1</td><td>Innenabstand von Marken, Tastenkürzeln, Zählern</td></tr>
+              <tr><td class="num">--space-2</td><td>Abstand Symbol ↔ Text, Chips untereinander</td></tr>
+              <tr><td class="num">--space-3</td><td>Innenabstand kompakter Zellen, Abstand von Bedienelementen</td></tr>
+              <tr><td class="num">--space-4</td><td>Innenabstand von Karten, Hinweisblöcken, Tabellenzellen</td></tr>
+              <tr><td class="num">--space-5</td><td>Abstand zwischen Absätzen und zwischen Bausteinen</td></tr>
+              <tr><td class="num">--space-6</td><td>Innenabstand von Ansichten, Abstand zwischen Blöcken</td></tr>
+              <tr><td class="num">--space-7</td><td>Abstand vor Unterabschnitten (h3)</td></tr>
+              <tr><td class="num">--space-8</td><td>Abstand vor Abschnitten (h2)</td></tr>
+              <tr><td class="num">--space-9</td><td>Fußraum am Ende eines Dokuments</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3.2 Breitenstufen -->
+  <div class="sek-koerper">
+    <h3 class="block-titel">3.2 Breitenstufen der Lesefläche<span>--breite-lese · --breite-breit · --breite-voll</span></h3>
+    <p class="regel-text">
+      Die Breite ist im Raster genauso geregelt wie der Abstand: <b>drei Stufen, keine
+      Zwischenwerte.</b> Der Inhaltsbereich selbst ist nie gedeckelt — gedeckelt wird allein
+      der Fließtext. Absätze, Listen, Zitate und Hinweisblöcke stehen auf Stufe 1; Tabellen,
+      Codeblöcke, Diagramme und Bilder stehen auf Stufe 2 und nehmen die volle Spaltenbreite;
+      Stufe 3 bricht zusätzlich über den Dokumentrand hinaus bis an die Spaltenkante. Genau so
+      hält es das Produkt heute: In <code class="t-mono">globals.css</code> steht die Satzbreite
+      auf <code class="t-mono">.page-body p</code> und <code class="t-mono">ul/ol</code> — nicht
+      auf dem Inhaltsbereich. Wer eine Leiste einklappt, gewinnt deshalb keine leeren Ränder,
+      sondern echte Tabellenbreite.
+    </p>
+
+    <div class="stufen-demo" style="margin-bottom:var(--space-5)">
+      <div class="stufen-rand">Inhaltsspalte · Innenabstand <code>--dok-rand</code></div>
+      <div class="stufen-spalte">
+        <span class="stufen-balken stufe-lese">Stufe 1 · Lesespalte · <code>--breite-lese</code> = 68ch — Absatz, Liste, Zitat, Hinweisblock</span>
+        <span class="stufen-balken stufe-breit">Stufe 2 · breit · <code>--breite-breit</code> = 100 % — Tabelle, Codeblock, Abbildung</span>
+        <span class="stufen-balken stufe-voll">Stufe 3 · volle Fläche · <code>--breite-voll</code> = 100 % + 2 × <code>--dok-rand</code> — Diagramm, Betriebstabelle</span>
+      </div>
+    </div>
+
+    <div class="gitter gitter--2">
+      <div>
+        <h4 class="block-titel">Zuordnung<span>verbindlich, wie bei der Abstandsskala</span></h4>
+        <div class="tab-huelle">
+          <table class="daten">
+            <thead><tr><th scope="col">Stufe</th><th scope="col">Klasse</th><th scope="col">Gilt für</th></tr></thead>
+            <tbody>
+              <tr><td class="num">1 · Lesespalte</td><td class="num">.stufe-lese</td><td>Absätze, Listen, Zitate, Hinweisblöcke, Überschriften, Metazeile</td></tr>
+              <tr><td class="num">2 · breit</td><td class="num">.stufe-breit</td><td>Tabellen, Codeblöcke, Abbildungen, Reiter, Karten — <b>Grundzustand</b> jedes Bausteins</td></tr>
+              <tr><td class="num">3 · volle Fläche</td><td class="num">.stufe-voll</td><td>draw.io-Diagramme, Vergleichsansichten, sehr breite Betriebstabellen</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <h4 class="block-titel">Was die Leisten freigeben<span>Blatt 1520 px, Dichte „Normal“</span></h4>
+        <div class="tab-huelle">
+          <table class="daten">
+            <thead><tr><th scope="col">Zustand</th><th scope="col">Stufe 1</th><th scope="col">Stufe 2</th><th scope="col">Stufe 3</th></tr></thead>
+            <tbody>
+              <tr><th scope="row" style="font-weight:var(--weight-medium)">beide Leisten offen</th><td class="num">68ch</td><td class="num">892 px</td><td class="num">956 px</td></tr>
+              <tr><th scope="row" style="font-weight:var(--weight-medium)">Info-Leiste zu <span class="kbd">]</span></th><td class="num">68ch</td><td class="num">1180 px</td><td class="num">1244 px</td></tr>
+              <tr><th scope="row" style="font-weight:var(--weight-medium)">Seitenbaum zu <span class="kbd">[</span></th><td class="num">68ch</td><td class="num">1164 px</td><td class="num">1228 px</td></tr>
+              <tr><th scope="row" style="font-weight:var(--weight-medium)">Vollbreite <span class="kbd">\</span></th><td class="num">68ch</td><td class="num">1452 px</td><td class="num">1516 px</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="regel-text" style="margin-top:var(--space-4)">
+          Stufe 1 bleibt in jedem Zustand bei 68 Zeichen — der Lesetext soll nicht breiter
+          werden, die Prozedur schon. Die gewonnenen 560 px fallen vollständig an Stufe 2 und 3.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3.3 Typoskala -->
+  <div class="sek-koerper">
+    <h3 class="block-titel">3.3 Typoskala und ihre Rollen<span>8 Grade · 1 Familie</span></h3>
+    <p class="regel-text">
+      Eine Groteske für alles, eine Monospace für Technisches. Rollen entstehen nicht durch
+      eine zweite Schriftfamilie, sondern durch Grad, Gewicht und Laufweite. Jeder Grad hat
+      genau eine Aufgabe — wer eine neue Ansicht baut, wählt keine Größe, sondern eine Rolle.
+      Der Fließtext bekommt bewusst 18&#8239;px, Zeilenabstand 1,7 und die Satzbreite der
+      Stufe 1 (<code class="t-mono">--breite-lese</code>): Die Strenge gilt der Konstruktion,
+      nicht dem Lesekomfort.
+    </p>
+
+    <div>
+      <div class="typo-zeile">
+        <span class="kenn"><code>--text-4xl</code><span class="rolle">Display</span><span class="wert">52 px · 700 · −0.02em · 1.1</span></span>
+        <span class="probe t-display">Betriebshandbuch</span>
+      </div>
+      <div class="typo-zeile">
+        <span class="kenn"><code>--text-3xl</code><span class="rolle">Seitentitel</span><span class="wert">38 px · 700 · −0.02em · 1.1</span></span>
+        <span class="probe t-titel">Backup &amp; Restore — SAP HANA</span>
+      </div>
+      <div class="typo-zeile">
+        <span class="kenn"><code>--text-2xl</code><span class="rolle">Abschnitt · h2</span><span class="wert">28 px · 700 · 1.3</span></span>
+        <span class="probe t-abschnitt">2 Sicherungsverfahren</span>
+      </div>
+      <div class="typo-zeile">
+        <span class="kenn"><code>--text-xl</code><span class="rolle">Unterabschnitt · h3</span><span class="wert">22 px · 700 · 1.3</span></span>
+        <span class="probe t-unter">2.1 Backint-Konfiguration</span>
+      </div>
+      <div class="typo-zeile">
+        <span class="kenn"><code>--text-lg</code><span class="rolle">Fließtext</span><span class="wert">18 px · 400 · 1.7 · 68ch</span></span>
+        <span class="probe t-fliess">Die Protokollsicherung läuft alle 15 Minuten in denselben Vault und wird über dieselbe Richtlinie aufbewahrt.</span>
+      </div>
+      <div class="typo-zeile">
+        <span class="kenn"><code>--text-md</code><span class="rolle">Oberfläche</span><span class="wert">16 px · 400 · 1.45</span></span>
+        <span class="probe t-ui">Bedienelemente, Tabellenwerte, Metadaten der Info-Leiste</span>
+      </div>
+      <div class="typo-zeile">
+        <span class="kenn"><code>--text-sm</code><span class="rolle">Sekundär</span><span class="wert">14 px · 400 · 1.45</span></span>
+        <span class="probe t-sek">Bildunterschriften, Hilfetexte, Baumeinträge, Tabellenkopf</span>
+      </div>
+      <div class="typo-zeile">
+        <span class="kenn"><code>--text-xs</code><span class="rolle">Mikro-Etikett</span><span class="wert">12 px · 700 · +0.09em · Versal</span></span>
+        <span class="probe t-label">Status · Rubrik · Schaltflächenbeschriftung</span>
+      </div>
+      <div class="typo-zeile">
+        <span class="kenn"><code>--font-mono</code><span class="rolle">Technisch</span><span class="wert">14 px · Pfade, Code, Zahlen</span></span>
+        <span class="probe t-mono">hdbsql -i 00 -d SYSTEMDB -U BACKUP_KEY</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3.3 Zustandsmodell -->
+  <div class="sek-koerper">
+    <h3 class="block-titel">3.4 Zustandsmodell<span>6 Zustände × jeder Baustein · 2 Leisten-Zustände</span></h3>
+    <p class="regel-text">
+      Sechs Zustände, für jeden Baustein nach derselben Regel gebildet: <b>Hover</b> mischt 6&#8239;%
+      Textfarbe in die Fläche, <b>Aktiv</b> 13&#8239;% und verstärkt die Linie, <b>Fokus</b> setzt
+      immer denselben zweistufigen Tintenring (markenunabhängig, deshalb auch auf fremden
+      Markenfarben sichtbar), <b>Deaktiviert</b> senkt allein die Deckkraft, <b>Fehler</b> tauscht
+      Linie und Fläche gegen die Signalfarbe. Kein Baustein erfindet einen eigenen Zustand.
+    </p>
+
+    <div class="matrix">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Baustein</th>
+            <th scope="col">Ruhe</th>
+            <th scope="col">Hover</th>
+            <th scope="col">Fokus</th>
+            <th scope="col">Aktiv</th>
+            <th scope="col">Deaktiviert</th>
+            <th scope="col">Fehler</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">Primär</th>
+            <td><span class="z btn btn--primaer">Bearbeiten</span></td>
+            <td><span class="z btn btn--primaer is-hover">Bearbeiten</span></td>
+            <td><span class="z btn btn--primaer is-focus">Bearbeiten</span></td>
+            <td><span class="z btn btn--primaer is-active">Bearbeiten</span></td>
+            <td><span class="z btn btn--primaer is-disabled">Bearbeiten</span></td>
+            <td><span class="z btn btn--primaer is-error">Bearbeiten</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Sekundär</th>
+            <td><span class="z btn">Verwerfen</span></td>
+            <td><span class="z btn is-hover">Verwerfen</span></td>
+            <td><span class="z btn is-focus">Verwerfen</span></td>
+            <td><span class="z btn is-active">Verwerfen</span></td>
+            <td><span class="z btn is-disabled">Verwerfen</span></td>
+            <td><span class="z btn is-error">Verwerfen</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Gefährlich</th>
+            <td><span class="z btn btn--gefahr">Löschen</span></td>
+            <td><span class="z btn btn--gefahr is-hover">Löschen</span></td>
+            <td><span class="z btn btn--gefahr is-focus">Löschen</span></td>
+            <td><span class="z btn btn--gefahr is-active">Löschen</span></td>
+            <td><span class="z btn btn--gefahr is-disabled">Löschen</span></td>
+            <td><span class="z btn btn--gefahr is-error">Löschen</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Eingabefeld</th>
+            <td><span class="z eingabe" style="display:block">PRD</span></td>
+            <td><span class="z eingabe is-hover" style="display:block">PRD</span></td>
+            <td><span class="z eingabe is-focus" style="display:block">PRD</span></td>
+            <td><span class="z eingabe is-active" style="display:block">PRD</span></td>
+            <td><span class="z eingabe is-disabled" style="display:block">PRD</span></td>
+            <td><span class="z eingabe is-error" style="display:block">PRD</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Karte</th>
+            <td><span class="z" style="display:block;padding:var(--space-3)">Vorlage</span></td>
+            <td><span class="z is-hover" style="display:block;padding:var(--space-3)">Vorlage</span></td>
+            <td><span class="z is-focus" style="display:block;padding:var(--space-3)">Vorlage</span></td>
+            <td><span class="z is-active" style="display:block;padding:var(--space-3)">Vorlage</span></td>
+            <td><span class="z is-disabled" style="display:block;padding:var(--space-3)">Vorlage</span></td>
+            <td><span class="z is-error" style="display:block;padding:var(--space-3)">Vorlage</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Navigation</th>
+            <td><span class="z btn btn--still">Kerneltausch</span></td>
+            <td><span class="z btn btn--still is-hover">Kerneltausch</span></td>
+            <td><span class="z btn btn--still is-focus">Kerneltausch</span></td>
+            <td><span class="z btn btn--still is-selected">Kerneltausch</span></td>
+            <td><span class="z btn btn--still is-disabled">Kerneltausch</span></td>
+            <td><span class="z btn btn--still is-error">Kerneltausch</span></td>
+          </tr>
+          <tr>
+            <th scope="row">Leisten-Knopf</th>
+            <td><span class="z btn btn--still leisten-knopf" aria-hidden="true"><svg class="ico ico--auf"><use href="#i-leiste-links-auf"/></svg><span class="kbd">[</span></span></td>
+            <td><span class="z btn btn--still leisten-knopf is-hover" aria-hidden="true"><svg class="ico ico--auf"><use href="#i-leiste-links-auf"/></svg><span class="kbd">[</span></span></td>
+            <td><span class="z btn btn--still leisten-knopf is-focus" aria-hidden="true"><svg class="ico ico--auf"><use href="#i-leiste-links-auf"/></svg><span class="kbd">[</span></span></td>
+            <td><span class="z btn btn--still leisten-knopf is-active" aria-hidden="true"><svg class="ico ico--auf"><use href="#i-leiste-links-auf"/></svg><span class="kbd">[</span></span></td>
+            <td><span class="z btn btn--still leisten-knopf is-disabled" aria-hidden="true"><svg class="ico ico--auf"><use href="#i-leiste-links-auf"/></svg><span class="kbd">[</span></span></td>
+            <td><span class="z btn btn--still leisten-knopf is-error" aria-hidden="true"><svg class="ico ico--auf"><use href="#i-leiste-links-auf"/></svg><span class="kbd">[</span></span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4 class="block-titel" style="margin-top:var(--space-6)">
+      Zustände der Leisten<span>offen · zu — am Desktop, einzeln, gemerkt</span>
+    </h4>
+    <p class="regel-text">
+      Die Lesefläche ist selbst ein Baustein mit Zustand. Beide Leisten klappen einzeln —
+      nicht erst unterhalb eines Haltepunkts, sondern jederzeit. Jeder Zustand hat ein
+      sichtbares Bedienelement, ein Tastenkürzel (am Knopf als
+      <code class="t-mono">aria-keyshortcuts</code> geführt), ein
+      <code class="t-mono">aria-expanded</code> und überdauert den Seitenwechsel. Der Vollbreite-Zustand ist die Kombination
+      beider — mit eigenem Knopf, damit er nicht erraten werden muss.
+    </p>
+
+    <div class="matrix">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Leiste</th>
+            <th scope="col">Zustand</th>
+            <th scope="col">Bedienelement</th>
+            <th scope="col">Taste</th>
+            <th scope="col">ARIA</th>
+            <th scope="col">Wirkung auf die Breitenstufen</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row" rowspan="2">Seitenbaum links</th>
+            <td>offen <span class="t-sek">(Standard)</span></td>
+            <td><span class="z btn btn--still leisten-knopf" aria-hidden="true"><svg class="ico ico--auf"><use href="#i-leiste-links-auf"/></svg></span></td>
+            <td><span class="kbd">[</span></td>
+            <td class="t-mono">aria-expanded="true"<br>aria-keyshortcuts="["</td>
+            <td>Spalte belegt <code class="t-mono">--sidebar-w</code> = 272 px</td>
+          </tr>
+          <tr>
+            <td>zu</td>
+            <td><span class="z btn btn--still leisten-knopf" aria-expanded="false" aria-hidden="true"><svg class="ico ico--zu"><use href="#i-leiste-links-zu"/></svg></span></td>
+            <td><span class="kbd">[</span></td>
+            <td class="t-mono">aria-expanded="false"</td>
+            <td>+272 px für Stufe 2 und 3; Stufe 1 unverändert</td>
+          </tr>
+          <tr>
+            <th scope="row" rowspan="2">Info-Leiste rechts</th>
+            <td>offen <span class="t-sek">(Standard)</span></td>
+            <td><span class="z btn btn--still leisten-knopf" aria-hidden="true"><svg class="ico ico--auf"><use href="#i-leiste-rechts-auf"/></svg></span></td>
+            <td><span class="kbd">]</span></td>
+            <td class="t-mono">aria-expanded="true"<br>aria-keyshortcuts="]"</td>
+            <td>Spalte belegt <code class="t-mono">--rail-w</code> = 288 px</td>
+          </tr>
+          <tr>
+            <td>zu</td>
+            <td><span class="z btn btn--still leisten-knopf" aria-expanded="false" aria-hidden="true"><svg class="ico ico--zu"><use href="#i-leiste-rechts-zu"/></svg></span></td>
+            <td><span class="kbd">]</span></td>
+            <td class="t-mono">aria-expanded="false"</td>
+            <td>+288 px für Stufe 2 und 3; Inhaltsverzeichnis wandert in die Palette</td>
+          </tr>
+          <tr>
+            <th scope="row">beide</th>
+            <td>Vollbreite</td>
+            <td><span class="z btn btn--still leisten-knopf" aria-pressed="true" aria-hidden="true"><svg class="ico"><use href="#i-vollbreite"/></svg></span></td>
+            <td><span class="kbd">\</span></td>
+            <td class="t-mono">aria-pressed="true"<br>aria-keyshortcuts="\"</td>
+            <td>+560 px; Tabelle 1452 px, Diagramm 1516 px</td>
+          </tr>
+          <tr>
+            <th scope="row">unter 900 px</th>
+            <td>erzwungen zu</td>
+            <td>entfällt</td>
+            <td>—</td>
+            <td>—</td>
+            <td>einspaltig; Stufe 2 und 3 = Bildschirmbreite</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 3.4 Bedienelemente -->
+  <div class="sek-koerper">
+    <h3 class="block-titel">3.5 Bedienelemente<span>Zielgröße 44 px = 11 × unit</span></h3>
+    <div class="gitter gitter--2">
+      <div class="abstand">
+        <div>
+          <h4 class="block-titel">Schaltflächen</h4>
+          <div class="btn-reihe">
+            <button type="button" class="z btn btn--primaer"><svg class="ico" aria-hidden="true"><use href="#i-stift"/></svg>Bearbeiten</button>
+            <button type="button" class="z btn">Zur Prüfung geben</button>
+            <button type="button" class="z btn btn--gefahr">Seite löschen</button>
+            <button type="button" class="z btn btn--still">Abbrechen</button>
+            <button type="button" class="z btn" disabled>Freigeben</button>
+          </div>
+        </div>
+
+        <div>
+          <h4 class="block-titel">Eingabe</h4>
+          <div class="abstand">
+            <div class="feld">
+              <label for="f-titel">Seitentitel</label>
+              <input class="z eingabe" id="f-titel" type="text" value="Backup &amp; Restore — SAP HANA 2.0 auf Azure">
+              <span class="hilfe">Wird als h1 und im Seitenbaum verwendet.</span>
+            </div>
+            <div class="feld">
+              <label for="f-id">Seiten-Id</label>
+              <input class="z eingabe is-error" id="f-id" type="text" value="backup restore" aria-invalid="true" aria-describedby="f-id-fehler">
+              <span class="fehler" id="f-id-fehler">
+                <svg class="ico" aria-hidden="true" style="width:var(--space-4);height:var(--space-4)"><use href="#i-fehler"/></svg>
+                Leerzeichen sind nicht erlaubt — erwartet wird <code>backup-restore</code>.
+              </span>
+            </div>
+            <div class="feld">
+              <label for="f-notiz">Änderungsnotiz</label>
+              <textarea class="z eingabe" id="f-notiz">Aufbewahrung der Protokollsicherung von 7 auf 14 Tage erhöht (CHG-2026-0418).</textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="abstand">
+        <div>
+          <h4 class="block-titel">Auswahl</h4>
+          <div class="abstand">
+            <div class="feld">
+              <label for="f-space">Space</label>
+              <span class="select-huelle">
+                <select class="z eingabe" id="f-space">
+                  <option>handbuch</option>
+                  <option>betrieb-azure</option>
+                  <option>hana-how-to</option>
+                </select>
+                <svg class="ico" aria-hidden="true"><use href="#i-chevron"/></svg>
+              </span>
+            </div>
+            <div>
+              <label class="wahl">
+                <input type="checkbox" checked>
+                <span class="kasten"><svg class="ico" aria-hidden="true"><use href="#i-haken"/></svg></span>
+                Protokollsicherung einschließen
+              </label>
+              <label class="wahl">
+                <input type="checkbox">
+                <span class="kasten"><svg class="ico" aria-hidden="true"><use href="#i-haken"/></svg></span>
+                Katalog separat sichern
+              </label>
+              <label class="wahl">
+                <input type="checkbox" disabled>
+                <span class="kasten"><svg class="ico" aria-hidden="true"><use href="#i-haken"/></svg></span>
+                Georedundanz (nur Produktivsysteme)
+              </label>
+            </div>
+            <div>
+              <label class="wahl">
+                <input type="radio" name="klasse" checked>
+                <span class="kasten rund"><svg class="ico" aria-hidden="true"><use href="#i-haken"/></svg></span>
+                Vollsicherung
+              </label>
+              <label class="wahl">
+                <input type="radio" name="klasse">
+                <span class="kasten rund"><svg class="ico" aria-hidden="true"><use href="#i-haken"/></svg></span>
+                Deltasicherung
+              </label>
+            </div>
+            <label class="schalter">
+              <input type="checkbox" checked>
+              <span class="bahn" aria-hidden="true"></span>
+              <span>Versionierung für diesen Space aktiv</span>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <h4 class="block-titel">Status &amp; Schlagworte<span>Form + Wort, nie Farbe allein</span></h4>
+          <div class="chips" style="margin-bottom:var(--space-3)">
+            <span class="chip chip--entwurf"><span class="marke" aria-hidden="true"></span>Entwurf</span>
+            <span class="chip chip--review"><span class="marke" aria-hidden="true"></span>In Review</span>
+            <span class="chip chip--released"><span class="marke" aria-hidden="true"></span>Freigegeben</span>
+            <span class="chip chip--archiviert"><span class="marke" aria-hidden="true"></span>Archiviert</span>
+          </div>
+          <div class="chips">
+            <a class="tag" href="#bausteine">#hana</a>
+            <a class="tag" href="#bausteine">#azure</a>
+            <a class="tag" href="#bausteine">#backup</a>
+            <a class="tag" href="#bausteine">#kerneltausch</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3.5 Flächen -->
+  <div class="sek-koerper">
+    <h3 class="block-titel">3.6 Flächen, Reiter, Dialog</h3>
+    <div class="gitter gitter--2">
+      <div class="abstand">
+        <h4 class="block-titel">Karten</h4>
+        <div class="karte">
+          <div class="kopf"><span>Vorlage</span><span class="chip chip--released"><span class="marke" aria-hidden="true"></span>Freigegeben</span></div>
+          <div class="koerper">
+            <p class="t-ui" style="margin:0;font-weight:var(--weight-bold)">HOW-TO — Azure-Betriebsverfahren</p>
+            <p class="t-sek" style="margin:0">Gliederung mit Geltungsbereich, Voraussetzungen, Durchführung, Rückfallweg und Prüfprotokoll. 14-mal verwendet.</p>
+          </div>
+          <div class="fuss">
+            <button type="button" class="z btn btn--still">Vorschau</button>
+            <button type="button" class="z btn btn--primaer">Seite anlegen</button>
+          </div>
+        </div>
+
+        <a class="karte karte--klickbar" href="#navigation">
+          <div class="koerper">
+            <p class="t-ui" style="margin:0;font-weight:var(--weight-bold)">Systemkopie PRD → QAS</p>
+            <p class="t-sek" style="margin:0">handbuch / sap hana · aktualisiert 12.07.2026</p>
+          </div>
+        </a>
+
+        <h4 class="block-titel" style="margin-top:var(--space-3)">Ladezustand</h4>
+        <div class="karte">
+          <div class="koerper" aria-busy="true" aria-label="Seite wird geladen">
+            <span class="skelett" style="width:40%"></span>
+            <span class="skelett" style="width:90%"></span>
+            <span class="skelett" style="width:75%"></span>
+            <span class="skelett" style="width:60%"></span>
+          </div>
+        </div>
+
+        <h4 class="block-titel" style="margin-top:var(--space-3)">Leerzustand</h4>
+        <div class="leerzustand">
+          <svg class="ico" aria-hidden="true"><use href="#i-leer"/></svg>
+          <p class="t-ui" style="margin:0;font-weight:var(--weight-bold)">Noch keine Vorlage in diesem Space</p>
+          <p class="t-sek" style="margin:0;max-width:var(--measure)">Vorlagen legen Gliederung und Pflichtfelder für neue Seiten fest — sie ersparen jedem Autor die Frage, wie ein Betriebsverfahren aufgebaut sein muss.</p>
+          <button type="button" class="z btn btn--primaer">Erste Vorlage anlegen</button>
+        </div>
+      </div>
+
+      <div class="abstand">
+        <h4 class="block-titel">Reiter<span>funktioniert ohne JavaScript</span></h4>
+        <div class="tabs">
+          <input type="radio" name="reiter" id="tab-a" checked>
+          <input type="radio" name="reiter" id="tab-b">
+          <input type="radio" name="reiter" id="tab-c">
+          <div class="tab-leiste" role="tablist">
+            <label for="tab-a">Inhalt</label>
+            <label for="tab-b">Metadaten</label>
+            <label for="tab-c">Verlauf</label>
+          </div>
+          <div class="tab-inhalt" id="panel-a">
+            <p class="t-fliess" style="margin:0">Markdown-Quelltext mit Live-Vorschau und eingebetteten draw.io-Diagrammen. Änderungen werden als Zweig gespeichert und über einen Review-Vorgang freigegeben.</p>
+          </div>
+          <div class="tab-inhalt" id="panel-b">
+            <dl class="meta"><dt>Systemklasse</dt><dd>Produktiv</dd><dt>Prüfintervall</dt><dd>6 Monate</dd><dt>Verantwortlich</dt><dd>Team SAP Basis</dd></dl>
+          </div>
+          <div class="tab-inhalt" id="panel-c">
+            <ul class="rel-liste">
+              <li><a href="#bausteine">1.2.0 — Aufbewahrung Protokollsicherung 14 Tage · 25.07.2026</a></li>
+              <li><a href="#bausteine">1.1.0 — Abschnitt Wiederherstellung ergänzt · 02.06.2026</a></li>
+              <li><a href="#bausteine">1.0.0 — Erstfreigabe · 11.03.2026</a></li>
+            </ul>
+          </div>
+        </div>
+
+        <h4 class="block-titel" style="margin-top:var(--space-3)">Hinweisblöcke<span>Symbol + Wort + Farbe</span></h4>
+        <div class="abstand">
+          <div class="hinweis">
+            <svg class="ico" aria-hidden="true"><use href="#i-info"/></svg>
+            <div><p class="h-titel">Information</p><p class="h-text">Diese Seite gehört zum Prüfzyklus des Betriebshandbuchs.</p></div>
+          </div>
+          <div class="hinweis hinweis--warnung">
+            <svg class="ico" aria-hidden="true"><use href="#i-warnung"/></svg>
+            <div><p class="h-titel">Warnung</p><p class="h-text">Die Protokollkette weist zwischen 03:15 und 03:45 Uhr eine Lücke auf.</p></div>
+          </div>
+          <div class="hinweis hinweis--fehler">
+            <svg class="ico" aria-hidden="true"><use href="#i-fehler"/></svg>
+            <div><p class="h-titel">Fehler</p><p class="h-text">Das Frontmatter dieser Seite ist kein gültiges YAML — Zeile 7, unerwarteter Doppelpunkt.</p></div>
+          </div>
+          <div class="hinweis hinweis--erfolg">
+            <svg class="ico" aria-hidden="true"><use href="#i-erfolg"/></svg>
+            <div><p class="h-titel">Erfolg</p><p class="h-text">Wiederherstellungstest vom 14.07.2026 erfolgreich, RTO 3 h 12 min.</p></div>
+          </div>
+        </div>
+
+        <h4 class="block-titel" style="margin-top:var(--space-3)">Dialog</h4>
+        <div class="dialog-flaeche">
+          <div class="kopf">
+            <span class="t-unter">Seite archivieren?</span>
+            <span class="chip chip--archiviert"><span class="marke" aria-hidden="true"></span>Archiviert</span>
+          </div>
+          <div class="koerper">
+            <p class="t-ui" style="margin:0">
+              <b>MaxDB-Sicherung (Altverfahren)</b> wird archiviert. Die Seite bleibt über den Verlauf
+              erreichbar, verschwindet aber aus Seitenbaum und Suche. Drei Seiten verweisen auf sie.
+            </p>
+            <div class="hinweis hinweis--warnung">
+              <svg class="ico" aria-hidden="true"><use href="#i-warnung"/></svg>
+              <div><p class="h-text">Die Verweise werden dadurch zu defekten Links und erscheinen im Bericht.</p></div>
+            </div>
+          </div>
+          <div class="fuss">
+            <button type="button" class="z btn btn--still">Abbrechen</button>
+            <button type="button" class="z btn btn--gefahr">Archivieren</button>
+          </div>
+        </div>
+        <div class="btn-reihe" style="margin-top:var(--space-3)">
+          <button type="button" class="z btn" onclick="document.getElementById('dlg').showModal()">Dialog als Overlay zeigen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<dialog id="dlg" aria-labelledby="dlg-titel">
+  <div class="dialog-flaeche">
+    <div class="kopf">
+      <span class="t-unter" id="dlg-titel">Zur Prüfung geben</span>
+      <span class="chip chip--review"><span class="marke" aria-hidden="true"></span>In Review</span>
+    </div>
+    <div class="koerper">
+      <p class="t-ui" style="margin:0">Aus deinen Änderungen wird ein Review-Vorgang im Repository <code>handbuch</code> erzeugt.</p>
+      <div class="feld">
+        <label for="dlg-notiz">Beschreibung für die Prüfer</label>
+        <textarea class="z eingabe" id="dlg-notiz">Aufbewahrung der Protokollsicherung auf 14 Tage erhöht, Abbildung 1 aktualisiert.</textarea>
+      </div>
+      <div class="feld">
+        <label for="dlg-pruefer">Prüfer</label>
+        <span class="select-huelle">
+          <select class="z eingabe" id="dlg-pruefer">
+            <option>Team SAP Basis</option>
+            <option>Team Cloud-Betrieb</option>
+          </select>
+          <svg class="ico" aria-hidden="true"><use href="#i-chevron"/></svg>
+        </span>
+      </div>
+    </div>
+    <div class="fuss">
+      <button type="button" class="z btn btn--still" onclick="document.getElementById('dlg').close()">Abbrechen</button>
+      <button type="button" class="z btn btn--primaer" onclick="document.getElementById('dlg').close()">Review anlegen</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- ====================================================================
+     04 · NAVIGATION & SUCHE
+     ==================================================================== -->
+<section id="navigation" aria-labelledby="h-nav">
+  <div class="sek-kopf">
+    <span class="nr">04</span>
+    <h2 class="titel" id="h-nav">Navigation &amp; Suche</h2>
+    <span class="pfad">Ein Einstieg für alles</span>
+  </div>
+
+  <div class="sek-koerper">
+    <p class="regel-text">
+      Funktionen werden nicht gefunden, weil sie nirgends aufgezählt sind. Deshalb gilt hier
+      dieselbe Systematik wie beim Raster: <b>drei</b> Wege, mehr nicht. Erstens die
+      Befehlspalette (Strg&#8239;K) — ein Feld für Seiten, Spaces, Werkzeuge und Aktionen.
+      Zweitens die Werkzeugleiste jedes Space, die alle Ansichten <em>benennt und erklärt</em>,
+      statt sie in ein Menü zu verstecken. Drittens die Seitenleiste, in der die Werkzeuge
+      als eigene Rubrik unter dem Seitenbaum stehen — dauerhaft sichtbar.
+    </p>
+
+    <div class="gitter gitter--2">
+      <div>
+        <h4 class="block-titel">Befehlspalette<span>Strg K · ⌘ K</span></h4>
+        <div class="palette">
+          <div class="eingabe-zeile">
+            <svg class="ico" aria-hidden="true"><use href="#i-suche"/></svg>
+            <input type="text" value="backup" aria-label="Suchen und springen">
+            <span class="kbd">Esc</span>
+          </div>
+          <div class="gruppe">
+            <div class="titel">Seiten</div>
+            <a class="treffer is-hover" href="#leseansicht">
+              <svg class="ico" aria-hidden="true"><use href="#i-seite"/></svg>
+              <span class="txt"><b><mark>Backup</mark> &amp; Restore — SAP HANA 2.0 auf Azure</b><span>handbuch / azure betrieb</span></span>
+              <span class="chip chip--released"><span class="marke" aria-hidden="true"></span>Frei</span>
+            </a>
+            <a class="treffer" href="#leseansicht">
+              <svg class="ico" aria-hidden="true"><use href="#i-seite"/></svg>
+              <span class="txt"><b>MaxDB-Sicherung (Altverfahren)</b><span>handbuch / maxdb</span></span>
+              <span class="chip chip--archiviert"><span class="marke" aria-hidden="true"></span>Arch</span>
+            </a>
+            <a class="treffer" href="#leseansicht">
+              <svg class="ico" aria-hidden="true"><use href="#i-seite"/></svg>
+              <span class="txt"><b><mark>Backup</mark>-Richtlinien im Recovery Services Vault</b><span>betrieb-azure / vault</span></span>
+              <span class="chip chip--review"><span class="marke" aria-hidden="true"></span>Review</span>
+            </a>
+          </div>
+          <div class="gruppe">
+            <div class="titel">Werkzeuge</div>
+            <a class="treffer" href="#navigation">
+              <svg class="ico" aria-hidden="true"><use href="#i-bericht"/></svg>
+              <span class="txt"><b>Bericht — defekte Verweise und Fehler</b><span>/wiki/handbuch/report</span></span>
+              <span class="kbd">2 offen</span>
+            </a>
+            <a class="treffer" href="#navigation">
+              <svg class="ico" aria-hidden="true"><use href="#i-vorlage"/></svg>
+              <span class="txt"><b>Vorlagen verwalten</b><span>/wiki/handbuch/templates</span></span>
+            </a>
+          </div>
+          <div class="gruppe">
+            <div class="titel">Aktionen</div>
+            <a class="treffer" href="#navigation">
+              <svg class="ico" aria-hidden="true"><use href="#i-stift"/></svg>
+              <span class="txt"><b>Neue Seite aus Vorlage „HOW-TO“ anlegen</b><span>im Space handbuch</span></span>
+              <span class="kbd">Eingabe</span>
+            </a>
+          </div>
+        </div>
+        <div class="btn-reihe" style="margin-top:var(--space-3)">
+          <button type="button" class="z btn" onclick="oeffnePalette()">Palette als Overlay öffnen</button>
+        </div>
+      </div>
+
+      <div>
+        <h4 class="block-titel">Space wechseln<span>gleiche Trefferzeile, gleiche Zustände</span></h4>
+        <div class="karte">
+          <div class="kopf"><span>Deine Spaces</span><span>4</span></div>
+          <div style="display:grid">
+            <a class="treffer is-selected" href="#leseansicht" style="border-left-color:var(--color-accent);background:var(--state-selected)">
+              <svg class="ico" aria-hidden="true"><use href="#i-buch"/></svg>
+              <span class="txt"><b>handbuch</b><span>forgejo · rotecodefraktion/handbuch</span></span>
+              <span class="kbd">48 Seiten</span>
+            </a>
+            <a class="treffer" href="#leseansicht">
+              <svg class="ico" aria-hidden="true"><use href="#i-buch"/></svg>
+              <span class="txt"><b>betrieb-azure</b><span>forgejo · rotecodefraktion/betrieb-azure</span></span>
+              <span class="kbd">31 Seiten</span>
+            </a>
+            <a class="treffer" href="#leseansicht">
+              <svg class="ico" aria-hidden="true"><use href="#i-buch"/></svg>
+              <span class="txt"><b>hana-how-to</b><span>github · beispiel/hana-how-to</span></span>
+              <span class="kbd">62 Seiten</span>
+            </a>
+            <a class="treffer" href="#leseansicht">
+              <svg class="ico" aria-hidden="true"><use href="#i-buch"/></svg>
+              <span class="txt"><b>onboarding</b><span>forgejo · rotecodefraktion/onboarding</span></span>
+              <span class="kbd">9 Seiten</span>
+            </a>
+          </div>
+          <div class="fuss">
+            <a class="z btn btn--still" href="#navigation">Konten verbinden</a>
+          </div>
+        </div>
+
+        <h4 class="block-titel" style="margin-top:var(--space-5)">Bearbeitungsweg<span>Entwurf → Review → Freigabe</span></h4>
+        <div class="karte">
+          <div class="koerper">
+            <svg viewBox="0 0 544 76" class="dg" role="img" aria-label="Ablauf: Entwurf, Review-Vorgang, Freigabe, Freigegeben">
+              <rect class="dg-flaeche" x="1" y="20" width="112" height="36"/><rect x="1" y="20" width="112" height="36" class="dg-linie"/>
+              <text class="dg-text" x="20" y="43">Entwurf</text>
+              <path class="dg-linie-akz" d="M113 38h36"/><path class="dg-fuell-akz" d="M151 38l-8-4v8z"/>
+              <rect class="dg-flaeche" x="152" y="20" width="122" height="36"/><rect x="152" y="20" width="122" height="36" class="dg-linie"/>
+              <text class="dg-text" x="170" y="43">Review-Vorgang</text>
+              <path class="dg-linie-akz" d="M274 38h36"/><path class="dg-fuell-akz" d="M312 38l-8-4v8z"/>
+              <rect class="dg-flaeche" x="313" y="20" width="92" height="36"/><rect x="313" y="20" width="92" height="36" class="dg-linie"/>
+              <text class="dg-text" x="331" y="43">Freigabe</text>
+              <path class="dg-linie-akz" d="M405 38h36"/><path class="dg-fuell-akz" d="M443 38l-8-4v8z"/>
+              <rect class="dg-fuell-akz" x="444" y="20" width="99" height="36"/>
+              <text class="dg-text-akz" x="459" y="43">Freigegeben</text>
+              <text class="dg-text-klein" x="170" y="70">Rechte kommen vom Git-Anbieter</text>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sek-koerper">
+    <h4 class="block-titel">Werkzeuge des Space<span>alle Ansichten benannt und erklärt</span></h4>
+    <div class="werkzeuge">
+      <a class="werkzeug" href="#navigation">
+        <svg class="ico" aria-hidden="true"><use href="#i-vorlage"/></svg>
+        <div>
+          <p class="name">Vorlagen</p>
+          <p class="was">Gliederung und Pflichtfelder für neue Seiten festlegen — damit jedes Betriebsverfahren gleich aufgebaut ist.</p>
+          <span class="pfad">/wiki/handbuch/templates · 6 Vorlagen</span>
+        </div>
+      </a>
+      <a class="werkzeug" href="#navigation">
+        <svg class="ico" aria-hidden="true"><use href="#i-schema"/></svg>
+        <div>
+          <p class="name">Schema</p>
+          <p class="was">Welche Metadaten dieser Space kennt: Systemklasse, Prüfintervall, Verantwortliche, Relationstypen.</p>
+          <span class="pfad">/wiki/handbuch/schema · 9 Felder</span>
+        </div>
+      </a>
+      <a class="werkzeug" href="#navigation">
+        <svg class="ico" aria-hidden="true"><use href="#i-bericht"/></svg>
+        <div>
+          <p class="name">Bericht</p>
+          <p class="was">Defekte Verweise, fehlerhaftes Frontmatter, verwaiste Seiten und überfällige Prüftermine.</p>
+          <span class="pfad">/wiki/handbuch/report · 2 offene Punkte</span>
+        </div>
+      </a>
+      <a class="werkzeug" href="#navigation">
+        <svg class="ico" aria-hidden="true"><use href="#i-graph"/></svg>
+        <div>
+          <p class="name">Wissensgraph</p>
+          <p class="was">Seiten und ihre Beziehungen als Netz — zeigt Häufungen und alleinstehende Seiten auf einen Blick.</p>
+          <span class="pfad">/wiki/handbuch/graph</span>
+        </div>
+      </a>
+      <a class="werkzeug" href="#navigation">
+        <svg class="ico" aria-hidden="true"><use href="#i-zweig"/></svg>
+        <div>
+          <p class="name">Offene Reviews</p>
+          <p class="was">Änderungen, die auf Prüfung warten — mit Vergleichsansicht, Kommentaren und Freigabe.</p>
+          <span class="pfad">/wiki/handbuch/backup-restore/review · 3 offen</span>
+        </div>
+      </a>
+      <a class="werkzeug" href="#navigation">
+        <svg class="ico" aria-hidden="true"><use href="#i-pfeil"/></svg>
+        <div>
+          <p class="name">Verbindungen</p>
+          <p class="was">Git-Konten verbinden, API-Token für Werkzeuge und Agenten verwalten.</p>
+          <span class="pfad">/einstellungen/verbindungen</span>
+        </div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<dialog id="palette-dlg" aria-label="Suchen und springen">
+  <div class="palette">
+    <div class="eingabe-zeile">
+      <svg class="ico" aria-hidden="true"><use href="#i-suche"/></svg>
+      <input type="text" id="palette-feld" placeholder="Seite, Space, Werkzeug oder Aktion …">
+      <span class="kbd">Esc</span>
+    </div>
+    <div class="gruppe">
+      <div class="titel">Zuletzt geöffnet</div>
+      <a class="treffer" href="#leseansicht" onclick="document.getElementById('palette-dlg').close()">
+        <svg class="ico" aria-hidden="true"><use href="#i-seite"/></svg>
+        <span class="txt"><b>Backup &amp; Restore — SAP HANA 2.0 auf Azure</b><span>handbuch / azure betrieb</span></span>
+      </a>
+      <a class="treffer" href="#leseansicht" onclick="document.getElementById('palette-dlg').close()">
+        <svg class="ico" aria-hidden="true"><use href="#i-seite"/></svg>
+        <span class="txt"><b>Kerneltausch HANA 2.0</b><span>handbuch / sap hana</span></span>
+      </a>
+    </div>
+    <div class="gruppe">
+      <div class="titel">Werkzeuge</div>
+      <a class="treffer" href="#navigation" onclick="document.getElementById('palette-dlg').close()">
+        <svg class="ico" aria-hidden="true"><use href="#i-vorlage"/></svg>
+        <span class="txt"><b>Vorlagen verwalten</b><span>/wiki/handbuch/templates</span></span>
+      </a>
+      <a class="treffer" href="#navigation" onclick="document.getElementById('palette-dlg').close()">
+        <svg class="ico" aria-hidden="true"><use href="#i-graph"/></svg>
+        <span class="txt"><b>Wissensgraph öffnen</b><span>/wiki/handbuch/graph</span></span>
+      </a>
+    </div>
+  </div>
+</dialog>
+
+<!-- ====================================================================
+     05 · TOKEN-TABELLE
+     ==================================================================== -->
+<section id="tokens" aria-labelledby="h-tok">
+  <div class="sek-kopf">
+    <span class="nr">05</span>
+    <h2 class="titel" id="h-tok">Token-Tabelle</h2>
+    <span class="pfad">Übergabe an die Themefähigkeit</span>
+  </div>
+  <div class="sek-koerper">
+    <p class="regel-text">
+      Kein Baustein dieser Seite enthält einen festen Farb-, Abstands- oder Größenwert — jeder
+      liest ausschließlich Token. Deshalb kann ein Mandant sein Erscheinungsbild allein über
+      diese Tabelle setzen: Der Markenumschalter oben tauscht drei Werte
+      (<code class="t-mono">--color-accent</code>, <code class="t-mono">--color-accent-strong</code>,
+      <code class="t-mono">--color-accent-contrast</code>), der Dichteumschalter genau einen
+      (<code class="t-mono">--unit</code>) — das System bleibt in beiden Fällen intakt, weil
+      Fokusring, Linien und Zustände aus Text- und Flächenfarbe abgeleitet sind, nicht aus der
+      Marke. <span class="neu">neu</span> kennzeichnet Token, die dieser Entwurf gegenüber dem
+      Briefing ergänzt.
+    </p>
+
+    <div class="token-tab">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Token</th>
+            <th scope="col">Rolle</th>
+            <th scope="col">Hell</th>
+            <th scope="col">Dunkel</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="gruppen-zeile"><th colspan="4" scope="colgroup">Fläche &amp; Text</th></tr>
+          <tr><td><code>--color-bg</code></td><td>Inhaltsfläche, Karten, Dialoge</td><td><span class="fleck" style="background:#ffffff"></span><span class="wert">#ffffff</span></td><td><span class="fleck" style="background:#0c0c0e"></span><span class="wert">#0c0c0e</span></td></tr>
+          <tr><td><code>--color-bg-raised</code></td><td>abgesetzte Fläche: Leisten, Tabellenkopf, Code</td><td><span class="fleck" style="background:#f6f6f3"></span><span class="wert">#f6f6f3</span></td><td><span class="fleck" style="background:#16161a"></span><span class="wert">#16161a</span></td></tr>
+          <tr><td><code>--color-bg-sunken</code> <span class="neu">neu</span></td><td>Fläche hinter dem Blatt, Rubrikzeilen</td><td><span class="fleck" style="background:#eaeae5"></span><span class="wert">#eaeae5</span></td><td><span class="fleck" style="background:#050506"></span><span class="wert">#050506</span></td></tr>
+          <tr><td><code>--color-text</code></td><td>Fließtext, Überschriften, Fokusring (hell)</td><td><span class="fleck" style="background:#17171a"></span><span class="wert">#17171a · 17.9:1</span></td><td><span class="fleck" style="background:#f2f2f4"></span><span class="wert">#f2f2f4 · 17.5:1</span></td></tr>
+          <tr><td><code>--color-text-muted</code></td><td>Sekundärtext, Etiketten, Pfadangaben</td><td><span class="fleck" style="background:#55555c"></span><span class="wert">#55555c · 7.4:1</span></td><td><span class="fleck" style="background:#a5a5ad"></span><span class="wert">#a5a5ad · 8.0:1</span></td></tr>
+          <tr><td><code>--color-border</code></td><td>Haarlinie zwischen Flächen</td><td><span class="fleck" style="background:#d9d9d3"></span><span class="wert">#d9d9d3</span></td><td><span class="fleck" style="background:#2b2b31"></span><span class="wert">#2b2b31</span></td></tr>
+          <tr><td><code>--color-border-strong</code> <span class="neu">neu</span></td><td>Kontur von Bedienelementen (3:1)</td><td><span class="fleck" style="background:#8e8e87"></span><span class="wert">#8e8e87</span></td><td><span class="fleck" style="background:#6a6a74"></span><span class="wert">#6a6a74</span></td></tr>
+
+          <tr class="gruppen-zeile"><th colspan="4" scope="colgroup">Marke</th></tr>
+          <tr><td><code>--color-accent</code></td><td>Markenfläche: primäre Aktion, aktive Kante</td><td><span class="fleck" style="background:#dd2b0f"></span><span class="wert">#dd2b0f</span></td><td><span class="fleck" style="background:#ff6a4d"></span><span class="wert">#ff6a4d</span></td></tr>
+          <tr><td><code>--color-accent-strong</code> <span class="neu">neu</span></td><td>Marke in Textstärke: Links, Ziffern (≥ 4.5:1)</td><td><span class="fleck" style="background:#bf2810"></span><span class="wert">#bf2810 · 6.0:1</span></td><td><span class="fleck" style="background:#ff8f78"></span><span class="wert">#ff8f78 · 8.8:1</span></td></tr>
+          <tr><td><code>--color-accent-contrast</code></td><td>Schrift auf Markenfläche</td><td><span class="fleck" style="background:#ffffff"></span><span class="wert">#ffffff</span></td><td><span class="fleck" style="background:#17171a"></span><span class="wert">#17171a</span></td></tr>
+
+          <tr class="gruppen-zeile"><th colspan="4" scope="colgroup">Signal</th></tr>
+          <tr><td><code>--color-danger</code></td><td>Gefahr, Fehler, Löschen</td><td><span class="fleck" style="background:#cf2020"></span><span class="wert">#cf2020 · 5.4:1</span></td><td><span class="fleck" style="background:#f87171"></span><span class="wert">#f87171</span></td></tr>
+          <tr><td><code>--color-warning</code> <span class="neu">neu</span></td><td>Warnung, defekte Verweise</td><td><span class="fleck" style="background:#9c4a06"></span><span class="wert">#9c4a06 · 6.2:1</span></td><td><span class="fleck" style="background:#fbbf24"></span><span class="wert">#fbbf24</span></td></tr>
+          <tr><td><code>--color-success</code> <span class="neu">neu</span></td><td>Erfolg, bestandener Test</td><td><span class="fleck" style="background:#13703a"></span><span class="wert">#13703a · 6.2:1</span></td><td><span class="fleck" style="background:#4ade80"></span><span class="wert">#4ade80</span></td></tr>
+          <tr><td><code>--color-info</code> <span class="neu">neu</span></td><td>Hinweis, Verweis</td><td><span class="fleck" style="background:#1d4ed8"></span><span class="wert">#1d4ed8 · 6.7:1</span></td><td><span class="fleck" style="background:#93b0ff"></span><span class="wert">#93b0ff</span></td></tr>
+
+          <tr class="gruppen-zeile"><th colspan="4" scope="colgroup">Workflow-Status</th></tr>
+          <tr><td><code>--color-status-working</code></td><td>Entwurf</td><td><span class="fleck" style="background:#4f46e5"></span><span class="wert">#4f46e5</span></td><td><span class="fleck" style="background:#a5b4fc"></span><span class="wert">#a5b4fc</span></td></tr>
+          <tr><td><code>--color-status-review</code></td><td>In Review</td><td><span class="fleck" style="background:#9c4a06"></span><span class="wert">#9c4a06</span></td><td><span class="fleck" style="background:#fbbf24"></span><span class="wert">#fbbf24</span></td></tr>
+          <tr><td><code>--color-status-released</code></td><td>Freigegeben</td><td><span class="fleck" style="background:#13703a"></span><span class="wert">#13703a</span></td><td><span class="fleck" style="background:#4ade80"></span><span class="wert">#4ade80</span></td></tr>
+          <tr><td><code>--color-status-archived</code></td><td>Archiviert</td><td><span class="fleck" style="background:#55555c"></span><span class="wert">#55555c</span></td><td><span class="fleck" style="background:#a5a5ad"></span><span class="wert">#a5a5ad</span></td></tr>
+
+          <tr class="gruppen-zeile"><th colspan="4" scope="colgroup">Zustandsmodell — für jeden Baustein identisch</th></tr>
+          <tr><td><code>--color-focus</code> <span class="neu">neu</span></td><td>Fokusring, markenunabhängig</td><td><span class="fleck" style="background:#17171a"></span><span class="wert">#17171a</span></td><td><span class="fleck" style="background:#fafafa"></span><span class="wert">#fafafa</span></td></tr>
+          <tr><td><code>--focus-width</code> <span class="neu">neu</span></td><td>Stärke des Fokusrings</td><td class="wert">0.125rem</td><td class="wert">0.125rem</td></tr>
+          <tr><td><code>--focus-offset</code> <span class="neu">neu</span></td><td>Abstand des Rings zum Element</td><td class="wert">0.125rem</td><td class="wert">0.125rem</td></tr>
+          <tr><td><code>--state-hover</code> <span class="neu">neu</span></td><td>Fläche bei Hover</td><td class="wert">mix(text 6 % → bg)</td><td class="wert">mix(text 10 % → bg)</td></tr>
+          <tr><td><code>--state-active</code> <span class="neu">neu</span></td><td>Fläche beim Drücken</td><td class="wert">mix(text 13 % → bg)</td><td class="wert">mix(text 18 % → bg)</td></tr>
+          <tr><td><code>--state-selected</code> <span class="neu">neu</span></td><td>Fläche bei Auswahl / aktiver Seite</td><td class="wert">mix(accent 12 % → bg)</td><td class="wert">mix(accent 20 % → bg)</td></tr>
+          <tr><td><code>--state-disabled-opacity</code> <span class="neu">neu</span></td><td>Deckkraft im Zustand „deaktiviert“</td><td class="wert">0.42</td><td class="wert">0.38</td></tr>
+          <tr><td><code>--mix-wash</code> <span class="neu">neu</span></td><td>Anteil der Signalfarbe in Blockflächen</td><td class="wert">10 %</td><td class="wert">10 %</td></tr>
+          <tr><td><code>--mix-line</code> <span class="neu">neu</span></td><td>Anteil der Signalfarbe in Blocklinien</td><td class="wert">45 %</td><td class="wert">45 %</td></tr>
+
+          <tr class="gruppen-zeile"><th colspan="4" scope="colgroup">Raster, Maß, Kante</th></tr>
+          <tr><td><code>--unit</code> <span class="neu">neu</span></td><td>Basiseinheit — erzeugt die gesamte Skala; Dichteregler</td><td class="wert">0.25rem · 4 px</td><td class="wert">0.25rem · 4 px</td></tr>
+          <tr><td><code>--space-1</code> … <code>--space-8</code></td><td>Abstandsskala, Vielfache der Einheit</td><td class="wert">4 · 8 · 12 · 16 · 24 · 32 · 48 · 64 px</td><td class="wert">identisch</td></tr>
+          <tr><td><code>--space-9</code> <span class="neu">neu</span></td><td>Fußraum am Dokumentende</td><td class="wert">24 × unit · 96 px</td><td class="wert">identisch</td></tr>
+          <tr><td><code>--grid-unit</code> <span class="neu">neu</span></td><td>Rastermodul (Spaltenabstand, Rasterlinien)</td><td class="wert">4 × unit · 16 px</td><td class="wert">identisch</td></tr>
+          <tr><td><code>--grid-columns</code> <span class="neu">neu</span></td><td>Spaltenzahl des Inhaltsrasters</td><td class="wert">12</td><td class="wert">12</td></tr>
+          <tr><td><code>--grid-line</code> <span class="neu">neu</span></td><td>Farbe der eingeblendeten Rasterlinien</td><td class="wert">mix(accent 22 % → transparent)</td><td class="wert">identisch</td></tr>
+          <tr><td><code>--radius</code> <span class="neu">neu</span></td><td><b>der eine</b> Kantenradius des Systems</td><td class="wert">0.125rem · 2 px</td><td class="wert">identisch</td></tr>
+          <tr><td><code>--radius-sm|md|lg</code></td><td>Briefing-Rollen — alle auf <code>--radius</code> gesetzt</td><td class="wert">var(--radius)</td><td class="wert">var(--radius)</td></tr>
+          <tr><td><code>--border-width</code> <span class="neu">neu</span></td><td>Haarlinie</td><td class="wert">0.0625rem · 1 px</td><td class="wert">identisch</td></tr>
+          <tr><td><code>--border-width-strong</code> <span class="neu">neu</span></td><td>tragende Linie: Abschnitte, aktive Kanten</td><td class="wert">0.125rem · 2 px</td><td class="wert">identisch</td></tr>
+          <tr><td><code>--control-h</code> <span class="neu">neu</span></td><td>Zielgröße aller Bedienelemente</td><td class="wert">11 × unit · 44 px</td><td class="wert">identisch</td></tr>
+          <tr><td><code>--control-h-inline</code> <span class="neu">neu</span></td><td>Höhe nicht bedienbarer Marken (Chips, Tags)</td><td class="wert">6 × unit · 24 px</td><td class="wert">identisch</td></tr>
+          <tr><td><code>--sidebar-w</code> <span class="neu">neu</span></td><td>Breite der linken Navigation — Spalte entfällt, wenn eingeklappt</td><td class="wert">68 × unit · 272 px</td><td class="wert">identisch</td></tr>
+          <tr><td><code>--rail-w</code> <span class="neu">neu</span></td><td>Breite der rechten Info-Leiste — Spalte entfällt, wenn eingeklappt</td><td class="wert">72 × unit · 288 px</td><td class="wert">identisch</td></tr>
+
+          <tr class="gruppen-zeile"><th colspan="4" scope="colgroup">Breitenstufen der Lesefläche — 3 Stufen, keine Zwischenwerte</th></tr>
+          <tr><td><code>--dok-rand</code> <span class="neu">neu</span></td><td>Innenabstand der Inhaltsspalte; Bezugsmaß des Ausbruchs</td><td class="wert">var(--space-6) · 32 px</td><td class="wert">identisch</td></tr>
+          <tr><td><code>--breite-lese</code> <span class="neu">neu</span></td><td>Stufe 1 — Satzbreite; gilt <b>nur</b> für Fließtext, Listen, Zitate, Hinweisblöcke</td><td class="wert">68ch</td><td class="wert">identisch</td></tr>
+          <tr><td><code>--breite-breit</code> <span class="neu">neu</span></td><td>Stufe 2 — volle Spaltenbreite; Grundzustand für Tabelle, Code, Abbildung</td><td class="wert">100 %</td><td class="wert">identisch</td></tr>
+          <tr><td><code>--breite-voll</code> <span class="neu">neu</span></td><td>Stufe 3 — Ausbruch über den Dokumentrand bis an die Spaltenkante</td><td class="wert">calc(100 % + 2 × --dok-rand)</td><td class="wert">identisch</td></tr>
+          <tr><td><code>--measure</code></td><td>Briefing-Rolle — Alias auf <code>--breite-lese</code></td><td class="wert">var(--breite-lese)</td><td class="wert">identisch</td></tr>
+
+          <tr class="gruppen-zeile"><th colspan="4" scope="colgroup">Typografie</th></tr>
+          <tr><td><code>--font-sans</code></td><td>eine Groteske für Text und Oberfläche</td><td class="wert" colspan="2">Helvetica Neue, Helvetica, Inter, system-ui, Arial</td></tr>
+          <tr><td><code>--font-display</code></td><td>Rolle „Display“ — hier bewusst dieselbe Familie</td><td class="wert" colspan="2">var(--font-sans)</td></tr>
+          <tr><td><code>--font-mono</code></td><td>Code, Pfade, Zahlen, Kennwerte</td><td class="wert" colspan="2">ui-monospace, SF Mono, Menlo, Consolas</td></tr>
+          <tr><td><code>--text-xs</code></td><td>Mikro-Etikett (versal, gesperrt)</td><td class="wert" colspan="2">0.75rem · 12 px</td></tr>
+          <tr><td><code>--text-sm</code></td><td>Sekundärtext, Baum, Tabellenkopf</td><td class="wert" colspan="2">0.875rem · 14 px</td></tr>
+          <tr><td><code>--text-md</code></td><td>Oberflächentext</td><td class="wert" colspan="2">1rem · 16 px</td></tr>
+          <tr><td><code>--text-lg</code></td><td>Fließtext der Leseansicht</td><td class="wert" colspan="2">1.125rem · 18 px</td></tr>
+          <tr><td><code>--text-xl</code></td><td>Unterabschnitt h3</td><td class="wert" colspan="2">1.375rem · 22 px</td></tr>
+          <tr><td><code>--text-2xl</code></td><td>Abschnitt h2</td><td class="wert" colspan="2">1.75rem · 28 px</td></tr>
+          <tr><td><code>--text-3xl</code> <span class="neu">neu</span></td><td>Seitentitel h1</td><td class="wert" colspan="2">2.375rem · 38 px</td></tr>
+          <tr><td><code>--text-4xl</code> <span class="neu">neu</span></td><td>Display (Einstiegsseiten, Marke)</td><td class="wert" colspan="2">3.25rem · 52 px</td></tr>
+          <tr><td><code>--leading-tight</code> <span class="neu">neu</span></td><td>Zeilenabstand großer Grade</td><td class="wert" colspan="2">1.1</td></tr>
+          <tr><td><code>--leading-snug</code> <span class="neu">neu</span></td><td>Zeilenabstand Überschriften</td><td class="wert" colspan="2">1.3</td></tr>
+          <tr><td><code>--leading-normal</code> <span class="neu">neu</span></td><td>Zeilenabstand Oberfläche</td><td class="wert" colspan="2">1.45</td></tr>
+          <tr><td><code>--leading-loose</code> <span class="neu">neu</span></td><td>Zeilenabstand Fließtext</td><td class="wert" colspan="2">1.7</td></tr>
+          <tr><td><code>--tracking-tight</code> <span class="neu">neu</span></td><td>Laufweite großer Grade</td><td class="wert" colspan="2">−0.02em</td></tr>
+          <tr><td><code>--tracking-normal</code> <span class="neu">neu</span></td><td>Laufweite Standard</td><td class="wert" colspan="2">0em</td></tr>
+          <tr><td><code>--tracking-wide</code> <span class="neu">neu</span></td><td>Laufweite versaler Mikro-Etiketten</td><td class="wert" colspan="2">0.09em</td></tr>
+          <tr><td><code>--weight-regular</code> <span class="neu">neu</span></td><td>Fließtext</td><td class="wert" colspan="2">400</td></tr>
+          <tr><td><code>--weight-medium</code> <span class="neu">neu</span></td><td>hervorgehobene Oberflächenwerte</td><td class="wert" colspan="2">500</td></tr>
+          <tr><td><code>--weight-bold</code> <span class="neu">neu</span></td><td>Überschriften, Etiketten, aktive Einträge</td><td class="wert" colspan="2">700</td></tr>
+
+          <tr class="gruppen-zeile"><th colspan="4" scope="colgroup">Schatten — dieses System trennt mit Linien</th></tr>
+          <tr><td><code>--shadow-sm</code></td><td>bewusst leer: Karten trennt die Haarlinie</td><td class="wert">none</td><td class="wert">none</td></tr>
+          <tr><td><code>--shadow-md</code></td><td>ausschließlich für Overlays (Dialog, Palette)</td><td class="wert">0 .5rem 2rem rgb(23 23 26 / .18)</td><td class="wert">0 .5rem 2rem rgb(0 0 0 / .6)</td></tr>
+          <tr><td><code>--shadow-accent</code></td><td>bewusst leer: die Marke leuchtet nicht, sie markiert</td><td class="wert">none</td><td class="wert">none</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<footer class="fuss-zeile">
+  <span>f451 — Design-Entwurf „System / Raster“ · alle Werte über CSS-Variablen · keine externen Ressourcen</span>
+  <span class="t-mono">docs/design/mockups-2026/system-raster.html</span>
+</footer>
+
+<script>
+  const wurzel = document.documentElement
+
+  function druecke(idAn, idsAus) {
+    document.getElementById(idAn).setAttribute('aria-pressed', 'true')
+    idsAus.forEach((id) => document.getElementById(id).setAttribute('aria-pressed', 'false'))
+  }
+
+  const marken = {
+    f451:    { light: ['#dd2b0f', '#bf2810', '#ffffff'], dark: ['#ff6a4d', '#ff8f78', '#17171a'] },
+    kobalt:  { light: ['#1d4ed8', '#1e40af', '#ffffff'], dark: ['#7ea6ff', '#a9c4ff', '#0c0c0e'] },
+    tanne:   { light: ['#0f6b45', '#0b5636', '#ffffff'], dark: ['#4fd18b', '#86e3b3', '#0c0c0e'] },
+    graphit: { light: ['#3f3f46', '#27272a', '#ffffff'], dark: ['#d4d4d8', '#e4e4e7', '#0c0c0e'] },
+  }
+  let markeAktiv = 'f451'
+
+  function wendeMarkeAn() {
+    const dunkel = wurzel.getAttribute('data-theme') === 'dark'
+    const [akzent, stark, kontrast] = marken[markeAktiv][dunkel ? 'dark' : 'light']
+    wurzel.style.setProperty('--color-accent', akzent)
+    wurzel.style.setProperty('--color-accent-strong', stark)
+    wurzel.style.setProperty('--color-accent-contrast', kontrast)
+  }
+
+  function setzeThema(wert) {
+    wurzel.setAttribute('data-theme', wert)
+    druecke(wert === 'dark' ? 'b-dunkel' : 'b-hell', [wert === 'dark' ? 'b-hell' : 'b-dunkel'])
+    wendeMarkeAn()
+  }
+
+  function setzeRaster(wert) {
+    wurzel.setAttribute('data-raster', wert)
+    druecke(wert === 'an' ? 'b-raster-an' : 'b-raster-aus', [wert === 'an' ? 'b-raster-aus' : 'b-raster-an'])
+  }
+
+  function setzeDichte(wert) {
+    if (wert === 'normal') wurzel.removeAttribute('data-density')
+    else wurzel.setAttribute('data-density', wert)
+    const knoepfe = { kompakt: 'b-kompakt', normal: 'b-normal', weit: 'b-weit' }
+    druecke(knoepfe[wert], Object.keys(knoepfe).filter((k) => k !== wert).map((k) => knoepfe[k]))
+  }
+
+  function setzeMarke(name) {
+    markeAktiv = name
+    const knoepfe = { f451: 'm-f451', kobalt: 'm-kobalt', tanne: 'm-tanne', graphit: 'm-graphit' }
+    druecke(knoepfe[name], Object.keys(knoepfe).filter((k) => k !== name).map((k) => knoepfe[k]))
+    wendeMarkeAn()
+  }
+
+  function oeffnePalette() {
+    const d = document.getElementById('palette-dlg')
+    d.showModal()
+    document.getElementById('palette-feld').focus()
+  }
+
+  /* --- Lesefläche: beide Leisten einzeln, gemerkt, mit Tastenkürzel -------- */
+  const leisten = {
+    nav:  { attr: 'data-nav',  knopf: 'k-nav',  merker: 'f451-leiste-nav' },
+    rail: { attr: 'data-rail', knopf: 'k-rail', merker: 'f451-leiste-rail' },
+  }
+
+  function istVollbreite() {
+    return wurzel.getAttribute('data-nav') === 'zu' && wurzel.getAttribute('data-rail') === 'zu'
+  }
+
+  function setzeLeiste(name, zustand) {
+    const l = leisten[name]
+    wurzel.setAttribute(l.attr, zustand)
+    document.getElementById(l.knopf).setAttribute('aria-expanded', String(zustand === 'auf'))
+    try { localStorage.setItem(l.merker, zustand) } catch (_) { /* Merker optional */ }
+    document.getElementById('k-voll').setAttribute('aria-pressed', String(istVollbreite()))
+  }
+
+  function schalteLeiste(name) {
+    setzeLeiste(name, wurzel.getAttribute(leisten[name].attr) === 'zu' ? 'auf' : 'zu')
+  }
+
+  function schalteVollbreite() {
+    const zielZustand = istVollbreite() ? 'auf' : 'zu'
+    setzeLeiste('nav', zielZustand)
+    setzeLeiste('rail', zielZustand)
+  }
+
+  function stellLeistenHer() {
+    Object.keys(leisten).forEach((name) => {
+      let gemerkt = null
+      try { gemerkt = localStorage.getItem(leisten[name].merker) } catch (_) { /* Merker optional */ }
+      setzeLeiste(name, gemerkt === 'zu' ? 'zu' : 'auf')
+    })
+  }
+
+  function tipptGerade(ziel) {
+    if (!ziel) return false
+    return ziel.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(ziel.tagName)
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault()
+      oeffnePalette()
+      return
+    }
+    if (e.ctrlKey || e.metaKey || e.altKey || tipptGerade(e.target)) return
+    if (e.key === '[')       { e.preventDefault(); schalteLeiste('nav') }
+    else if (e.key === ']')  { e.preventDefault(); schalteLeiste('rail') }
+    else if (e.key === '\\') { e.preventDefault(); schalteVollbreite() }
+  })
+
+  // Startzustand an das Systemschema angleichen, ohne data-theme zu erzwingen
+  if (window.matchMedia('(prefers-color-scheme: dark)').matches) setzeThema('dark')
+  else setzeThema('light')
+  setzeRaster('aus')
+  stellLeistenHer()
+</script>
+</main>
+</body>
+</html>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="122" height="62" viewBox="-0.5 -0.5 122 62" content="&lt;mxfile host=&quot;app.diagrams.net&quot; modified=&quot;2026-01-01T00:00:00.000Z&quot; agent=&quot;5.0&quot; version=&quot;22.1.0&quot;&gt;&lt;diagram id=&quot;abc123&quot; name=&quot;Seite-1&quot;&gt;jZBBDoJADEVP01UTsxpvIAsRExN20LTQZKAT6ADm+DYQ9AjX9r/f9v0YJvyNfZWJk6nUgOFMSjyq5aigrKB1lbYqCeC9DHZWQquBGO7A6VzYzE9jbA==&lt;/diagram&gt;&lt;/mxfile&gt;">
+  <metadata id="mx-metadata">draw.io-Diagramm, exportiert am 2026-01-01</metadata>
+  <defs>
+    <style>.node-fill { fill: #dae8fc; stroke: #6c8ebf; }</style>
+  </defs>
+  <g>
+    <rect x="1" y="1" width="120" height="60" rx="4" ry="4" class="node-fill" />
+    <text x="61" y="35" font-family="Helvetica" font-size="12" text-anchor="middle">Beispielknoten</text>
+  </g>
+</svg>

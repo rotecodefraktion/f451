@@ -1,0 +1,350 @@
+/* 42-marke.css — Teilschritt D des Bausteinsystem-Umbaus.
+   Statusmarken (.chip), Schlagworte (.tag), Tastenkuerzel (.kbd)
+
+   Diese Datei gehoert AUSSCHLIESSLICH Teilschritt D. Andere Teilschritte
+   schreiben hier nicht hinein — die Aufteilung existiert genau deshalb,
+   damit mehrere Bearbeiter gleichzeitig arbeiten koennen.
+
+   Die Nummer im Dateinamen ist die Besitz-Nummer, nicht die Reihenfolge;
+   massgeblich fuer die Kaskade ist allein die Importreihenfolge in
+   ../globals.css (s. Kommentar dort).
+
+   ── Was hier zusammengefuehrt wird ────────────────────────────────────────
+   Die Bestandsaufnahme (§2.3) zaehlt 17 Marken mit 11 Innenabstaenden,
+   3 Radien, 4 Schriftgraden und 4 Schriftschnitten. Der Entwurf
+   (docs/design/mockups-2026/editorial.html, Kap. 2 „Bausteine",
+   Zeilen 1101-1113 / 1006-1015 / 389-397) kennt an dieser Stelle drei
+   Bausteine, und dieser Datei gehoeren sie:
+
+     .chip  Zustand   — Zeichen + Wort + Farbe, --radius-pill
+     .tag   Schlagwort— Haarlinie, --radius-pill
+     .kbd   Taste     — Dicktengleich, --radius-sm (s. Abweichung unten)
+
+   Zwei Innenabstands-Kombinationen fuer alles: `--space-1 --space-3` fuer
+   Marke und Schlagwort, `0 --space-1` fuer die Taste. Keine 999-px-Rundung
+   mehr (das ist `--radius-pill`), keine Skalierung per `transform` — eine
+   Marke, die auf 86 % heruntergerechnet wird, ist eine Marke mit falscher
+   Schriftgroesse (das tat `.badge` in 60-chrome-raster.css; H1 hat den Block
+   geloescht).
+
+   Seit Teilschritt I hat die Statusmarke sechs Varianten: die vier Zustaende
+   des Arbeitsablaufs, die vier Signale (auf dieselben Farben gelegt) und
+   `.neutral` fuer Marken ohne Zustand — s. dort.
+
+   ── Zugesicherte Eigenschaft 3: nie Farbe allein ──────────────────────────
+   „Statusfarben tragen immer zusaetzlich Zeichen und Wort"
+   (Spec „Zugesicherte Eigenschaften", Punkt 3). Der Entwurf loest das im
+   Markup: `<span class="chip review"><span class="glyph" aria-hidden="true">◑
+   </span>In Review</span>` — ein dekoratives Zeichen (aus dem
+   Zugaenglichkeitsbaum genommen) und daneben das ausgeschriebene Wort als
+   echter Text. Diese Datei bildet beides ab:
+
+     1. `.chip .glyph` ist der Platz des Zeichens und ist hier gestaltet.
+     2. Jede Zustandsvariante fuehrt ihr Zeichen zusaetzlich als
+        `--chip-glyph`. Fehlt im Markup ein Zeichen, setzt der Baustein es
+        selbst (`::before`). Eine Marke kann ihr Zeichen also nicht
+        „vergessen"; Farbe allein ist konstruktiv ausgeschlossen.
+     3. Das Wort steht im Markup und wird hier nie durch `content` ersetzt —
+        Text, den nur CSS kennt, ist kein Text.
+
+   ── Abweichung vom Plan, bewusst ──────────────────────────────────────────
+   Die Schnitt-Tabelle (§7.2, Zeile D) sagt „alle auf --radius-pill". Fuer
+   `.kbd` folgt diese Datei stattdessen dem Entwurf, der die Taste an allen
+   vier Fundstellen (editorial.html:389, 596, 1219, 1264) mit
+   `--radius-sm` und `0 var(--space-1)` zeichnet: eine Taste ist ein
+   Kaestchen, keine Pille. `--radius-pill` bliebe fuer ein zwei Zeichen
+   breites Kaestchen ohnehin nur eine halbe Ellipse. Die Abnahmekriterien
+   der Zeile D (Innenabstaende <= 3, keine 999-px-Rundung, keine
+   Skalierung) sind davon unberuehrt.
+
+   ── Kaskade: der Uebergang ist abgeschlossen (Teilschritt I) ──────────────
+   Diese Datei wird VOR den Ansichtsdateien importiert. Solange eine Ansicht
+   dieselbe Klasse noch einmal definierte, gewann sie — das war in
+   Teilschritt D Absicht, und am Fuss dieser Datei stand dafuer eine
+   ausdruecklich befristete „Uebergangsschicht", die die Eigenschaften
+   abfing, die keine Altregel kannte (Versalien, Sperrung, Zeilenabstand).
+
+   H1-H5 haben die Ansichtskopien geloescht, Teilschritt I hat das Markup auf
+   `.chip`/`.tag`/`.kbd` umgestellt und Aliase samt Uebergangsschicht
+   entfernt. Damit ist die Datei, was sie sein soll: drei Bausteine, keine
+   Bruecken, keine Rueckdrehungen. Was dabei sichtbar geworden ist, steht am
+   Fuss der Datei aufgezaehlt.
+   ========================================================================= */
+
+/* =========================================================================
+   Statusmarke
+   ========================================================================= */
+
+/* Grundform. Bis Teilschritt I standen hier zehn Altnamen als „duenne
+   Aliase" in derselben Selektorliste, damit H1-H5 ihre Ansichtskopien
+   ersatzlos loeschen konnten. Sie sind alle weg — das Markup traegt jetzt
+   ueberall `.chip` samt Variante:
+
+     .chip.work / .dbadge / .linkpop .litem .mk  → .chip.working
+     .chip.rev  / .valid  / .metadata-missing-badge
+                          / .rsum .s.chg / .dchange.chg .dtag → .chip.review
+     .chip.rel  / .pill.ok / .badge-rel
+                          / .rsum .s.add / .dchange.add .dtag → .chip.released
+     .chip.arch / .badge.arch                                 → .chip.archived
+     .pill.muted / .badge.tpl-global                          → .chip.neutral
+     .rsum .s.rm                                              → .chip.error
+     .version-bump label b   ersatzlos (H3: eine Versionsnummer ist ein
+                             hervorgehobener WERT, kein Zustand)
+
+   Damit traegt kein Selektor dieser Datei mehr als eine Klasse (Plan §7.4,
+   Regel 4) — die vier dreiklassigen Zitate der Uebergangszeit
+   (`.rsum .s.chg`, `.dchange.chg .dtag`, `.linkpop .litem .mk`,
+   `.pop .pf .k`) sind mit den Aliasen verschwunden.
+
+   Nicht uebernommen und warum:
+     `.trigger` (62-editor.css) ist keine Marke, sondern die Auszeichnung
+     der gerade getippten Zeichen (`/`, `[[`) im Textfluss — eine
+     Inline-Dekoration ohne Zustand.
+     `.canvas .hint` (65-graph.css) ist die Ableseleiste der Zeichenflaeche
+     („N Knoten · M Kanten · Space"), kein Zustandstraeger; die
+     Bestandsaufnahme §5.2 ordnet sie folgerichtig nicht dem Chip zu. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  /* Rand in der Zustandsfarbe: die Marke traegt ihre Bedeutung auch dann,
+     wenn die Flaeche (z. B. auf getoentem Grund) kaum auffaellt. */
+  border: var(--rule-hair) solid currentColor;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-strong);
+  line-height: var(--leading-ui);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  /* Nachtrag Teilschritt I: die Marke bricht nicht. Der Bestand hatte das
+     (`.chip` in globals.css:1302, `white-space: nowrap`); der Baustein hatte
+     es verloren, weil die Uebergangsschicht am Dateifuss nur Eigenschaften
+     zurueckhielt, die der Baustein NEU einfuehrt — eine Eigenschaft, die der
+     Bestand hatte und der Baustein nicht, faellt dabei durch das Raster.
+     Ein Zustandswort in zwei Zeilen ist keine Pille mehr: die Rundung
+     `--radius-pill` staucht sich, und die Marke wird so hoch wie zwei
+     Zeilen. Gemeldet von H1, hier wiederhergestellt. */
+  white-space: nowrap;
+}
+
+/* Das Zeichen. Im Markup ein eigener, aus dem Zugaenglichkeitsbaum
+   genommener Knoten (`aria-hidden`), damit ein Bildschirmleser nicht „◑ In
+   Review" vorliest. Heute steht dort in dieser Anwendung ein Inline-SVG —
+   beide Formen sind hier gleich behandelt. */
+.chip .glyph {
+  font-size: var(--text-sm);
+  line-height: 1;
+}
+.chip > svg {
+  width: 1em;
+  height: 1em;
+}
+
+/* Sicherung fuer Punkt 3: fehlt das Zeichen im Markup, setzt der Baustein
+   es aus der Variante. `content: var(--chip-glyph)` OHNE Ersatzwert ist
+   Absicht — ist die Variable nicht gesetzt (bare `.chip`, Altnamen), wird
+   die Deklaration bei der Wertberechnung ungueltig, `content` faellt auf
+   `normal` zurueck und es entsteht kein Kasten. So bekommt keine heutige
+   Marke ein zweites oder ein leeres Zeichen. */
+.chip:not(:has(.glyph, svg, img))::before {
+  content: var(--chip-glyph);
+  font-size: var(--text-sm);
+  line-height: 1;
+}
+
+/* ---- Die Varianten ------------------------------------------------------
+   Vier Zustaende des Arbeitsablaufs (Entwurf, editorial.html:1110-1113), vier
+   Signale und eine neutrale Marke. JEDE Variante steht hier genau EINMAL,
+   samt Zeichen und Farbpaar.
+
+   Teilschritt D hatte Zeichen und Farbe in zwei getrennten Bloecken je
+   Variante — solange die Farbblöcke noch Altnamen als Alias mitfuehrten, war
+   das die kuerzere Schreibweise. Nach dem Wegfall der Aliase (Teilschritt I)
+   waeren daraus fuenf DOPPELT DEFINIERTE Selektoren geworden, also genau die
+   Kennzahl, die dieser Teilschritt auf null bringen soll. Die Farbtokens
+   stehen dafuer dreimal doppelt — das ist Absicht und keine Wiederholung im
+   Sinne des Umbaus: Signal und Zustand teilen sich die Farbe, weil der
+   Entwurf Signale nicht als eigene Farbfamilie fuehrt (editorial.html:908-915
+   legt `.callout.info/.warn/.ok` auf working/review/released und setzt nur den
+   Fehler auf `--color-danger`). Genau so ist es hier notiert, damit „Hinweis"
+   und „Entwurf" nie zwei verschiedene Gelbs werden.
+
+   Gemessener Kontrast Zeichen/Wort gegen die eigene Flaeche (WCAG 2.1,
+   sRGB-Relativluminanz). Die Spec verlangt 3:1 fuer zustandstragende Zeichen
+   und AA (4,5:1) fuer Text:
+
+     Variante            hell      dunkel
+     working / info      3,85:1    7,06:1
+     review  / warn      4,32:1    8,51:1
+     released / ok       4,32:1    8,18:1
+     archived            4,28:1    5,89:1
+     error               4,07:1    5,48:1
+     neutral             4,60:1    6,52:1
+     .tag / .kbd         4,83:1    6,91:1
+
+   Alle Werte liegen ueber 3:1. Im Hellmodus bleiben die fuenf
+   Zustandsflaechen jedoch unter 4,5:1 — Ursache sind nicht diese Regeln,
+   sondern die Mischanteile der `-wash`-Tokens (10-12 %) gegen ein weisses
+   Papier. Das ist eine Token-Frage und gehoert nach `catalog.ts`, nicht ins
+   Bausteinsystem (Plan §7.4, Regel 1); Teilschritt I meldet sie unveraendert
+   an Etappe 3 weiter, weil ein Prozentsatz im Katalog eine Farbentscheidung
+   ist und keine Aufraeumarbeit. `neutral` ist die einzige Variante, die AA
+   aus eigener Kraft erreicht — sie mischt nicht aus einer Signalfarbe. ---- */
+.chip.working {
+  --chip-glyph: '◔';
+  color: var(--color-status-working);
+  background: var(--color-status-working-wash);
+}
+.chip.review {
+  --chip-glyph: '◑';
+  color: var(--color-status-review);
+  background: var(--color-status-review-wash);
+}
+.chip.released {
+  --chip-glyph: '✓';
+  color: var(--color-status-released);
+  background: var(--color-status-released-wash);
+}
+.chip.archived {
+  --chip-glyph: '▤';
+  color: var(--color-status-archived);
+  background: var(--color-status-archived-wash);
+}
+.chip.info {
+  --chip-glyph: 'i';
+  color: var(--color-status-working);
+  background: var(--color-status-working-wash);
+}
+.chip.warn {
+  --chip-glyph: '!';
+  color: var(--color-status-review);
+  background: var(--color-status-review-wash);
+}
+.chip.ok {
+  --chip-glyph: '✓';
+  color: var(--color-status-released);
+  background: var(--color-status-released-wash);
+}
+.chip.error {
+  --chip-glyph: '×';
+  color: var(--color-danger);
+  background: var(--color-danger-wash);
+}
+
+/* ---- Neutral. Nachtrag aus Teilschritt I, von H4 UND H1 angefordert ------
+   Die Anwendung kennt Marken, die weder einen Ablaufzustand noch ein Signal
+   tragen: „nicht verbunden", „nur lesen", „widerrufen" (Einstellungen /
+   Verbindungen, API-Tokens) und „Global" an einer Vorlage. Sie standen bis
+   hierher auf `.pill.muted` bzw. `.badge.tpl-global` und damit — laut
+   Alias-Tabelle oben — auf `.chip.archived`. Das ist falsch: eine nicht
+   verbundene Anbindung ist nicht archiviert, und ein widerrufener Token ist
+   kein Schritt im Arbeitsablauf. Eine Marke, die einen Zustand behauptet, den
+   es nicht gibt, ist schlimmer als keine Farbe.
+
+   Deshalb genau EINE zusaetzliche Variante, und sie ist die einzige ohne
+   Zustandsfarbe: neutraler Text auf neutraler Flaeche, beides aus dem
+   Katalog. Sie fuehrt bewusst KEIN `--chip-glyph` — Zusicherung 3 verlangt
+   Zeichen und Wort fuer STATUSFARBEN; wo keine Zustandsfarbe steht, gibt es
+   auch kein Zeichen zu erklaeren. Das Wort steht wie immer im Markup.
+
+   Warum `--color-surface-hover` und nicht `--color-status-archived-wash`:
+   letzteres mischt aus einer Statusfamilie und wuerde die Neutralmarke wieder
+   an einen Zustand binden — sichtbar fast gleich, semantisch falsch. ---- */
+.chip.neutral {
+  color: var(--color-text-muted);
+  background: var(--color-surface-hover);
+}
+
+/* =========================================================================
+   Schlagwort
+   ========================================================================= */
+
+/* Kein Zustand, keine Versalien, keine Flaeche — ein Schlagwort ist ein
+   Verweis, kein Signal (Entwurf, editorial.html:1006-1015). Weder
+   Schriftfamilie noch Zeilenabstand stehen hier: beides erbt es aus seiner
+   Leiste, genau wie im Entwurf. */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-3);
+  border: var(--rule-hair) solid var(--color-border);
+  border-radius: var(--radius-pill);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  text-decoration: none;
+}
+/* Das Gatter (`#`) ist Zierrat, nicht Inhalt — es tritt gegenueber dem Wort
+   zurueck.
+
+   Nachtrag Teilschritt I: `margin-right` war von der Uebergangsschicht auf
+   `revert` gesetzt, weil die Info-Leiste den Abstand damals als `gap` am
+   Schlagwort selbst fuehrte (3px). H1 hat die Kopie dort geloescht — seither
+   stand `#azure` ohne jeden Zwischenraum. Mit dem Wegfall der
+   Uebergangsschicht gilt wieder der Baustein-Wert: `--space-1`, also 4 statt
+   der frueheren 3 px. Das ist die eine Stelle, an der ein Bestandswert nicht
+   nur ersetzt, sondern zwischenzeitlich verloren war. */
+.tag .h {
+  margin-right: var(--space-1);
+  color: var(--color-border-strong);
+}
+.tag:hover {
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+}
+
+/* =========================================================================
+   Tastenkuerzel
+   ========================================================================= */
+
+/* Dicktengleich, damit `⌘K` und `ESC` gleich breit ablaufen; Haarlinie
+   statt Flaeche, damit die Taste in einer Zeile nicht lauter ist als das
+   Wort daneben (Entwurf, editorial.html:389-397 und 596-604).
+
+   Der Alias `.pop .pf .k` ist mit Teilschritt I entfallen: die Klasse `.k`
+   kommt im Markup nicht mehr vor, die Fusszeilen der Popover schreiben
+   `class="kbd"`. */
+.kbd {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  padding: 0 var(--space-1);
+  border: var(--rule-hair) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+/* =========================================================================
+   Die Uebergangsschicht ist entfallen (Teilschritt I)
+
+   Bis hierher stand am Fuss dieser Datei ein Block, der elf Eigenschaften
+   per `revert` auf den Stand vor dem Umbau zurueckdrehte — Versalien,
+   Sperrung, Zeilenabstand, Schriftfamilie, Rand und Flussrichtung an den
+   Altnamen, dazu die Grotesk der beiden Tastenkuerzel in Kopfleiste und
+   Suchdialog und der Abstand zwischen Gatter und Wort. Grund war, dass diese
+   Eigenschaften in KEINER Altregel vorkamen: es gab nichts zu
+   ueberschreiben, sie waeren aus dieser Datei sofort ins Bild
+   durchgeschlagen, und Teilschritt D waere nicht mehr unsichtbar gewesen.
+
+   Alias und Uebergang gehoerten zusammen und sind zusammen gefallen. Was
+   dabei sichtbar wird, ist gewollt und in der Tabelle des Umbau-Berichts
+   Zeile fuer Zeile einer Baustein-Vorschrift zugeordnet:
+
+     Marken in Versalien mit `--tracking-caps` statt gemischt gesetzt
+     alle Marken in `--font-sans` und `--leading-ui`
+     alle Marken als Flex-Kasten mit `--space-2` zwischen Zeichen und Wort
+     `⌘K` und `ESC` in der Dicktengleichen (`--font-mono`)
+     `#` und Wort im Schlagwort wieder mit Abstand (`--space-1`)
+
+   Zwei Dinge, die dabei ZURUECK geholt sind, weil der Bestand sie hatte und
+   das Raster der Uebergangsschicht sie nicht erfassen konnte (sie hielt nur
+   NEUE Eigenschaften zurueck): `white-space: nowrap` an der Marke und der
+   Abstand am Gatter — beides oben an seiner Stelle begruendet.
+
+   Drei Abweichungen sind schon in Teilschritt D als gemessen und wirkungslos
+   ausgewiesen worden und bleiben es: `color`/`font-size` an der Taste (erbt
+   dieselben Tokens), `text-decoration: none` am Schlagwort (heute kein
+   Verweis) und die Zeichenbreite der Marken-SVGs (`1em` auf `--text-xs` =
+   12px, also der bisherige Wert).
+   ========================================================================= */

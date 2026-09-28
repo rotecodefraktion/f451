@@ -1,0 +1,2499 @@
+<!doctype html>
+<html lang="de" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>f451 — Entwurf „Editorial"</title>
+<style>
+/* ==========================================================================
+   f451 · Design-Entwurf „Editorial"
+   These: Dokumentation ist ein Lesemedium, kein Dashboard.
+   ALLE Farben, Maße, Radien, Schriften, Schatten sind Tokens (CSS-Variablen).
+   Abgeleitete Tokens (color-mix) stehen in JEDEM Theme-Block, damit auch
+   umgeschaltete Teilbäume (z. B. Vorschau-Zellen der Token-Tabelle) korrekt
+   neu berechnen.
+   ========================================================================== */
+
+/* --- Farb-Tokens: Hell („Papier bei Tageslicht") ------------------------- */
+:root,
+[data-theme='light'] {
+  --color-bg: #fffdf8;
+  --color-bg-raised: #f8f5ec;
+  --color-bg-sunken: #f0ece1;
+  --color-text: #1c1a17;
+  --color-text-muted: #6b655c;
+  --color-accent: #b3341c;
+  --color-accent-contrast: #fffdf8;
+  --color-border: #e3ddd0;
+  --color-danger: #8e1b1b;
+  --color-status-working: #4a4fa0;
+  --color-status-review: #8a5a06;
+  --color-status-released: #1f6b3a;
+  --color-status-archived: #6b655c;
+  --color-code-bg: #f7f3e8;
+  --color-code-text: #24211d;
+  --color-code-comment: #857e70;
+  --color-code-gutter: #b3aa99;
+  --color-mark: #f6e6a8;
+  --shadow-sm: 0 1px 2px rgba(28, 26, 23, 0.06);
+  --shadow-md: 0 18px 48px rgba(28, 26, 23, 0.18);
+  --shadow-accent: 0 1px 2px rgba(179, 52, 28, 0.28);
+}
+
+/* --- Farb-Tokens: Dunkel („Papier bei Leselampe") ------------------------ */
+[data-theme='dark'] {
+  --color-bg: #1a1917;
+  --color-bg-raised: #232120;
+  --color-bg-sunken: #121110;
+  --color-text: #ece7dd;
+  --color-text-muted: #a09a8e;
+  --color-accent: #f4795c;
+  --color-accent-contrast: #16130f;
+  --color-border: #34302b;
+  --color-danger: #f08a80;
+  --color-status-working: #a9aef0;
+  --color-status-review: #e0b04e;
+  --color-status-released: #6fcf8f;
+  --color-status-archived: #a09a8e;
+  --color-code-bg: #201e1c;
+  --color-code-text: #ece7dd;
+  --color-code-comment: #8e877b;
+  --color-code-gutter: #5c564d;
+  --color-mark: #5a4a17;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 18px 48px rgba(0, 0, 0, 0.6);
+  --shadow-accent: 0 1px 2px rgba(244, 121, 92, 0.3);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --color-bg: #1a1917;
+    --color-bg-raised: #232120;
+    --color-bg-sunken: #121110;
+    --color-text: #ece7dd;
+    --color-text-muted: #a09a8e;
+    --color-accent: #f4795c;
+    --color-accent-contrast: #16130f;
+    --color-border: #34302b;
+    --color-danger: #f08a80;
+    --color-status-working: #a9aef0;
+    --color-status-review: #e0b04e;
+    --color-status-released: #6fcf8f;
+    --color-status-archived: #a09a8e;
+    --color-code-bg: #201e1c;
+    --color-code-text: #ece7dd;
+    --color-code-comment: #8e877b;
+    --color-code-gutter: #5c564d;
+    --color-mark: #5a4a17;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --shadow-md: 0 18px 48px rgba(0, 0, 0, 0.6);
+    --shadow-accent: 0 1px 2px rgba(244, 121, 92, 0.3);
+  }
+}
+
+/* --- Abgeleitete Farb-Tokens (gelten in jedem Theme-Kontext) ------------- */
+:root,
+[data-theme='light'],
+[data-theme='dark'] {
+  --color-border-hair: color-mix(in srgb, var(--color-border) 55%, var(--color-bg));
+  --color-border-strong: color-mix(in srgb, var(--color-text) 26%, var(--color-border));
+  /* Zeichen, die einen Zustand tragen (das Blatt-Zeichen der Randschalter),
+     sind Bedienelement-Grafik, nicht Linienwerk: sie brauchen 3:1 gegen ihren
+     Grund (WCAG 1.4.11). --color-border-strong reicht dafür nicht (1,96:1 hell,
+     3,02:1 dunkel) — es ist als Linienton gesetzt und bleibt es. Deshalb ein
+     eigener Ton, kräftig genug für die Norm und immer noch eine Stufe leiser
+     als die Beschriftung daneben, damit die Rangfolge im Register bleibt. */
+  --color-glyph-state: color-mix(in srgb, var(--color-text) 50%, var(--color-border));
+  --color-surface-hover: color-mix(in srgb, var(--color-text) 5%, var(--color-bg));
+  --color-accent-wash: color-mix(in srgb, var(--color-accent) 8%, var(--color-bg));
+  --color-accent-line: color-mix(in srgb, var(--color-accent) 42%, var(--color-bg));
+  --color-danger-wash: color-mix(in srgb, var(--color-danger) 9%, var(--color-bg));
+  --color-status-working-wash: color-mix(in srgb, var(--color-status-working) 10%, var(--color-bg));
+  --color-status-review-wash: color-mix(in srgb, var(--color-status-review) 11%, var(--color-bg));
+  --color-status-released-wash: color-mix(in srgb, var(--color-status-released) 11%, var(--color-bg));
+  --color-status-archived-wash: color-mix(in srgb, var(--color-status-archived) 10%, var(--color-bg));
+  --color-focus: var(--color-accent);
+  --color-scrim: color-mix(in srgb, #0b0a09 62%, transparent);
+}
+
+/* --- Typografie-Tokens ---------------------------------------------------
+   Lesetext = Serifenschrift (Systemstack), Bedienoberfläche = Grotesk,
+   Code = Monospace. Größen fluid über clamp(). ------------------------- */
+:root {
+  --font-text: 'Iowan Old Style', 'Charter', 'Palatino Linotype', Palatino, 'Source Serif 4', 'Noto Serif',
+    Georgia, 'Times New Roman', serif;
+  --font-display: 'Iowan Old Style', 'Charter', 'Palatino Linotype', Palatino, 'Source Serif 4', Georgia, serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-md: clamp(1.0625rem, 1.02rem + 0.18vw, 1.15rem);
+  --text-lg: clamp(1.1875rem, 1.12rem + 0.3vw, 1.3125rem);
+  --text-xl: clamp(1.4375rem, 1.3rem + 0.6vw, 1.75rem);
+  --text-2xl: clamp(1.75rem, 1.5rem + 1.1vw, 2.25rem);
+  /* Versalhöhe der Serifenfamilie als Anteil der Schriftgröße. Damit lässt sich
+     eine Auszeichnung auf die Versalhöhe ihrer Überschrift stellen, statt eine
+     zweite Größenskala zu erfinden. */
+  --cap-ratio: 0.72;
+  /* Hängende Gliederungsziffer: so hoch wie die Versalien der h2 daneben.
+     Erbt deren clamp(), skaliert also fluid mit. */
+  --text-hang: calc(var(--text-xl) * var(--cap-ratio));
+  --text-3xl: clamp(2.25rem, 1.85rem + 1.8vw, 3rem);
+  --text-4xl: clamp(2.75rem, 2rem + 3.2vw, 4.25rem);
+
+  --leading-tight: 1.14;
+  --leading-heading: 1.22;
+  --leading-ui: 1.4;
+  --leading-text: 1.68;
+  --leading-code: 1.62;
+
+  --tracking-tight: -0.012em;
+  --tracking-normal: 0em;
+  --tracking-caps: 0.1em;
+
+  --weight-text: 400;
+  --weight-medium: 500;
+  --weight-strong: 650;
+  --weight-display: 600;
+
+  /* --- Maß, Raster, Dichte ---
+     Drei Maße, eine durchgängige Regel:
+       --measure       nur Fließtext (Absätze, Listen, Zitate, Überschriften)
+       --measure-wide  Textbereich inkl. Randspalte für Marginalien und Kästen
+       --measure-full  Ausbruch: Tabelle, Codeblock, Diagramm, Bild —
+                       nimmt die volle Breite der Dokumentspalte.
+     Der Inhaltsbereich selbst ist NICHT begrenzt; er füllt, was das Raster hergibt. */
+  --measure: 68ch;
+  --measure-wide: 96ch;
+  --measure-full: 100%;
+  --density: 1;
+  --rhythm: 1.55rem;
+  --space-0: 0rem;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-7: 1.75rem;
+  --space-8: 2rem;
+  --space-9: 3rem;
+  --space-10: 4.5rem;
+  --space-11: 7rem;
+
+  --layout-nav-w: 17rem;
+  --layout-rail-w: 17rem;
+  --layout-gutter: var(--space-9);
+  --layout-hang: 2.75rem;
+  --layout-note-w: 12.5rem;
+  --layout-note-gap: var(--space-6);
+  /* Außenspalte für die beiden Randschalter — genau eine Zielgröße breit,
+     damit das Daumenregister die 44 px erfüllt, ohne Satzbreite zu kosten. */
+  --layout-edge-w: var(--control-h);
+  /* Breite des Lesegerüsts: Textbereich + beide Ränder + zwei Stege + zwei
+     Außenspalten. Sind beide Ränder eingeklappt, fällt genau deren Breite
+     dem Inhalt zu. */
+  --layout-app-w: calc(var(--measure-wide) + var(--layout-nav-w) + var(--layout-rail-w)
+    + 2 * var(--layout-gutter) + 2 * var(--layout-edge-w));
+  --layout-sheet-max: calc(var(--layout-app-w) + 2 * var(--space-9));
+
+  --rule-hair: 1px;
+  --rule-strong: 2px;
+  --rule-marker: 3px;
+
+  --radius-sm: 0.125rem;
+  --radius-md: 0.1875rem;
+  --radius-lg: 0.25rem;
+  --radius-pill: 62.5rem;
+
+  --control-h: 2.75rem;
+  --control-pad-x: calc(var(--space-4) * var(--density));
+  --control-pad-y: calc(var(--space-2) * var(--density));
+
+  --focus-w: var(--rule-strong);
+  --focus-offset: var(--space-1);
+  --motion-fast: 120ms;
+  --motion-ease: cubic-bezier(0.32, 0.72, 0.3, 1);
+}
+
+/* --- Grundlagen ---------------------------------------------------------- */
+* { box-sizing: border-box; }
+
+html {
+  background: var(--color-bg-sunken);
+  color: var(--color-text);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-text);
+  font-size: var(--text-md);
+  line-height: var(--leading-text);
+  font-weight: var(--weight-text);
+  background: var(--color-bg-sunken);
+  color: var(--color-text);
+  font-kerning: normal;
+  font-variant-numeric: oldstyle-nums proportional-nums;
+  text-rendering: optimizeLegibility;
+}
+
+:focus-visible {
+  outline: var(--focus-w) solid var(--color-focus);
+  outline-offset: var(--focus-offset);
+  border-radius: var(--radius-sm);
+}
+
+a { color: var(--color-accent); text-underline-offset: 0.18em; text-decoration-thickness: from-font; }
+a:hover { text-decoration-thickness: var(--rule-strong); }
+
+hr {
+  border: 0;
+  border-top: var(--rule-hair) solid var(--color-border);
+  margin-block: var(--space-8);
+}
+
+code, kbd, samp, pre { font-family: var(--font-mono); font-variant-numeric: tabular-nums lining-nums; }
+
+/* Kapitälchen-Etikett — trägt in diesem Entwurf die gesamte Beschriftungsebene */
+.label {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-strong);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  line-height: var(--leading-ui);
+  color: var(--color-text-muted);
+}
+
+.ui { font-family: var(--font-sans); font-size: var(--text-sm); line-height: var(--leading-ui); }
+.muted { color: var(--color-text-muted); }
+.sr-only {
+  position: absolute; width: var(--rule-hair); height: var(--rule-hair);
+  padding: 0; margin: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+
+/* --- Seitengerüst des Musterbuchs ---------------------------------------- */
+.sheet {
+  max-width: var(--layout-sheet-max);
+  margin-inline: auto;
+  background: var(--color-bg);
+  border-inline: var(--rule-hair) solid var(--color-border);
+}
+
+.masthead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-6);
+  justify-content: space-between;
+  padding: var(--space-10) var(--space-9) var(--space-7);
+  border-bottom: var(--rule-strong) solid var(--color-text);
+}
+.masthead h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-4xl);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  font-weight: var(--weight-display);
+}
+.masthead h1 .imprint { color: var(--color-accent); }
+.masthead__lead {
+  margin: var(--space-3) 0 0;
+  max-width: var(--measure);
+  font-size: var(--text-lg);
+  color: var(--color-text-muted);
+}
+.masthead__meta { margin-top: var(--space-4); display: flex; gap: var(--space-4); flex-wrap: wrap; }
+
+.chapter { padding: var(--space-10) var(--space-9); border-top: var(--rule-hair) solid var(--color-border); }
+.chapter > header { max-width: var(--measure); margin-bottom: var(--space-8); }
+.chapter h2.chapter__title {
+  margin: var(--space-2) 0 0;
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  line-height: var(--leading-heading);
+  letter-spacing: var(--tracking-tight);
+  font-weight: var(--weight-display);
+}
+.chapter__lead { margin: var(--space-3) 0 0; color: var(--color-text-muted); }
+
+/* --- Leseansicht: fünfspaltiges Raster ------------------------------------
+   Ganz außen zwei schmale Spalten für die Randschalter (Daumenregister),
+   dann die beiden Ränder mit fester Breite, in der Mitte die Dokumentspalte.
+   Kein Spaltenabstand im Raster: der Steg steckt im Innenabstand des Dokuments,
+   damit beim Einklappen eines Randes keine leere Rinne stehen bleibt.
+   Drei ausgeschriebene Zeilen: gestapelt wird über die Zeile, nie über die
+   automatische Platzierung — nur so kann eine Außenspalte über den ganzen
+   Stapel durchlaufen, und eine ausgeblendete Leiste reißt keine Lücke. */
+.app {
+  display: grid;
+  grid-template-columns:
+    var(--layout-edge-w) auto minmax(0, 1fr) auto var(--layout-edge-w);
+  grid-template-rows: auto auto auto;
+  align-items: start;
+  border: var(--rule-hair) solid var(--color-border);
+  background: var(--color-bg);
+}
+.app > .pane-edge--nav { grid-column: 1; grid-row: 1 / -1; }
+.app > .nav { grid-column: 2; grid-row: 1; width: var(--layout-nav-w); }
+.app > .doc { grid-column: 3; grid-row: 1; }
+.app > .rail { grid-column: 4; grid-row: 1; width: var(--layout-rail-w); }
+.app > .pane-edge--rail { grid-column: 5; grid-row: 1 / -1; }
+
+/* Einzeln einklappbar — am Desktop wie am Telefon derselbe Zustand.
+   Ohne JavaScript bleiben beide Ränder offen und damit vollständig bedienbar. */
+.app[data-nav='off'] > .nav { display: none; }
+.app[data-rail='off'] > .rail { display: none; }
+
+/* Linke Navigation — ruhig, textbasiert, kein Kachelwerk */
+.nav {
+  border-right: var(--rule-hair) solid var(--color-border);
+  background: var(--color-bg-sunken);
+  padding: var(--space-6) 0 var(--space-6);
+  align-self: stretch;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+}
+.nav__section { padding-inline: var(--space-5); }
+.nav__space {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
+  width: 100%; min-height: var(--control-h);
+  padding: var(--control-pad-y) var(--space-3);
+  background: transparent;
+  border: var(--rule-hair) solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font: inherit; text-align: left; cursor: pointer;
+}
+.nav__space:hover { background: var(--color-surface-hover); }
+.nav__space strong { font-weight: var(--weight-strong); }
+.nav__space .caret { color: var(--color-text-muted); }
+
+.search {
+  display: flex; align-items: center; gap: var(--space-2);
+  width: 100%; min-height: var(--control-h);
+  margin-top: var(--space-3);
+  padding: var(--control-pad-y) var(--space-3);
+  border: var(--rule-hair) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  font: inherit; text-align: left; cursor: pointer;
+}
+.search:hover { border-color: var(--color-border-strong); }
+.search > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.search kbd {
+  margin-left: auto;
+  white-space: nowrap;
+  font-size: var(--text-xs);
+  padding: 0 var(--space-1);
+  border: var(--rule-hair) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+}
+
+.nav__heading { margin: var(--space-7) 0 var(--space-2); padding-inline: var(--space-5); }
+.tree, .tree ul { list-style: none; margin: 0; padding: 0; }
+.tree ul { border-left: var(--rule-hair) solid var(--color-border); margin-left: var(--space-5); }
+.tree a {
+  display: block;
+  padding: var(--space-2) var(--space-5);
+  min-height: var(--control-h);
+  color: var(--color-text);
+  text-decoration: none;
+  border-left: var(--rule-marker) solid transparent;
+  margin-left: calc(-1 * var(--rule-marker));
+}
+.tree ul a { padding-left: var(--space-4); }
+.tree a:hover { background: var(--color-surface-hover); }
+.tree a[aria-current='page'] {
+  border-left-color: var(--color-accent);
+  background: var(--color-accent-wash);
+  font-weight: var(--weight-strong);
+}
+.tree .branch > a { font-weight: var(--weight-medium); }
+
+/* Werkzeuge des Space — dauerhaft sichtbar, nicht in Menüs versteckt */
+.nav__tools { margin-top: var(--space-7); padding-top: var(--space-5); border-top: var(--rule-hair) solid var(--color-border); }
+.toollist { list-style: none; margin: var(--space-2) 0 0; padding: 0; }
+/* Jedes der drei Kinder bekommt seinen Platz ausgeschrieben — Zeile UND Spalte.
+   Vorher trug nur der Erklärtext eine `grid-column: 2` ohne `grid-row`; seine
+   Zeile entschied damit allein die automatische Platzierung. Fällt eines der
+   beiden anderen Kinder weg, kommt eines dazu oder ändert sich die Reihenfolge,
+   rutscht der Erklärtext in Zeile 1 und liegt über dem Namen. Dieselbe Falle
+   wie beim Raster der Leseansicht: explizite Spalte ohne Zeile. Deshalb hier
+   ein benanntes Feldraster — die Platzierung hängt an keiner Reihenfolge mehr.
+   `minmax(0, 1fr)` statt `1fr`, damit lange Wörter die Spalte nicht aufblähen. */
+.toollist a {
+  display: grid;
+  grid-template-columns: var(--space-6) minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  grid-template-areas:
+    'toolglyph toolname'
+    '.         toolhint';
+  gap: var(--space-2);
+  /* Kein `baseline` im Raster — siehe die Notiz an .toollist .tool-name.
+     Zeichen und Name stehen am Anfang ihrer gemeinsamen Zeile; weil beide
+     dieselbe Zeilenhöhe tragen, liegen ihre Grundlinien ohnehin aufeinander.
+     Der Erklärtext richtet sich am Anfang seiner eigenen Zeile aus. */
+  align-items: start;
+  align-content: center;
+  padding: var(--space-2) var(--space-5);
+  min-height: var(--control-h);
+  color: var(--color-text); text-decoration: none;
+}
+.toollist a:hover { background: var(--color-surface-hover); }
+/* `align-self: baseline` auf einem Rasterkind in einer flexiblen Spalte
+   (`minmax(0, 1fr)`) gibt dem Kind in Firefox eine benutzte Breite von 0 px —
+   Chromium und WebKit messen dort 199 px. Der Name bricht dann Wort für Wort
+   um, ohne dass die Rasterzeile mitwächst, und legt sich über den Erklärtext
+   (bei drei Wörtern 28 px Überlappung). Mit Einzelwort-Namen bleibt das
+   unsichtbar, deshalb steht hier bewusst ein zweiwortiger Name im Entwurf.
+   Ersatz: `start` für beide, plus eine gemeinsame, ausgeschriebene
+   Zeilenhöhe — damit sitzen Zeichen und Name weiter auf einer Linie,
+   auch wenn das Symbolzeichen aus einer Ersatzschrift kommt. */
+.toollist .glyph,
+.toollist .tool-name {
+  align-self: start;
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+}
+.toollist .glyph { grid-area: toolglyph; }
+.toollist .tool-name { grid-area: toolname; min-width: 0; }
+.toollist .tool-hint {
+  grid-area: toolhint; min-width: 0;
+  color: var(--color-text-muted); font-size: var(--text-xs);
+  overflow-wrap: break-word;
+}
+.glyph { color: var(--color-text-muted); }
+
+/* --- Dokumentspalte -------------------------------------------------------
+   Keine feste Breite: die Spalte füllt, was das Raster ihr gibt. Der Steg
+   links trägt zugleich die hängenden Gliederungsziffern.
+   Als Größenkontext (container) steuert sie die Marginalie unabhängig
+   vom Fenster — eingeklappte Ränder wirken sofort. */
+.doc {
+  min-width: 0;
+  max-width: var(--measure-full);
+  padding: var(--space-7) var(--layout-gutter) var(--space-10);
+  container-type: inline-size;
+  container-name: doc;
+}
+
+/* Kolumnentitel: „wo bin ich" steht über dem Satzspiegel, nicht in einer Leiste.
+   Er trägt nur noch zwei Dinge — den Pfad und die Abschnittsanzeige. Die beiden
+   Randschalter sind an die Außenränder gewandert (siehe .pane-edge); dadurch
+   bleibt die Zeile in jeder Spaltenbreite vollständig lesbar, statt Glieder
+   abtreten zu lassen. */
+.runhead {
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2) var(--space-3);
+  min-width: 0;
+  padding-bottom: var(--space-2);
+  border-bottom: var(--rule-hair) solid var(--color-border);
+}
+/* Der Pfad darf schrumpfen (und kürzt dann), aber er wächst nicht — der
+   Zwischenraum bleibt wie gesetzt rechts von ihm. Reicht die Spalte selbst
+   für den gekürzten Pfad und die Abschnittsanzeige nebeneinander nicht mehr
+   (unter rund 25rem, also nur bei zwei offenen Leisten in einem engen
+   Fenster), setzt sich die Abschnittsanzeige in eine zweite Zeile, statt
+   dass etwas abgeschnitten wird. Der Pfad selbst bleibt immer einzeilig. */
+.runhead .crumbs { flex: 0 1 auto; min-width: 0; }
+.runhead__pos { flex: none; margin-left: auto; white-space: nowrap; }
+
+/* Brotkrumen: eine Zeile, immer. Reicht der Platz nicht, wird gekürzt —
+   unterhalb von 39rem tritt die ganze Mitte zu „…" zusammen; die Ellipse am
+   Wortende ist nur noch der Notnagel für Titel, die selbst länger sind als die
+   Spalte. Umbrechen darf der Pfad nie:
+   ein flex-wrap-Pfad ohne Mindestbreite fällt in einer engen Spalte auf die
+   Breite des längsten Wortes zusammen und stapelt sich senkrecht. */
+.crumbs { display: flex; flex-wrap: nowrap; gap: var(--space-2); align-items: baseline; min-width: 0; }
+.crumbs > * { white-space: nowrap; }
+.crumbs a, .crumbs .here { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.crumbs a { flex: 0 4 auto; color: var(--color-text-muted); text-decoration: none; }
+.crumbs a:hover { color: var(--color-text); text-decoration: underline; }
+.crumbs .sep { flex: none; color: var(--color-border-strong); }
+.crumbs .here { flex: 0 1 auto; color: var(--color-text); font-weight: var(--weight-strong); }
+/* Die Zwischenebenen sind im Satz normale Glieder; verkürzt tritt „…" an ihre
+   Stelle, während sie für die Vorlesehilfe erhalten bleiben. Umgeschaltet wird
+   allein über zwei geerbte Schalter-Tokens — die Verbergen-Geometrie steht
+   dauerhaft hier und wirkt erst, sobald „display" von contents auf block geht
+   (ein Element mit display:contents erzeugt keinen Kasten). So bleibt es bei
+   einer einzigen Stelle, an der die sr-only-Technik steht; jede Bedingung
+   weiter unten setzt nur noch den Schalter. Verborgen heißt nie display:none:
+   „Abschnitt N von 6" wie auch die Zwischenebenen bleiben im Zugänglichkeits-
+   baum. */
+.crumbs__mid {
+  display: var(--crumbs-mid, contents);
+  position: absolute; width: var(--rule-hair); height: var(--rule-hair);
+  padding: 0; margin: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+.crumbs__more { display: var(--crumbs-more, none); flex: none; color: var(--color-text-muted); }
+/* Ein angesprungenes Glied kürzt nicht: die Nachbarn geben zuerst nach, damit
+   der Fokusring immer ganz im Satz steht statt auf einen Rest zusammenzufallen. */
+.crumbs a:focus-visible { flex-shrink: 0; }
+
+/* --- Daumenregister: die Außenspalten mit den Randschaltern ----------------
+   Die beiden Schalter stehen außerhalb des Satzspiegels, je eine Zielgröße
+   breit, und laufen über den ganzen Stapel durch. Sie bleiben mitgescrollt
+   erreichbar (sticky) und sind im eingeklappten wie im offenen Zustand
+   sichtbar — die Spalte gehört ihnen, nicht der Leiste, die sie schaltet. */
+.pane-edge {
+  align-self: stretch;
+  display: flex; justify-content: center;
+  padding-block: var(--space-7);
+  background: var(--color-bg-sunken);
+}
+.pane-edge--nav { border-right: var(--rule-hair) solid var(--color-border); }
+.pane-edge--rail { border-left: var(--rule-hair) solid var(--color-border); }
+/* Im Register steht die Beschriftung im Satz des Buchrückens: die Zeile läuft
+   senkrecht, Zeichen und Tastenkürzel bleiben aufrecht und damit lesbar. */
+.pane-edge .pane-toggle {
+  position: sticky; top: var(--space-5);
+  align-self: flex-start;
+  writing-mode: vertical-rl;
+  min-width: var(--control-h);
+  min-height: var(--control-h);
+  padding: var(--space-3) var(--control-pad-y);
+  justify-content: flex-start;
+}
+.pane-edge .pane-toggle .glyph,
+.pane-edge .pane-toggle kbd { text-orientation: upright; letter-spacing: var(--tracking-normal); }
+.pane-edge .pane-toggle kbd { padding: var(--space-1) 0; }
+
+/* --- Randschalter: das Bedienelement für die Lesefläche --------------------
+   Ein Zeichen zeigt den Zustand (halb gefüllte Seite = Rand steht,
+   leere Seite = Rand ist eingeklappt), das Wort benennt ihn, die Taste
+   in Klammern nennt das Kürzel. Farbe ist nie alleiniger Träger. */
+.pane-toggle {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  flex: none;
+  min-height: var(--control-h);
+  padding: var(--control-pad-y) var(--space-3);
+  background: transparent;
+  border: var(--rule-hair) solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-strong);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  line-height: var(--leading-ui);
+  cursor: pointer;
+  transition: color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
+}
+.pane-toggle:hover { color: var(--color-text); border-color: var(--color-border); background: var(--color-surface-hover); }
+.pane-toggle .glyph { font-size: var(--text-lg); line-height: 1; color: var(--color-glyph-state); }
+.pane-toggle[aria-expanded='false'] { color: var(--color-accent); }
+.pane-toggle[aria-expanded='false'] .glyph { color: var(--color-accent); }
+.pane-toggle .glyph::before { content: '□'; }
+.pane-toggle--nav[aria-expanded='true'] .glyph::before { content: '◧'; }
+.pane-toggle--rail[aria-expanded='true'] .glyph::before { content: '◨'; }
+.pane-toggle kbd {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-normal);
+  text-transform: none;
+  padding: 0 var(--space-1);
+  border: var(--rule-hair) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+}
+
+/* --- Kürzung im Kolumnentitel --------------------------------------------
+   Seit die Randschalter am Außenrand stehen, trägt die Zeile nur noch Pfad und
+   Abschnittsanzeige. Beide bleiben in jeder Fensterbreite und jedem Leisten-
+   zustand vollständig im Satz — es gibt keine Rangfolge mehr, in der etwas
+   abtritt. Übrig bleibt eine einzige Kürzung für die wirklich enge Spalte:
+   unterhalb von 39rem treten die Zwischenebenen des Pfades zu „…" zusammen.
+   Gemessen: „handbuch / Azure Betrieb / Backup & Restore / HANA-Datensicherung"
+   misst 456 px, die Abschnittsanzeige 143 px, dazu der Zwischenraum — zusammen
+   611 px; unter 39rem (624 px Satzbreite) passt das nicht mehr in eine Zeile.
+   Eingeklappte Ränder zählen sofort mit, deshalb @container statt @media.
+   Gekürzt heißt „aus dem Satz", nie „aus dem Baum": nichts wird mit
+   display:none entfernt, was nur der Enge wegen weicht. */
+@container doc (max-width: 39rem) {
+  .runhead { --crumbs-mid: block; --crumbs-more: block; }
+}
+/* Zwei Rasterumbrüche verbreitern die Dokumentspalte, wenn das Fenster
+   schmaler wird: unter 1181 px wandert die Info-Leiste unter das Dokument,
+   unter 901 px auch der Seitenbaum, dazu schrumpfen die Stege. Ohne Riegel
+   käme der volle Pfad dort zurück — schmaler hieße „mehr". Also bleibt gekürzt,
+   was schon gekürzt war; jeweils nur für die Zustände, in denen der Sprung die
+   Schwelle wirklich überschreitet. */
+@media (max-width: 1180px) {
+  .app[data-nav='on'][data-rail='on'] .runhead { --crumbs-mid: block; --crumbs-more: block; }
+}
+@media (max-width: 900px) {
+  .runhead { --crumbs-mid: block; --crumbs-more: block; }
+}
+/* Die Zwischenebenen bleiben anspringbar, also darf der Fokus nie im
+   Verborgenen landen: erreicht er ein Glied der Mitte, tritt der volle Pfad
+   zurück in den Satz und „…" weicht ihm. Damit bleibt der Fokusring auf
+   gekürzten Gliedern sichtbar. Einzeilig bleibt der Pfad dabei von selbst —
+   die Glieder kürzen nach der Regel oben, nur das angesprungene nicht. */
+.crumbs__mid:focus-within { --crumbs-mid: contents; }
+.crumbs:focus-within .crumbs__more { display: none; }
+
+.doc__title {
+  margin: var(--space-7) 0 0;
+  max-width: var(--measure);
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  font-weight: var(--weight-display);
+  text-wrap: balance;
+}
+.doc__standfirst {
+  margin: var(--space-4) 0 0;
+  max-width: var(--measure);
+  font-size: var(--text-lg);
+  color: var(--color-text-muted);
+}
+.doc__meta {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4);
+  margin-top: var(--space-5);
+  padding-block: var(--space-3);
+  border-top: var(--rule-hair) solid var(--color-border);
+  border-bottom: var(--rule-hair) solid var(--color-border);
+  max-width: var(--measure-full);
+}
+.doc__meta .dot { color: var(--color-border-strong); }
+.doc__actions { margin-left: auto; display: flex; gap: var(--space-2); }
+
+/* --- Satzspiegel ----------------------------------------------------------
+   Die Regel des Hauses, in drei Zeilen lesbar:
+   1. Der Satzspiegel selbst ist unbegrenzt — er ist so breit wie die Spalte.
+   2. Fließtext (Absatz, Liste, Zitat, Überschrift) hält --measure.
+   3. Tabelle, Codeblock, Diagramm und Bild brechen auf --measure-full aus.
+   Genau so hält es das Produkt heute in globals.css. */
+/* Angemeldet als Länge: nur so wird das ch-Maß dort ausgerechnet, wo es
+   deklariert wird (im Lesetext) — der Anfangswert muss laut Norm eine
+   absolute Länge sein und wird von .prose ohnehin sofort überschrieben. */
+@property --layout-note-x {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 0px;
+}
+.prose {
+  counter-reset: sec;
+  position: relative;
+  max-width: var(--measure-full);
+  /* im Kontext des Lesetextes berechnet und als feste Länge vererbt */
+  --layout-note-x: calc(var(--measure) + var(--layout-note-gap));
+}
+.prose > * { max-width: var(--measure-wide); }
+.prose :where(p, ul, ol, dl, blockquote, h2, h3, h4) { max-width: var(--measure); }
+.prose :where(figure, .tablewrap, .breakout, .steps, img, svg) { max-width: var(--measure-full); }
+/* Breites steht nie neben einer Marginalie */
+.prose :where(figure, .tablewrap, .breakout) { clear: right; }
+
+.prose p { margin: 0 0 var(--rhythm); hyphens: auto; }
+.prose > p:first-of-type { margin-top: var(--space-7); }
+
+.prose h2 {
+  position: relative;
+  counter-increment: sec;
+  margin: var(--space-10) 0 var(--space-4);
+  padding-top: var(--space-3);
+  border-top: var(--rule-hair) solid var(--color-border);
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  line-height: var(--leading-heading);
+  letter-spacing: var(--tracking-tight);
+  font-weight: var(--weight-display);
+  scroll-margin-top: var(--space-8);
+}
+/* Hängende Gliederungsziffer im Rand — der Leser sieht die Ebene, ohne zu zählen.
+   Die Ziffer gehört zur Überschrift, also derselbe Serifensatz, dasselbe Gewicht
+   und die Größe der Versalhöhe (--text-hang = --text-xl × --cap-ratio); über die
+   Tokens skaliert sie mit dem clamp() der Überschrift mit.
+   Sie steht als inline-block in der ersten Zeile der Überschrift und wird mit
+   negativem Außenabstand in den Rand gezogen: Vorschub netto null, dafür sitzt
+   sie von selbst exakt auf der Grundlinie der ersten Zeile — anders als bei
+   absoluter Lage, wo die Grundlinie bei jedem Schriftgrad neu zu raten wäre. */
+.prose h2::before {
+  content: counter(sec) '.';
+  display: inline-block;
+  width: var(--layout-hang);
+  margin-left: calc(-1 * var(--layout-hang));
+  white-space: nowrap;
+  font-family: var(--font-display);
+  font-size: var(--text-hang);
+  font-weight: var(--weight-display);
+  line-height: var(--leading-heading);
+  letter-spacing: var(--tracking-tight);
+  color: var(--color-accent);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.prose h3 {
+  margin: var(--space-8) 0 var(--space-3);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  line-height: var(--leading-heading);
+  font-weight: var(--weight-strong);
+  scroll-margin-top: var(--space-8);
+}
+.prose h2 .anchor, .prose h3 .anchor {
+  opacity: 0; margin-left: var(--space-2); color: var(--color-text-muted);
+  text-decoration: none; font-family: var(--font-sans); font-size: var(--text-sm);
+  transition: opacity var(--motion-fast) var(--motion-ease);
+}
+.prose h2:hover .anchor, .prose h3:hover .anchor, .anchor:focus-visible { opacity: 1; }
+
+.prose ul, .prose ol { margin: 0 0 var(--rhythm); padding-left: var(--space-6); }
+.prose li { margin-bottom: var(--space-2); }
+/* optische Ausrichtung: Aufzählungszeichen hängen links außerhalb des Satzes */
+.prose ul { list-style: none; padding-left: 0; }
+.prose ul > li { position: relative; padding-left: var(--space-6); }
+.prose ul > li::before {
+  content: '—';
+  position: absolute; left: 0; top: 0;
+  color: var(--color-text-muted);
+}
+.prose strong { font-weight: var(--weight-strong); }
+.prose em { font-style: italic; }
+.prose mark { background: var(--color-mark); color: var(--color-text); padding-inline: var(--space-1); }
+.prose :where(p, li) code {
+  font-size: 0.86em;
+  padding: 0 var(--space-1);
+  background: var(--color-code-bg);
+  border: var(--rule-hair) solid var(--color-border-hair);
+  border-radius: var(--radius-sm);
+}
+
+/* Marginalie — der klassische Randkommentar statt eines weiteren Kastens.
+   Sie steht direkt neben dem Satz, nicht am äußersten Rand der Spalte:
+   der rechte Außenabstand ist genau der Rest, der nach Satz und Randspalte
+   übrig bleibt. Wird die Spalte enger, fällt der Abstand auf null und der
+   Satz umfließt die Marginalie wie im Buch. */
+.note {
+  float: right;
+  clear: right;
+  width: var(--layout-note-w);
+  max-width: var(--layout-note-w);
+  margin: var(--space-1) 0 var(--space-5) var(--layout-note-gap);
+  margin-right: max(var(--space-0), calc(100% - var(--layout-note-x) - var(--layout-note-w)));
+  /* Die Ausschlussfläche ist der ganze Kasten samt Randlinie, Innenabstand und
+     linkem Steg. Mit content-box liefe der Satz über Steg, Linie und Polsterung
+     bis an den Notiztext heran — der Satz muss vor der Linie enden. */
+  shape-outside: margin-box;
+  padding-left: var(--space-3);
+  border-left: var(--rule-hair) solid var(--color-border-strong);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  line-height: var(--leading-ui);
+  color: var(--color-text-muted);
+}
+.note b { display: block; color: var(--color-text); font-weight: var(--weight-strong); }
+
+/* Ist die Dokumentspalte zu schmal für eine Randspalte, läuft die Marginalie
+   im Satz mit — gemessen an der Spalte, nicht am Fenster. */
+@container doc (max-width: 32rem) {
+  .note {
+    float: none;
+    width: auto;
+    max-width: var(--measure);
+    margin: var(--space-5) 0;
+  }
+}
+
+/* Nummerierte Prozedur — Schrittziffern hängen im Rand, eine Linie führt durch */
+.steps { counter-reset: step; list-style: none; margin: var(--space-7) 0; padding: 0; }
+.steps > li {
+  position: relative;
+  counter-increment: step;
+  padding-left: var(--layout-hang);
+  padding-bottom: var(--space-7);
+  border-left: var(--rule-hair) solid var(--color-border);
+  margin-left: var(--space-4);
+}
+.steps > li:last-child { border-left-color: transparent; padding-bottom: 0; }
+.steps > li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0; top: 0;
+  transform: translateX(-50%);
+  width: var(--space-8); height: var(--space-8);
+  display: grid; place-items: center;
+  background: var(--color-bg);
+  border: var(--rule-hair) solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+  font-variant-numeric: lining-nums tabular-nums;
+  line-height: var(--leading-ui);
+  color: var(--color-text);
+}
+.steps > li::marker { content: none; }
+.steps h4 {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: var(--weight-strong);
+  line-height: var(--leading-heading);
+}
+.steps p:last-child { margin-bottom: 0; }
+
+/* Tabellen ohne Kästen: Kopf- und Fußlinie, sonst Weißraum.
+   Eine Betriebstabelle nimmt immer die ganze Spalte — sie ist kein Fließtext. */
+.tablewrap { overflow-x: auto; margin: var(--space-7) 0; max-width: var(--measure-full); }
+table.data {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+table.data caption {
+  caption-side: top;
+  text-align: left;
+  padding-bottom: var(--space-3);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  font-weight: var(--weight-strong);
+  color: var(--color-text-muted);
+}
+table.data th, table.data td {
+  text-align: left;
+  vertical-align: top;
+  padding: calc(var(--space-3) * var(--density)) var(--space-4) calc(var(--space-3) * var(--density)) 0;
+  border-bottom: var(--rule-hair) solid var(--color-border-hair);
+}
+table.data thead th {
+  border-bottom: var(--rule-strong) solid var(--color-text);
+  font-weight: var(--weight-strong);
+  padding-bottom: var(--space-2);
+}
+table.data tbody tr:last-child td { border-bottom: var(--rule-hair) solid var(--color-border-strong); }
+table.data td code { font-size: var(--text-xs); }
+
+/* Codeblock: gesetzt wie ein Zitat — Papierton, Randlinie, keine Farbcodierung.
+   Syntax trägt Schnitt (fett/kursiv), nicht Farbe. */
+figure.code { margin: var(--space-7) 0; }
+figure.code figcaption {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3);
+  padding-bottom: var(--space-2);
+}
+figure.code pre {
+  margin: 0;
+  padding: var(--space-5) var(--space-5) var(--space-5) var(--space-6);
+  overflow-x: auto;
+  background: var(--color-code-bg);
+  border-left: var(--rule-marker) solid var(--color-border-strong);
+  border-top: var(--rule-hair) solid var(--color-border-hair);
+  border-bottom: var(--rule-hair) solid var(--color-border-hair);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  color: var(--color-code-text);
+  font-size: var(--text-sm);
+  line-height: var(--leading-code);
+  tab-size: 2;
+}
+pre .c { color: var(--color-code-comment); font-style: italic; }
+pre .k { font-weight: var(--weight-strong); }
+pre .s { font-style: italic; }
+pre .p { color: var(--color-accent); }
+pre .g { color: var(--color-code-gutter); user-select: none; }
+
+/* Hinweisblöcke: Markerlinie + Etikett + Zeichen — Farbe ist nie alleiniger Träger */
+.callout {
+  margin: var(--space-7) 0;
+  max-width: var(--measure-wide);
+  padding: var(--space-4) var(--space-5);
+  border-left: var(--rule-marker) solid var(--color-border-strong);
+  background: var(--color-bg-raised);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+.callout__head { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
+.callout p { margin: 0; max-width: var(--measure); }
+.callout p + p { margin-top: var(--space-3); }
+.callout.info { border-left-color: var(--color-status-working); background: var(--color-status-working-wash); }
+.callout.info .callout__head { color: var(--color-status-working); }
+.callout.warn { border-left-color: var(--color-status-review); background: var(--color-status-review-wash); }
+.callout.warn .callout__head { color: var(--color-status-review); }
+.callout.error { border-left-color: var(--color-danger); background: var(--color-danger-wash); }
+.callout.error .callout__head { color: var(--color-danger); }
+.callout.ok { border-left-color: var(--color-status-released); background: var(--color-status-released-wash); }
+.callout.ok .callout__head { color: var(--color-status-released); }
+.callout__head .label { color: inherit; }
+
+/* Diagramm */
+figure.figure { margin: var(--space-8) 0; }
+figure.figure svg { display: block; width: 100%; height: auto; color: var(--color-text-muted); }
+figcaption {
+  margin-top: var(--space-3);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  line-height: var(--leading-ui);
+  color: var(--color-text-muted);
+}
+figcaption b { color: var(--color-text); font-weight: var(--weight-strong); }
+.diagram text { font-family: var(--font-sans); fill: var(--color-text); }
+.diagram .t-sm { font-size: var(--text-xs); fill: var(--color-text-muted); }
+.diagram .box { fill: var(--color-bg-raised); stroke: var(--color-border-strong); }
+.diagram .flow { stroke: var(--color-text-muted); fill: none; }
+
+/* Blätterleiste am Textende — Fortsetzung wie im Buch */
+.pager {
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6);
+  margin-top: var(--space-10);
+  padding-top: var(--space-5);
+  border-top: var(--rule-strong) solid var(--color-text);
+  max-width: var(--measure-full);
+}
+.pager a {
+  display: block; padding: var(--space-3) 0; text-decoration: none; color: var(--color-text);
+  min-height: var(--control-h);
+}
+.pager a:hover .pager__title { text-decoration: underline; }
+.pager .next { text-align: right; }
+.pager__title { display: block; font-family: var(--font-display); font-size: var(--text-lg); font-weight: var(--weight-strong); line-height: var(--leading-heading); }
+
+/* --- Rechte Info-Leiste: das Inhaltsverzeichnis ist der Anker ------------- */
+.rail {
+  position: sticky;
+  top: var(--space-4);
+  padding: var(--space-7) var(--space-6) var(--space-8) 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+  min-width: 0;
+}
+.rail__block + .rail__block { margin-top: var(--space-7); padding-top: var(--space-5); border-top: var(--rule-hair) solid var(--color-border); }
+.rail__block h3 { margin: 0 0 var(--space-3); }
+
+.toc { position: relative; list-style: none; margin: 0; padding: 0 0 0 var(--space-4); counter-reset: toc; }
+/* Lesefortschritt als Bleistiftstrich neben dem Verzeichnis */
+.toc::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: var(--rule-hair); background: var(--color-border);
+}
+.toc::after {
+  content: ''; position: absolute; left: 0; top: 0;
+  width: var(--rule-strong); height: var(--toc-progress, 0%);
+  background: var(--color-accent);
+  transition: height var(--motion-fast) var(--motion-ease);
+}
+.toc li { counter-increment: toc; }
+.toc a {
+  display: flex; gap: var(--space-3);
+  padding: var(--space-2) var(--space-2);
+  color: var(--color-text-muted);
+  text-decoration: none;
+  min-height: var(--control-h);
+  align-items: baseline;
+}
+.toc a::before {
+  content: counter(toc) '.';
+  color: var(--color-border-strong);
+  font-variant-numeric: lining-nums tabular-nums;
+  min-width: var(--space-5);
+}
+.toc a:hover { color: var(--color-text); background: var(--color-surface-hover); }
+.toc a[aria-current='location'] { color: var(--color-text); font-weight: var(--weight-strong); }
+.toc a[aria-current='location']::before { color: var(--color-accent); }
+.toc .toc-sub { list-style: none; margin: 0; padding: 0; }
+.toc .lvl3 { counter-increment: none; }
+.toc .lvl3 a { padding-left: var(--space-5); }
+.toc .lvl3 a::before { content: '·'; }
+
+.tags { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.tag {
+  display: inline-flex; align-items: center;
+  padding: var(--space-1) var(--space-3);
+  border: var(--rule-hair) solid var(--color-border);
+  border-radius: var(--radius-pill);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  text-decoration: none;
+}
+.tag:hover { border-color: var(--color-border-strong); color: var(--color-text); }
+.tag .h { color: var(--color-border-strong); margin-right: var(--space-1); }
+
+dl.meta { display: grid; grid-template-columns: auto 1fr; gap: var(--space-2) var(--space-4); margin: 0; }
+dl.meta dt { color: var(--color-text-muted); }
+dl.meta dd { margin: 0; }
+
+.rel { list-style: none; margin: 0 0 var(--space-4); padding: 0; }
+.rel li { padding: var(--space-1) 0; }
+.rel a { color: var(--color-text); text-decoration: none; border-bottom: var(--rule-hair) solid var(--color-border-strong); }
+.rel a:hover { border-bottom-color: var(--color-accent); color: var(--color-accent); }
+.rel-type { margin-top: var(--space-4); }
+
+/* --- Bedienelemente: treten zurück, bis man sie braucht -------------------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  min-height: var(--control-h);
+  padding: var(--control-pad-y) var(--control-pad-x);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+  line-height: var(--leading-ui);
+  letter-spacing: var(--tracking-normal);
+  border-radius: var(--radius-md);
+  border: var(--rule-hair) solid var(--color-border-strong);
+  background: var(--color-bg);
+  color: var(--color-text);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
+}
+.btn:hover { background: var(--color-surface-hover); }
+.btn:active { background: var(--color-bg-raised); }
+/* Primär = Tinte, nicht Farbe: die Akzentfarbe bleibt der Bedeutung vorbehalten */
+.btn.primary { background: var(--color-text); color: var(--color-bg); border-color: var(--color-text); box-shadow: var(--shadow-sm); }
+.btn.primary:hover { background: color-mix(in srgb, var(--color-text) 88%, var(--color-accent)); }
+.btn.quiet { border-color: transparent; background: transparent; color: var(--color-text-muted); font-weight: var(--weight-medium); }
+.btn.quiet:hover { color: var(--color-text); background: var(--color-surface-hover); }
+.btn.danger { color: var(--color-danger); border-color: color-mix(in srgb, var(--color-danger) 45%, var(--color-bg)); background: var(--color-danger-wash); }
+.btn.danger:hover { background: color-mix(in srgb, var(--color-danger) 16%, var(--color-bg)); }
+.btn[disabled], .btn[aria-disabled='true'] { opacity: 0.45; cursor: not-allowed; background: var(--color-bg-raised); }
+.btn .glyph { color: currentColor; }
+.btn-row { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
+
+.field { display: grid; gap: var(--space-2); margin-bottom: var(--space-5); max-width: var(--measure); }
+.field > .label { color: var(--color-text); }
+.field .hint { font-family: var(--font-sans); font-size: var(--text-xs); color: var(--color-text-muted); line-height: var(--leading-ui); }
+.field .err { font-family: var(--font-sans); font-size: var(--text-xs); color: var(--color-danger); line-height: var(--leading-ui); }
+.input, .select, textarea.input {
+  width: 100%;
+  min-height: var(--control-h);
+  padding: var(--control-pad-y) var(--space-3);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: var(--rule-hair) solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+}
+.input::placeholder { color: var(--color-text-muted); }
+.input:hover, .select:hover { border-color: var(--color-text-muted); }
+.input[aria-invalid='true'] { border-color: var(--color-danger); background: var(--color-danger-wash); }
+.select { appearance: none; padding-right: var(--space-8); background-image: none; cursor: pointer; }
+.selectwrap { position: relative; }
+.selectwrap .caret { position: absolute; right: var(--space-3); top: 50%; transform: translateY(-50%); color: var(--color-text-muted); pointer-events: none; }
+
+.check { display: flex; align-items: flex-start; gap: var(--space-3); min-height: var(--control-h); padding-block: var(--control-pad-y); font-family: var(--font-sans); font-size: var(--text-sm); line-height: var(--leading-ui); }
+.check input { width: var(--space-5); height: var(--space-5); margin-top: var(--space-1); accent-color: var(--color-accent); }
+
+/* Segmentierte Auswahl — hier zugleich der Dichte-Regler des Themes */
+.segmented { display: inline-flex; border: var(--rule-hair) solid var(--color-border-strong); border-radius: var(--radius-md); overflow: hidden; }
+.segmented button {
+  min-height: var(--control-h);
+  padding: var(--control-pad-y) var(--control-pad-x);
+  font-family: var(--font-sans); font-size: var(--text-sm); line-height: var(--leading-ui);
+  background: var(--color-bg); color: var(--color-text-muted); border: 0; cursor: pointer;
+}
+.segmented button + button { border-left: var(--rule-hair) solid var(--color-border); }
+.segmented button[aria-pressed='true'] { background: var(--color-text); color: var(--color-bg); font-weight: var(--weight-strong); }
+
+/* Status-Chips: Zeichen + Wort + Farbe (nie Farbe allein) */
+.chip {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  border: var(--rule-hair) solid currentColor;
+  font-family: var(--font-sans); font-size: var(--text-xs); font-weight: var(--weight-strong);
+  letter-spacing: var(--tracking-caps); text-transform: uppercase; line-height: var(--leading-ui);
+}
+.chip .glyph { font-size: var(--text-sm); }
+.chip.working { color: var(--color-status-working); background: var(--color-status-working-wash); }
+.chip.review { color: var(--color-status-review); background: var(--color-status-review-wash); }
+.chip.released { color: var(--color-status-released); background: var(--color-status-released-wash); }
+.chip.archived { color: var(--color-status-archived); background: var(--color-status-archived-wash); }
+
+/* Karte: eine Linie, kein Schatten — Papier auf Papier */
+.card {
+  border: var(--rule-hair) solid var(--color-border);
+  border-top: var(--rule-strong) solid var(--color-text);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  padding: var(--space-5);
+  background: var(--color-bg);
+}
+.card h4 { margin: 0 0 var(--space-2); font-family: var(--font-display); font-size: var(--text-lg); font-weight: var(--weight-strong); line-height: var(--leading-heading); }
+.card p { margin: 0; color: var(--color-text-muted); font-size: var(--text-sm); font-family: var(--font-sans); line-height: var(--leading-ui); }
+.card .card__foot { margin-top: var(--space-4); display: flex; gap: var(--space-3); align-items: center; }
+
+.grid { display: grid; gap: var(--space-6); }
+.grid.cols-2 { grid-template-columns: repeat(auto-fit, minmax(min(var(--space-11) * 3, 100%), 1fr)); }
+.grid.cols-3 { grid-template-columns: repeat(auto-fit, minmax(min(var(--space-11) * 2.4, 100%), 1fr)); }
+
+/* Reiter */
+.tabs { border-bottom: var(--rule-hair) solid var(--color-border); display: flex; gap: var(--space-5); }
+.tabs button {
+  min-height: var(--control-h);
+  padding: var(--control-pad-y) 0;
+  background: none; border: 0; cursor: pointer;
+  font-family: var(--font-sans); font-size: var(--text-sm); font-weight: var(--weight-medium); line-height: var(--leading-ui);
+  color: var(--color-text-muted);
+  border-bottom: var(--rule-marker) solid transparent;
+  margin-bottom: calc(-1 * var(--rule-hair));
+}
+.tabs button:hover { color: var(--color-text); }
+.tabs button[aria-selected='true'] { color: var(--color-text); border-bottom-color: var(--color-accent); font-weight: var(--weight-strong); }
+.tabpanel { padding-top: var(--space-5); font-family: var(--font-sans); font-size: var(--text-sm); line-height: var(--leading-ui); color: var(--color-text-muted); }
+.tabpanel[hidden] { display: none; }
+
+/* Dialog */
+dialog.sheetdialog {
+  width: min(calc(var(--space-11) * 6), 92vw);
+  padding: var(--space-7);
+  border: var(--rule-hair) solid var(--color-border);
+  border-top: var(--rule-strong) solid var(--color-text);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg);
+  color: var(--color-text);
+  box-shadow: var(--shadow-md);
+}
+dialog.sheetdialog::backdrop { background: var(--color-scrim); }
+dialog.sheetdialog h3 { margin: var(--space-2) 0 var(--space-3); font-family: var(--font-display); font-size: var(--text-xl); font-weight: var(--weight-display); line-height: var(--leading-heading); }
+dialog.sheetdialog p { margin: 0 0 var(--space-6); color: var(--color-text-muted); }
+dialog.sheetdialog .dialog__foot { display: flex; gap: var(--space-3); justify-content: flex-end; }
+
+/* Lade- und Leerzustand */
+.skeleton > span {
+  display: block; height: var(--space-4); margin-bottom: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--color-bg-raised), var(--color-surface-hover), var(--color-bg-raised));
+  background-size: 300% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+.skeleton > span:nth-child(2) { width: 92%; }
+.skeleton > span:nth-child(3) { width: 78%; }
+.skeleton > span:nth-child(4) { width: 86%; }
+@keyframes shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) { .skeleton > span { animation: none; } }
+
+.empty {
+  text-align: center;
+  padding: var(--space-9) var(--space-6);
+  border: var(--rule-hair) dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+}
+.empty h4 { margin: var(--space-4) 0 var(--space-2); font-family: var(--font-display); font-size: var(--text-lg); font-weight: var(--weight-strong); }
+.empty p { margin: 0 auto var(--space-5); max-width: calc(var(--measure) / 2); color: var(--color-text-muted); font-family: var(--font-sans); font-size: var(--text-sm); line-height: var(--leading-ui); }
+
+/* Spezimen-Raster des Musterbuchs */
+.spec { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-5); margin-bottom: var(--space-9); }
+.spec > header { border-top: var(--rule-hair) solid var(--color-border); padding-top: var(--space-2); }
+.spec__body { display: flex; flex-wrap: wrap; gap: var(--space-5); align-items: flex-start; }
+
+/* --- Register (Suche/Sprungmarken) --------------------------------------- */
+.palette {
+  border: var(--rule-hair) solid var(--color-border);
+  border-top: var(--rule-strong) solid var(--color-text);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  background: var(--color-bg);
+  box-shadow: var(--shadow-md);
+  max-width: calc(var(--space-11) * 6);
+  overflow: hidden;
+}
+.palette__input {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: var(--rule-hair) solid var(--color-border);
+  font-family: var(--font-sans); font-size: var(--text-lg); color: var(--color-text);
+}
+.palette__input .cursor { width: var(--rule-strong); height: var(--space-6); background: var(--color-accent); display: inline-block; }
+.palette__group { padding: var(--space-4) var(--space-5) var(--space-2); }
+.palette ul { list-style: none; margin: 0; padding: 0; }
+.palette li a {
+  display: grid; grid-template-columns: var(--space-6) 1fr auto; gap: var(--space-3); align-items: baseline;
+  padding: var(--space-3) var(--space-5); min-height: var(--control-h);
+  color: var(--color-text); text-decoration: none;
+  font-family: var(--font-sans); font-size: var(--text-sm); line-height: var(--leading-ui);
+  border-left: var(--rule-marker) solid transparent;
+}
+.palette li a:hover, .palette li a[aria-selected='true'] { background: var(--color-accent-wash); border-left-color: var(--color-accent); }
+.palette li a .desc { color: var(--color-text-muted); font-size: var(--text-xs); display: block; }
+.palette li a kbd { font-size: var(--text-xs); color: var(--color-text-muted); border: var(--rule-hair) solid var(--color-border); border-radius: var(--radius-sm); padding: 0 var(--space-1); }
+
+/* --- Token-Tabelle -------------------------------------------------------- */
+table.tokens { width: 100%; border-collapse: collapse; font-family: var(--font-sans); font-size: var(--text-sm); line-height: var(--leading-ui); }
+table.tokens th, table.tokens td { text-align: left; vertical-align: top; padding: var(--space-3) var(--space-4); border-bottom: var(--rule-hair) solid var(--color-border-hair); }
+table.tokens thead th { border-bottom: var(--rule-strong) solid var(--color-text); font-weight: var(--weight-strong); }
+table.tokens tbody th { font-weight: var(--weight-text); font-family: var(--font-mono); font-size: var(--text-xs); }
+table.tokens tr.group th {
+  padding-top: var(--space-6);
+  border-bottom: var(--rule-hair) solid var(--color-border-strong);
+  font-family: var(--font-sans); font-size: var(--text-xs); letter-spacing: var(--tracking-caps);
+  text-transform: uppercase; font-weight: var(--weight-strong); color: var(--color-text-muted);
+}
+td.preview { background: var(--color-bg); color: var(--color-text); font-family: var(--font-mono); font-size: var(--text-xs); }
+.swatch {
+  display: inline-block; width: var(--space-8); height: var(--space-5);
+  vertical-align: middle; margin-right: var(--space-3);
+  background: var(--sw, transparent);
+  border: var(--rule-hair) solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+}
+.tokens .new { color: var(--color-accent); font-weight: var(--weight-strong); }
+.tokenscroll { overflow-x: auto; }
+
+/* --- Kopfleiste / Umschalter ----------------------------------------------- */
+.toggle { display: inline-flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.masthead__controls { display: grid; gap: var(--space-4); justify-items: end; }
+
+/* Ableseleiste über der Leseansicht: zeigt schwarz auf weiß, was das
+   Einklappen bringt — Fließtext bleibt, breite Inhalte wachsen. */
+.readout {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-5);
+  margin-top: var(--space-5);
+  padding: var(--space-3) 0;
+  border-top: var(--rule-hair) solid var(--color-border);
+  border-bottom: var(--rule-hair) solid var(--color-border);
+  font-family: var(--font-sans); font-size: var(--text-sm); line-height: var(--leading-ui);
+  color: var(--color-text-muted);
+}
+.readout b {
+  font-family: var(--font-mono); font-size: var(--text-sm); font-weight: var(--weight-strong);
+  font-variant-numeric: tabular-nums lining-nums; color: var(--color-text);
+}
+.readout .grow b { color: var(--color-accent); }
+.readout .hintkeys { margin-left: auto; }
+.readout kbd {
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  padding: 0 var(--space-1);
+  border: var(--rule-hair) solid var(--color-border); border-radius: var(--radius-sm);
+}
+
+/* --- Responsiv ------------------------------------------------------------
+   Beim Verschmälern darf nie „mehr" erscheinen. Die beiden Außenspalten des
+   Daumenregisters bleiben deshalb in jeder Breite stehen — nur die Ränder
+   wandern unter das Dokument. Weil das Stapeln die Dokumentspalte sprunghaft
+   verbreitert, bleibt die einmal gekürzte Brotkrume unterhalb der Haltepunkte
+   gekürzt: was bei 1200 px zu „…" zusammengetreten ist, kehrt bei 1000 px
+   nicht zurück. */
+@media (max-width: 1180px) {
+  .app { grid-template-columns: var(--layout-edge-w) auto minmax(0, 1fr) var(--layout-edge-w); }
+  .app > .pane-edge--nav { grid-column: 1; grid-row: 1 / -1; }
+  .app > .nav { grid-column: 2; grid-row: 1; }
+  .app > .doc { grid-column: 3; grid-row: 1; }
+  .app > .rail { grid-column: 2 / 4; grid-row: 2; width: auto; position: static; padding: var(--space-6) var(--layout-gutter) var(--space-8); border-top: var(--rule-hair) solid var(--color-border); }
+  .app > .pane-edge--rail { grid-column: 4; grid-row: 1 / -1; }
+}
+
+@media (max-width: 900px) {
+  :root { --layout-hang: 0rem; --layout-gutter: var(--space-5); }
+  .app { grid-template-columns: var(--layout-edge-w) minmax(0, 1fr) var(--layout-edge-w); }
+  .app > .pane-edge--nav { grid-column: 1; grid-row: 1 / -1; }
+  .app > .nav { grid-column: 2; grid-row: 1; width: auto; }
+  .app > .doc { grid-column: 2; grid-row: 2; }
+  .app > .rail { grid-column: 2; grid-row: 3; width: auto; }
+  .app > .pane-edge--rail { grid-column: 3; grid-row: 1 / -1; }
+  .nav { border-right: 0; border-bottom: var(--rule-hair) solid var(--color-border); }
+  .doc { padding: var(--space-5) var(--space-5) var(--space-8); }
+  .chapter, .masthead { padding-inline: var(--space-5); }
+  .masthead__controls { justify-items: start; }
+  /* Ohne Rand kein Hängen: die Ziffer setzt sich über die Überschrift.
+     `margin-left` und `width` müssen dabei ausdrücklich zurückgenommen werden —
+     --layout-hang ist hier 0, eine 0 breite Ziffer wäre die Folge. */
+  .prose h2::before { display: block; width: auto; margin-left: 0; margin-bottom: var(--space-1); }
+  .pager { grid-template-columns: minmax(0, 1fr); }
+  .rail { padding-inline: var(--space-5); }
+  .pane-toggle kbd { display: none; }
+  .readout .hintkeys { display: none; }
+}
+
+@media print {
+  .nav, .rail, .pane-edge, .masthead__meta, .doc__actions { display: none; }
+  .app { grid-template-columns: minmax(0, 1fr); border: 0; }
+  /* Jedes Rasterkind braucht seine Spalte — sonst rückt das Dokument in eine
+     nachgewachsene Spalte und fällt auf Wortbreite zusammen. */
+  .app > .doc { grid-column: 1; grid-row: 1; }
+}
+
+</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="masthead">
+  <div>
+    <p class="label">f451 · Design-Entwurf 2026</p>
+    <h1>Editorial<span class="imprint">.</span></h1>
+    <p class="masthead__lead">
+      Eine Betriebsanleitung wird hier gesetzt wie ein Fachbuch: souveräne Hierarchie,
+      ein Maß von rund 70 Zeichen für den Fließtext, ruhige Flächen — und Farbe nur dort,
+      wo sie etwas bedeutet. Das Maß gilt dem Satz, nicht der Seite: Tabellen, Codeblöcke
+      und Diagramme nehmen die volle Spalte, und beide Ränder lassen sich einzeln
+      wegklappen, bis nur noch der Inhalt steht.
+    </p>
+    <div class="masthead__meta">
+      <span class="label">Fließtext 68 Zeichen</span>
+      <span class="label">Tabellen &amp; Diagramme in voller Breite</span>
+      <span class="label">Serifen-Lesetext</span>
+      <span class="label">Ein Akzent, vier Statusfarben</span>
+    </div>
+  </div>
+  <div class="masthead__controls">
+    <div class="toggle">
+      <span class="label" id="theme-label">Ansicht</span>
+      <button class="btn" type="button" id="theme-btn" aria-pressed="false" aria-describedby="theme-label">
+        <span class="glyph" aria-hidden="true">◐</span>
+        <span id="theme-text">Dunkel</span>
+      </button>
+    </div>
+    <div class="toggle">
+      <span class="label" id="panes-label">Lesefläche</span>
+      <div class="segmented" role="group" aria-labelledby="panes-label">
+        <button type="button" data-panes="both" aria-pressed="true">Beide Ränder</button>
+        <button type="button" data-panes="nav" aria-pressed="false">Nur Seitenbaum</button>
+        <button type="button" data-panes="rail" aria-pressed="false">Nur Info-Leiste</button>
+        <button type="button" data-panes="none" aria-pressed="false">Vollbreite</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ===================== 1 · Leseansicht ===================== -->
+<section class="chapter" aria-labelledby="kap-1">
+  <header style="max-width: var(--measure-full);">
+    <p class="label">Kapitel eins</p>
+    <h2 class="chapter__title" id="kap-1">Leseansicht</h2>
+    <p class="chapter__lead" style="max-width: var(--measure);">
+      Die Kernansicht. Der Text steht in der Mitte und bekommt den ganzen Raum;
+      Seitenbaum und Info-Leiste sind Ränder, keine Konkurrenten. Gliederungsziffern
+      hängen im Rand, das Inhaltsverzeichnis zeigt den Lesefortschritt.
+      Beide Ränder sind einzeln wegklappbar — über das Daumenregister ganz außen,
+      über <kbd>[</kbd> und <kbd>]</kbd> oder hier über die Umschaltung; der Zustand
+      wird gemerkt. Was dabei frei wird, bekommen die breiten Inhalte. Der
+      Kolumnentitel bleibt davon frei: Pfad und Abschnittsanzeige haben die
+      Zeile für sich und stehen in jeder Breite vollständig da.
+    </p>
+    <p class="readout" id="readout">
+      <span>Fließtext <b data-readout="text">—</b></span>
+      <span class="grow">Tabelle <b data-readout="table">—</b></span>
+      <span>Dokumentspalte <b data-readout="doc">—</b></span>
+      <span class="hintkeys"><kbd>[</kbd> Seitenbaum · <kbd>]</kbd> Info-Leiste · <kbd>\</kbd> Vollbreite</span>
+    </p>
+  </header>
+
+  <div class="app" id="leseansicht" data-nav="on" data-rail="on">
+
+    <!-- Daumenregister: beide Randschalter stehen an den Außenrändern, nicht im
+         Kolumnentitel. Sie bleiben sichtbar, gleich ob ihre Leiste steht oder
+         eingeklappt ist.
+
+         Beide stehen hier unmittelbar nebeneinander im Quelltext — auch der
+         rechte, der weiter unten am rechten Außenrand erscheint. Das Raster
+         setzt jedes Kind über eine ausgeschriebene grid-column (der rechte in
+         Spalte 5), die Lage im Satz hängt also nicht an der Quelltextfolge.
+         Der Tabulator-Lauf hängt daran sehr wohl: stand der rechte Schalter
+         zuletzt im Quelltext, musste man erst den ganzen Seitenbaum und das
+         ganze Dokument durchtabben, um eine eingeklappte Info-Leiste wieder zu
+         öffnen (Position 51 von 52). Das Kürzel ] ersetzt das nicht — ein
+         modifikatorloses Einzeltastenkürzel ist kein Zugang, sondern eine
+         Abkürzung (WCAG 2.1.4). Jetzt liegen beide Schalter an Position 0
+         und 1, spiegelbildlich im Satz wie im Lauf. Positive tabindex-Werte
+         braucht es dafür nicht — und sie würden die Reihenfolge an anderer
+         Stelle zerreißen. -->
+    <div class="pane-edge pane-edge--nav">
+      <button class="pane-toggle pane-toggle--nav" type="button"
+              data-pane="nav" aria-expanded="true" aria-controls="pane-nav"
+              title="Seitenbaum ein- und ausklappen (Taste [ )">
+        <span class="glyph" aria-hidden="true"></span>
+        <span class="t">Seitenbaum</span>
+        <kbd aria-hidden="true">[</kbd>
+      </button>
+    </div>
+
+    <div class="pane-edge pane-edge--rail">
+      <button class="pane-toggle pane-toggle--rail" type="button"
+              data-pane="rail" aria-expanded="true" aria-controls="pane-rail"
+              title="Info-Leiste ein- und ausklappen (Taste ] )">
+        <span class="glyph" aria-hidden="true"></span>
+        <span class="t">Info-Leiste</span>
+        <kbd aria-hidden="true">]</kbd>
+      </button>
+    </div>
+
+    <!-- Linke Navigation — einklappbar über den Schalter am linken Außenrand -->
+    <nav class="nav" id="pane-nav" aria-label="Seitennavigation">
+      <div>
+        <div class="nav__section">
+          <button class="nav__space" type="button" aria-haspopup="listbox">
+            <span><span class="label">Space</span><br><strong>handbuch</strong></span>
+            <span class="caret" aria-hidden="true">▾</span>
+          </button>
+          <button class="search" type="button">
+            <span class="glyph" aria-hidden="true">⌕</span>
+            <span>Suchen &amp; springen</span>
+            <kbd>Strg K</kbd>
+          </button>
+        </div>
+
+        <p class="label nav__heading">Inhalt des Space</p>
+        <ul class="tree">
+          <li class="branch">
+            <a href="#">Grundlagen des Betriebs</a>
+          </li>
+          <li class="branch">
+            <a href="#">Azure Betrieb</a>
+            <ul>
+              <li><a href="#">Storage-Konten</a></li>
+              <li><a href="#">Netzwerkzonen</a></li>
+              <li class="branch">
+                <a href="#">Backup &amp; Restore</a>
+                <ul>
+                  <li><a href="#lese" aria-current="page">HANA-Datensicherung</a></li>
+                  <li><a href="#">MaxDB-Sicherung</a></li>
+                  <li><a href="#">Rücksicherung testen</a></li>
+                </ul>
+              </li>
+            </ul>
+          </li>
+          <li class="branch">
+            <a href="#">SAP Basis</a>
+            <ul>
+              <li><a href="#">Kerneltausch HANA</a></li>
+              <li><a href="#">HANA-Revisionsupdate</a></li>
+            </ul>
+          </li>
+        </ul>
+
+        <div class="nav__tools">
+          <p class="label nav__heading">Werkzeuge des Space</p>
+          <ul class="toollist">
+            <li><a href="#kap-3"><span class="glyph" aria-hidden="true">▤</span><span class="tool-name">Vorlagen</span><span class="tool-hint">Seitengerüste für neue HOW-TOs</span></a></li>
+            <li><a href="#kap-3"><span class="glyph" aria-hidden="true">▦</span><span class="tool-name">Schema</span><span class="tool-hint">Pflichtfelder der Metadaten</span></a></li>
+            <li><a href="#kap-3"><span class="glyph" aria-hidden="true">▲</span><span class="tool-name">Defekte Verweise</span><span class="tool-hint">2 offene Fundstellen im Space</span></a></li>
+            <li><a href="#kap-3"><span class="glyph" aria-hidden="true">◇</span><span class="tool-name">Graph</span><span class="tool-hint">Wissensnetz des Space</span></a></li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Dokument -->
+    <main class="doc" id="lese">
+      <div class="runhead">
+        <nav class="crumbs ui" aria-label="Brotkrumen">
+          <a href="#">handbuch</a><span class="sep" aria-hidden="true">/</span>
+          <span class="crumbs__mid"><a href="#">Azure Betrieb</a><span class="sep" aria-hidden="true">/</span>
+          <a href="#">Backup &amp; Restore</a><span class="sep" aria-hidden="true">/</span></span>
+          <span class="crumbs__more" aria-hidden="true" title="Azure Betrieb / Backup &amp; Restore">…&nbsp;/</span>
+          <span class="here">HANA-Datensicherung</span>
+        </nav>
+        <span class="label runhead__pos" id="runhead-pos">Abschnitt 1 von 6</span>
+      </div>
+
+      <h1 class="doc__title">HANA-Datensicherung nach Azure Blob Storage</h1>
+      <p class="doc__standfirst">
+        Einrichtung, täglicher Ablauf und Prüfung der Backint-basierten Sicherung
+        des Produktivsystems PRD auf ein gekühltes Blob-Konto in West Europe.
+      </p>
+
+      <div class="doc__meta ui">
+        <span class="chip released"><span class="glyph" aria-hidden="true">✓</span>Released</span>
+        <span class="muted">Aktualisiert 25.07.2026</span>
+        <span class="dot" aria-hidden="true">·</span>
+        <span class="muted">Version 1.4.0</span>
+        <span class="dot" aria-hidden="true">·</span>
+        <span class="muted">SAP-Basis-Team</span>
+        <span class="dot" aria-hidden="true">·</span>
+        <span class="muted">9 Minuten Lesezeit</span>
+        <span class="doc__actions">
+          <button class="btn quiet" type="button"><span class="glyph" aria-hidden="true">⌖</span>Verlauf</button>
+          <button class="btn primary" type="button"><span class="glyph" aria-hidden="true">✎</span>Bearbeiten</button>
+        </span>
+      </div>
+
+      <div class="callout warn" role="note">
+        <p class="callout__head"><span class="glyph" aria-hidden="true">▲</span><span class="label">Defekte Verweise · 2 offene Fundstellen</span></p>
+        <p>
+          Die Ziele <code>kerneltausch-hana</code> und <code>azure-netzwerk-zonen</code> existieren
+          im Space nicht mehr. <a href="#kap-3">Im Bericht der defekten Verweise ansehen</a>.
+        </p>
+      </div>
+
+      <article class="prose" id="artikel">
+        <h2 id="geltungsbereich">Geltungsbereich<a class="anchor" href="#geltungsbereich" aria-label="Verweis auf diesen Abschnitt">§</a></h2>
+        <aside class="note">
+          <b>Andere Datenbank?</b>
+          Für MaxDB gilt „MaxDB-Sicherung", Abschnitt 4 — dort wird über
+          <code>dbmcli</code> gesichert, nicht über Backint.
+        </aside>
+        <p>
+          Diese Anleitung beschreibt die Datensicherung der SAP-HANA-Datenbank des
+          Produktivsystems <strong>PRD</strong> (HANA 2.0 SPS 07, skaliert auf einem Knoten)
+          auf ein Azure-Blob-Konto über den Backint-Agenten <code>azbackint</code>. Sie gilt für
+          alle Systeme der Zone <em>weu-prod</em> und ersetzt die frühere Sicherung über
+          den Bandroboter.
+        </p>
+        <p>
+          Nicht behandelt werden Dateisystem-Sicherungen der SAP-Instanzverzeichnisse
+          sowie die Sicherung der ABAP-Systeme auf AnyDB. Wer eine Rücksicherung
+          durchführen muss, liest zuerst Abschnitt&nbsp;5 und öffnet dann die Seite
+          <a href="#">Rücksicherung testen</a>.
+        </p>
+
+        <h2 id="voraussetzungen">Voraussetzungen<a class="anchor" href="#voraussetzungen" aria-label="Verweis auf diesen Abschnitt">§</a></h2>
+        <p>
+          Vor der Einrichtung müssen das Speicherkonto, die verwaltete Identität der
+          virtuellen Maschine und die Backint-Parameter der Datenbank stimmen. Die
+          folgenden Werte sind für alle Produktivsysteme verbindlich.
+        </p>
+
+        <div class="tablewrap">
+          <table class="data">
+            <caption>Tabelle 1 — Verbindliche Backint-Parameter (global.ini, Abschnitt <code>backup</code>)</caption>
+            <thead>
+              <tr><th scope="col">Parameter</th><th scope="col">Wert</th><th scope="col">Wirkung</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row"><code>parallel_data_backup_backint_channels</code></th>
+                <td>4</td>
+                <td>Vier parallele Ströme in den Container; darüber hinaus bringt das Blob-Konto keinen Durchsatz mehr.</td>
+              </tr>
+              <tr>
+                <th scope="row"><code>backint_response_timeout</code></th>
+                <td>7200</td>
+                <td>Wartezeit auf den Agenten in Sekunden. Kürzere Werte brechen große Vollsicherungen ab.</td>
+              </tr>
+              <tr>
+                <th scope="row"><code>log_backup_timeout_s</code></th>
+                <td>900</td>
+                <td>Erzwingt alle 15 Minuten eine Log-Sicherung, auch bei geringer Last.</td>
+              </tr>
+              <tr>
+                <th scope="row"><code>basepath_logbackup</code></th>
+                <td><code>/hana/backup/log</code></td>
+                <td>Zwischenablage vor dem Transfer; mindestens 200 GB frei.</td>
+              </tr>
+              <tr>
+                <th scope="row"><code>catalog_backup_using_backint</code></th>
+                <td>true</td>
+                <td>Sichert den Backup-Katalog mit — ohne ihn ist eine Rücksicherung nur mit Aufwand möglich.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="einrichten">Sicherung einrichten<a class="anchor" href="#einrichten" aria-label="Verweis auf diesen Abschnitt">§</a></h2>
+        <p>
+          Die Einrichtung dauert etwa 40 Minuten und erfordert die Rolle
+          <em>Mitwirkender</em> auf der Ressourcengruppe sowie einen Datenbankbenutzer mit
+          <code>BACKUP ADMIN</code>. Die Schritte bauen aufeinander auf.
+        </p>
+
+        <ol class="steps">
+          <li>
+            <h4>Speicherkonto anlegen</h4>
+            <p>
+              Ein eigenes Konto je System, Zugriffsebene <em>Cool</em>, keine öffentliche
+              Netzwerkfreigabe. Der Name folgt dem Muster <code>st&lt;sid&gt;bkp&lt;umgebung&gt;&lt;nr&gt;</code>.
+            </p>
+            <figure class="code">
+              <figcaption><span class="label">Konsole · Azure CLI</span><span class="ui muted">jump-weu-01</span></figcaption>
+<pre><code><span class="p">$</span> az storage account create <span class="k">\</span>
+    --name sthanabkpprd01 <span class="k">\</span>
+    --resource-group rg-sap-prd-weu <span class="k">\</span>
+    --location westeurope <span class="k">\</span>
+    --sku Standard_LRS --kind StorageV2 <span class="k">\</span>
+    --access-tier Cool --min-tls-version TLS1_2
+
+<span class="p">$</span> az storage container create <span class="k">\</span>
+    --account-name sthanabkpprd01 --name sap-backup <span class="k">\</span>
+    --auth-mode login</code></pre>
+            </figure>
+          </li>
+          <li>
+            <h4>Verwaltete Identität berechtigen</h4>
+            <p>
+              Die systemseitig zugewiesene Identität der Datenbank-VM erhält die Rolle
+              <em>Mitwirkender an Storage-Blobdaten</em> — ausschließlich auf dem
+              Container, nicht auf dem Konto.
+            </p>
+          </li>
+          <li>
+            <h4>Backint-Agent installieren</h4>
+            <p>
+              Paket <code>azbackint 3.2</code> als Benutzer <code>prdadm</code> entpacken und die
+              Konfiguration unter <code>/usr/sap/PRD/SYS/global/hdb/opt/hdbconfig</code> ablegen.
+              Der Agent legt den symbolischen Verweis <code>hdbbackint</code> selbst an.
+            </p>
+          </li>
+          <li>
+            <h4>Parameter setzen</h4>
+            <p>
+              Die Werte aus Tabelle&nbsp;1 in der <code>global.ini</code> auf Systemebene eintragen
+              und die Änderungen ohne Neustart übernehmen lassen.
+            </p>
+          </li>
+          <li>
+            <h4>Erste Vollsicherung ausführen</h4>
+            <p>
+              Die erste Sicherung läuft bewusst von Hand, damit Laufzeit und Durchsatz
+              dokumentiert werden können. Danach übernimmt der Zeitplan.
+            </p>
+            <figure class="code">
+              <figcaption><span class="label">Konsole · hdbsql</span><span class="ui muted">prdadm@sapprddb01</span></figcaption>
+<pre><code><span class="c"># Vollsicherung über Backint, Ziel ist der Container sap-backup</span>
+<span class="p">&gt;</span> <span class="k">BACKUP DATA</span> <span class="k">USING BACKINT</span> (<span class="s">'SYSTEM_FULL_2026-07-25'</span>);
+
+<span class="c"># Laufzeit und Größe im Katalog prüfen</span>
+<span class="p">&gt;</span> <span class="k">SELECT</span> ENTRY_ID, STATE_NAME, SYS_START_TIME, BACKUP_SIZE
+    <span class="k">FROM</span> M_BACKUP_CATALOG <span class="k">ORDER BY</span> SYS_START_TIME <span class="k">DESC</span> <span class="k">LIMIT</span> 5;</code></pre>
+            </figure>
+          </li>
+        </ol>
+
+        <div class="callout info" role="note">
+          <p class="callout__head"><span class="glyph" aria-hidden="true">●</span><span class="label">Hinweis</span></p>
+          <p>
+            Ab Agent-Version 3.2 wird der Zugriffsschlüssel nicht mehr benötigt. Bestehende
+            Systeme mit Schlüssel in der <code>hdbbackint.cfg</code> sind bis Ende des Quartals
+            auf die verwaltete Identität umzustellen.
+          </p>
+        </div>
+
+        <h2 id="ablauf">Ablauf der Sicherung<a class="anchor" href="#ablauf" aria-label="Verweis auf diesen Abschnitt">§</a></h2>
+        <p>
+          Im Regelbetrieb laufen zwei Ströme: die tägliche Vollsicherung um 21:00 Uhr und
+          die Log-Sicherung alle 15 Minuten. Beide gehen durch denselben Agenten in
+          denselben Container; die Lebenszyklusregel schiebt Sicherungen nach 30 Tagen in
+          die Archivebene und löscht sie nach einem Jahr.
+        </p>
+
+        <figure class="figure">
+          <svg class="diagram" viewBox="0 0 800 250" role="img" aria-labelledby="diagram-title diagram-desc">
+            <title id="diagram-title">Sicherungspfad von der HANA-Datenbank in den Blob-Container</title>
+            <desc id="diagram-desc">Die Datenbank übergibt Daten an den Backint-Agenten, dieser schreibt in den Container sap-backup; eine Lebenszyklusregel verschiebt nach 30 Tagen in die Archivebene. Log-Sicherungen laufen alle 15 Minuten denselben Weg.</desc>
+            <defs>
+              <marker id="pfeil" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0 0 L10 5 L0 10 z" fill="currentColor"/>
+              </marker>
+            </defs>
+            <g class="flow" stroke-width="1.5" marker-end="url(#pfeil)">
+              <path d="M182 62 H206"/>
+              <path d="M392 62 H416"/>
+              <path d="M602 62 H626"/>
+              <path d="M96 96 V168 H500 V96"/>
+            </g>
+            <g class="box" stroke-width="1.5">
+              <rect x="8" y="30" width="174" height="64" rx="3"/>
+              <rect x="218" y="30" width="174" height="64" rx="3"/>
+              <rect x="428" y="30" width="174" height="64" rx="3"/>
+              <rect x="638" y="30" width="154" height="64" rx="3"/>
+            </g>
+            <g>
+              <text x="24" y="58" font-size="14" font-weight="650">HANA PRD</text>
+              <text x="24" y="80" class="t-sm" font-size="12">HDB 2.0 SPS 07</text>
+              <text x="234" y="58" font-size="14" font-weight="650">Backint-Agent</text>
+              <text x="234" y="80" class="t-sm" font-size="12">azbackint 3.2 · 4 Kanäle</text>
+              <text x="444" y="58" font-size="14" font-weight="650">Container sap-backup</text>
+              <text x="444" y="80" class="t-sm" font-size="12">Cool · LRS · West Europe</text>
+              <text x="654" y="58" font-size="14" font-weight="650">Archivebene</text>
+              <text x="654" y="80" class="t-sm" font-size="12">ab Tag 30</text>
+              <text x="120" y="162" class="t-sm" font-size="12">Log-Sicherung · alle 15 Minuten · /hana/backup/log</text>
+              <text x="24" y="212" class="t-sm" font-size="12">21:00 Uhr täglich</text>
+              <text x="444" y="212" class="t-sm" font-size="12">Aufbewahrung 365 Tage</text>
+            </g>
+            <g class="flow" stroke-width="1.5">
+              <path d="M60 196 V100" marker-end="url(#pfeil)"/>
+              <path d="M480 196 V100" marker-end="url(#pfeil)"/>
+            </g>
+          </svg>
+          <figcaption><b>Abbildung 1</b> — Sicherungspfad einer Vollsicherung über Backint, mit Log-Strom und Lebenszyklus.</figcaption>
+        </figure>
+
+        <h2 id="ruecksicherung">Rücksicherung prüfen<a class="anchor" href="#ruecksicherung" aria-label="Verweis auf diesen Abschnitt">§</a></h2>
+        <p>
+          Eine Sicherung, die nie zurückgespielt wurde, ist keine Sicherung. Einmal im
+          Quartal wird die jüngste Vollsicherung auf dem Testsystem <strong>TST</strong>
+          zurückgespielt und das Ergebnis im Prüfprotokoll vermerkt.
+        </p>
+
+        <div class="callout error" role="note">
+          <p class="callout__head"><span class="glyph" aria-hidden="true">■</span><span class="label">Achtung · Datenverlust möglich</span></p>
+          <p>
+            Log-Sicherungen niemals von Hand aus dem Container löschen. Ohne
+            lückenlose Log-Kette endet jede Rücksicherung am letzten vollständigen
+            Sicherungspunkt — im schlimmsten Fall 24 Stunden vor dem Vorfall.
+          </p>
+        </div>
+
+        <figure class="code">
+          <figcaption><span class="label">Konsole · hdbsql (Testsystem)</span><span class="ui muted">tstadm@saptstdb01</span></figcaption>
+<pre><code><span class="c"># Katalog aus dem Container lesen und Wiederherstellungspunkt wählen</span>
+<span class="p">&gt;</span> <span class="k">RECOVER DATA</span> <span class="k">USING BACKINT</span> (<span class="s">'SYSTEM_FULL_2026-07-25'</span>)
+    <span class="k">CLEAR LOG</span> <span class="k">CHECK ACCESS</span> <span class="k">USING BACKINT</span>;</code></pre>
+        </figure>
+
+        <div class="callout ok" role="note">
+          <p class="callout__head"><span class="glyph" aria-hidden="true">✓</span><span class="label">Prüfung bestanden</span></p>
+          <p>Letzter Test am 02.07.2026, Laufzeit 1 h 48 min, Prüfprotokoll <a href="#">PRT-2026-07-02</a>.</p>
+        </div>
+
+        <h2 id="fehler">Häufige Fehler<a class="anchor" href="#fehler" aria-label="Verweis auf diesen Abschnitt">§</a></h2>
+        <h3 id="fehler-timeout">Zeitüberschreitung des Agenten</h3>
+        <p>
+          Meldung <code>backint exited with 1</code> im <code>backup.log</code>: fast immer eine zu
+          knappe <code>backint_response_timeout</code> oder eine gedrosselte Netzwerkkarte.
+          Zuerst den Durchsatz im Portal prüfen, dann den Parameter erhöhen.
+        </p>
+        <h3 id="fehler-platte">Volles Log-Verzeichnis</h3>
+        <p>
+          Läuft <code>/hana/backup/log</code> voll, hält die Datenbank an. Der Alarm greift bei
+          80 Prozent Belegung; kurzfristig hilft eine sofortige Log-Sicherung mit
+          <mark>anschließender Prüfung des Katalogs</mark>, dauerhaft nur ein größeres Dateisystem.
+        </p>
+      </article>
+
+      <nav class="pager" aria-label="Weiterlesen">
+        <a href="#" class="prev"><span class="label">Vorherige Seite</span><span class="pager__title">Netzwerkzonen in West Europe</span></a>
+        <a href="#" class="next"><span class="label">Nächste Seite</span><span class="pager__title">MaxDB-Sicherung</span></a>
+      </nav>
+    </main>
+    <!-- Rechte Info-Leiste — einklappbar über den Schalter am rechten Außenrand -->
+    <aside class="rail" id="pane-rail" aria-label="Seiteninformationen">
+      <div class="rail__block">
+        <h3 class="label">Inhalt dieser Seite</h3>
+        <ul class="toc" data-toc>
+          <li><a href="#geltungsbereich" aria-current="location">Geltungsbereich</a></li>
+          <li><a href="#voraussetzungen">Voraussetzungen</a></li>
+          <li><a href="#einrichten">Sicherung einrichten</a></li>
+          <li><a href="#ablauf">Ablauf der Sicherung</a></li>
+          <li><a href="#ruecksicherung">Rücksicherung prüfen</a></li>
+          <li>
+            <a href="#fehler">Häufige Fehler</a>
+            <ul class="toc-sub">
+              <li class="lvl3"><a href="#fehler-timeout">Zeitüberschreitung</a></li>
+              <li class="lvl3"><a href="#fehler-platte">Volles Log-Verzeichnis</a></li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+
+      <div class="rail__block">
+        <h3 class="label">Schlagwörter</h3>
+        <div class="tags">
+          <a class="tag" href="#"><span class="h" aria-hidden="true">#</span>hana</a>
+          <a class="tag" href="#"><span class="h" aria-hidden="true">#</span>azure</a>
+          <a class="tag" href="#"><span class="h" aria-hidden="true">#</span>backup</a>
+          <a class="tag" href="#"><span class="h" aria-hidden="true">#</span>betrieb</a>
+        </div>
+      </div>
+
+      <div class="rail__block">
+        <h3 class="label">Metadaten</h3>
+        <dl class="meta">
+          <dt>Status</dt><dd>Released</dd>
+          <dt>Space</dt><dd>handbuch</dd>
+          <dt>Version</dt><dd>1.4.0</dd>
+          <dt>Aktualisiert</dt><dd>25.07.2026</dd>
+          <dt>Verantwortlich</dt><dd>SAP-Basis-Team</dd>
+          <dt>System</dt><dd>PRD</dd>
+          <dt>Kritikalität</dt><dd>hoch</dd>
+          <dt>Prüfzyklus</dt><dd>halbjährlich</dd>
+        </dl>
+      </div>
+
+      <div class="rail__block">
+        <h3 class="label">Verknüpfte Seiten</h3>
+        <p class="label rel-type">Setzt voraus</p>
+        <ul class="rel">
+          <li><a href="#">Storage-Konten</a></li>
+          <li><a href="#">Verwaltete Identitäten</a></li>
+        </ul>
+        <p class="label rel-type">Siehe auch</p>
+        <ul class="rel">
+          <li><a href="#">Rücksicherung testen</a></li>
+          <li><a href="#">MaxDB-Sicherung</a></li>
+        </ul>
+        <p class="label rel-type">Ersetzt</p>
+        <ul class="rel">
+          <li><a href="#">Bandsicherung TSM (archiviert)</a></li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- Der Schalter der Info-Leiste steht am rechten Außenrand (Spalte 5),
+         im Quelltext aber ganz oben neben dem des Seitenbaums — siehe dort. -->
+  </div>
+</section>
+
+<!-- ===================== 2 · Bausteine ===================== -->
+<section class="chapter" aria-labelledby="kap-2">
+  <header>
+    <p class="label">Kapitel zwei</p>
+    <h2 class="chapter__title" id="kap-2">Bausteine</h2>
+    <p class="chapter__lead">
+      Ein System, keine Sammlung: alle Bausteine teilen dieselbe Höhe (44 px Zielgröße),
+      dieselbe Linienstärke und dieselben drei Radien. Der Unterschied zwischen den
+      Schaltflächen ist Gewicht, nicht Farbe — die primäre Aktion ist Tinte.
+    </p>
+  </header>
+
+  <div class="spec">
+    <header><p class="label">Schaltflächen</p></header>
+    <div class="spec__body btn-row">
+      <button class="btn primary" type="button"><span class="glyph" aria-hidden="true">✎</span>Bearbeiten</button>
+      <button class="btn" type="button">Zur Freigabe geben</button>
+      <button class="btn quiet" type="button">Abbrechen</button>
+      <button class="btn danger" type="button"><span class="glyph" aria-hidden="true">■</span>Seite löschen</button>
+      <button class="btn" type="button" disabled>Freigeben</button>
+    </div>
+  </div>
+
+  <div class="spec">
+    <header><p class="label">Randschalter — Lesefläche steuern</p></header>
+    <div class="spec__body">
+      <div class="pane-edge pane-edge--nav" style="min-height: var(--space-11);">
+        <button class="pane-toggle pane-toggle--nav" type="button"
+                data-pane="nav" aria-expanded="true" aria-controls="pane-nav"
+                title="Seitenbaum ein- und ausklappen (Taste [ )">
+          <span class="glyph" aria-hidden="true"></span><span class="t">Seitenbaum</span><kbd aria-hidden="true">[</kbd>
+        </button>
+      </div>
+      <div class="pane-edge pane-edge--rail" style="min-height: var(--space-11);">
+        <button class="pane-toggle pane-toggle--rail" type="button"
+                data-pane="rail" aria-expanded="true" aria-controls="pane-rail"
+                title="Info-Leiste ein- und ausklappen (Taste ] )">
+          <span class="glyph" aria-hidden="true"></span><span class="t">Info-Leiste</span><kbd aria-hidden="true">]</kbd>
+        </button>
+      </div>
+      <p class="ui muted" style="flex: 1 1 var(--measure); max-width: var(--measure); margin: 0;">
+        Dieselben Schalter wie an den Außenrändern der Leseansicht — sie zeigen hier denselben
+        Zustand an. Sie stehen bewusst außerhalb des Satzspiegels im Daumenregister:
+        der Kolumnentitel bleibt so dem Pfad und der Abschnittsanzeige vorbehalten,
+        und der Schalter ist auch dann noch da, wenn seine Leiste eingeklappt ist.
+        Das Zeichen trägt die Aussage (<span aria-hidden="true">◧</span> Rand steht,
+        <span aria-hidden="true">□</span> Rand ist eingeklappt), das Wort benennt sie,
+        <code>aria-expanded</code> gibt sie an die Vorlesesoftware weiter. Die Zielgröße
+        beträgt 44 × 44 px, auch wenn nur das Zeichen zu sehen wäre. Gemerkt wird der
+        Zustand pro Anwender, nicht pro Seite.
+      </p>
+    </div>
+  </div>
+
+  <div class="spec">
+    <header><p class="label">Eingabe und Auswahl</p></header>
+    <div class="spec__body">
+      <div style="flex: 1 1 calc(var(--space-11) * 3); min-width: 0;">
+        <div class="field">
+          <label class="label" for="f-titel">Seitentitel</label>
+          <input class="input" id="f-titel" type="text" value="HANA-Datensicherung nach Azure Blob Storage">
+          <span class="hint">Erscheint im Seitenbaum, im Register und in der Brotkrume.</span>
+        </div>
+        <div class="field">
+          <label class="label" for="f-pfad">Dateipfad</label>
+          <input class="input" id="f-pfad" type="text" value="azure-betrieb/backup restore/hana.md" aria-invalid="true" aria-describedby="f-pfad-err">
+          <span class="err" id="f-pfad-err">Leerzeichen sind im Pfad nicht erlaubt — bitte <code>backup-restore</code> schreiben.</span>
+        </div>
+      </div>
+      <div style="flex: 1 1 calc(var(--space-11) * 2.6); min-width: 0;">
+        <div class="field">
+          <label class="label" for="f-vorlage">Vorlage</label>
+          <div class="selectwrap">
+            <select class="select" id="f-vorlage">
+              <option>HOW-TO mit Prozedur</option>
+              <option>Betriebshandbuch-Kapitel</option>
+              <option>Störungsdokumentation</option>
+            </select>
+            <span class="caret" aria-hidden="true">▾</span>
+          </div>
+          <span class="hint">Vorlagen liegen im Space unter <code>_meta/templates</code>.</span>
+        </div>
+        <div class="field">
+          <span class="label">Dichte (Token <code>--density</code>)</span>
+          <div class="segmented" role="group" aria-label="Dichte">
+            <button type="button" data-density="0.75" aria-pressed="false">Kompakt</button>
+            <button type="button" data-density="1" aria-pressed="true">Normal</button>
+            <button type="button" data-density="1.35" aria-pressed="false">Weit</button>
+          </div>
+          <span class="hint">Verändert ausschließlich Token-Werte — kein Layout-Schalter.</span>
+        </div>
+        <label class="check"><input type="checkbox" checked> <span>Beim Freigeben eine neue Nebenversion vergeben</span></label>
+      </div>
+    </div>
+  </div>
+
+  <div class="spec">
+    <header><p class="label">Status und Schlagwörter</p></header>
+    <div class="spec__body">
+      <span class="chip working"><span class="glyph" aria-hidden="true">◔</span>Entwurf</span>
+      <span class="chip review"><span class="glyph" aria-hidden="true">◑</span>In Review</span>
+      <span class="chip released"><span class="glyph" aria-hidden="true">✓</span>Released</span>
+      <span class="chip archived"><span class="glyph" aria-hidden="true">▤</span>Archiviert</span>
+      <span class="tag"><span class="h" aria-hidden="true">#</span>hana</span>
+      <span class="tag"><span class="h" aria-hidden="true">#</span>backup</span>
+    </div>
+  </div>
+
+  <div class="spec">
+    <header><p class="label">Karten</p></header>
+    <div class="grid cols-3">
+      <article class="card">
+        <h4>Azure Betrieb</h4>
+        <p>34 Seiten · zuletzt geändert vor 2 Tagen · 3 Seiten in Review.</p>
+        <div class="card__foot"><span class="chip released"><span class="glyph" aria-hidden="true">✓</span>Gepflegt</span><a href="#" class="ui">Öffnen</a></div>
+      </article>
+      <article class="card">
+        <h4>SAP Basis</h4>
+        <p>51 Seiten · zuletzt geändert vor 6 Stunden · 1 defekter Verweis.</p>
+        <div class="card__foot"><span class="chip review"><span class="glyph" aria-hidden="true">◑</span>Prüfung offen</span><a href="#" class="ui">Öffnen</a></div>
+      </article>
+      <article class="card">
+        <h4>Störungsarchiv 2025</h4>
+        <p>112 Seiten · schreibgeschützt · Archivierung am 31.12.2025.</p>
+        <div class="card__foot"><span class="chip archived"><span class="glyph" aria-hidden="true">▤</span>Archiviert</span><a href="#" class="ui">Öffnen</a></div>
+      </article>
+    </div>
+  </div>
+
+  <div class="spec">
+    <header><p class="label">Reiter</p></header>
+    <div style="max-width: var(--measure); width: 100%;">
+      <div class="tabs" role="tablist" aria-label="Ansichten der Seite">
+        <button role="tab" id="t1" aria-controls="p1" aria-selected="true">Inhalt</button>
+        <button role="tab" id="t2" aria-controls="p2" aria-selected="false">Metadaten</button>
+        <button role="tab" id="t3" aria-controls="p3" aria-selected="false">Verlauf</button>
+      </div>
+      <div class="tabpanel" role="tabpanel" id="p1" aria-labelledby="t1">Der gesetzte Text der Seite, wie in Kapitel eins gezeigt.</div>
+      <div class="tabpanel" role="tabpanel" id="p2" aria-labelledby="t2" hidden>Schema-getriebene Felder: System, Kritikalität, Prüfzyklus, Verantwortlich.</div>
+      <div class="tabpanel" role="tabpanel" id="p3" aria-labelledby="t3" hidden>14 Freigaben seit 03/2024, letzte durch das SAP-Basis-Team am 25.07.2026.</div>
+    </div>
+  </div>
+
+  <div class="spec">
+    <header><p class="label">Dialog</p></header>
+    <div class="spec__body">
+      <button class="btn danger" type="button" id="dlg-open">Seite archivieren …</button>
+      <dialog class="sheetdialog" id="dlg" aria-labelledby="dlg-title">
+        <p class="label">Bestätigung erforderlich</p>
+        <h3 id="dlg-title">Seite „MaxDB-Sicherung" archivieren?</h3>
+        <p>
+          Die Seite bleibt im Git-Verlauf erhalten und ist weiterhin über das Register
+          auffindbar, verschwindet aber aus dem Seitenbaum. Vier Seiten verweisen auf sie.
+        </p>
+        <div class="dialog__foot">
+          <button class="btn quiet" type="button" id="dlg-cancel">Abbrechen</button>
+          <button class="btn danger" type="button" id="dlg-ok">Archivieren</button>
+        </div>
+      </dialog>
+    </div>
+  </div>
+
+  <div class="spec">
+    <header><p class="label">Hinweisblöcke</p></header>
+    <div style="max-width: var(--measure); width: 100%;">
+      <div class="callout info"><p class="callout__head"><span class="glyph" aria-hidden="true">●</span><span class="label">Hinweis</span></p><p>Der Backint-Agent liest seine Konfiguration beim ersten Lauf nach dem Start neu ein.</p></div>
+      <div class="callout warn"><p class="callout__head"><span class="glyph" aria-hidden="true">▲</span><span class="label">Warnung</span></p><p>Ohne gültige Log-Kette ist nur ein Rückstand auf die letzte Vollsicherung möglich.</p></div>
+      <div class="callout error"><p class="callout__head"><span class="glyph" aria-hidden="true">■</span><span class="label">Fehler</span></p><p>Frontmatter konnte nicht gelesen werden: Zeile 7, unerwartetes Zeichen in <code>tags</code>.</p></div>
+      <div class="callout ok"><p class="callout__head"><span class="glyph" aria-hidden="true">✓</span><span class="label">Erfolg</span></p><p>Freigabe erteilt — Version 1.4.0 ist seit 25.07.2026 veröffentlicht.</p></div>
+    </div>
+  </div>
+
+  <div class="spec">
+    <header><p class="label">Lade- und Leerzustand</p></header>
+    <div class="spec__body">
+      <div class="card" style="flex: 1 1 calc(var(--space-11) * 3);">
+        <h4>Seitenbaum wird geladen</h4>
+        <div class="skeleton" aria-hidden="true" style="margin-top: var(--space-4);"><span></span><span></span><span></span><span></span></div>
+        <p class="sr-only" role="status">Inhalte werden geladen</p>
+      </div>
+      <div class="empty" style="flex: 1 1 calc(var(--space-11) * 3);">
+        <span class="glyph" aria-hidden="true" style="font-size: var(--text-2xl);">▤</span>
+        <h4>Noch keine Vorlagen in diesem Space</h4>
+        <p>Vorlagen geben neuen HOW-TOs ein festes Gerüst: Geltungsbereich, Voraussetzungen, Prozedur, Prüfung.</p>
+        <button class="btn primary" type="button">Erste Vorlage anlegen</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 3 · Navigation & Suche ===================== -->
+<section class="chapter" aria-labelledby="kap-3">
+  <header>
+    <p class="label">Kapitel drei</p>
+    <h2 class="chapter__title" id="kap-3">Register &amp; Werkzeuge</h2>
+    <p class="chapter__lead">
+      Ein Buch hat ein Register, kein verstecktes Menü. Alles, was ein Space kann,
+      steht an genau zwei Orten: dauerhaft am Fuß des Seitenbaums und im Register
+      unter <kbd>Strg K</kbd>. Werkzeuge tragen dort eine Zeile Erklärung — deshalb
+      wird die Vorlagenverwaltung gefunden.
+    </p>
+  </header>
+
+  <div class="grid cols-2" style="align-items: start;">
+    <div>
+      <p class="label" style="margin-bottom: var(--space-3);">Register — <kbd>Strg K</kbd></p>
+      <div class="palette">
+        <div class="palette__input"><span class="glyph" aria-hidden="true">⌕</span><span>vorl</span><span class="cursor" aria-hidden="true"></span></div>
+        <p class="label palette__group">Werkzeuge des Space</p>
+        <ul>
+          <li><a href="#" aria-selected="true"><span class="glyph" aria-hidden="true">▤</span><span>Vorlagen<span class="desc">Seitengerüste anlegen und pflegen — handbuch</span></span><kbd>↵</kbd></a></li>
+          <li><a href="#"><span class="glyph" aria-hidden="true">▦</span><span>Schema<span class="desc">Welche Metadaten eine Seite führen muss</span></span><kbd>↵</kbd></a></li>
+          <li><a href="#"><span class="glyph" aria-hidden="true">▲</span><span>Defekte Verweise<span class="desc">Ziele, die es nicht mehr gibt, und Verarbeitungsfehler · 2 offen</span></span><kbd>↵</kbd></a></li>
+          <li><a href="#"><span class="glyph" aria-hidden="true">◇</span><span>Graph<span class="desc">Wissensnetz aller Seiten des Space</span></span><kbd>↵</kbd></a></li>
+        </ul>
+        <p class="label palette__group">Seiten</p>
+        <ul>
+          <li><a href="#"><span class="glyph" aria-hidden="true">▭</span><span>Vorlage: HOW-TO mit Prozedur<span class="desc">handbuch / _meta / templates</span></span><kbd>↵</kbd></a></li>
+          <li><a href="#"><span class="glyph" aria-hidden="true">▭</span><span>Betriebsvorlagen 2026<span class="desc">handbuch / Grundlagen des Betriebs</span></span><kbd>↵</kbd></a></li>
+        </ul>
+        <p class="label palette__group">Aktionen</p>
+        <ul>
+          <li><a href="#"><span class="glyph" aria-hidden="true">＋</span><span>Neue Seite aus Vorlage<span class="desc">im aktuellen Ordner „Backup &amp; Restore"</span></span><kbd>↵</kbd></a></li>
+          <li><a href="#"><span class="glyph" aria-hidden="true">⇄</span><span>Space wechseln<span class="desc">handbuch · projekte · störungsarchiv 2025</span></span><kbd>↵</kbd></a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div>
+      <p class="label" style="margin-bottom: var(--space-3);">Space wechseln — Auswahl im Seitenbaum</p>
+      <div class="palette" style="max-width: calc(var(--space-11) * 4);">
+        <div class="palette__input" style="font-size: var(--text-sm);"><span class="label">Verbundene Repositorien</span></div>
+        <ul>
+          <li><a href="#" aria-selected="true"><span class="glyph" aria-hidden="true">◆</span><span>handbuch<span class="desc">forgejo · sap-basis/handbuch · 187 Seiten</span></span><kbd>1</kbd></a></li>
+          <li><a href="#"><span class="glyph" aria-hidden="true">◇</span><span>projekte<span class="desc">forgejo · sap-basis/projekte · 64 Seiten</span></span><kbd>2</kbd></a></li>
+          <li><a href="#"><span class="glyph" aria-hidden="true">◇</span><span>störungsarchiv 2025<span class="desc">github · beispiel/stoerungen · schreibgeschützt</span></span><kbd>3</kbd></a></li>
+          <li><a href="#"><span class="glyph" aria-hidden="true">＋</span><span>Konto verbinden<span class="desc">Einstellungen · Verbindungen &amp; API-Tokens</span></span><kbd>↵</kbd></a></li>
+        </ul>
+      </div>
+
+      <p class="label" style="margin: var(--space-8) 0 var(--space-3);">Wege durch die Anwendung</p>
+      <div class="tablewrap">
+        <table class="data">
+          <thead><tr><th scope="col">Ziel</th><th scope="col">Weg</th><th scope="col">Immer sichtbar</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Seite lesen</th><td>Seitenbaum · Brotkrume · Register</td><td>ja</td></tr>
+            <tr><th scope="row">Bearbeiten &amp; Review</th><td>Kopfzeile der Seite</td><td>ja</td></tr>
+            <tr><th scope="row">Vorlagen</th><td>Fuß des Seitenbaums · Register</td><td>ja</td></tr>
+            <tr><th scope="row">Schema</th><td>Fuß des Seitenbaums · Register</td><td>ja</td></tr>
+            <tr><th scope="row">Defekte Verweise</th><td>Fuß des Seitenbaums · Hinweisblock der Seite</td><td>ja</td></tr>
+            <tr><th scope="row">Graph</th><td>Fuß des Seitenbaums · Info-Leiste</td><td>ja</td></tr>
+            <tr><th scope="row">Verbindungen</th><td>Register · Einstellungen</td><td>nein</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 4 · Tokens ===================== -->
+<section class="chapter" aria-labelledby="kap-4">
+  <header>
+    <p class="label">Kapitel vier</p>
+    <h2 class="chapter__title" id="kap-4">Tokens</h2>
+    <p class="chapter__lead">
+      Die Übergabe an die Themefähigkeit. Kein Baustein dieses Entwurfs enthält einen
+      Festwert; alles steht hier. Abgeleitete Tokens werden per <code>color-mix</code> aus den
+      Grundfarben berechnet — ein eigenes Theme muss nur die Grundwerte setzen.
+      Mit <span class="new">Stern</span> markierte Tokens sind gegenüber dem Briefing neu.
+    </p>
+  </header>
+
+  <div class="tokenscroll">
+    <table class="tokens">
+      <thead>
+        <tr><th scope="col">Token</th><th scope="col">Rolle</th><th scope="col">Hell</th><th scope="col">Dunkel</th></tr>
+      </thead>
+      <tbody>
+        <tr class="group"><th colspan="4" scope="colgroup">Grundfarben</th></tr>
+        <tr><th scope="row">--color-bg</th><td>Papier: Lese- und Grundfläche</td>
+          <td class="preview" data-theme="light"><span class="swatch" style="--sw: var(--color-bg)"></span>#fffdf8</td>
+          <td class="preview" data-theme="dark"><span class="swatch" style="--sw: var(--color-bg)"></span>#1a1917</td></tr>
+        <tr><th scope="row">--color-bg-raised</th><td>abgesetzte Fläche: Karte, Diagrammkasten</td>
+          <td class="preview" data-theme="light"><span class="swatch" style="--sw: var(--color-bg-raised)"></span>#f8f5ec</td>
+          <td class="preview" data-theme="dark"><span class="swatch" style="--sw: var(--color-bg-raised)"></span>#232120</td></tr>
+        <tr><th scope="row" class="new">--color-bg-sunken ★</th><td>zurückgesetzter Rand: Navigation, Umfeld</td>
+          <td class="preview" data-theme="light"><span class="swatch" style="--sw: var(--color-bg-sunken)"></span>#f0ece1</td>
+          <td class="preview" data-theme="dark"><span class="swatch" style="--sw: var(--color-bg-sunken)"></span>#121110</td></tr>
+        <tr><th scope="row">--color-text</th><td>Tinte: Lesetext, primäre Schaltfläche</td>
+          <td class="preview" data-theme="light"><span class="swatch" style="--sw: var(--color-text)"></span>#1c1a17</td>
+          <td class="preview" data-theme="dark"><span class="swatch" style="--sw: var(--color-text)"></span>#ece7dd</td></tr>
+        <tr><th scope="row">--color-text-muted</th><td>Nebentext: Marginalie, Metazeile, Etikett</td>
+          <td class="preview" data-theme="light"><span class="swatch" style="--sw: var(--color-text-muted)"></span>#6b655c · 5,7:1</td>
+          <td class="preview" data-theme="dark"><span class="swatch" style="--sw: var(--color-text-muted)"></span>#a09a8e · 6,3:1</td></tr>
+        <tr><th scope="row">--color-accent</th><td>Bedeutung: Verweise, Position im Text, Fokus</td>
+          <td class="preview" data-theme="light"><span class="swatch" style="--sw: var(--color-accent)"></span>#b3341c · 6,0:1</td>
+          <td class="preview" data-theme="dark"><span class="swatch" style="--sw: var(--color-accent)"></span>#f4795c · 6,5:1</td></tr>
+        <tr><th scope="row">--color-accent-contrast</th><td>Schrift auf Akzentfläche</td>
+          <td class="preview" data-theme="light"><span class="swatch" style="--sw: var(--color-accent-contrast)"></span>#fffdf8</td>
+          <td class="preview" data-theme="dark"><span class="swatch" style="--sw: var(--color-accent-contrast)"></span>#16130f</td></tr>
+        <tr><th scope="row">--color-border</th><td>Haarlinie: Trennung im Satz</td>
+          <td class="preview" data-theme="light"><span class="swatch" style="--sw: var(--color-border)"></span>#e3ddd0</td>
+          <td class="preview" data-theme="dark"><span class="swatch" style="--sw: var(--color-border)"></span>#34302b</td></tr>
+        <tr><th scope="row">--color-danger</th><td>Zerstörende Aktion, Fehlerblock</td>
+          <td class="preview" data-theme="light"><span class="swatch" style="--sw: var(--color-danger)"></span>#8e1b1b · 8,9:1</td>
+          <td class="preview" data-theme="dark"><span class="swatch" style="--sw: var(--color-danger)"></span>#f08a80 · 7,4:1</td></tr>
+
+        <tr class="group"><th colspan="4" scope="colgroup">Workflow-Status</th></tr>
+        <tr><th scope="row">--color-status-working</th><td>Entwurf</td>
+          <td class="preview" data-theme="light"><span class="swatch" style="--sw: var(--color-status-working)"></span>#4a4fa0</td>
+          <td class="preview" data-theme="dark"><span class="swatch" style="--sw: var(--color-status-working)"></span>#a9aef0</td></tr>
+        <tr><th scope="row">--color-status-review</th><td>In Review, Warnung</td>
+          <td class="preview" data-theme="light"><span class="swatch" style="--sw: var(--color-status-review)"></span>#8a5a06</td>
+          <td class="preview" data-theme="dark"><span class="swatch" style="--sw: var(--color-status-review)"></span>#e0b04e</td></tr>
+        <tr><th scope="row">--color-status-released</th><td>Released, Erfolg</td>
+          <td class="preview" data-theme="light"><span class="swatch" style="--sw: var(--color-status-released)"></span>#1f6b3a</td>
+          <td class="preview" data-theme="dark"><span class="swatch" style="--sw: var(--color-status-released)"></span>#6fcf8f</td></tr>
+        <tr><th scope="row">--color-status-archived</th><td>Archiviert</td>
+          <td class="preview" data-theme="light"><span class="swatch" style="--sw: var(--color-status-archived)"></span>#6b655c</td>
+          <td class="preview" data-theme="dark"><span class="swatch" style="--sw: var(--color-status-archived)"></span>#a09a8e</td></tr>
+
+        <tr class="group"><th colspan="4" scope="colgroup">Satz von Code und Markierung</th></tr>
+        <tr><th scope="row" class="new">--color-code-bg ★</th><td>Fläche des Codeblocks (Papierton, kein Kasten)</td>
+          <td class="preview" data-theme="light"><span class="swatch" style="--sw: var(--color-code-bg)"></span>#f7f3e8</td>
+          <td class="preview" data-theme="dark"><span class="swatch" style="--sw: var(--color-code-bg)"></span>#201e1c</td></tr>
+        <tr><th scope="row" class="new">--color-code-text ★</th><td>Code-Tinte</td>
+          <td class="preview" data-theme="light"><span class="swatch" style="--sw: var(--color-code-text)"></span>#24211d</td>
+          <td class="preview" data-theme="dark"><span class="swatch" style="--sw: var(--color-code-text)"></span>#ece7dd</td></tr>
+        <tr><th scope="row" class="new">--color-code-comment ★</th><td>Kommentar (kursiv, nie farbig codiert)</td>
+          <td class="preview" data-theme="light"><span class="swatch" style="--sw: var(--color-code-comment)"></span>#857e70</td>
+          <td class="preview" data-theme="dark"><span class="swatch" style="--sw: var(--color-code-comment)"></span>#8e877b</td></tr>
+        <tr><th scope="row" class="new">--color-code-gutter ★</th><td>Zeilennummern, Verzeichnisziffern</td>
+          <td class="preview" data-theme="light"><span class="swatch" style="--sw: var(--color-code-gutter)"></span>#b3aa99</td>
+          <td class="preview" data-theme="dark"><span class="swatch" style="--sw: var(--color-code-gutter)"></span>#5c564d</td></tr>
+        <tr><th scope="row" class="new">--color-mark ★</th><td>Textmarker, Suchtreffer</td>
+          <td class="preview" data-theme="light"><span class="swatch" style="--sw: var(--color-mark)"></span>#f6e6a8</td>
+          <td class="preview" data-theme="dark"><span class="swatch" style="--sw: var(--color-mark)"></span>#5a4a17</td></tr>
+
+        <tr class="group"><th colspan="4" scope="colgroup">Abgeleitet (color-mix, kein eigener Theme-Wert nötig)</th></tr>
+        <tr><th scope="row" class="new">--color-border-hair ★</th><td>feinste Linie in Tabellen</td>
+          <td class="preview" data-theme="light"><span class="swatch" style="--sw: var(--color-border-hair)"></span>border 55 % + bg</td>
+          <td class="preview" data-theme="dark"><span class="swatch" style="--sw: var(--color-border-hair)"></span>border 55 % + bg</td></tr>
+        <tr><th scope="row" class="new">--color-border-strong ★</th><td>tragende Linie: Eingabefeld, Markerlinie</td>
+          <td class="preview" data-theme="light"><span class="swatch" style="--sw: var(--color-border-strong)"></span>text 26 % + border</td>
+          <td class="preview" data-theme="dark"><span class="swatch" style="--sw: var(--color-border-strong)"></span>text 26 % + border</td></tr>
+        <tr><th scope="row" class="new">--color-glyph-state ★</th><td>Zeichen, das einen Zustand trägt (Randschalter) — 3,52:1 hell, 5,63:1 dunkel, also über den 3:1 für Bedienelement-Grafik</td>
+          <td class="preview" data-theme="light"><span class="swatch" style="--sw: var(--color-glyph-state)"></span>text 50 % + border</td>
+          <td class="preview" data-theme="dark"><span class="swatch" style="--sw: var(--color-glyph-state)"></span>text 50 % + border</td></tr>
+        <tr><th scope="row" class="new">--color-surface-hover ★</th><td>Zeile unter dem Zeiger</td>
+          <td class="preview" data-theme="light"><span class="swatch" style="--sw: var(--color-surface-hover)"></span>text 5 % + bg</td>
+          <td class="preview" data-theme="dark"><span class="swatch" style="--sw: var(--color-surface-hover)"></span>text 5 % + bg</td></tr>
+        <tr><th scope="row" class="new">--color-accent-wash ★</th><td>aktive Zeile in Baum und Register</td>
+          <td class="preview" data-theme="light"><span class="swatch" style="--sw: var(--color-accent-wash)"></span>accent 8 % + bg</td>
+          <td class="preview" data-theme="dark"><span class="swatch" style="--sw: var(--color-accent-wash)"></span>accent 8 % + bg</td></tr>
+        <tr><th scope="row" class="new">--color-accent-line ★</th><td>zurückgenommene Akzentlinie</td>
+          <td class="preview" data-theme="light"><span class="swatch" style="--sw: var(--color-accent-line)"></span>accent 42 % + bg</td>
+          <td class="preview" data-theme="dark"><span class="swatch" style="--sw: var(--color-accent-line)"></span>accent 42 % + bg</td></tr>
+        <tr><th scope="row" class="new">--color-danger-wash ★</th><td>Fläche des Fehlerblocks</td>
+          <td class="preview" data-theme="light"><span class="swatch" style="--sw: var(--color-danger-wash)"></span>danger 9 % + bg</td>
+          <td class="preview" data-theme="dark"><span class="swatch" style="--sw: var(--color-danger-wash)"></span>danger 9 % + bg</td></tr>
+        <tr><th scope="row" class="new">--color-status-working-wash ★</th><td>Fläche Entwurf / Hinweis</td>
+          <td class="preview" data-theme="light"><span class="swatch" style="--sw: var(--color-status-working-wash)"></span>status 10 % + bg</td>
+          <td class="preview" data-theme="dark"><span class="swatch" style="--sw: var(--color-status-working-wash)"></span>status 10 % + bg</td></tr>
+        <tr><th scope="row" class="new">--color-status-review-wash ★</th><td>Fläche In Review / Warnung</td>
+          <td class="preview" data-theme="light"><span class="swatch" style="--sw: var(--color-status-review-wash)"></span>status 11 % + bg</td>
+          <td class="preview" data-theme="dark"><span class="swatch" style="--sw: var(--color-status-review-wash)"></span>status 11 % + bg</td></tr>
+        <tr><th scope="row" class="new">--color-status-released-wash ★</th><td>Fläche Released / Erfolg</td>
+          <td class="preview" data-theme="light"><span class="swatch" style="--sw: var(--color-status-released-wash)"></span>status 11 % + bg</td>
+          <td class="preview" data-theme="dark"><span class="swatch" style="--sw: var(--color-status-released-wash)"></span>status 11 % + bg</td></tr>
+        <tr><th scope="row" class="new">--color-status-archived-wash ★</th><td>Fläche Archiviert</td>
+          <td class="preview" data-theme="light"><span class="swatch" style="--sw: var(--color-status-archived-wash)"></span>status 10 % + bg</td>
+          <td class="preview" data-theme="dark"><span class="swatch" style="--sw: var(--color-status-archived-wash)"></span>status 10 % + bg</td></tr>
+        <tr><th scope="row" class="new">--color-focus ★</th><td>Fokusring (= Akzent)</td>
+          <td class="preview" data-theme="light"><span class="swatch" style="--sw: var(--color-focus)"></span>var(--color-accent)</td>
+          <td class="preview" data-theme="dark"><span class="swatch" style="--sw: var(--color-focus)"></span>var(--color-accent)</td></tr>
+
+        <tr><th scope="row" class="new">--color-scrim ★</th><td>Abdunklung hinter dem Dialog</td>
+          <td class="preview" data-theme="light"><span class="swatch" style="--sw: var(--color-scrim)"></span>#0b0a09 62 %</td>
+          <td class="preview" data-theme="dark"><span class="swatch" style="--sw: var(--color-scrim)"></span>#0b0a09 62 %</td></tr>
+
+        <tr class="group"><th colspan="4" scope="colgroup">Schatten (sehr sparsam: nur Überlagerungen)</th></tr>
+        <tr><th scope="row">--shadow-sm</th><td>primäre Schaltfläche</td>
+          <td class="preview" data-theme="light">0 1px 2px rgba(28,26,23,.06)</td>
+          <td class="preview" data-theme="dark">0 1px 2px rgba(0,0,0,.5)</td></tr>
+        <tr><th scope="row">--shadow-md</th><td>Dialog, Register</td>
+          <td class="preview" data-theme="light">0 18px 48px rgba(28,26,23,.18)</td>
+          <td class="preview" data-theme="dark">0 18px 48px rgba(0,0,0,.6)</td></tr>
+        <tr><th scope="row">--shadow-accent</th><td>reserviert (Akzentfläche)</td>
+          <td class="preview" data-theme="light">0 1px 2px rgba(179,52,28,.28)</td>
+          <td class="preview" data-theme="dark">0 1px 2px rgba(244,121,92,.3)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="label" style="margin: var(--space-9) 0 var(--space-3);">Schrift, Maß und Raster (in beiden Themes gleich)</h3>
+  <div class="tokenscroll">
+    <table class="tokens">
+      <thead><tr><th scope="col">Token</th><th scope="col">Wert</th><th scope="col">Rolle</th></tr></thead>
+      <tbody>
+        <tr class="group"><th colspan="3" scope="colgroup">Schriftfamilien</th></tr>
+        <tr><th scope="row" class="new">--font-text ★</th><td>Iowan Old Style, Charter, Palatino, Source Serif 4, Georgia, serif</td><td>Lesetext — der Kern der These</td></tr>
+        <tr><th scope="row">--font-display</th><td>dieselbe Serifenfamilie, optisch enger gesetzt</td><td>Überschriften, Titel</td></tr>
+        <tr><th scope="row">--font-sans</th><td>System-Grotesk-Stack</td><td>Bedienoberfläche, Etiketten, Tabellen</td></tr>
+        <tr><th scope="row">--font-mono</th><td>ui-monospace, SF Mono, JetBrains Mono, …</td><td>Code, Konsole, Werte</td></tr>
+
+        <tr class="group"><th colspan="3" scope="colgroup">Schriftgrößen (fluid)</th></tr>
+        <tr><th scope="row">--text-xs</th><td>0.75rem</td><td>Etikett, Marginalie, Bildunterschrift</td></tr>
+        <tr><th scope="row">--text-sm</th><td>0.8125rem</td><td>Bedienoberfläche, Tabelle, Code</td></tr>
+        <tr><th scope="row">--text-md</th><td>clamp(1.0625rem, 1.02rem + 0.18vw, 1.15rem)</td><td>Lesetext</td></tr>
+        <tr><th scope="row">--text-lg</th><td>clamp(1.1875rem, 1.12rem + 0.3vw, 1.3125rem)</td><td>Vorspann, h3</td></tr>
+        <tr><th scope="row">--text-xl</th><td>clamp(1.4375rem, 1.3rem + 0.6vw, 1.75rem)</td><td>h2 im Satz</td></tr>
+        <tr><th scope="row">--text-2xl</th><td>clamp(1.75rem, 1.5rem + 1.1vw, 2.25rem)</td><td>Kapitelüberschrift</td></tr>
+        <tr><th scope="row" class="new">--cap-ratio ★</th><td>0.72</td><td>Versalhöhe der Serifenfamilie als Anteil der Schriftgröße</td></tr>
+        <tr><th scope="row" class="new">--text-hang ★</th><td>calc(--text-xl × --cap-ratio) — 16,6…20,2 px</td><td>hängende Gliederungsziffer: so hoch wie die Versalien der h2, skaliert mit deren clamp() mit</td></tr>
+        <tr><th scope="row" class="new">--text-3xl ★</th><td>clamp(2.25rem, 1.85rem + 1.8vw, 3rem)</td><td>Seitentitel</td></tr>
+        <tr><th scope="row" class="new">--text-4xl ★</th><td>clamp(2.75rem, 2rem + 3.2vw, 4.25rem)</td><td>Titelei des Musterbuchs</td></tr>
+
+        <tr class="group"><th colspan="3" scope="colgroup">Satzdetails</th></tr>
+        <tr><th scope="row" class="new">--leading-tight ★</th><td>1.14</td><td>große Titel</td></tr>
+        <tr><th scope="row" class="new">--leading-heading ★</th><td>1.22</td><td>Überschriften</td></tr>
+        <tr><th scope="row" class="new">--leading-ui ★</th><td>1.4</td><td>Bedienoberfläche</td></tr>
+        <tr><th scope="row" class="new">--leading-text ★</th><td>1.68</td><td>Lesetext</td></tr>
+        <tr><th scope="row" class="new">--leading-code ★</th><td>1.62</td><td>Codeblock</td></tr>
+        <tr><th scope="row" class="new">--tracking-tight ★</th><td>-0.012em</td><td>Titel</td></tr>
+        <tr><th scope="row" class="new">--tracking-normal ★</th><td>0em</td><td>Grundwert</td></tr>
+        <tr><th scope="row" class="new">--tracking-caps ★</th><td>0.1em</td><td>Kapitälchen-Etiketten</td></tr>
+        <tr><th scope="row" class="new">--weight-text ★</th><td>400</td><td>Lesetext</td></tr>
+        <tr><th scope="row" class="new">--weight-medium ★</th><td>500</td><td>Reiter, Zweigknoten</td></tr>
+        <tr><th scope="row" class="new">--weight-strong ★</th><td>650</td><td>Auszeichnung, Schaltflächen</td></tr>
+        <tr><th scope="row" class="new">--weight-display ★</th><td>600</td><td>Titel</td></tr>
+
+        <tr class="group"><th colspan="3" scope="colgroup">Maß, Raster, Dichte</th></tr>
+        <tr><th scope="row" class="new">--measure ★</th><td>68ch</td><td>Zeilenlänge — gilt <b>nur</b> für Fließtext: Absatz, Liste, Zitat, Überschrift</td></tr>
+        <tr><th scope="row" class="new">--measure-wide ★</th><td>96ch</td><td>Textbereich mit Randspalte: Marginalie, Hinweisblock, Prozedurtext</td></tr>
+        <tr><th scope="row" class="new">--measure-full ★</th><td>100%</td><td>Ausbruch: Tabelle, Codeblock, Diagramm, Bild — volle Breite der Dokumentspalte</td></tr>
+        <tr><th scope="row" class="new">--density ★</th><td>1 (0.75 kompakt · 1.35 weit)</td><td>Faktor aller Innenabstände</td></tr>
+        <tr><th scope="row" class="new">--rhythm ★</th><td>1.55rem</td><td>Absatzabstand des Satzspiegels</td></tr>
+        <tr><th scope="row" class="new">--space-0 ★</th><td>0rem</td><td>Nullwert für Rechnungen (z. B. Untergrenze des Randabstands)</td></tr>
+        <tr><th scope="row">--space-1 … --space-8</th><td>0.25 · 0.5 · 0.75 · 1 · 1.25 · 1.5 · 1.75 · 2rem</td><td>Grundskala (unverändert)</td></tr>
+        <tr><th scope="row" class="new">--space-9 ★</th><td>3rem</td><td>Abstand zwischen Abschnitten</td></tr>
+        <tr><th scope="row" class="new">--space-10 ★</th><td>4.5rem</td><td>Kapitelabstand</td></tr>
+        <tr><th scope="row" class="new">--space-11 ★</th><td>7rem</td><td>Titelei, Grundmaß für Breiten</td></tr>
+        <tr><th scope="row" class="new">--layout-nav-w ★</th><td>17rem</td><td>Breite des Seitenbaums (eingeklappt: Spalte entfällt ganz)</td></tr>
+        <tr><th scope="row" class="new">--layout-rail-w ★</th><td>17rem</td><td>Breite der Info-Leiste (eingeklappt: Spalte entfällt ganz)</td></tr>
+        <tr><th scope="row" class="new">--layout-gutter ★</th><td>var(--space-9)</td><td>Steg links und rechts der Dokumentspalte; trägt die hängenden Ziffern</td></tr>
+        <tr><th scope="row" class="new">--layout-hang ★</th><td>2.75rem</td><td>Rand für hängende Ziffern</td></tr>
+        <tr><th scope="row" class="new">--layout-note-w ★</th><td>12.5rem</td><td>Breite der Marginalie</td></tr>
+        <tr><th scope="row" class="new">--layout-note-gap ★</th><td>var(--space-6)</td><td>Abstand zwischen Satz und Marginalie</td></tr>
+        <tr><th scope="row" class="new">--layout-note-x ★</th><td>calc(--measure + --layout-note-gap), per <code>@property</code> als Länge angemeldet</td><td>Startpunkt der Randspalte; im Lesetext berechnet, damit das ch-Maß stimmt</td></tr>
+        <tr><th scope="row" class="new">--layout-edge-w ★</th><td>var(--control-h)</td><td>Außenspalte des Daumenregisters mit dem Randschalter — genau eine Zielgröße breit, in jeder Fensterbreite vorhanden</td></tr>
+        <tr><th scope="row" class="new">--layout-app-w ★</th><td>calc(--measure-wide + --layout-nav-w + --layout-rail-w + 2 × --layout-gutter + 2 × --layout-edge-w)</td><td>Breite des Lesegerüsts; beim Einklappen fällt genau die Randbreite dem Inhalt zu</td></tr>
+        <tr><th scope="row" class="new">--layout-sheet-max ★</th><td>calc(--layout-app-w + 2 × --space-9)</td><td>Außenmaß des Musterbuchs</td></tr>
+
+        <tr class="group"><th colspan="3" scope="colgroup">Linien, Radien, Bedienelemente</th></tr>
+        <tr><th scope="row" class="new">--rule-hair ★</th><td>1px</td><td>Haarlinie</td></tr>
+        <tr><th scope="row" class="new">--rule-strong ★</th><td>2px</td><td>Zäsur, Kartenkopf, Fokusring</td></tr>
+        <tr><th scope="row" class="new">--rule-marker ★</th><td>3px</td><td>Markerlinie an Hinweis, Code, aktivem Eintrag</td></tr>
+        <tr><th scope="row">--radius-sm</th><td>0.125rem</td><td>Inline-Code, Farbfleck</td></tr>
+        <tr><th scope="row">--radius-md</th><td>0.1875rem</td><td>Schaltflächen, Felder</td></tr>
+        <tr><th scope="row">--radius-lg</th><td>0.25rem</td><td>Dialog, Register</td></tr>
+        <tr><th scope="row" class="new">--radius-pill ★</th><td>62.5rem</td><td>Status-Chip, Schrittziffer</td></tr>
+        <tr><th scope="row" class="new">--control-h ★</th><td>2.75rem (44px)</td><td>Mindest-Zielgröße aller Bedienelemente</td></tr>
+        <tr><th scope="row" class="new">--control-pad-x ★</th><td>calc(var(--space-4) * var(--density))</td><td>waagerechter Innenabstand</td></tr>
+        <tr><th scope="row" class="new">--control-pad-y ★</th><td>calc(var(--space-2) * var(--density))</td><td>senkrechter Innenabstand</td></tr>
+        <tr><th scope="row" class="new">--focus-w ★</th><td>var(--rule-strong)</td><td>Stärke des Fokusrings</td></tr>
+        <tr><th scope="row" class="new">--focus-offset ★</th><td>var(--space-1)</td><td>Abstand des Fokusrings</td></tr>
+        <tr><th scope="row" class="new">--motion-fast ★</th><td>120ms</td><td>Übergänge (bei reduzierter Bewegung aus)</td></tr>
+        <tr><th scope="row" class="new">--motion-ease ★</th><td>cubic-bezier(.32,.72,.3,1)</td><td>Beschleunigung</td></tr>
+
+        <tr class="group"><th colspan="3" scope="colgroup">Schalter (keine Werte, sondern Zustände — geerbt, an einer Stelle ausgewertet)</th></tr>
+        <tr><th scope="row" class="new">--crumbs-mid ★</th><td>contents (gekürzt: block)</td><td>Zwischenebenen des Pfades im Satz oder verborgen; verborgen heißt sr-only, nie <code>display:none</code></td></tr>
+        <tr><th scope="row" class="new">--crumbs-more ★</th><td>none (gekürzt: block)</td><td>Marke „…“ an ihrer Stelle</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<footer class="chapter" style="border-top: var(--rule-strong) solid var(--color-text);">
+  <p class="label">f451 · Entwurf „Editorial" · 2026</p>
+  <p class="chapter__lead">
+    Alles auf dieser Seite ist eigenständig: keine externen Schriften, keine Bilder von außen,
+    das Diagramm ist Inline-SVG. Ohne JavaScript bleibt die Seite vollständig lesbar —
+    JavaScript trägt nur Themenumschalter, Randschalter, Reiter, Dialog und den Lesefortschritt.
+    Ohne JavaScript stehen beide Ränder offen; die Regel „Maß nur für den Fließtext,
+    volle Breite für Tabelle, Code und Diagramm" ist reines CSS und gilt immer.
+  </p>
+</footer>
+
+</div><!-- /.sheet -->
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var btn = document.getElementById('theme-btn');
+  var txt = document.getElementById('theme-text');
+
+  function apply(mode) {
+    root.setAttribute('data-theme', mode);
+    var dark = mode === 'dark';
+    btn.setAttribute('aria-pressed', dark ? 'true' : 'false');
+    txt.textContent = dark ? 'Hell' : 'Dunkel';
+  }
+  try {
+    var stored = window.localStorage.getItem('f451-editorial-theme');
+    if (stored === 'dark' || stored === 'light') apply(stored);
+  } catch (e) { /* ohne Speicher ebenso brauchbar */ }
+
+  btn.addEventListener('click', function () {
+    var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    apply(next);
+    try { window.localStorage.setItem('f451-editorial-theme', next); } catch (e) {}
+  });
+
+  /* --- Lesefläche: Seitenbaum und Info-Leiste einzeln einklappen ----------
+     Schalter im Daumenregister, Umschaltung in der Kopfzeile, Tastenkürzel
+     [ ] und \ — alle drei Wege schreiben denselben Zustand, der gemerkt wird.
+     Ohne JavaScript bleiben beide Ränder offen und die Seite vollständig
+     bedienbar; nur das Einklappen entfällt. */
+  var app = document.getElementById('leseansicht');
+  var paneBtns = Array.prototype.slice.call(document.querySelectorAll('[data-pane]'));
+  var modeBtns = Array.prototype.slice.call(document.querySelectorAll('[data-panes]'));
+  var readout = document.getElementById('readout');
+  var panes = { nav: true, rail: true };
+  var PANE_KEY = 'f451-editorial-panes';
+
+  function measurePanes() {
+    if (!readout || !app) return;
+    function px(el) { return el ? Math.round(el.getBoundingClientRect().width) + ' px' : '—'; }
+    var out = {
+      text: app.querySelector('#artikel > p'),
+      table: app.querySelector('#artikel .tablewrap table'),
+      doc: app.querySelector('.doc')
+    };
+    Object.keys(out).forEach(function (k) {
+      var cell = readout.querySelector('[data-readout="' + k + '"]');
+      if (cell) cell.textContent = px(out[k]);
+    });
+  }
+
+  function applyPanes(store) {
+    if (!app) return;
+    app.setAttribute('data-nav', panes.nav ? 'on' : 'off');
+    app.setAttribute('data-rail', panes.rail ? 'on' : 'off');
+    paneBtns.forEach(function (b) {
+      b.setAttribute('aria-expanded', panes[b.getAttribute('data-pane')] ? 'true' : 'false');
+    });
+    var mode = panes.nav && panes.rail ? 'both' : panes.nav ? 'nav' : panes.rail ? 'rail' : 'none';
+    modeBtns.forEach(function (b) {
+      b.setAttribute('aria-pressed', b.getAttribute('data-panes') === mode ? 'true' : 'false');
+    });
+    if (store) {
+      try { window.localStorage.setItem(PANE_KEY, JSON.stringify(panes)); } catch (e) {}
+    }
+    measurePanes();
+  }
+
+  paneBtns.forEach(function (b) {
+    b.addEventListener('click', function () {
+      var k = b.getAttribute('data-pane');
+      panes[k] = !panes[k];
+      applyPanes(true);
+    });
+  });
+  modeBtns.forEach(function (b) {
+    b.addEventListener('click', function () {
+      var m = b.getAttribute('data-panes');
+      panes.nav = (m === 'both' || m === 'nav');
+      panes.rail = (m === 'both' || m === 'rail');
+      applyPanes(true);
+    });
+  });
+
+  document.addEventListener('keydown', function (ev) {
+    if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+    var t = ev.target;
+    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName || ''))) return;
+    if (ev.key === '[') panes.nav = !panes.nav;
+    else if (ev.key === ']') panes.rail = !panes.rail;
+    else if (ev.key === '\\') {
+      var offen = panes.nav || panes.rail;
+      panes.nav = !offen; panes.rail = !offen;
+    } else return;
+    ev.preventDefault();
+    applyPanes(true);
+  });
+
+  try {
+    var gespeichert = JSON.parse(window.localStorage.getItem(PANE_KEY) || 'null');
+    if (gespeichert && typeof gespeichert.nav === 'boolean' && typeof gespeichert.rail === 'boolean') {
+      panes = gespeichert;
+    } else if (window.matchMedia('(max-width: 900px)').matches) {
+      panes.nav = false;
+    }
+  } catch (e) {
+    if (window.matchMedia('(max-width: 900px)').matches) panes.nav = false;
+  }
+  applyPanes(false);
+
+  if (window.ResizeObserver && app) new window.ResizeObserver(measurePanes).observe(app);
+  else window.addEventListener('resize', measurePanes);
+
+  /* Reiter */
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('[role="tab"]'));
+  tabs.forEach(function (tab, i) {
+    tab.addEventListener('click', function () {
+      tabs.forEach(function (t) {
+        var sel = t === tab;
+        t.setAttribute('aria-selected', sel ? 'true' : 'false');
+        document.getElementById(t.getAttribute('aria-controls')).hidden = !sel;
+      });
+    });
+    tab.addEventListener('keydown', function (ev) {
+      var dir = ev.key === 'ArrowRight' ? 1 : ev.key === 'ArrowLeft' ? -1 : 0;
+      if (!dir) return;
+      ev.preventDefault();
+      tabs[(i + dir + tabs.length) % tabs.length].focus();
+      tabs[(i + dir + tabs.length) % tabs.length].click();
+    });
+  });
+
+  /* Dialog */
+  var dlg = document.getElementById('dlg');
+  var open = document.getElementById('dlg-open');
+  if (dlg && open && typeof dlg.showModal === 'function') {
+    open.addEventListener('click', function () { dlg.showModal(); });
+    document.getElementById('dlg-cancel').addEventListener('click', function () { dlg.close(); });
+    document.getElementById('dlg-ok').addEventListener('click', function () { dlg.close(); });
+  }
+
+  /* Dichte-Regler — verschiebt nur einen Token */
+  var seg = document.querySelectorAll('[data-density]');
+  Array.prototype.forEach.call(seg, function (b) {
+    b.addEventListener('click', function () {
+      Array.prototype.forEach.call(seg, function (o) { o.setAttribute('aria-pressed', 'false'); });
+      b.setAttribute('aria-pressed', 'true');
+      root.style.setProperty('--density', b.getAttribute('data-density'));
+    });
+  });
+
+  /* Lesefortschritt und aktuelle Stelle im Inhaltsverzeichnis */
+  var toc = document.querySelector('[data-toc]');
+  var artikel = document.getElementById('artikel');
+  var pos = document.getElementById('runhead-pos');
+  if (!toc || !artikel) return;
+  var links = Array.prototype.slice.call(toc.querySelectorAll('a'));
+  var heads = links.map(function (a) { return document.getElementById(a.getAttribute('href').slice(1)); });
+  var tops = links.filter(function (a, i) { return heads[i] && !a.closest('.toc-sub'); });
+
+  function update() {
+    var marker = window.innerHeight * 0.3;
+    var cur = 0;
+    heads.forEach(function (h, i) { if (h && h.getBoundingClientRect().top <= marker) cur = i; });
+    links.forEach(function (a, i) {
+      if (i === cur) a.setAttribute('aria-current', 'location');
+      else a.removeAttribute('aria-current');
+    });
+    var r = artikel.getBoundingClientRect();
+    var p = Math.min(1, Math.max(0, (marker - r.top) / Math.max(r.height, 1)));
+    toc.style.setProperty('--toc-progress', (p * 100) + '%');
+    if (pos) {
+      var top = 0;
+      tops.forEach(function (a, i) { if (links.indexOf(a) <= cur) top = i; });
+      pos.textContent = 'Abschnitt ' + (top + 1) + ' von ' + tops.length;
+    }
+  }
+  update();
+  window.addEventListener('scroll', update, { passive: true });
+  window.addEventListener('resize', update);
+})();
+</script>
+
+</body>
+</html>

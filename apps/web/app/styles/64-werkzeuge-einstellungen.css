@@ -1,0 +1,487 @@
+/* =========================================================================
+   Werkzeuge — Anmeldung, Einstellungen, Verbindungen, API-Tokens
+
+   Login-Seite (inkl. `.login-error`), Sidebar-Navigation der Einstellungen,
+   Verbindungen-Bereich und die persönlichen API-Tokens (MCP-Phase 0).
+
+   Besitzer im weiteren Umbau: Teilschritt H4 (Werkzeuge/Einstellungen/
+   Anmeldung).
+
+   Herkunft: `app/globals.css` Zeilen 594-830 (Stand vor der Aufteilung,
+   4522 Zeilen). Teilschritt A war rein mechanisch: kein Wert, kein Selektor,
+   keine Reihenfolge geändert. Die Kaskadenreihenfolge steht ausschließlich
+   in der @import-Liste von `app/globals.css` — NICHT in den Dateinamen.
+
+   ── Was Teilschritt H4 hier abgeräumt hat ─────────────────────────────────
+   1. `.login-error` ist ERSATZLOS entfallen. Der Block war ein zweiter,
+      handgebauter Hinweiskasten (Fläche, Rahmen, Radius, Innenraum,
+      Schriftgrad, Schriftschnitt) — genau das, was `.callout`
+      (43-flaeche.css) seit Teilschritt E leistet. Teilschritt E hat
+      `.login-error` dort ausdrücklich als KASTEN-Alias angelegt, damit
+      dieses Löschen keine Fundstelle unformatiert zurücklässt (s. Kommentar
+      „Alias C" ebendort). Die Anmeldekarte behält nur noch das, was ihr
+      eigen ist: die Zeile aus Meldung + Wiederholen-Link (s. u.).
+      Die zehn Fundstellen AUSSERHALB der Anmeldeseite sind mit umgestellt
+      (`callout error`) — der Klassenname `login-error` kommt im Markup der
+      Anwendung nicht mehr vor. Der Alias in `43-flaeche.css` ist damit
+      unbenutzt; ihn räumt Teilschritt I ab.
+   2. `.conn-error` ist entfallen — Farbe und Schriftgrad kommen aus
+      `.callout.error`, der Außenabstand aus `.tool-status` (s. u.).
+   3. `.conn-row` und `.token-reveal` geben Innenraum, Rahmen und Radius an
+      `.card` ab (Plan §7.2 Zeile E nennt beide ausdrücklich); im Markup
+      steht jetzt `card conn-row` bzw. `card token-reveal`.
+   4. Die verbliebenen `1px`/`2px`/`44px`-Literale sind auf `--rule-hair`,
+      `--rule-strong` und `--control-h` gegangen — gleiche Werte, keine
+      Sichtänderung.
+   ========================================================================= */
+/* =========================================================================
+   Login-Seite
+   ========================================================================= */
+.login-page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-6);
+  background:
+    radial-gradient(circle at 15% 15%, color-mix(in srgb, var(--color-accent) 6%, transparent), transparent 45%),
+    var(--color-bg-sunken);
+}
+.login-card {
+  width: min(400px, 100%);
+  padding: var(--space-8) var(--space-7);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+/* Das Logoquadrat war laut Bestandsaufnahme (§7.2, Zeile C) der EINZIGE
+   44-px-Treffer in 5358 Zeilen CSS — also längst die Zielgröße, nur als
+   Literal geschrieben. `--control-h` ist derselbe Wert (2,75rem). */
+.login-card .mark {
+  width: var(--control-h);
+  height: var(--control-h);
+  border-radius: var(--radius-md);
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  display: grid;
+  place-items: center;
+  box-shadow: var(--shadow-md);
+}
+.login-card .mark svg {
+  width: 24px;
+  height: 24px;
+}
+.login-card .brandline {
+  margin-top: var(--space-4);
+  font-weight: var(--weight-strong);
+  font-size: var(--text-lg);
+  letter-spacing: -0.01em;
+}
+.login-card h1 {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-strong);
+  letter-spacing: -0.01em;
+  margin: var(--space-5) 0 var(--space-2);
+}
+.login-card .lede {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  max-width: 30ch;
+  margin: 0 0 var(--space-6);
+}
+/* Nur noch die Breite. Innenraum und Schriftgrad kamen bis H4 von hier
+   (`10px var(--space-4)`, `--text-sm`) und wiederholten damit, was der
+   Schaltflächen-Baustein ohnehin führt. */
+.login-card .login-btn {
+  width: 100%;
+}
+.login-card .foot {
+  margin-top: var(--space-5);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+/* Der Fehlerkasten der Anmeldekarte. Fläche, Markerlinie, Radius, Innenraum
+   und Farbe kommen aus `.callout.error` (43-flaeche.css); hier steht nur
+   noch, was der Kasten AN DIESER STELLE zusätzlich braucht: Die Karte ist
+   eine zentrierte Flex-Spalte, der Kasten soll darin über die volle Breite
+   laufen und Meldung und Wiederholen-Link auseinanderziehen.
+
+   `align-self: stretch` statt `width: 100%`: in einer Flex-Spalte mit
+   `align-items: center` ist das die Eigenschaft, die die Ausrichtung
+   zurücknimmt — `width` allein ließe den Kasten zentriert und würde bei
+   einem eigenen Innenabstand über die Karte hinauslaufen.
+
+   Zwei Klassen, kein dritter Selektorbestandteil (Plan §7.4, Regel 4).
+   Der Außenabstand steht hier und nicht im Baustein, weil der Baustein
+   bewusst keinen mitbringt (s. Kopf von 43-flaeche.css). */
+.login-card .callout {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  text-align: left;
+}
+.login-card .callout a {
+  white-space: nowrap;
+}
+
+/* =========================================================================
+   Einstellungen — Sidebar-Navigation (schlanke Vorstufe des Seitenbaums;
+   Task 3 liefert die vollständige `.nav`/`.tree`-Interaktion für /wiki)
+   ========================================================================= */
+.settings-nav {
+  padding: var(--space-2) 0;
+}
+.settings-nav-item {
+  display: block;
+  padding: 6px var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  border-left: var(--rule-strong) solid transparent;
+}
+.settings-nav-item:hover {
+  background: var(--panel-2);
+  text-decoration: none;
+}
+.settings-nav-item.active {
+  background: var(--color-accent-wash);
+  border-left-color: var(--color-accent);
+  color: var(--color-accent);
+  font-weight: var(--weight-strong);
+}
+
+/* =========================================================================
+   Verbindungen (Einstellungen)
+   ========================================================================= */
+.conn-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+/* Die Zeile IST eine Karte (Plan §7.2, Zeile E nennt `.conn-row`
+   ausdrücklich). Innenraum, Haarlinie, Radius und Fläche kommen deshalb aus
+   `.card`; hier bleibt nur die Anordnung ihrer Kinder. Im Markup steht
+   `card conn-row`. */
+.conn-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+.conn-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.conn-info b {
+  font-size: var(--text-md);
+}
+/* Gedämpfte Nebenangabe in der Zeile (Anlege-/Nutzungsdatum eines Tokens) —
+   war bis H4 ein Inline-Stil an jeder Fundstelle (Bestandsaufnahme §4.3). */
+.conn-info small {
+  color: var(--color-text-muted);
+}
+
+/* Außenabstand über einem Hinweisblock auf den Werkzeugseiten.
+
+   `.callout` bringt bewusst keinen Außenabstand mit — der gehört dem Kontext
+   (Kopf von 43-flaeche.css). Drei der vier Kontexte hier sind aber KEIN
+   Flex-Stapel mit `gap`, sondern normaler Blockfluss: der Schema-Editor
+   (`.schema-editor`), die Vorlagenliste (`.tpl-manager`) und die
+   Token-/Verbindungsspalte. Sie trugen den Abstand bisher an der jeweiligen
+   Statusklasse (`.schema-editor-status`: `margin-top: var(--space-3)`,
+   `.conn-error`: `var(--space-2)`).
+
+   Statt dieser zwei Werte an zwei Stellen steht hier EINER, und zwar der
+   bisher häufigere. Kein neuer Wert, nur einer weniger. */
+.tool-status {
+  margin-top: var(--space-3);
+}
+
+/* =========================================================================
+   Persönliche API-Tokens (MCP-Phase 0, Einstellungen/Verbindungen) —
+   `.token-form` lehnt sich an `.mf-field`/`.mf-input` (Metadaten-Formular)
+   an, `.token-list`/-row nutzen dieselben `.conn-list`/`.conn-row`-Klassen
+   wie die Provider-Verbindungen oben (konsistente Listenoptik).
+   ========================================================================= */
+.token-panel {
+  margin-top: var(--space-7);
+  padding-top: var(--space-6);
+  border-top: var(--rule-hair) solid var(--color-border-strong);
+}
+.token-form {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-2);
+}
+.token-form .mf-field {
+  min-width: 220px;
+}
+.token-list {
+  margin-top: var(--space-4);
+}
+/* Auch der Enthüllungskasten ist eine Karte (Plan §7.2, Zeile E). Innenraum,
+   Haarlinie und Radius kommen aus `.card`; die Akzenttönung bleibt als
+   einzige Abweichung stehen — sie ist hier bedeutungstragend („dieser
+   Klartext ist neu und nur jetzt sichtbar") und keine Wiederholung des
+   Bausteins. Im Markup steht `card token-reveal`. */
+.token-reveal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  border-color: var(--color-accent-line);
+  background: var(--color-accent-wash);
+}
+.token-reveal-hint {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+.token-reveal-value {
+  display: block;
+  padding: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  word-break: break-all;
+  background: var(--color-bg);
+  border: var(--rule-hair) solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+}
+.token-reveal-actions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+/* =========================================================================
+   Erscheinungsbild (Einstellungen) — der Token-Editor
+
+   Markup: `components/erscheinungsbild-editor.tsx`, Seite
+   `app/einstellungen/erscheinungsbild/page.tsx`.
+
+   Diese Seite stellt die Tokens ein, mit denen alles andere gezeichnet wird.
+   Sie darf deshalb ihre eigene Erscheinung an KEINEM px-Literal hängen haben:
+   sonst wäre ausgerechnet der Editor die eine Ansicht, die auf ein Theme nicht
+   reagiert. Jeder Wert unten ist ein `var(--…)` aus dem Katalog
+   (`00-tokens.css`) bzw. den Ableitungen (`10-ableitungen.css`). Dass die
+   Nachbarabschnitte dieser Datei noch px-Literale führen, ist Altbestand und
+   hier ausdrücklich kein Vorbild.
+
+   Bedienelemente kommen aus den Bausteinen: `.input` (41-eingabe.css) und
+   `.btn` (40-schaltflaeche.css) bringen `--control-h` und den Fokusring mit.
+   Eigenes steht hier nur, wo ein Baustein nicht greift — der Farbwähler
+   (`<input type="color">` trägt keine Bausteinklasse) und die Anordnung.
+   ========================================================================= */
+
+/* Kopfzeile der Insel: Moduswahl links, „Alles zurücksetzen" rechts. */
+.eb-kopf {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+}
+.eb-hinweis {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+  color: var(--color-text-muted);
+}
+
+.eb-gruppe {
+  margin-top: var(--space-6);
+}
+/* Der Gruppentitel IST die Gliederung dieser langen Liste (es gibt keine
+   Suche und keinen Filter). Damit er auch nach dreißig Zeilen noch sagt, wo
+   man ist, klebt er beim Rollen oben an: `.main` ist der Rollbereich
+   (`overflow-y: auto`, 60-chrome-raster.css), deshalb greift `top: 0` hier.
+   Die eigene Fläche ist Pflicht — sonst rollen die Zeilen sichtbar durch. */
+.eb-gruppe-kopf {
+  position: sticky;
+  top: var(--space-0);
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-0);
+  background: var(--color-bg);
+  border-bottom: var(--rule-hair) solid var(--color-border-strong);
+}
+.eb-gruppe-kopf h2 {
+  margin: var(--space-0);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-display);
+  letter-spacing: var(--tracking-tight);
+}
+
+/* Zwei Spalten: links wofür der Wert steht, rechts der Wert. Die zweite Spur
+   trägt `--layout-rail-w` — die Breite einer Nebenspalte; einen Token für
+   „Breite der Bedienspalte" kennt der Katalog nicht (gemeldet). */
+.eb-zeile {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, var(--layout-rail-w));
+  align-items: start;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3) var(--space-0);
+  border-bottom: var(--rule-hair) solid var(--color-border-hair);
+}
+.eb-zeile-kopf {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.eb-rolle {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-ui);
+}
+.eb-name {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+/* Nebentexte der Zeile: fehlender Grundwert, Sperrgrund. Beides sind Sätze,
+   also `--leading-ui` statt der engen Zeile einer Beschriftung. */
+.eb-nebentext {
+  font-size: var(--text-xs);
+  line-height: var(--leading-ui);
+  color: var(--color-text-muted);
+}
+
+.eb-eingabe {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  min-width: 0;
+}
+/* Das Feld nimmt den Rest der Spur; der Wert ist Code, also dicktengleich. */
+.eb-text {
+  flex: 1 1 var(--layout-note-w);
+  font-family: var(--font-mono);
+}
+/* Der Farbwähler ist ein Bedienelement und bekommt dieselbe Zielgröße wie
+   Feld und Schaltfläche (`--control-h`, 44px). */
+.eb-farbe {
+  flex: none;
+  width: var(--control-h);
+  height: var(--control-h);
+  padding: var(--space-1);
+  background: var(--color-bg);
+  border: var(--rule-hair) solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+/* Die EINE Fokusregel (40-schaltflaeche.css) zählt ihre Klassen einzeln auf;
+   `<input type="color">` trägt keine davon. Hier stehen dieselben drei Werte,
+   damit kein zweites Fokusbild entsteht — kein neuer Wert, nur dieselbe Regel
+   an einem Element, das die Liste dort nicht kennt. */
+.eb-farbe:focus-visible {
+  outline: var(--focus-w) solid var(--color-focus);
+  outline-offset: var(--focus-offset);
+}
+
+/* Kontrastangabe unter dem Feld, ggf. mit der Warnmarke `.chip.warn`
+   (42-marke.css) — die trägt Zeichen und Wort, nicht Farbe allein. */
+.eb-kontrast {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  flex: 1 1 100%;
+  font-size: var(--text-xs);
+  line-height: var(--leading-ui);
+  color: var(--color-text-muted);
+}
+
+/* Im schmalen Fenster steht der Wert unter seiner Beschriftung. Derselbe
+   Haltepunkt wie die kompakte Kopfleiste weiter unten in dieser Datei —
+   Medienabfragen können keine Custom Properties lesen, das px steht hier
+   also nicht zur Wahl. */
+@media (max-width: 640px) {
+  .eb-zeile {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* =========================================================================
+   FREMDER INHALT — gehört zu H1 (Chrome), nicht zu H4
+
+   Die beiden folgenden Medienabfragen gestalten ausschließlich `.topbar` und
+   `.search`, also die Kopfleiste. Sie stehen nur deshalb in dieser Datei,
+   weil sie in der 4522 Zeilen langen `globals.css` innerhalb des Abschnitts
+   594-830 lagen und Teilschritt A rein mechanisch geschnitten hat.
+
+   H4 lässt sie unangetastet: die zugehörigen Grundregeln liegen in
+   `60-chrome-topbar.css`, und ein Verschieben würde die Kaskade ändern.
+   Gemeldet, damit H1 bzw. Teilschritt I sie in ihre Datei holt.
+   ========================================================================= */
+
+/* ---- Topbar: schmale Viewports (Mobil) ---- */
+@media (max-width: 640px) {
+  .topbar {
+    gap: var(--space-2);
+    padding: 0 var(--space-3);
+  }
+  .topbar > .app {
+    display: none;
+  }
+  /* Platz für den Space-Wechsler: Der Schriftzug neben dem Logo weicht, das
+     Logo bleibt der Weg zur Startseite (der Link trägt sein `aria-label`). */
+  .brand-wort {
+    display: none;
+  }
+  /* Der Space-Wechsler bleibt — ohne ihn ließ sich auf dem Telefon kein
+     anderer Space erreichen (Abnahme #76). Er schrumpft auf Buchstabe und
+     Pfeil; der Name ist nur optisch versteckt, denn er ist der zugängliche
+     Name des Knopfs (das Buchstabenkästchen ist `aria-hidden`). */
+  .app-switch-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .search {
+    flex: 0 1 auto;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    padding: 0 10px;
+    gap: 6px;
+  }
+  .search .ph {
+    display: none;
+  }
+  .search .short {
+    display: block;
+    flex: none;
+  }
+  .search .kbd {
+    margin-left: 2px;
+  }
+}
+
+/* ---- Topbar: sehr schmale Viewports ---- */
+@media (max-width: 400px) {
+  .search .short {
+    display: none;
+  }
+  .search .kbd {
+    margin-left: auto;
+  }
+}
+

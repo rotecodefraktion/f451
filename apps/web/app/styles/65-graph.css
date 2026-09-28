@@ -1,0 +1,1007 @@
+/* 65-graph.css — Teilschritt H5 des Bausteinsystem-Umbaus.
+   Graph-Ansicht (`components/graph/graph-view.tsx`)
+
+   Diese Datei gehoert AUSSCHLIESSLICH Teilschritt H5.
+
+   ── Warum die Datei jetzt in der Importliste steht ────────────────────────
+   Bis hierher lud `app/layout.tsx` sie GETRENNT und NACH `globals.css`. In
+   der Kaskade stand sie damit hinter allem — jede Regel hier gewann gegen
+   jeden Baustein, und jede Baustein-Regel, die etwas ueber die Graph-Ansicht
+   sagen wollte, war tote Fracht (s. Fussnote in `45-auswahl.css`).
+
+   Die Aufnahme in `../globals.css` ist sichaenderungsfrei, weil die
+   Importzeile ans ENDE der Liste geht: `globals.css` enthaelt ausser
+   `@import` nichts, die zusammengefuegte Reihenfolge ist danach Zeichen fuer
+   Zeichen dieselbe wie vorher (… 64-werkzeuge-vorlagen, dann diese Datei).
+   Nachgewiesen ueber getComputedStyle: 68 Proben x 62 Eigenschaften x
+   Hell/Dunkel, kein Unterschied allein durch die Verlegung.
+
+   Was sie AENDERT, ist die Zustaendigkeit: von jetzt an kann ein Baustein
+   die Graph-Ansicht ueberhaupt erreichen, sobald diese Datei die Eigenschaft
+   nicht mehr selbst deklariert. Genau das ist der Inhalt dieses Teilschritts.
+
+   ── Herkunft ──────────────────────────────────────────────────────────────
+   1:1 aus docs/design/mockups/graph.html übernommen (Task 4),
+   AUSSCHLIESSLICH aus den Token-Variablen abgeleitet. `body`-, `.topbar`- und
+   `.gwrap`-Regeln des Mockups sind bewusst NICHT übernommen (Topbar existiert
+   bereits in globals.css, `.gwrap` ist durch `.shell.shell-graph` aus Task 3
+   ersetzt, s. dort).
+
+   Selektor-Scoping-Hinweis (mechanische Abweichung vom reinen Verbatim-
+   Kopieren, s. task-3b4-report.md): zwei Klassen aus dem Mockup kollidieren
+   mit bereits bestehenden, GLOBAL genutzten Basisklassen aus globals.css:
+     - `.pop` ist dort schon die generische Dropdown-Popover-Basis (Konto-Menü,
+       Format-Dropdown, Slash-Menü, Link-Popup — jeweils über ein zweites
+       Modifier-Klasse wie `.linkpop`/`.cmdmenu` erweitert, nie `.pop` selbst
+       neu definiert, s. Kommentar dort "Popover-Ergänzungen").
+     - `.hint` ist dort schon eine schlichte Fließtext-Hinweiszeile (Editor-
+       Toolbar-Link-Popover).
+   Ein bare Verbatim-Copy hätte beide global überschrieben. Da das Graph-
+   Popover und der Graph-Hint-Chip laut Mockup-Markup beide Nachfahren von
+   `.canvas` sind, sind die betroffenen Regeln hier unter dem Vorfahren
+   `.canvas` gescoped (`.canvas .pop`, `.canvas .pop .ph`, `.canvas .hint`) —
+   Werte 1:1 aus dem Mockup, nur die Selektor-Präfixe ergänzt. Alle anderen
+   Klassen (`.ph .t`, `.x`, `.pmeta`, `.pact`, …) existierten nirgends sonst im
+   Projekt und waren unverändert übernommen. Von den damals eigenen Namen sind
+   `.badge-rel`, `.ptag`, `.pbtn` und `.iconbtn` seit Teilschritt H5 durch
+   Bausteine ersetzt (s. „Was H5 abgeräumt hat" unten).
+
+   ── Was H5 abgeraeumt hat ─────────────────────────────────────────────────
+   Klassenwechsel im Markup (`graph-view.tsx`), lokale Regel ersatzlos weg:
+     .iconbtn            → .btn                    (40-schaltflaeche.css)
+     .pbtn               → .btn.primary            (dito; `.pbtn.ghost` war
+                                                    im Markup unbenutzt)
+     .badge-rel          → .chip.released          (42-marke.css)
+     .ptag               → .tag                    (dito)
+     .etoggle            → .chip + Variante hier   (dito; s. unten)
+     .minitree.card / .stage.card → ohne `.card`   (43-flaeche.css: beide
+                                                    Flaechen haben eigene
+                                                    Regeln, s. dort „ohne
+                                                    .card" als geraderer Weg)
+   Umbenannt, weil der Name mit einem Baustein kollidierte:
+     .depth .tag         → .depth .dval            (der Tiefe-WERT ist kein
+                                                    Schlagwort)
+   Ersatzlos entfallen: `.depth b` (kein `<b>` im Markup), vier `outline:
+   none` (s. „Fokus" unten), die Karten-Ruecknahmen und die Wiederholungen,
+   die `.card` schon liefert.
+
+   ── Fokus: vier Mal `outline: none` ersatzlos entfernt ────────────────────
+   Die Bestandsaufnahme (§2.2/§3) fuehrt diese Ansicht mit zwei ersatzlosen
+   Fokus-Unterdrueckungen; es waren vier. Drei davon hatten UEBERHAUPT keine
+   eigene Darstellung (`.depth input[type=range]`) oder nur einen Farbwechsel
+   am Rahmen, der auch bei Mausbedienung auftritt und damit den Tastaturfokus
+   nicht anzeigt (`.fsearch input` ueber `:focus-within`, `.fsel select` ueber
+   `:focus`). Die vierte, `.node:focus`, ist die heikelste: die Knoten sind
+   `tabindex=0`/`role=button`, und die einzige Rueckmeldung war derselbe
+   Akzent-Ring, den auch `:hover` setzt.
+   Alle vier sind jetzt weg; es gilt der globale Ring aus `20-basis.css`
+   (2px `--color-accent`, Abstand 2px). Die vorhandenen Flaechen-/Rand-
+   Wechsel bleiben zusaetzlich stehen.
+   ========================================================================= */
+
+:root {
+  /* Kantenrollen — neutral gemischt, kein Roh-Hex.
+     Redesign Phase 3 (Handoff „Graph view/Edges"): Hierarchie-Kanten sind
+     dort die SICHTBAREN, akzentgetönten Linien (#f0a99c) und Relations-
+     Kanten die zurückgenommenen, gestrichelten Neutralen (#d4d4d8) — die
+     bisherige Zuordnung war genau umgekehrt (Hierarchie neutral-dünn,
+     Relation akzentgetönt). */
+  --edge-hier: color-mix(in srgb, var(--color-accent) 42%, var(--color-bg)); /* Hierarchie: akzentgetönt */
+  --edge-link: color-mix(in srgb, var(--color-text) 46%, var(--color-bg)); /* Link: kräftiger neutral */
+  --edge-rel: var(--color-border-strong); /* Relation: zurückgenommen neutral, gestrichelt */
+  --edge-hl: var(--color-accent); /* Nachbarschaft der Auswahl */
+  --node-ring: var(--color-bg); /* Flächenring am Knoten */
+  --grid: color-mix(in srgb, var(--color-text) 10%, var(--color-bg));
+}
+
+/* ---- Eingeklappter Seitenbaum (Icon-Rail) ----
+   Redesign Phase 3 (Handoff „Icon rail"): abgesetzte `--surface-subtle`-
+   Fläche mit EINER Hairline rechts (analog zur Sidebar der Doc-Ansicht)
+   statt des bisherigen Karten-Looks.
+
+   H5: das Markup trug `class="minitree card"` und nahm die Karte hier Zeile
+   für Zeile wieder zurück (`border: 0`, `border-radius: 0`, `box-shadow:
+   none`) — eine der sechs Selbstaufhebungen aus Bestandsaufnahme §2.4. Statt
+   `.card.plain` steht hier der geradere Weg, den `43-flaeche.css` selbst
+   nennt: die Fläche hat vollständig eigene Regeln, also trägt sie kein
+   `.card`. Damit fällt die Rücknahme mit weg. */
+.minitree {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 0;
+  overflow: hidden;
+  background: var(--color-bg-sunken);
+  border-right: var(--rule-hair) solid var(--color-border);
+}
+.minitree .sq {
+  /* Handoff: dunkles NEUTRALES „B" (34px) — Rot bleibt Marke/Primäraktion
+     vorbehalten (offener Punkt aus Phase 2; identisch zu `.tree .head .sq`
+     in globals.css). */
+  width: 34px;
+  height: 34px;
+  /* `--radius-md` ist 0.5625rem = exakt die bisherigen 9px. */
+  border-radius: var(--radius-md);
+  background: var(--color-text);
+  color: var(--color-bg);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-weight: var(--weight-strong);
+  font-size: var(--text-ui);
+  margin-bottom: 6px;
+}
+/* Handoff: zwei quadratische 36px-Icon-Buttons (vorher 38×34, leicht
+   unrund). Der aktive trägt Akzent-Tint + Akzent-Icon; der zusätzliche
+   Akzent-Balken links entfällt (im Handoff nicht vorhanden — die Tint-Fläche
+   allein markiert den aktiven Zustand, verstärkt durch `aria-current`). */
+.minitree .ico {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  display: grid;
+  place-items: center;
+  color: var(--color-text-muted);
+  position: relative;
+  cursor: pointer;
+}
+.minitree .ico svg {
+  width: 18px;
+  height: 18px;
+}
+.minitree .ico:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+.minitree .ico.active {
+  background: var(--color-accent-wash);
+  color: var(--color-accent);
+}
+.minitree .sep {
+  width: 24px;
+  height: var(--rule-hair);
+  background: var(--color-border);
+  margin: 2px 0;
+}
+.minitree .dotm {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 2px solid var(--node-ring);
+}
+
+/* ---- Bühne (Graph-Fläche) ----
+   Redesign Phase 3: kein Karten-Look — die Bühne füllt ihre Grid-Spalte
+   randlos aus. H5: wie bei `.minitree` trug das Markup `card` und nahm es
+   hier wieder zurück; jetzt trägt es kein `.card` mehr. */
+.stage {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--color-bg);
+}
+
+/* ---- Filterleiste (Handoff „Toolbar") ----
+   Redesign Phase 3: weiße Fläche mit EINER Hairline unten (statt getönter
+   Karten-Kopfzeile mit Rundung), 12px/20px Innenabstand — das sind exakt
+   `--space-3`/`--space-5`. Das `border-radius: 0` war die Rücknahme eines
+   Karten-Radius, den `.filterbar` gar nicht bekommt; es ist ersatzlos weg. */
+.filterbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-5);
+  border-bottom: var(--rule-hair) solid var(--color-border);
+  background: var(--color-bg);
+}
+/* Handoff: gefüllte, randlose Suche (`--panel-2`), erst im Fokus weiß mit
+   Rahmen — dasselbe Muster wie die Topbar-Suche in globals.css. */
+.fsearch {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 34px;
+  width: min(240px, 28vw);
+  padding: 0 var(--space-3);
+  background: var(--panel-2);
+  border: var(--rule-hair) solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+}
+.fsearch:focus-within {
+  background: var(--color-bg);
+  border-color: var(--color-border-strong);
+}
+.fsearch svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+/* H5: hier stand `outline: none`. Der Tausch von Fläche und Rahmen an
+   `.fsearch:focus-within` ist KEIN Ersatz — er tritt bei Mausbedienung
+   genauso auf und sagt deshalb nichts über den Tastaturfokus. Es gilt jetzt
+   der globale Ring aus `20-basis.css`. */
+.fsearch input {
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-sm);
+  width: 100%;
+}
+.fsearch input::placeholder {
+  color: var(--color-text-muted);
+}
+.fsel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-strong);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.fsel select {
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-display);
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: var(--rule-hair) solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  padding: 5px var(--space-2);
+  cursor: pointer;
+}
+/* H5: das begleitende `outline: none` ist weg — der Randfarbwechsel unten
+   greift auch bei Mausbedienung und ersetzt den Tastaturring nicht. */
+.fsel select:focus {
+  border-color: var(--color-accent-line);
+}
+.fdiv {
+  width: var(--rule-hair);
+  align-self: stretch;
+  background: var(--color-border);
+  margin: 2px 0;
+}
+/* Bare `.grow` existiert im Projekt bislang nur vorfahren-gescoped
+   (`.topbar .grow`, `.toolbar .grow`, …) — hier analog auf `.filterbar`
+   gescoped statt der mockup-eigenen bare `.grow{flex:1}`-Regel, damit
+   dasselbe Muster gilt (kein erster global-bare `.grow` im Projekt). */
+.filterbar .grow {
+  flex: 1;
+}
+
+/* Kantentyp-Umschalter (mit Strichmuster-Vorschau, damit auch ohne Farbe klar) */
+.etoggles {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+/* Handoff „edge-type toggle pills": AKTIV = Akzent-Tint-Fläche + Akzent-
+   Rahmen + Akzent-Text; AUS bleibt die durchgestrichene, gedimmte Variante —
+   der Zustand ist damit nicht allein über Farbe erkennbar.
+
+   ── H5, zwei Änderungen ───────────────────────────────────────────────────
+   1. `.etoggle` ist eine VARIANTE der Statusmarke (Plan §7.2, Zeile G). Das
+      Markup trägt jetzt `class="chip etoggle"`; Form, Maße, Schriftgrad und
+      Rundung kommen aus `42-marke.css`. Hier bleibt nur, was diese Variante
+      ausmacht: ihre Farben, das Kästchen und die Strichmuster-Vorschau.
+      Die eigene Randfarbe bleibt bewusst stehen: `.chip` zeichnet den Rand
+      in `currentColor`, was hier `--link` wäre — ein deutlich kräftigerer
+      Ring als der Akzentrand des Handoffs. Jede Chip-Variante führt ihre
+      Randfarbe selbst (vgl. `.chip.rel`/`.chip.work` in `61-lese.css`).
+   2. Der Zustand hängt an EINEM Merkmal. Bis hierher trug das Element
+      gleichzeitig `class="off"` UND `aria-pressed` — dieselbe Doppelführung,
+      die bei `.seg` zum toten Regelblock geführt hat (Bestandsaufnahme
+      §6.2). Die Klasse ist weg; es gilt `aria-pressed`, wie es
+      `45-auswahl.css` für Umschalter festlegt und begründet. `aria-pressed`
+      ist hier ohnehin das richtige Merkmal: die drei Kantenfilter sind
+      unabhängig ein-/ausschaltbar, keine Auswahl aus einer Gruppe. */
+.etoggle {
+  cursor: pointer;
+  /* Bleibt stehen, obwohl `.chip` einen Innenabstand mitbringt: die Marke ist
+     ein Schriftzeichen-Träger, diese Variante ist ein BEDIENELEMENT. Ohne die
+     Zeile fiele die Trefferfläche von 32 auf knapp 27 px — die falsche
+     Richtung, solange `--control-h` (44 px) noch am Übergangsschalter hängt
+     (s. `40-schaltflaeche.css`). Der waagerechte Innenabstand kommt dagegen
+     aus dem Baustein: dessen `--space-3` sind exakt die bisherigen 12 px. */
+  height: 32px;
+  color: var(--link);
+  background: var(--color-accent-wash);
+  border-color: var(--color-accent-line);
+}
+.etoggle:hover {
+  border-color: var(--color-accent);
+}
+.etoggle svg {
+  width: 26px;
+  height: 8px;
+  overflow: visible;
+  flex: none;
+}
+.etoggle[aria-pressed='false'] {
+  color: var(--color-text-muted);
+  background: var(--color-bg);
+  border-color: var(--color-border-strong);
+  opacity: 0.55;
+  text-decoration: line-through;
+  text-decoration-thickness: var(--rule-hair);
+}
+.etoggle[aria-pressed='false'] svg {
+  opacity: 0.4;
+}
+.etoggle .chk {
+  width: 13px;
+  height: 13px;
+  /* Kein Token: der Katalog beginnt bei `--radius-sm` (8px); ein
+     Kontrollkästchen von 13px braucht eine kleinere Rundung. */
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--color-border-strong);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.etoggle[aria-pressed='true'] .chk {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+.etoggle[aria-pressed='true'] .chk::after {
+  content: '';
+  width: 6px;
+  height: 3px;
+  border-left: 1.6px solid var(--color-accent-contrast);
+  border-bottom: 1.6px solid var(--color-accent-contrast);
+  transform: translateY(-1px) rotate(-45deg);
+}
+
+/* Tiefe-Slider (UI-Idee) */
+/* Handoff „Tiefe"-Regler: 120px-Track in `--line-2`, Akzent-Füllung bis zum
+   Knopf, weißer 15px-Knopf mit Akzent-Rand; Label in Normalschrift und der
+   Wert als gefüllter Chip (statt des bisherigen umrandeten Mono-Tags). */
+.depth {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-text);
+  color: var(--color-text-muted);
+}
+/* H5: `.depth b` ist ersatzlos entfallen — im Markup gibt es kein `<b>` in
+   der Tiefe-Gruppe, die Regel war seit ihrer Entstehung wirkungslos. */
+.depth input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 120px;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  /* Statischer Rückfall; zur Laufzeit setzt `graph-view.tsx` den Verlauf mit
+     der tatsächlichen Reglerstellung als Inline-Stil (einer der fünf echt
+     dynamischen aus Bestandsaufnahme §4.3). */
+  background: linear-gradient(90deg, var(--color-accent) 0 66%, var(--color-border-strong) 66%);
+  /* H5: hier stand `outline: none` — ohne jede eigene Fokusdarstellung. Der
+     Regler war damit das einzige Bedienelement der Ansicht, das den
+     Tastaturfokus gar nicht anzeigte. */
+}
+.depth input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--color-bg);
+  border: 2px solid var(--color-accent);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+}
+.depth input[type='range']::-moz-range-thumb {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--color-bg);
+  border: 2px solid var(--color-accent);
+  cursor: pointer;
+}
+/* Der abgelesene Tiefe-WERT. Bis H5 hieß er `.tag` und kollidierte damit mit
+   dem Schlagwort-Baustein (`42-marke.css`) — was nur deshalb nicht auffiel,
+   weil `.depth .tag` zwei Klassen hat und jede Baustein-Deklaration
+   überstimmte. Ein Zahlenwert ist kein Schlagwort; die Klasse heißt jetzt
+   `.dval` und der Baustein bleibt frei. Reine Umbenennung, kein Wert
+   geändert. */
+.depth .dval {
+  min-width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-display);
+  color: var(--color-text);
+  background: var(--panel-2);
+  border: 0;
+  /* Kein Token: zwischen `--radius-sm` (8px) und der Pille liegt nichts;
+     8px auf einem 26px hohen Kästchen wäre eine andere Form. */
+  border-radius: var(--radius-lg);
+  padding: 0 6px;
+  line-height: 1;
+}
+/* H5: „Zurücksetzen" trägt jetzt `class="btn"` — die Grundform aus
+   `40-schaltflaeche.css` ist genau das, was der Handoff hier beschreibt
+   (neutrale Umriss-Schaltfläche). Die lokale `.iconbtn`-Kopie ist samt
+   `:hover` und Icon-Maß ersatzlos entfallen; die Brücke `.iconbtn` in
+   `40-schaltflaeche.css` ist damit unbenutzt und gehört Teilschritt I. */
+
+/* ---- Zeichenfläche ---- */
+/* Handoff „Canvas": abgesetzte `--surface-subtle`-Fläche (nicht mehr weiß)
+   mit 24px-Punktraster, randlos bis in die Ecken.
+   H5: `border-radius: 0` war die dritte Rücknahme eines Karten-Radius, den
+   `.canvas` nie bekam (es trägt kein `.card`) — ersatzlos entfallen. */
+.canvas {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background:
+    radial-gradient(circle at 1px 1px, var(--grid) 1px, transparent 0) 0 0/24px 24px,
+    var(--color-bg-sunken);
+  overflow: hidden;
+}
+.graph {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Kanten */
+.edges line {
+  vector-effect: non-scaling-stroke;
+  stroke-linecap: round;
+}
+/* Handoff: Hierarchie durchgezogen und deutlich (2px, akzentgetönt),
+   Relation gestrichelt und zurückgenommen (1.6px, neutral) — s. Kommentar
+   bei den `--edge-*`-Variablen oben. */
+.e-hier line {
+  stroke: var(--edge-hier);
+  stroke-width: 2;
+}
+.e-link line {
+  stroke: var(--edge-link);
+  stroke-width: 2;
+}
+.e-rel line {
+  stroke: var(--edge-rel);
+  stroke-width: 1.6;
+  stroke-dasharray: 5 5;
+}
+.edges line.hl {
+  stroke: var(--edge-hl);
+  stroke-width: 2.4;
+}
+.graph.hide-hier .e-hier,
+.graph.hide-link .e-link,
+.graph.hide-rel .e-rel {
+  display: none;
+}
+
+/* Relations-Labels */
+.elbl rect {
+  fill: var(--color-bg);
+  opacity: 0.92;
+}
+.elbl text {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-display);
+  fill: var(--edge-rel);
+  text-anchor: middle;
+  letter-spacing: 0.01em;
+}
+
+/* Knoten — Farbe nach STATUS */
+.node {
+  cursor: pointer;
+}
+/* Handoff: 18px-Punkt (r=9, s. `nodeRadius` in graph-view.tsx) mit einem
+   4px-Ring in der AUFGEHELLTEN Statusfarbe (z. B. Released grün auf sehr
+   hellem Grün) statt des bisherigen 2px-Flächenrings — der Ring wird als
+   SVG-`stroke` gezeichnet, dessen Breite je zur Hälfte nach außen liegt,
+   deshalb `stroke-width: 8` für 4 sichtbare Pixel. Die Ringfarbe kommt pro
+   Status aus den `.n-*`-Regeln unten. */
+.node .dot {
+  stroke: var(--node-ring);
+  stroke-width: 8;
+  stroke-linejoin: round;
+  transition: stroke 0.12s;
+}
+/* Label-Hintergrund-Chip (Bugfix „Graph-Label-Overlap") — dasselbe Muster wie
+   `.elbl rect` oben: eine dezent deckende Fläche hinter dem Text, damit ein
+   Label lesbar bleibt, wenn es einen benachbarten Knoten überlappt.
+   `pointer-events: none` auf dem ganzen Wrapper stellt sicher, dass ein
+   überlappendes Label NIE den Klick auf den `.dot` eines Nachbar-Knotens
+   abfängt — der Klick fällt durch auf das darunterliegende Element. */
+.lbl-wrap {
+  pointer-events: none;
+}
+.lbl-bg {
+  fill: var(--color-bg);
+  opacity: 0.85;
+}
+/* Handoff: Knoten-Label 13.5px/600. Die Kontur (`paint-order:stroke`) liegt
+   jetzt in der Canvas-Fläche statt in Weiß, damit sie auf dem getönten
+   Punktraster nicht als heller Halo auffällt. */
+.node .lbl {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-display);
+  fill: var(--color-text);
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: var(--color-bg-sunken);
+  stroke-width: 3.4px;
+  stroke-linejoin: round;
+}
+/* Statusfarbe des Punktes. Die FORM je Status steht in `graph-view.tsx`
+   (`statusMark`) — Kreis / Raute / Dreieck / Quadrat; sie ist das farbfreie
+   zweite Merkmal (zugesicherte Eigenschaft 3, Teilschritt I). Deshalb
+   greifen diese Regeln auf `.dot` und nicht auf `circle`: derselbe
+   Klassenname trägt jetzt vier verschiedene Elementformen.
+   `stroke-linejoin: round` (oben an `.node .dot`) hält die 8er-Strichbreite
+   an den Ecken von Raute, Dreieck und Quadrat rund statt spitz. */
+.n-working .dot {
+  fill: var(--color-status-working);
+  stroke: var(--color-status-working-wash);
+}
+.n-review .dot {
+  fill: var(--color-status-review);
+  stroke: var(--rev-bg);
+}
+.n-released .dot {
+  fill: var(--color-status-released);
+  stroke: var(--rel-bg);
+}
+.n-archived .dot {
+  fill: var(--color-status-archived);
+  stroke: var(--panel-2);
+}
+.n-archived {
+  opacity: 0.6;
+}
+.is-hub .lbl {
+  font-weight: var(--weight-strong);
+}
+.node:hover .dot,
+.node:focus .dot {
+  stroke: var(--color-accent);
+}
+/* H5: hier stand `.node:focus { outline: none }`. Die Knoten sind
+   `tabindex="0"`/`role="button"` und damit voll tastaturbedienbar; die
+   einzige Rückmeldung war der Akzent-Ring oben, den `:hover` genauso setzt.
+   Ein Tastaturnutzer konnte also nicht sehen, wo er steht. Jetzt greift der
+   globale Ring aus `20-basis.css` (Chromium/Firefox zeichnen `outline` auch
+   auf SVG-Elementen); der Akzent-Ring am Punkt bleibt zusätzlich. */
+/* Selektierter Knoten — Handoff: 26px-Punkt (r=13) mit DOPPELRING, innen
+   5px in der Flächenfarbe, außen 3px Akzent. Umgesetzt als
+   Flächenfarb-`stroke` am Punkt selbst (10 = 5px sichtbar nach außen) plus
+   der `.halo`-Kreis darunter als Akzent-Ring (r=21 in graph-view.tsx =
+   13 + 5 + 3). */
+.is-selected .halo {
+  fill: none;
+  stroke: var(--color-accent);
+  stroke-width: 3;
+}
+.is-selected .dot {
+  stroke: var(--color-bg);
+  stroke-width: 10;
+}
+.is-selected .lbl {
+  font-family: var(--font-display);
+  /* `--text-sm` ist 0.875rem = exakt die bisherigen 14px. */
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+  fill: var(--color-text);
+}
+
+/* Sichtbarkeits-Stufen aus lib/graph/model.ts (nodeVisibility) */
+.node.dim {
+  opacity: 0.32;
+}
+.node.hidden,
+.edges line.hidden,
+.elbl.hidden {
+  display: none;
+}
+
+/* ---- Legende ---- */
+/* Handoff „Legend": Karte unten links, zwei Spalten mit 36px Abstand.
+
+   H5: Innenabstand, Rundung und der eigene Schatten sind ersatzlos entfallen
+   — die Legende trägt `class="legend card"` und bekommt damit alle drei aus
+   dem Karten-Baustein. Der Schatten war das einzige `box-shadow`-Literal der
+   Ansicht; ihn durch ein Schatten-Token zu ERSETZEN wäre ein neuer Wert
+   gewesen, den dieser Teilschritt nicht bestellen darf. Die Karte bleibt
+   durch ihre Haarlinie von der getönten Zeichenfläche abgesetzt. */
+.legend {
+  position: absolute;
+  left: 20px;
+  bottom: 20px;
+  display: flex;
+  gap: 36px;
+  max-width: calc(100% - 40px);
+}
+.legend h5 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-display);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.legend .col {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.lrow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-text);
+  color: var(--color-text);
+  white-space: nowrap;
+}
+/* Statusfeld der Legende. Teilschritt I: war ein 10-px-Farbkreis, also für
+   alle vier Zustände DIESELBE Form. Jetzt ein kleines SVG, das `statusMark`
+   aus `graph-view.tsx` mit r = 5 zeichnet — dieselbe Form wie auf der Fläche.
+   Die Statusfarbe kommt über `fill` (erbt auf die Form im Inneren), nicht mehr
+   über `background`. `.lrow .sw` (0,2,0) schlägt `.lrow svg` (0,1,1) darunter,
+   das die 30 × 10 px der Kantenmuster setzt. */
+.lrow .sw {
+  width: 13px;
+  height: 13px;
+  border: 0;
+  flex: none;
+  overflow: visible;
+}
+.sw.s-working {
+  fill: var(--color-status-working);
+}
+.sw.s-review {
+  fill: var(--color-status-review);
+}
+.sw.s-released {
+  fill: var(--color-status-released);
+}
+.sw.s-archived {
+  fill: var(--color-status-archived);
+}
+.lrow svg {
+  width: 30px;
+  height: 10px;
+  overflow: visible;
+  flex: none;
+}
+.lrow .muted {
+  color: var(--color-text-muted);
+  font-weight: var(--weight-medium);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+}
+
+/* ---- Detail-Popover (Task 5 rendert `<aside class="pop card">…</aside>`) ----
+   Selektoren `.pop` und `.pop .ph` unter `.canvas` gescoped (s. Kopfkommentar
+   — Kollision mit der globalen Popover-Basisklasse in globals.css). */
+.canvas .pop {
+  position: absolute;
+  /* `left`/`top` kommen zur Laufzeit als randsicher geklemmte Pixel-Werte aus
+     `lib/graph/layout.ts#clampPopoverPosition` (Bugfix „Graph-Popover
+     überlappt Rand/Button") — die Werte hier sind nur ein statischer
+     Fallback, falls die Inline-Styles aus irgendeinem Grund fehlen. */
+  left: 48.5%;
+  top: 30%;
+  /* Redesign Phase 3 (Handoff „Node popover"): 296px. */
+  width: 296px;
+  /* Sicherheitsnetz: falls die Popover-Höhe die konservative Schätzung in
+     `POPOVER_SIZE` (`lib/graph/layout.ts`) übersteigt (z. B. viele
+     umbrechende Tags), scrollt der Inhalt intern, statt über den geklemmten
+     Rahmen hinauszuragen. */
+  max-height: calc(100% - 2 * var(--space-3));
+  overflow: auto;
+  /* Bleibt: der MENÜ-Baustein (`44-dialog.css`, `.pop, .dmenu`) gibt jedem
+     Popover `--space-1` Luft für seine Zeilen. Der Graph-Popover ist kein
+     Menü, sondern eine gegliederte Karte mit randlosen Streifen (`.pmeta`,
+     `.pact`), die bis an die Kante laufen müssen. Die `.pop`-Klammer in
+     `43-flaeche.css` reicht dafür nicht — sie steht früher in der Kaskade
+     und wiegt nur eine Klasse. Gemessen: ohne diese Zeile bekommt der
+     Popover 4 px Innenabstand und die Streifen lösen sich vom Rand. */
+  padding: 0;
+  /* Niedriger als die 25 des Menü-Bausteins: der Popover schichtet sich
+     innerhalb der Zeichenfläche, nicht über die Kopfleiste. */
+  z-index: 5;
+  /* Fläche und Höhenstaffelung bleiben AUSDRÜCKLICH hier stehen, obwohl der
+     Menü-Baustein (`44-dialog.css`, `.menu, .pop, .dmenu`) heute dieselben
+     Werte liefert. Grund: dieses Element ist kein Menü. Es heißt nur `.pop`,
+     weil das Mockup den Namen so vergab — genau die Kollision, die schon der
+     Kopfkommentar dieser Datei beschreibt. Teilschritt H1 hat die
+     `.pop`-Familie in `60-chrome-topbar.css` bereits abgeräumt; sobald I den
+     Menü-Baustein auf echte Menüs verengt, verlöre der Graph-Popover sonst
+     Rahmen und Schatten. Der Rahmen ist zudem an das Pfeilchen unten
+     gekoppelt, das dieselbe Farbe zeichnet.
+     Beide Zeilen sind wertgleich mit dem heutigen Ergebnis — gemessen, keine
+     Sichtänderung. Das 14px-Rundungsliteral ist dagegen ersatzlos entfallen;
+     die Rundung kommt aus `--radius-md`. */
+  border-color: var(--color-border-strong);
+  box-shadow: var(--shadow-md);
+}
+.canvas .pop::before {
+  content: '';
+  position: absolute;
+  left: -7px;
+  top: 78px;
+  width: 12px;
+  height: 12px;
+  background: var(--color-bg);
+  border-left: var(--rule-hair) solid var(--color-border-strong);
+  border-bottom: var(--rule-hair) solid var(--color-border-strong);
+  transform: rotate(45deg);
+}
+.canvas .pop .ph {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-3) var(--space-2);
+  /* Kollisions-Reset (kein Mockup-Wert): globals.css stylt `.pop .ph` als
+     Kicker-Zeile der EDITOR-Popover (Format-Dropdown/Link-Popover) mit
+     uppercase/xs/muted — das leakte hier in den Graph-Popover-Kopf und
+     renderte den Titel als „DEPLOYMENT" (E2E Flow 4 hat das aufgedeckt).
+     Im Mockup erbt `.pop .ph` diese Eigenschaften neutral vom Popover. */
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: normal;
+  text-transform: none;
+  color: inherit;
+}
+.canvas .pop .ph .t {
+  /* Handoff: Titel in der Display-Schrift, 17px/700. */
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: var(--weight-strong);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+.canvas .pop .ph .t small {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-text);
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+/* Schließer des Popovers. Teilschritt I: Das Markup ist von `<span onClick>`
+   auf `<button type="button" aria-label>` umgestellt (Befund 4 im Bericht H5
+   unten) — hier stehen deshalb die drei Rücknahmen, die ein `<button>`
+   braucht, um wie das bisherige Zeichen auszusehen. Der Fokusring kommt vom
+   globalen `:focus-visible` aus `20-basis.css`; eine eigene Regel gibt es
+   bewusst nicht.
+   `::after` legt die zugesicherte Zielgröße von 44 × 44 px unsichtbar über das
+   15-px-Zeichen (zugesicherte Eigenschaft 4, dasselbe Muster wie
+   `40-schaltflaeche.css`). Sie hängt hier NICHT am Übergangsschalter
+   `data-altlasten`: der Schließer sitzt allein in der rechten obere Ecke des
+   Popover-Kopfes, es gibt kein Nachbar-Bedienelement, dem die Fläche einen
+   Klick abfangen könnte. */
+.canvas .pop .ph .x {
+  position: relative;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  line-height: 1;
+}
+.canvas .pop .ph .x::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  width: var(--control-h);
+  height: var(--control-h);
+}
+.canvas .pop .ph .x:hover {
+  color: var(--color-text);
+}
+.canvas .pop .ph .x svg {
+  width: 15px;
+  height: 15px;
+}
+/* H5: die Statusmarke im Popover-Kopf war eine eigene Auspraegung
+   (`.badge-rel`, eine der 17 aus Bestandsaufnahme §2.3). Das Markup trägt
+   jetzt `class="chip released"`; die Regel ist ersatzlos entfallen. Der
+   Alias `.badge-rel` in `42-marke.css` ist damit unbenutzt (Teilschritt I).
+   Zeichen UND Wort bleiben: das Häkchen-SVG steht weiter im Markup, der
+   Statusname als echter Text daneben. */
+.canvas .pop .prow {
+  padding: 0 var(--space-3);
+  margin-bottom: var(--space-2);
+}
+.canvas .pop .ptags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 0 var(--space-3) var(--space-2);
+}
+/* H5: die Schlagworte im Popover waren eine zweite Auspraegung desselben
+   Bausteins (`.ptag`). Das Markup trägt jetzt `class="tag"`; damit sehen
+   Schlagworte im Graph und in der Leseansicht gleich aus. Regel ersatzlos
+   entfallen, ebenso `.ptag .h` — das Gatter kommt aus `42-marke.css`. */
+/* Handoff „3-col stats strip": drei gleich breite Zellen auf Zebra-Fläche,
+   durch Hairlines getrennt. Der frühere Bugfix „Datum abgeschnitten" hatte
+   das als umbrechendes Flex gelöst — hier bleibt das Raster, aber die Zellen
+   dürfen schrumpfen (`minmax(0,1fr)`) und die dritte (das Datum, der mit
+   Abstand längste Wert) trägt die kleinere Textstufe, damit auch ein
+   vollständig ausgeschriebenes Locale-Datum in die Zelle passt. */
+.canvas .pop .pmeta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 0;
+  border-top: var(--rule-hair) solid var(--color-border-hair);
+  background: var(--panel-2);
+  font-size: var(--text-2xs);
+}
+.canvas .pop .pmeta div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  padding: 11px var(--space-3);
+  border-right: var(--rule-hair) solid var(--color-border-hair);
+}
+.canvas .pop .pmeta div:last-child {
+  border-right: 0;
+}
+.canvas .pop .pmeta span {
+  color: var(--color-text-muted);
+}
+.canvas .pop .pmeta b {
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+}
+.canvas .pop .pmeta div:last-child b {
+  font-size: var(--text-xs);
+}
+.canvas .pop .pact {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-top: var(--rule-hair) solid var(--color-border-hair);
+}
+/* H5: „Öffnen" war eine eigene Schaltflächen-Auspraegung (`.pbtn`, 40px,
+   Schriftgrad-Literal 14.5px) und trägt jetzt `class="btn primary"` — die
+   Hauptaktion des Bausteins. Das ist die Bedeutungsumkehr aus dem Kopf von
+   `40-schaltflaeche.css`: die Hauptaktion steht in Tinte, die Akzentfarbe
+   bleibt der Bedeutung vorbehalten. `.pbtn.ghost` war im Markup nie
+   verwendet und ist mit weggefallen.
+
+   Das Einzige, was der Baustein nicht mitbringt, ist die Anweisung, die
+   Fußzeile auszufüllen — Layout des Kontextes, nicht der Schaltfläche. */
+.pact .btn {
+  flex: 1;
+}
+
+/* ---- Detail-Popover: schmale Viewports (Mobil) — als angedocktes Bottom-Panel ---- */
+@media (max-width: 720px) {
+  .canvas .pop {
+    position: fixed;
+    left: var(--space-3);
+    right: var(--space-3);
+    bottom: var(--space-3);
+    top: auto;
+    width: auto;
+    max-width: calc(100% - (var(--space-3) * 2));
+    margin: 0;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+  .canvas .pop::before {
+    display: none;
+  }
+}
+
+/* Hinweis-Chip unten rechts (`.hint` unter `.canvas` gescoped — Kollision mit
+   der globalen `.hint`-Fließtextzeile in globals.css, s. Kopfkommentar). */
+/* Handoff „Count chip": weiße Pille oben rechts, „N Knoten · M Kanten ·
+   <Space>". */
+.canvas .hint {
+  position: absolute;
+  right: 20px;
+  top: 20px;
+  font-size: var(--text-sm);
+  color: color-mix(in srgb, var(--color-text) 56%, var(--color-text-muted));
+  background: var(--color-bg);
+  border: var(--rule-hair) solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  padding: var(--space-2) var(--space-4);
+  box-shadow: var(--shadow-sm);
+}
+.canvas .hint b {
+  color: var(--color-text);
+  font-weight: var(--weight-strong);
+}
+
+/* =========================================================================
+   Was H5 NICHT abgeräumt hat — und warum
+
+   1. ZWÖLF `font-size`-Literale bleiben stehen. Dieser Teilschritt darf nur
+      löschen und Klassen tauschen; ein Literal auf das NÄCHSTE Token zu
+      schieben (13px → `--text-sm` = 14px) wäre ein neuer Wert und damit eine
+      unbestellte Gestaltungsänderung. Wo ein Token den Wert EXAKT trifft, ist
+      getauscht worden (14px → `--text-sm`, 9px → `--radius-md`, 999px →
+      `--radius-pill`, 1px → `--rule-hair`, 12/16/20px → `--space-3/4/5`).
+      Zwei der zwölf können auch später nicht einfach wandern:
+        `.node .lbl` (13.5px) und `.elbl text` (10px) sind an von Hand
+        gerechnete SVG-Geometrie gekoppelt — `graph-view.tsx` bemisst die
+        Hintergrund-Rechtecke der Labels mit `label.length * 6.8`. Ein
+        anderer Schriftgrad lässt den Text aus seiner Fläche laufen.
+      `.minitree .sq` (15px) ist die Zwillingsregel zu `.tree .head .sq` in
+      `60-chrome-raster.css` (H1). Einseitig geändert liefen die beiden
+      Space-Initialen auseinander. Gehört in einen Zug, also nach I.
+      Die übrigen neun sind Fließtext-Feinstufen der Legende, der Fußzeile
+      und des Popover-Kopfes: Arbeit für Teilschritt I, der die Typo-Skala in
+      einem Zug angleicht.
+
+   2. ZWEI `border-radius`-Literale bleiben: 3px am Kontrollkästchen des
+      Kantenfilters und 7px am Tiefe-Wert. Unter `--radius-sm` (8px) hat der
+      Katalog keine Stufe; beide Kästchen sind kleiner als 27px.
+
+   3. Zielgröße 44 x 44 px (zugesicherte Eigenschaft 4) erreicht diese Ansicht
+      weiter nicht: Zurücksetzen 35px, Kantenfilter 32px, und die
+      Sprungpunkte der Icon-Rail (`.dotm`) sind 9 x 9 px echte
+      `<button>`-Elemente — die kleinste Trefferfläche der Ansicht. Das ist
+      KEIN Versäumnis dieses Teilschritts: `--control-h` hängt bis I am
+      Übergangsschalter `<html data-altlasten="weg">` (s. Dateiende von
+      `40-schaltflaeche.css`). `.dotm` braucht darüber hinaus eine eigene
+      Entscheidung — 44px wären größer als die Rail breit ist.
+
+   4. BEHOBEN in Teilschritt I. Der Schließer des Popovers
+      (`.canvas .pop .ph .x`) war ein `<span>` mit `onClick`: nicht
+      fokussierbar, nicht mit der Tastatur auslösbar. Er ist jetzt ein natives
+      `<button type="button">` mit `aria-label` (s. Regel oben und
+      `graph-view.tsx`) und trägt über `::after` die 44-px-Zielgröße.
+
+   5. BEHOBEN in Teilschritt I. Der Knotenstatus trug visuell nur Farbe:
+      `.n-working/-review/-released` unterschieden sich ausschließlich in
+      Füllung und Ring des Punktes, nur `archived` hatte mit `opacity: 0.6`
+      ein zweites Merkmal — ein Verstoß gegen zugesicherte Eigenschaft 3.
+      Jetzt trägt jeder Status eine eigene FORM (Kreis / Raute / Dreieck /
+      Quadrat, `statusMark` in `graph-view.tsx`), und die Legende zeigt
+      dieselben vier Formen. Wort und `aria-label` bleiben unverändert.
+      Mitbehoben: die Statusmarke im Popover-Kopf war auf `chip released`
+      festgenagelt und zeigte für jeden Status das grüne Häkchen.
+
+   6. Kantenarten sind ohne Farbe unterscheidbar, aber ungleich deutlich:
+      Relation ist gestrichelt UND beschriftet, Hierarchie und Link sind
+      beide durchgezogen und 2px stark und trennen sich allein durch die
+      Pfeilspitze (Hierarchie hat eine, Link nicht). Das ist das schwächste
+      der drei Merkmale und sei benannt. NICHT in Teilschritt I behoben: die
+      Kantenstärken und -muster sind Handoff-Werte des Mockups; sie zu
+      ändern ist eine Gestaltungsentscheidung für Etappe 3. Anders als beim
+      Knotenstatus bleibt hier ein farbfreies Merkmal (die Pfeilspitze)
+      erhalten — die Zusicherung ist also gewahrt, nur schwach.
+
+   7. NICHT behoben: die vier Farbquadrate des eingeklappten Minitrees
+      (`.minitree .sq`, Statusfarbe per Inline-Stil aus `graph-view.tsx`)
+      tragen weiter nur Farbe plus `title`. Sie sind 15 px groß und
+      quadratisch; eine Form je Status ist auf dieser Kantenlänge nicht
+      unterscheidbar darstellbar, ein Zeichen erst recht nicht. Die
+      Behebung braucht eine gestalterische Entscheidung (größere Felder oder
+      Verzicht auf die Statusfarbe dort) und ist damit Etappe 3.
+   ========================================================================= */

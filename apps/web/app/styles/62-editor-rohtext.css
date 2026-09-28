@@ -1,0 +1,102 @@
+/* =========================================================================
+   Editor — Roh-Text-Editor (CodeMirror 6)
+
+   Theme für den Markdown-Rohmodus (3634-3675 alt). Fremdes CSS: die
+   `.cm-*`-Klassen kommen aus CodeMirror.
+
+   Besitzer im weiteren Umbau: Teilschritt H2 (Editor) — ausgeführt,
+   Zugänglichkeitsbefunde in Teilschritt I behoben (s. u.).
+   Getrennte Datei, weil dieser Abschnitt in der heutigen Kaskade HINTER
+   den Dialogen steht.
+   ACHTUNG: `.cm-selectionBackground` ist eines der begründeten
+   `!important` (§6.4). `.cm-focused { outline: none }` bleibt die einzige
+   Fokus-Abschaltung (§3) — jetzt aber mit Ersatz, s. Befund 1.
+
+   ── Befunde von H2, in Teilschritt I behoben ──────────────────────────────
+
+   BEFUND 1 (behoben) — die Fokusanzeige fehlte ersatzlos.
+   Nachgesehen im installierten Paket
+   (`@codemirror/view@6.43.6/dist/index.js:6791-6806`): CodeMirrors EIGENE
+   Fokusdarstellung IST das `outline: 1px dotted #212121` auf
+   `.cm-editor.cm-focused`. Die Abschaltung hier entfernte sie, ohne sie zu
+   ersetzen; sichtbar blieb allein der Textcursor (`.cm-cursorLayer`).
+   Die Zeile ersatzlos zu löschen hilft nicht: `#212121` ist ein hartes
+   Literal und liegt im Hellmodus auf der DUNKLEN Codefläche
+   (`--color-code-bg`), wo es praktisch unsichtbar ist.
+   Ersatz ist jetzt ein Ring am BEHÄLTER (`.raw-editor:has(.cm-focused)`) aus
+   `--color-focus`/`--focus-w`/`--focus-offset` — dieselben drei Tokens, die
+   der globale Ring in `20-basis.css` liest. Warum am Behälter und nicht an
+   `.cm-content`: `.cm-content` sitzt INNERHALB des scrollenden
+   `.cm-scroller`, ein Ring dort ließe die Zeilennummern-Spalte außen vor und
+   würde beim Querscrollen weggeschnitten (genau die Begründung, die
+   CodeMirror selbst im Kommentar oberhalb seines Ring-Literals gibt).
+   `outline` statt `box-shadow`, weil `.raw-editor` `overflow: hidden` führt
+   und ein Schatten INNERHALB des Kastens liegt (zugesicherte Eigenschaft 1).
+
+   BEFUND 2 (behoben, durch Löschen) — `.cm-activeLine`/`.cm-activeLineGutter`
+   waren wirkungslos. Die Klassen entstehen ausschließlich in
+   `highlightActiveLine()` bzw. `highlightActiveLineGutter()`
+   (`@codemirror/view`); `raw-editor.tsx` lädt beide Erweiterungen nicht
+   (bewusst kein `basicSetup`, s. dort). Entscheidung: Regeln entfernt, statt
+   die Erweiterungen nachzuladen. Begründung — eine Zeilenhervorhebung
+   nachzurüsten wäre eine unbestellte Gestaltungs- UND Verhaltensänderung; sie
+   trüge nichts zu den drei Zusicherungen bei, die dieser Teilschritt schließt
+   (die Fokusanzeige leistet jetzt der Behälter-Ring), und ihre 8-%-Tönung
+   käme der 22-%-Auswahlfläche (`.cm-selectionBackground`) so nah, dass sie
+   die Auswahl auf der aktiven Zeile schlechter lesbar machte. Totes CSS zu
+   löschen ist demgegenüber nachweisbar folgenlos.
+
+   Herkunft: `app/globals.css` Zeilen 3634-3675 (Stand vor der Aufteilung,
+   4522 Zeilen). Teilschritt A war rein mechanisch: kein Wert, kein Selektor,
+   keine Reihenfolge geändert. Die Kaskadenreihenfolge steht ausschließlich
+   in der @import-Liste von `app/globals.css` — NICHT in den Dateinamen.
+   ========================================================================= */
+/* =========================================================================
+   Roh-Text-Editor (Task 6, components/editor/raw-editor.tsx, CodeMirror 6)
+   Theme AUSSCHLIESSLICH aus Token-Ableitungen (`--font-mono`, `--code-*`,
+   s. Kopf dieser Datei) — kein neues Hex, Light+Dark folgen automatisch den
+   `--code-*`-Definitionen dort.
+   ========================================================================= */
+.raw-editor {
+  border: 1px solid var(--code-line);
+  border-radius: var(--radius-md);
+  margin: var(--space-4);
+  overflow: hidden;
+}
+.raw-editor .cm-editor {
+  height: 100%;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--color-code-text);
+  background: var(--color-code-bg);
+}
+.raw-editor .cm-scroller {
+  overflow: auto;
+}
+.raw-editor .cm-content {
+  padding: var(--space-3) 0;
+  caret-color: var(--color-code-text);
+}
+.raw-editor .cm-gutters {
+  background: var(--color-code-bg);
+  color: var(--color-code-comment);
+  border-right: 1px solid var(--code-line);
+}
+.raw-editor .cm-selectionBackground {
+  background: color-mix(in srgb, var(--color-code-text) 22%, transparent) !important;
+}
+/* Die eine zulässige Fokus-Abschaltung (§3) — und sie ist es nur zusammen mit
+   der Regel darunter, die den Ring an den Behälter setzt. Ohne diese Regel
+   stünde CodeMirrors hartes `1px dotted #212121` daneben (im Hellmodus auf der
+   dunklen Codefläche unsichtbar, s. Befund 1 im Kopf). */
+.raw-editor .cm-focused {
+  outline: none;
+}
+/* Fokusanzeige des Roh-Editors. `:has()` ist hier die einzige Möglichkeit, den
+   Ring an den Behälter zu bringen: fokussiert wird `.cm-content` tief im
+   Inneren, und der Behälter selbst ist nicht fokussierbar. */
+.raw-editor:has(.cm-focused) {
+  outline: var(--focus-w) solid var(--color-focus);
+  outline-offset: var(--focus-offset);
+}
+

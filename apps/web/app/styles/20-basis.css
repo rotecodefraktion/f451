@@ -1,0 +1,87 @@
+/* =========================================================================
+   Basis — Element-Grundlagen
+
+   `*` (box-sizing), `html/body`, Schriftfamilie der Überschriften, `a`,
+   `code/pre` und der globale `:focus-visible`-Ring.
+
+   Besitzer im weiteren Umbau: bleibt die Grundschicht. Der globale Fokusring
+   steht seit Teilschritt H1 auf `--color-focus`/`--focus-w`/`--focus-offset`
+   (Teilschritt C durfte diese Datei nicht anfassen und hat den Rest gemeldet,
+   s. Bestandsaufnahme §3).
+
+   Herkunft: `app/globals.css` Zeilen 120-173 (Stand vor der Aufteilung,
+   4522 Zeilen). Teilschritt A war rein mechanisch: kein Wert, kein Selektor,
+   keine Reihenfolge geändert. Die Kaskadenreihenfolge steht ausschließlich
+   in der @import-Liste von `app/globals.css` — NICHT in den Dateinamen.
+   ========================================================================= */
+/* =========================================================================
+   Basis
+   ========================================================================= */
+* {
+  box-sizing: border-box;
+}
+/* `body` stand hier bis Teilschritt I zweimal: einmal in der Liste
+   `html, body { margin: 0 }` und einmal mit seinen eigenen Werten. Das war
+   einer der sechs doppelt definierten Selektoren der Bestandsaufnahme (§3,
+   `body` 127/130). Jetzt einmal je Element. */
+html {
+  margin: 0;
+}
+body {
+  margin: 0;
+  background: var(--color-bg-sunken);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  /* Basis-Fließtext der Oberfläche 15 px. Bis #77 ein Literal, weil
+     `--text-sm` die generische „klein"-Stufe ist und nicht umgewidmet werden
+     sollte; seit dem 2026-09-27 eine eigene Stufe `--text-ui`. */
+  font-size: var(--text-ui);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+h1,
+h2,
+h3,
+h4 {
+  /* Redesign Phase 1: Headings/UI-Display = Schibsted Grotesk. */
+  font-family: var(--font-display);
+}
+a {
+  color: var(--link);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+code,
+pre {
+  font-family: var(--font-mono);
+}
+
+/* Globaler Fokus-Ring. Bis Teilschritt H1 standen hier drei Literale aus dem
+   Redesign-Handoff (`2px solid var(--color-accent)`, Offset `2px`,
+   `border-radius: 4px`); der Katalog liefert dafür seit Etappe 1 eigene
+   Tokens, und `40-schaltflaeche.css` (Teilschritt C) baut den einen
+   Fokusring der Bedienelemente bereits darauf.
+
+   Wirksame Werte: `--focus-w` = `--rule-strong` = 2px (unverändert),
+   `--color-focus` = `--color-accent` (unverändert), `--focus-offset` =
+   `--space-1` = 4px (vorher 2px). Bis Teilschritt I hielt ein Übergangsblock
+   in `40-schaltflaeche.css` den Abstand für die Bedienelemente auf 2px; der
+   Block ist entfernt, die 4px gelten jetzt überall — genau EIN Fokusring in
+   der ganzen Anwendung.
+
+   `border-radius: 4px` ist ERSATZLOS entfallen: die Zeile hat nicht den Ring
+   gerundet, sondern das fokussierte ELEMENT — jede Schaltfläche und jedes
+   Feld sprang beim Tastaturfokus von seiner eigenen Rundung auf 4px. Der
+   Fokus-Baustein in `40-schaltflaeche.css` kennt bewusst keine eigene
+   Rundung; `outline` folgt von sich aus der Rundung des Elements.
+
+   Bestehende, spezifischere `outline`-Regeln einzelner Komponenten gewinnen
+   weiterhin über die höhere Selektor-Spezifität — dies ist die Baseline für
+   alles andere. */
+:focus-visible {
+  outline: var(--focus-w) solid var(--color-focus);
+  outline-offset: var(--focus-offset);
+}
+

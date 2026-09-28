@@ -1,0 +1,169 @@
+services:
+  web:
+    restart: unless-stopped
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile
+      args:
+        # BUILD-Zeit: API_URL landet in den Next-Rewrites (Client-Proxy /api,/auth,…).
+        API_URL: http://api:3001
+        # Self-hosted draw.io (Phase 3e/4c): der Diagramm-Editor lädt den
+        # Embed-iframe per Default über den RELATIVEN Pfad `/drawio` (same-origin),
+        # den der Next-Rewrite an DIESEN internen Container proxied. So funktioniert
+        # der Editor über JEDE Deployment-URL ohne Rebuild und ohne Host-IP; die CSP
+        # `frame-src 'self'` genügt. Landet in den Rewrite-Regeln (BUILD-Zeit).
+        DRAWIO_INTERNAL_URL: http://drawio:8080
+        # MCP-Dienst fürs `/mcp`-Rewrite: Agenten erreichen ihn über die
+        # App-Origin, der Container selbst bleibt intern (kein Port-Export).
+        MCP_INTERNAL_URL: http://mcp:3002
+        # NEXT_PUBLIC_DRAWIO_URL bewusst NICHT gesetzt → relativer Proxy-Default.
+        # Nur setzen (absolute Origin), um den Proxy zu umgehen; dann muss die CSP
+        # (middleware.ts) genau diese Origin erlauben — sie spiegelt den Wert.
+        NEXT_PUBLIC_DRAWIO_URL: ${NEXT_PUBLIC_DRAWIO_URL:-}
+    environment:
+      # LAUFZEIT: die SSR-Server-Components (lib/api.ts) lesen process.env.API_URL
+      # direkt für Server-zu-Server-Aufrufe (NICHT über die Rewrites) — fehlt das,
+      # fällt SSR auf localhost:3001 zurück (= der Web-Container selbst) und jede
+      # Leseansicht meldet „Server nicht erreichbar". Muss die interne api-Adresse sein.
+      API_URL: http://api:3001
+      # LAUFZEIT-Spiegel des Build-Args (wie API_URL): das `/drawio`-Rewrite-Ziel.
+      DRAWIO_INTERNAL_URL: http://drawio:8080
+      # LAUFZEIT-Spiegel des Build-Args: das `/mcp`-Rewrite-Ziel.
+      MCP_INTERNAL_URL: http://mcp:3002
+    ports:
+      - "8080:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    depends_on:
+      api:
+        condition: service_healthy
+
+  drawio:
+    image: jgraph/drawio:latest
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # MCP-Dienst: stellt das Wiki als Werkzeuge für KI-Agenten bereit
+  # (docs/superpowers/plans/2026-07-18-mcp-server.md). Bewusst OHNE Port-Export —
+  # erreichbar nur über die App-Origin unter `/mcp` (Next-Rewrite im web-Dienst).
+  # Der Dienst hält selbst kein Secret: Jeder Agent schickt seinen persönlichen
+  # `f451_pat_…`-Token mit, der 1:1 an die API weitergereicht wird.
+  mcp:
+    build:
+      context: ../..
+      dockerfile: apps/mcp/Dockerfile
+    restart: unless-stopped
+    environment:
+      # Interner Weg zur API — nicht der Umweg über den öffentlichen Proxy.
+      F451_API_URL: http://api:3001
+      PORT: 3002
+      LOG_LEVEL: ${MCP_LOG_LEVEL:-info}
+    expose:
+      - "3002"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3002/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    depends_on:
+      api:
+        condition: service_healthy
+
+  api:
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
+    # Ohne Wiederanlaufregel bleibt der Dienst nach JEDEM Absturz tot — real
+    # passiert bei einem Postgres-Neustart (s. `api/src/db/pool-errors.ts`).
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://wiki:${POSTGRES_PASSWORD:-wiki-dev}@postgres:5432/wiki
+      # Space-Konfiguration + Indexer/Webhook-Betrieb (Phase 1c, siehe
+      # apps/api/README.md) — alle optional: ohne F451_SPACES bleibt die API im
+      # Minimalmodus (nur /healthz, /readyz), Webhook-/Admin-/Lese-Routen und der
+      # Drift-Job bleiben deaktiviert. Werte kommen aus .env (siehe .env.example),
+      # hier nur durchgereicht — echte Secrets gehören NIE in dieses File.
+      #
+      # Task 5 (Betrieb, Review-Fund aus Task 4a-2, MEDIUM): diese Liste MUSS
+      # jede `process.env.F451_*`-Lesestelle aus `apps/api/src/server.ts`
+      # (+ `apps/api/src/spaces/config.ts`, dorthin gereicht) enthalten — sonst
+      # ist die betreffende Env-Variable in DIESEM Referenz-Deployment inert,
+      # selbst wenn sie in `.env` gesetzt ist (Compose reicht NUR explizit
+      # gelistete Variablen an den Container durch). Abgleich-Vorgehen und
+      # vollständige Referenz: `deploy/BETRIEB.md` Abschnitt „Env-Referenz".
+      F451_SPACES: ${F451_SPACES:-}
+      F451_FORGEJO_URL: ${F451_FORGEJO_URL:-}
+      F451_FORGEJO_TOKEN: ${F451_FORGEJO_TOKEN:-}
+      F451_GITHUB_TOKEN: ${F451_GITHUB_TOKEN:-}
+      F451_WEBHOOK_SECRET_FORGEJO: ${F451_WEBHOOK_SECRET_FORGEJO:-}
+      F451_WEBHOOK_SECRET_GITHUB: ${F451_WEBHOOK_SECRET_GITHUB:-}
+      F451_ADMIN_TOKEN: ${F451_ADMIN_TOKEN:-}
+      # Vorlagen (Phase 3c) — global, unabhängig von F451_SPACES.
+      F451_GLOBAL_TEMPLATES: ${F451_GLOBAL_TEMPLATES:-}
+      # Auth/OIDC (Phase 1d) — ohne F451_OIDC_ISSUER bleibt Auth deaktiviert
+      # (Bestandsverhalten, alles offen).
+      F451_OIDC_ISSUER: ${F451_OIDC_ISSUER:-}
+      F451_OIDC_CLIENT_ID: ${F451_OIDC_CLIENT_ID:-}
+      F451_OIDC_CLIENT_SECRET: ${F451_OIDC_CLIENT_SECRET:-}
+      F451_OIDC_REDIRECT_URL: ${F451_OIDC_REDIRECT_URL:-}
+      F451_TOKEN_KEY: ${F451_TOKEN_KEY:-}
+      F451_INSECURE_COOKIES: ${F451_INSECURE_COOKIES:-}
+      # Auth-Härtung (Phase 4a Task 3, M2) — separat von F451_INSECURE_COOKIES,
+      # siehe .env.example. In Produktion NICHT setzen.
+      F451_OIDC_ALLOW_INSECURE: ${F451_OIDC_ALLOW_INSECURE:-}
+      # Provider-Kontoverknüpfung ("Forgejo/GitHub verbinden", Phase 1d Task 4).
+      F451_FORGEJO_OAUTH_CLIENT_ID: ${F451_FORGEJO_OAUTH_CLIENT_ID:-}
+      F451_FORGEJO_OAUTH_CLIENT_SECRET: ${F451_FORGEJO_OAUTH_CLIENT_SECRET:-}
+      F451_GITHUB_OAUTH_CLIENT_ID: ${F451_GITHUB_OAUTH_CLIENT_ID:-}
+      F451_GITHUB_OAUTH_CLIENT_SECRET: ${F451_GITHUB_OAUTH_CLIENT_SECRET:-}
+      # Draft-Backend (Phase 2a Task 5) — Default 10 MiB, wenn nicht gesetzt.
+      F451_MAX_UPLOAD_MB: ${F451_MAX_UPLOAD_MB:-}
+      # Rate-Limits (Phase 4a Task 2, Spec §7) — Defaults 10/min (Auth) bzw.
+      # 60/min (Suche), wenn nicht gesetzt.
+      F451_RATE_LIMIT_AUTH_MAX: ${F451_RATE_LIMIT_AUTH_MAX:-}
+      F451_RATE_LIMIT_SEARCH_MAX: ${F451_RATE_LIMIT_SEARCH_MAX:-}
+      # Reverse-Proxy-Hops (Phase 4a Task 2, Fix-Runde 1) — dieses Deployment
+      # läuft IMMER hinter Caddy/Traefik (Spec §8); ohne diese Variable zählen
+      # die Rate-Limits oben alle Nutzer in EINEM Zähler pro Route. Die
+      # korrekte Hop-Zahl hängt von der tatsächlichen Proxy-Kette ab — siehe
+      # `deploy/BETRIEB.md` Abschnitt „Env-Referenz".
+      F451_TRUST_PROXY: ${F451_TRUST_PROXY:-}
+      # Öffentliche Basis-URL (Phase 2d Task 3 + Phase 4a Task 3) — seit Phase
+      # 4a sicherheitsrelevant (OAuth-redirect_uri + CSRF-Origin-Check), siehe
+      # .env.example.
+      F451_PUBLIC_BASE_URL: ${F451_PUBLIC_BASE_URL:-}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: wiki
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wiki-dev}
+      POSTGRES_DB: wiki
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wiki -d wiki"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+
+volumes:
+  pg-data:

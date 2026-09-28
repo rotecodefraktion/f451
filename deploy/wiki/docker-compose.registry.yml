@@ -1,0 +1,39 @@
+# Überlagerung für den Serverbetrieb: Images ZIEHEN statt bauen.
+#
+# `docker-compose.yml` baut `web`, `api` und `mcp` aus dem Quellbaum — richtig
+# für die Entwicklungsmaschine, falsch für einen Server: Der Next.js-Build ist
+# der teuerste Schritt des Stacks, und eine 2-vCPU-VM soll ihn nicht tragen.
+# Gebaut wird deshalb einmal in der Pipeline, der Server zieht nur noch.
+#
+# Verwendung auf dem Server (die Reihenfolge zählt, s. BETRIEB.md §3):
+#
+#   export COMPOSE_FILE=docker-compose.yml:docker-compose.registry.yml
+#   export F451_REGISTRY=<name>.azurecr.io F451_TAG=<sha>
+#   docker compose pull
+#   docker compose up -d postgres
+#   docker compose run --rm api node dist/db/migrate-cli.js
+#   docker compose up -d
+#
+# `build:` bleibt in der Basisdatei stehen und wird hier nicht überschrieben —
+# Compose ignoriert es, sobald `image:` auf ein vorhandenes Abbild zeigt und
+# `docker compose pull` es geholt hat. Ein versehentliches `docker compose
+# build` auf dem Server bliebe damit möglich; genau dafür steht oben, warum man
+# es nicht tut.
+#
+# WICHTIG — die Build-Zeit-Argumente des `web`-Images (`API_URL`,
+# `DRAWIO_INTERNAL_URL`, `MCP_INTERNAL_URL`) sind hier wirkungslos: Sie sind im
+# Abbild eingebrannt (s. BETRIEB.md §2). Wer die internen Dienstnamen ändert,
+# muss das Abbild neu bauen lassen, nicht die Umgebung anpassen.
+
+services:
+  web:
+    image: ${F451_REGISTRY:?F451_REGISTRY fehlt}/f451-web:${F451_TAG:?F451_TAG fehlt}
+    pull_policy: always
+
+  api:
+    image: ${F451_REGISTRY:?F451_REGISTRY fehlt}/f451-api:${F451_TAG:?F451_TAG fehlt}
+    pull_policy: always
+
+  mcp:
+    image: ${F451_REGISTRY:?F451_REGISTRY fehlt}/f451-mcp:${F451_TAG:?F451_TAG fehlt}
+    pull_policy: always

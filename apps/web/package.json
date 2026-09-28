@@ -1,0 +1,50 @@
+{
+  "name": "@f451/web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync-tokens": "pnpm --filter @f451/design-tokens build && node -e \"require('node:fs').copyFileSync('../../packages/design-tokens/dist/tokens.css','app/tokens.css')\"",
+    "predev": "pnpm run sync-tokens",
+    "dev": "next dev",
+    "prebuild": "pnpm run sync-tokens",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@codemirror/commands": "^6.8.1",
+    "@codemirror/lang-markdown": "^6.3.4",
+    "@codemirror/language": "^6.11.3",
+    "@codemirror/lint": "^6.9.0",
+    "@codemirror/state": "^6.5.2",
+    "@codemirror/view": "^6.38.7",
+    "@excalidraw/excalidraw": "^0.18.1",
+    "@f451/design-tokens": "workspace:*",
+    "@f451/editor": "workspace:*",
+    "@f451/markdown": "workspace:*",
+    "@tiptap/core": "^3.27.3",
+    "@tiptap/extension-image": "^3.27.3",
+    "@tiptap/extensions": "^3.27.3",
+    "@tiptap/pm": "^3.27.3",
+    "@tiptap/react": "^3.27.3",
+    "@tiptap/suggestion": "^3.27.3",
+    "d3-force": "^3.0.0",
+    "next": "^15.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@f451/git-provider": "workspace:*",
+    "@playwright/test": "1.55.1",
+    "@testcontainers/postgresql": "^12.0.4",
+    "@types/d3-force": "^3.0.10",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}

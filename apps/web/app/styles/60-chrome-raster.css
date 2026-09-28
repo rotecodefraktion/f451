@@ -1,0 +1,761 @@
+/* =========================================================================
+   Chrome — Layout-Raster, Seitenbaum, Hauptbereich, rechte Leiste (Rahmen)
+
+   Das FÜNF-Spalten-Raster (Daumenregister · Seitenbaum · Dokument ·
+   Info-Leiste · Daumenregister) samt den beiden Randschaltern, die
+   rail-losen Werkzeugseiten (`.doc-pad`), die Graph-Vollbild-Variante,
+   der Seitenbaum (Chrome + Navigation + Drag&Drop), `.main` und der
+   Rahmen der rechten Leiste samt Mini-Graph.
+
+   Etappe „Raster" des Erscheinungsbilds 2026 hat das frühere Drei-Spalten-Grid
+   (`262px minmax(0,1fr) 288px` mit Haltepunkten, die Leisten ohne Bedienelement
+   ausblendeten) hier ersetzt. Vorlage ist `docs/design/mockups-2026/
+   editorial.html` (`.app`, `.pane-edge`, `.pane-toggle`).
+
+   Teilschritt H1 hat die zweite `.card`-Definition (914 alt) hier entfernt —
+   die Karte steht seit Teilschritt E in `43-flaeche.css`. Damit sind auch
+   die drei Selbstaufhebungen (`.tree.card`, `.main.card`, `.rail .card.rp`,
+   Bestandsaufnahme §2.4/§6.3) keine Aufhebungen mehr: Seitenbaum,
+   Hauptspalte und Leisten-Abschnitt beschreiben sich jetzt unter ihrem
+   EIGENEN Namen (`.tree`, `.main`, `.rail .rp`) und hängen nicht mehr davon
+   ab, dass sie nach der Karte stehen. Wer eine Karte will, sagt `.card`.
+
+   Herkunft: `app/globals.css` Zeilen 831-1230 (Stand vor der Aufteilung,
+   4522 Zeilen). Teilschritt A war rein mechanisch: kein Wert, kein Selektor,
+   keine Reihenfolge geändert. Die Kaskadenreihenfolge steht ausschließlich
+   in der @import-Liste von `app/globals.css` — NICHT in den Dateinamen.
+   ========================================================================= */
+/* =========================================================================
+   Layout-Raster (Erscheinungsbild 2026, Entwurf `docs/design/mockups-2026/
+   editorial.html` `.app`) — FÜNF Spalten:
+
+     1  Daumenregister links   (--layout-edge-w = 44px, steht in JEDER Breite)
+     2  Seitenbaum             (einklappbar, `[`)
+     3  Dokument               (minmax(0,1fr) — bekommt jede gewonnene Breite)
+     4  Info-Leiste            (einklappbar, `]`)
+     5  Daumenregister rechts  (--layout-edge-w = 44px, steht in JEDER Breite)
+
+   Die beiden Außenspalten gehören dem Register, nicht der Leiste, die es
+   schaltet: nur so bleibt der Schalter zum Wiederausklappen erreichbar. Beide
+   Leisten sind daher ANGEDOCKT und nie ein Overlay — ein Overlay gibt beim
+   Schließen keine Breite zurück, und genau die Breite ist der Zweck.
+
+   Die Spaltenspur der beiden Leisten ist `auto`, die BREITE steht am Kind
+   (`width` an `.tree`/`.rail`). Das ist Absicht: eine auf `display: none`
+   geschaltete Leiste nimmt ihre `auto`-Spur auf 0 mit, während eine fest
+   bemaßte Spur (`262px`) als leere Rinne stehen bliebe. Aus demselben Grund
+   gibt es keinen `gap` — der Steg steckt im Innenabstand des Dokuments.
+
+   ── Falle, die in diesem Projekt DREIMAL zugeschlagen hat ─────────────────
+   JEDES Rasterkind braucht eine ausgeschriebene `grid-column` UND `grid-row`.
+   Fällt eine Leiste per `display: none` aus dem Raster, bleiben die Spalten
+   bestehen; die automatische Platzierung schiebt dann das nächste Kind ohne
+   eigene Spalte in die erste, 44px schmale Spalte — der Text bricht Wort für
+   Wort um, während daneben die ganze Fläche leer bleibt. Deshalb steht hier
+   ZUERST ein Rückfall für jedes Kind (`.shell > *` → Dokumentspalte) und
+   danach die namentliche Zuweisung. Ein neues, hier nicht genanntes
+   Grid-Geschwister landet damit im Dokument statt im Daumenregister. */
+.shell {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+  /* EINE ausgeschriebene Zeile: gestapelt wird NIE. Eine Fensterabfrage, die
+     die Leisten unter das Dokument stapelt, verbreitert die Dokumentspalte
+     sprunghaft — beim Verschmälern darf nichts hinzukommen (Monotonie-Zusage
+     der Spec). Grenze seit #64: unter `(max-width: 699px) and (pointer:
+     coarse)` gilt das Telefon-Layout (Leisten als Überlagerung), darüber
+     bleibt es monoton. `minmax(0, 1fr)` hält die Zeile auf der Rasterhöhe, damit die
+     drei Scrollbereiche (s. `min-height: 0` an `.tree`/`.main`/`.rail`) nicht
+     über die Rasterhöhe hinauswachsen. */
+  grid-template-rows: minmax(0, 1fr);
+  height: calc(100vh - 56px);
+}
+.shell > * {
+  grid-column: 3;
+  grid-row: 1;
+}
+.shell > .pane-edge--nav {
+  grid-column: 1;
+  grid-row: 1;
+}
+.shell > .tree {
+  grid-column: 2;
+  grid-row: 1;
+  /* Stetig statt sprunghaft: die beiden Leisten nehmen zusammen nie mehr als
+     die Hälfte des Fensters. Unter ~1090px geben sie also Breite ab — ohne
+     Haltepunkt, ohne Sprung und ohne dass dabei etwas hinzukommt (Monotonie).
+     Ein Haltepunkt, der die Leiste ganz ausblendet, wäre hier falsch: er nähme
+     dem Nutzer die Entscheidung, die das Daumenregister ihm gerade gibt. */
+  width: min(var(--layout-nav-w), 25vw);
+}
+.shell > .main {
+  grid-column: 3;
+  grid-row: 1;
+}
+.shell > .rail {
+  grid-column: 4;
+  grid-row: 1;
+  width: min(var(--layout-rail-w), 25vw);
+}
+/* ── Untergrenze der Dokumentspalte (Entscheidung zum 800-px-Konflikt) ──────
+   Stehen BEIDE Leisten, behält das Dokument mindestens 22rem (352px). Zwei
+   Leisten à 272px plus zwei Register lassen in einem 800px-Fenster sonst nur
+   ~166px übrig — dort läuft ein umbruchfreier Überschriftenname waagerecht aus
+   der Spalte (Befund aus dem Kolumnentitel).
+
+   Das ist die Antwort auf den Zielkonflikt, und zwar bewusst WEDER Stapeln
+   (Entwurf) NOCH automatisches Einklappen unter einer Schwelle: beide brechen
+   die Monotonie-Zusage, weil die Dokumentspalte beim Verschmälern sprunghaft
+   BREITER wird — und die Kürzungsleiter des Kolumnentitels (`61-lese.css`)
+   hängt an genau dieser Spaltenbreite, gäbe also zuvor gekürzte Pfadglieder
+   wieder her. Hier fällt die Spalte stattdessen stetig und bleibt ab etwa
+   800px stehen; die Leisten geben die Breite ab, nicht das Dokument. Ausführlich
+   begründet in `app/pane-edges.tsx`.
+
+   Nur im Zustand „beide offen": ist eine Leiste eingeklappt, bleibt die andere
+   auf ihrem Maß — dann ist ohnehin Platz. Bei sehr schmalen Fenstern (unter
+   ~440px) läuft die Untergrenze gegen 0; Breiten unter 700px sind nicht
+   zugesichert, und der erste Besuch startet dort ohnehin mit eingeklappten
+   Leisten (s. `NO_FLASH_PANES` in `app/layout.tsx`). */
+/* `:not(…='off')` statt `='on'`: fehlt das Attribut (JavaScript blockiert), sind
+   beide Leisten offen — dann muss die Untergrenze genauso greifen. */
+:root:not([data-nav='off']):not([data-rail='off']) .shell > .tree {
+  width: min(var(--layout-nav-w), 25vw, (100vw - 2 * var(--layout-edge-w) - 22rem) / 2);
+}
+:root:not([data-nav='off']):not([data-rail='off']) .shell > .rail {
+  width: min(var(--layout-rail-w), 25vw, (100vw - 2 * var(--layout-edge-w) - 22rem) / 2);
+}
+.shell > .pane-edge--rail {
+  grid-column: 5;
+  grid-row: 1;
+}
+
+/* ---- Die vier Leisten-Zustände ----
+   Der Zustand steht als `data-nav`/`data-rail` am `<html>`-Element, nicht an
+   `.shell`: das flash-freie Inline-Script im `<head>` (s. `app/layout.tsx`)
+   setzt ihn VOR dem ersten Paint, und dort existiert `.shell` noch nicht.
+   Fehlt das Attribut (kein JavaScript), bleiben beide Leisten offen und damit
+   vollständig bedienbar. */
+:root[data-nav='off'] .shell > .tree {
+  display: none;
+}
+:root[data-rail='off'] .shell > .rail {
+  display: none;
+}
+
+/* =========================================================================
+   Daumenregister — die beiden Außenspalten mit den Randschaltern
+   (Entwurf `editorial.html`: `.pane-edge` / `.pane-toggle`)
+
+   Die Schalter stehen AUSSERHALB des Satzspiegels, je eine Zielgröße breit,
+   und sind im offenen wie im eingeklappten Zustand sichtbar. Sie gehören
+   ausdrücklich NICHT in den Kolumnentitel: dort überfüllten sie die Zeile so,
+   dass bei offenen Leisten die Positionsanzeige wegfiel.
+   ========================================================================= */
+.pane-edge {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  /* 44px Trefferbreite PLUS die trennende Haarlinie: `box-sizing: border-box`
+     (20-basis.css) rechnet den Rahmen sonst in die 44px hinein, der 44px breite
+     Schalter überragte seine Spalte um diese Linie und griffe damit in die
+     Nachbarspalte. */
+  width: calc(var(--layout-edge-w) + 1px);
+  /* KEIN waagerechter Innenabstand: der Schalter füllt die 44px-Spalte auf
+     genau seine Trefferbreite aus. Innenabstand hier hieße entweder ein zu
+     kleines Ziel oder — bei erzwungenen 44px — ein Ziel, das in die
+     Nachbarspalte greift. Genau das ist in diesem Projekt zweimal passiert;
+     einmal hätte ein Klick auf den Seitenverweis umbenannt statt geöffnet.
+     Auch KEIN `overflow: hidden`: es schnitte den Fokusring des Schalters
+     (Ring 2px + Abstand 4px) an der Spaltenkante weg. Der Ring darf über die
+     Kante hinausragen — `outline` beansprucht keinen Platz und fängt keine
+     Klicks (zugesicherte Eigenschaft 1). */
+  padding: var(--space-4) 0;
+  background: var(--color-bg-sunken);
+}
+.pane-edge--nav {
+  border-right: 1px solid var(--color-border);
+}
+.pane-edge--rail {
+  border-left: 1px solid var(--color-border);
+}
+/* Seiten ohne Info-Leiste (Schema/Bericht/Vorlagen/Space-Index/Editor) tragen
+   keinen rechten Randschalter — er schaltete sonst eine Leiste, die es dort
+   nicht gibt, und `aria-controls` zeigte ins Leere. Dasselbe links auf Seiten
+   ohne Seitenbaum (Wiki-Startseite, Fehlerzustände des Space-Layouts). Die
+   `auto`-Spur nimmt das Register mit auf 0; die Dokumentspalte gewinnt die
+   44px. */
+.shell:not(:has(> .rail)) > .pane-edge--rail,
+.shell:not(:has(> .tree)) > .pane-edge--nav {
+  display: none;
+}
+
+/* Im Register steht die Beschriftung im Satz des Buchrückens: die Zeile läuft
+   senkrecht, Zeichen und Tastenkürzel bleiben aufrecht und damit lesbar.
+   `min-width`/`min-height` sind auch im senkrechten Schreibmodus PHYSISCH —
+   44 × 44 px Zielgröße, unabhängig von der Länge der Beschriftung. */
+.pane-toggle {
+  writing-mode: vertical-rl;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-2);
+  flex: none;
+  min-width: var(--control-h);
+  min-height: var(--control-h);
+  padding: var(--space-3) 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-strong);
+  letter-spacing: var(--tracking-caps);
+  line-height: var(--leading-ui);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.pane-toggle:hover {
+  color: var(--color-text);
+  border-color: var(--color-border);
+  background: var(--color-surface-hover);
+}
+.pane-toggle .glyph,
+.pane-toggle kbd {
+  text-orientation: upright;
+  letter-spacing: normal;
+}
+.pane-toggle .glyph {
+  font-size: var(--text-lg);
+  line-height: 1;
+  color: var(--color-glyph-state);
+}
+.pane-toggle kbd {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-transform: none;
+  padding: var(--space-1) 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+}
+/* Zustandszeichen: halb gefüllte Seite = Leiste steht, leere Seite = Leiste ist
+   eingeklappt. Farbe ist nie alleiniger Träger — Zeichen und Wort stehen daneben.
+
+   Umgeschaltet wird über das Wurzel-Attribut, NICHT über `aria-expanded`: das
+   Attribut sitzt vor dem ersten Paint (Inline-Script im `<head>`), während
+   `aria-expanded` erst mit der Hydration seinen echten Wert bekommt. Über
+   `aria-expanded` gezeichnet, zeigte das Register bei gespeichert
+   eingeklappter Leiste bis zur Hydration das falsche Zeichen. */
+.pane-toggle .glyph::before {
+  content: '◧';
+}
+.pane-toggle--rail .glyph::before {
+  content: '◨';
+}
+:root[data-nav='off'] .pane-toggle--nav,
+:root[data-rail='off'] .pane-toggle--rail {
+  color: var(--color-accent);
+}
+:root[data-nav='off'] .pane-toggle--nav .glyph,
+:root[data-rail='off'] .pane-toggle--rail .glyph {
+  color: var(--color-accent);
+}
+:root[data-nav='off'] .pane-toggle--nav .glyph::before,
+:root[data-rail='off'] .pane-toggle--rail .glyph::before {
+  content: '□';
+}
+/* Enges Fenster: das Tastenkürzel tritt aus dem Register (die Tasten wirken
+   weiter). Es tritt nur ZURÜCK, nie hinzu — beim Verschmälern kommt nichts
+   dazu. Verborgen heißt hier nicht „aus dem Zugänglichkeitsbaum": das `<kbd>`
+   ist ohnehin `aria-hidden`, das Kürzel steht im `title` des Schalters. */
+@media (max-width: 900px) {
+  .pane-toggle kbd {
+    display: none;
+  }
+}
+
+/* ---- Rail-lose Seiten (Schema/Report/Vorlagen/Space-Index) ----
+   `.main.full` brauchte früher `grid-column: 2 / -1`, weil die dritte Spalte
+   fest bemaßt war und ohne Rail als toter Raum stehen blieb. Mit `auto`-Spuren
+   erledigt sich das von selbst: fehlt das `<aside class="rail">`, ist Spalte 4
+   null Pixel breit. Die Klasse bleibt im Markup jener Seiten harmlos stehen;
+   eine eigene Regel braucht sie nicht mehr.
+
+   Aus demselben Grund fällt auf diesen Seiten der rechte Randschalter weg —
+   er schaltete eine Leiste, die es dort nicht gibt (s. `.pane-edge--rail`). */
+
+/* Geteilte horizontale Content-Einrückung für genau diese rail-losen Seiten
+   (Shared-Padding-Konvention, s. `--content-pad-x`-Definition oben) — ersetzt
+   das bisher 5× duplizierte Inline-`style={{padding:'var(--space-6)
+   var(--space-7)'}}` (schema/report/templates/space-index `page.tsx`).
+
+   ── Bugfix (Befund aus Teilschritt H4, vorbestehend) ──────────────────────
+   `.doc-pad` sitzt an `.main`, und `.main` ist ein GITTERKIND von `.shell`.
+   Ein Gitterkind mit `margin-inline: auto` streckt sich nicht mehr über seine
+   Spur: die automatischen Ränder schlucken den freien Platz, und die Breite
+   fällt auf die Inhaltsbreite zurück. Gemessen bei 1440px Fensterbreite:
+   890px Spurbreite, aber nur 596px genutzt, mittig — auf Bericht, Schema und
+   Vorlagen. Teilschritt H4 hat den geplanten Wechsel von Inline-Stil auf
+   diese Klasse deshalb zurückgenommen, statt den Fehler auszubreiten.
+
+   Behoben mit `width: 100%` und NICHT durch Streichen der automatischen
+   Ränder: `max-width: 1080px` ist die Absicht der Klasse (eine begrenzte,
+   mittige Lesespalte), und ohne die Ränder klebte der Inhalt in Spuren über
+   1080px am linken Rand. `width: 100%` gibt dem Gitterkind wieder eine
+   definite Breite; die Ränder wirken dann nur noch dort, wo `max-width`
+   tatsächlich greift — also genau wie gedacht. `box-sizing: border-box`
+   (20-basis.css) hält den Innenabstand dabei innerhalb der 100%. */
+.doc-pad {
+  padding: var(--space-6) var(--content-pad-x);
+  width: 100%;
+  max-width: 1080px;
+  margin-inline: auto;
+}
+
+/* Graph-Vollbild-Variante (Mockup graph.html .gwrap): 60px-Minitree + Stage.
+   Redesign Phase 3 (Handoff „Graph view", Grid `58px minmax(0,1fr)`).
+
+   Eigenes ZWEI-Spalten-Raster ohne Daumenregister (die Ansicht hat weder
+   Seitenbaum noch Info-Leiste, also gäbe es dort nichts zu schalten). Beide
+   Kinder tragen deshalb wieder ihre ausgeschriebene Spalte und Zeile — sonst
+   griffe der Rückfall `.shell > *` (Spalte 3) aus dem Fünf-Spalten-Raster und
+   schöbe Minitree und Stage in eine nachgewachsene, unbemaßte Spalte. */
+.shell.shell-graph {
+  grid-template-columns: 58px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  height: calc(100vh - 56px);
+}
+.shell.shell-graph > * {
+  grid-column: 2;
+  grid-row: 1;
+}
+.shell.shell-graph > .minitree {
+  grid-column: 1;
+  grid-row: 1;
+}
+.shell.shell-graph > .stage {
+  grid-column: 2;
+  grid-row: 1;
+}
+@media (max-width: 720px) {
+  .shell.shell-graph {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .shell.shell-graph > .minitree {
+    display: none;
+  }
+  .shell.shell-graph > .stage {
+    grid-column: 1;
+  }
+}
+
+/* ---- Seitenbaum (Chrome) ----
+   Redesign Phase 2 (Handoff „Sidebar"): kein schwebender Karten-Look —
+   randlose `--surface-subtle`-Fläche mit EINER Hairline rechts, eigener
+   Scrollbereich über die volle Grid-Höhe (s. `.shell`).
+
+   Der Selektor hieß bis Teilschritt H1 `.tree.card` und nahm Rahmen, Rundung
+   und Schatten der Karte Zeile für Zeile zurück. `border: 0` steht weiterhin
+   hier — nicht mehr als Rücknahme, sondern weil vier Werkzeugseiten das
+   Markup `tree card` noch führen (s. Bericht H1); der Selektor `.tree` ist
+   gleich spezifisch wie `.card` und steht später, gewinnt also in beiden
+   Fällen. */
+.tree {
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--color-bg-sunken);
+  border: 0;
+  border-right: 1px solid var(--color-border);
+  border-radius: 0;
+  box-shadow: none;
+}
+.tree .head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-4) var(--space-3);
+}
+.tree .head .sq {
+  /* Handoff: dunkles neutrales „B" (32px) — Rot bleibt Marke/Primäraktion
+     vorbehalten, s. Farbregel im Handoff-README. */
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: var(--color-text);
+  color: var(--color-bg);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-weight: var(--weight-strong);
+  font-size: var(--text-ui);
+  flex: none;
+}
+.tree .head b {
+  font-family: var(--font-display);
+  font-weight: var(--weight-strong);
+  font-size: var(--text-ui);
+  line-height: 1.2;
+}
+.tree .head small {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  display: block;
+  line-height: 1.1;
+  margin-top: 1px;
+  font-weight: var(--weight-text);
+}
+/* Neue-Seite-Einstieg (Phase 2d Task 6), rechtsbündig in der ohnehin
+   vorhandenen `.head`-Zeile. Der Knopf war ein randloser Symbolknopf mit
+   eigener Größe (28 px) und eigener Rundung (Literal `7px`) — beides trägt
+   jetzt `btn quiet icon` (40-schaltflaeche.css). Hier bleibt nur seine
+   Stellung in der Kopfzeile. */
+.tree .head .newpage-trigger {
+  margin-left: auto;
+  flex: none;
+}
+.grp {
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-display);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  padding: var(--space-2) var(--space-3) 4px;
+}
+/* Größerer Abstand vor jeder Eyebrow NACH der ersten („Finden",
+   „Einrichten", „Hilfe") — Handoff-Rhythmus 16px vs. 8px vor der ersten;
+   alle `.grp`-Divs sind direkte Geschwister im selben
+   `<nav class="tree card">` (s. `layout.tsx`). */
+.grp ~ .grp {
+  padding-top: var(--space-4);
+}
+
+/* ---- Seitenbaum (Navigation, Task 3) ----
+   Redesign Phase 2 (Handoff „Sidebar"): rundum-gerundete Zeilen (8px) statt
+   Akzent-Trennstrich; Hover/Aktiv beide NEUTRAL (`--surface-hover`, kein
+   Akzent-Ton mehr — Rot bleibt Marke/Primäraktion vorbehalten). `border-left`
+   bleibt als transparenter Platzhalter erhalten (keine Breiten-Verschiebung
+   bei verschachtelten/eingerückten Knoten), trägt aber keine Farbe mehr. */
+.nav a,
+.nav .tool {
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  /* Handoff „Text secondary" (#3f3f46) — zwischen `--color-text` und
+     `--color-text-muted` gemischt statt eines rohen Hex-Literals. */
+  color: color-mix(in srgb, var(--color-text) 56%, var(--color-text-muted));
+  border-left: 2px solid transparent;
+}
+/* Nur die Baumeinträge sind Flex-Zeilen — `.nav .tool` ist ein Raster
+   (s. „Werkzeug-Zeilen" unten) und setzte `display` sonst zweimal. */
+.nav a {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.nav a:hover,
+.nav .tool:hover {
+  background: var(--color-surface-hover);
+  text-decoration: none;
+}
+.nav a svg,
+.nav .tool svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  color: currentColor;
+  opacity: 0.65;
+}
+.nav a.active {
+  background: var(--color-surface-hover);
+  border-left-color: transparent;
+  color: var(--color-text);
+  font-weight: var(--weight-display);
+}
+.nav a.active svg {
+  opacity: 0.65;
+}
+.nav a .lbl,
+.nav .tool .lbl {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- Werkzeug-Zeilen (zweizeilig) ----
+   Die sieben Werkzeuge unter dem Seitenbaum tragen `.tool` und sind damit
+   dieselbe Zeile wie ein Baumeintrag — Innenabstand, Rundung, Farbe, Hover
+   und Icon-Opazität stehen oben und gelten hier mit. Zwei der sieben öffnen
+   einen Dialog statt einer Seite und sind deshalb `<button>` statt `<a>`
+   (s. `components/tool-trigger.tsx`); genau darum steht `.tool` überhaupt im
+   Markup — ohne die Klasse träfen die Zeilenregeln nur die fünf Links.
+
+   Raster statt Flex, weil unter dem Titel ein Erklärsatz steht und der NICHT
+   unter dem Icon beginnen darf, sondern bündig unter dem Titel: die
+   Icon-Spalte hält die Einrückung, ohne dass ein Innenabstand die
+   Icon-Breite nachrechnen müsste. Die dritte Spalte trägt das Tastenkürzel
+   und entsteht nur in der einen Zeile, die eines hat — eine immer
+   vorhandene Leerspalte würde den sechs anderen Zeilen still einen
+   Spaltenabstand vom Titel abziehen. */
+.nav .tool {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  column-gap: var(--space-2);
+  row-gap: 0;
+}
+.nav .tool:has(.kbd) {
+  grid-template-columns: auto 1fr auto;
+}
+.nav .tool > svg {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+}
+.nav .tool .lbl {
+  grid-column: 2;
+  grid-row: 1;
+  line-height: var(--leading-ui);
+}
+.nav .tool .kbd {
+  grid-column: 3;
+  grid-row: 1;
+  align-self: center;
+}
+/* Der Erklärsatz darf umbrechen — die Leiste ist schmal, und ein
+   abgeschnittener Satz erklärt nichts. Deshalb hier ausdrücklich KEIN
+   `overflow: hidden`/`nowrap` wie bei `.lbl`. Das eigene `font-weight`
+   hält den Satz mager, wenn die Zeile über `.active` fett gesetzt wird. */
+.nav .tool .sub {
+  grid-column: 2 / -1;
+  grid-row: 2;
+  font-size: var(--text-xs);
+  line-height: var(--leading-ui);
+  font-weight: var(--weight-text);
+  color: var(--color-text-muted);
+  white-space: normal;
+}
+/* Nur was die Knopf-Form von der Link-Form trennt: Browser-Rand und
+   -Fläche weg, Schrift und Ausrichtung wie im Fließtext der Leiste. Der
+   linke Rand bleibt als transparenter Platzhalter erhalten (gleiche
+   Textkante wie beim Link). `outline` wird NICHT angefasst — der Fokusring
+   aus `20-basis.css` gilt auf Knopf und Link gleichermaßen. */
+.nav button.tool {
+  width: 100%;
+  border: 0;
+  border-left: var(--rule-strong) solid transparent;
+  background: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+/* Die „Archiv"-Marke am Baumeintrag ist der Baustein `.chip.archived`
+   (42-marke.css). Der frühere `.badge`-Block hatte einen eigenen
+   Schriftgrad, einen eigenen Schriftschnitt, eine eigene Rundung, einen
+   eigenen Innenabstand — und rechnete das Ganze anschließend per
+   `transform: scale(0.86)` klein, also auf eine Schriftgröße, die es in
+   keiner Skala gibt. Alles entfallen; hier bleibt nur die Stellung am
+   rechten Rand der Baumzeile. */
+.nav a .chip {
+  margin-left: auto;
+  flex: none;
+}
+/* Archiviert — entsättigt und zurückgenommen, aber nie nur über Farbe erkennbar
+   (zusätzlich Icon-Wechsel + „Archiv"-Badge + title-Tooltip, siehe components/tree.tsx) */
+.nav a.archived {
+  color: var(--color-status-archived);
+  opacity: 0.72;
+  filter: saturate(0.45);
+}
+.nav a.archived svg {
+  color: var(--color-status-archived);
+}
+.nav a.archived:hover {
+  opacity: 1;
+}
+/* Aufklappbare Baum-Knoten (natives details/summary; `open` kommt aus dem
+   gemerkten Aufklappzustand, s. `components/tree-expansion.tsx`) */
+.nav details {
+  display: block;
+}
+.nav details > summary {
+  display: flex;
+  align-items: center;
+  list-style: none;
+  cursor: pointer;
+}
+.nav details > summary::-webkit-details-marker {
+  display: none;
+}
+.nav details > summary > .caret {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 34px;
+  color: var(--color-text-muted);
+}
+.nav details > summary > .caret svg {
+  width: 13px;
+  height: 13px;
+  transition: transform 0.12s ease;
+}
+.nav details[open] > summary > .caret svg {
+  transform: rotate(90deg);
+}
+.nav details > summary > a {
+  flex: 1;
+  min-width: 0;
+}
+.nav details > summary > .node-row {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Umbenennen/Verschieben (Phase 3.2, `tree-node-actions.tsx`) — Link + kleine
+   Aktions-Buttons in einer Zeile; die Buttons sitzen bewusst AUSSERHALB des
+   `<a>` (kein verschachteltes interaktives Element) und blenden per Hover/
+   Fokus ein, statt den Baum dauerhaft mit Icons zu überladen. */
+.node-row {
+  display: flex;
+  align-items: center;
+}
+.node-row > a {
+  flex: 1;
+  min-width: 0;
+}
+/* Teilschritt I — Zugänglichkeitsbefund behoben. Hier stand
+   `display: none` mit `display: flex` bei `:hover`/`:focus-within`. Das
+   `:focus-within` konnte NIE greifen: Kinder in `display: none` sind nicht
+   fokussierbar, sie stehen gar nicht im Tabulator-Lauf. Die Aktionen am
+   Seitenbaum („Umbenennen"/„Verschieben", `tree-node-actions.tsx`) waren damit
+   per Tastatur unerreichbar, und sie fielen zugleich aus dem
+   Zugänglichkeitsbaum — beides verboten (zugesicherte Eigenschaft 2 der
+   Erscheinungsbild-Spec: visuell Verborgenes NIE per `display: none`).
+
+   Jetzt sind die Knöpfe immer da und werden nur unsichtbar GESCHALTET, mit
+   genau den drei Mitteln, die den Tabulator-Lauf nicht antasten:
+     `width: 0` + `overflow: hidden`  nimmt ihnen den Platz — die Zeile sieht
+                                      im Ruhezustand aus wie vorher, der
+                                      Seitentitel behält seine ganze Breite;
+     `opacity: 0`                     nimmt sie dem Auge;
+     `pointer-events: none`           verhindert den Klick der Maus auf ein
+                                      unsichtbares Ziel (Tastaturfokus ist
+                                      davon unberührt).
+   Keines davon entfernt ein Kind aus dem Zugänglichkeitsbaum oder aus dem
+   Tabulator-Lauf — anders als `display: none` und `visibility: hidden`. Und
+   `:focus-within` hebt alle drei zusammen wieder auf, also auch das Clipping:
+   genau das Muster, das die Spec unter „Zugesicherte Eigenschaften" Punkt 1
+   verlangt, damit der Fokusring eines geclippten Kindes nicht mit
+   weggeschnitten wird. */
+.node-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  width: 0;
+  padding-right: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+.node-row:hover .node-actions,
+.node-actions:focus-within {
+  width: auto;
+  padding-right: var(--space-2);
+  overflow: visible;
+  opacity: 1;
+  pointer-events: auto;
+}
+/* Umbenennen/Verschieben tragen jetzt `btn quiet small` — der randlose
+   Symbolknopf in der zweiten Größe (40-schaltflaeche.css). Damit entfallen
+   der eigene Innenabstand (`3px 5px`), der Spezifitätstrick
+   `.node-actions .btn.ghost` (drei Klassen, Plan §7.4 Regel 4) samt seinem
+   Hover und die eigene Symbolgröße (12 px statt der 14 px aller übrigen
+   Schaltflächen-Symbole). */
+
+/* Baum-Umsortierung per Drag&Drop (Phase 3.3, `components/tree-dnd.tsx`):
+   jedes Geschwister ist in einem `[draggable]`-Wrapper-Div direkt unter `.nav`
+   gekapselt — bewusst minimal (kein Einfüge-Indikator/Ziellinie), nur eine
+   Greifhand als Cursor-Hinweis und eine reduzierte Deckkraft während des
+   Ziehens (`.dragging`, von `tree-dnd.tsx` gesetzt). */
+.nav > [draggable='true'] {
+  cursor: grab;
+}
+.nav > [draggable='true'].dragging {
+  opacity: 0.4;
+}
+
+/* ---- Hauptbereich ----
+   Redesign Phase 2 (Handoff): kein schwebender Karten-Look — reinweiße
+   Fläche, eigener Scrollbereich über die volle Grid-Höhe (s. `.shell`). Gilt
+   für ALLE `<Shell>`-Hauptspalten (Lese-/Editier-/Review-/Werkzeug-Seiten),
+   nicht nur die Leseansicht — dieselbe Grid-Spalte, derselbe Chrome-Vertrag.
+
+   Bis Teilschritt H1 zwei Regeln: `.main` (eine Zeile) und `.main.card` (die
+   fünf Rücknahmen). Jetzt eine. Wie bei `.tree` bleiben `border`/
+   `border-radius`/`box-shadow` stehen, solange zehn Seiten außerhalb dieses
+   Teilschritts noch `main card` ins Markup schreiben (s. Bericht H1). */
+.main {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--color-bg);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* ---- Rechte Leiste (Chrome) ----
+   Redesign Phase 2 (Handoff „Right rail"): randlose `--surface-subtle`-
+   Fläche mit EINER Hairline links, Innenabstand 26px/24px, eigener
+   Scrollbereich über die volle Grid-Höhe (s. `.shell`). */
+.rail {
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-7);
+  padding: 26px var(--space-6);
+  background: var(--color-bg-sunken);
+  border-left: 1px solid var(--color-border);
+}
+/* Die einzelnen Abschnitte (ToC/Tags/Metadaten/Verknüpfte Seiten) sind im
+   Handoff NICHT einzeln eingerahmt — nur der Mini-Graph unten bekommt einen
+   eigenen Rahmen (s. `.mini-graph`). `.rp` ist deshalb keine Karte, sondern
+   nur Struktur (Abschnitt + Eyebrow-Titel).
+
+   Der Selektor hieß `.rail .card.rp` und nahm die Karte in fünf Zeilen
+   zurück. Er heißt jetzt `.rail .rp` und ist damit unabhängig davon, ob im
+   Markup noch `card` steht — die Leseansicht schreibt nur noch `rp`, die
+   Review-Leiste und das Metadaten-Panel (H2/H3) tragen `card rp` weiter. */
+.rail .rp {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+.rp h4 {
+  font-size: var(--text-2xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin: 0 0 var(--space-3);
+  font-weight: var(--weight-display);
+}
+
+/* Mini-Graph „Verknüpfte Seiten" (Mockup leseansicht.html .graph svg —
+   Klasse hier .mini-graph, weil .graph global der Vollbild-Graph-Ansicht
+   gehört, graph.css). Er ist der einzige eingerahmte Block der Info-Leiste,
+   also eine Karte: das Markup trägt `card mini-graph`, und Rahmen, Rundung,
+   Innenraum und Fläche kommen aus `43-flaeche.css` (Plan §7.2, Zeile E
+   nennt `.mini-graph` ausdrücklich). Hier bleibt nur das SVG. */
+.mini-graph svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+

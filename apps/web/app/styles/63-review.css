@@ -1,0 +1,775 @@
+/* =========================================================================
+   Review — Kopf, Umschalter, visueller Diff, Aktionen, Notices
+
+   Review-Seite: Kopf/Rahmen, Reiter „Visuell | Markdown", Diff-Markierungen
+   im `.page-body`, Wort-Diff, „Entfernt"-Block, Tabellen-Zellvergleich,
+   Aktionsbereich, Konflikt-/Erfolgs-Notices und die „Änderungen"-Card der
+   rechten Leiste.
+
+   ── Teilschritt H3: was hier weggefallen ist ──────────────────────────────
+   18 Regeln mit zusammen 83 Deklarationen sind gelöscht, weil seit den
+   Teilschritten C–G ein Baustein dieselbe Sache trägt; das Markup nennt
+   stattdessen den Baustein. Zwei kurze Regeln sind neu: `.act-hint.err`
+   (ersetzt den letzten Inline-Stil der Ansicht) und `.dchange .dtag`
+   (nur noch der Abstand nach unten, den der Baustein dem Kontext überlässt).
+   Bilanz der Datei: 102 → 86 Regelblöcke, 383 → 300 Deklarationen.
+   Im Einzelnen:
+
+     Schaltflächen (Baustein `40-schaltflaeche.css`)
+       `.notice.conflict .btn`        reine Wiederholung von `.btn`
+                                      (Bestandsaufnahme §2.1, Zeile 5)
+       `.notice.conflict .btn.rebase` → `.btn.danger`   (review-view.tsx)
+       `.btn.merge`                   → `.btn.primary`  (review-view.tsx)
+       `.notice-actions`              → `.btn-row`
+       `.act-row` (Anordnung)         → `.btn-row`, hier bleibt der Abstand
+                                        nach oben
+     Eingaben (Baustein `41-eingabe.css`)
+       `.commentbox` (Feldwerte, Fokus, Platzhalter)   → `.input`
+       `.version-bump … input[type=text]` (+ `:focus`) → `.input`
+       Damit sind zwei der sechs wörtlich wiederholten Fokus-Ersatzblöcke
+       (Bestandsaufnahme §2.2) aus dieser Ansicht verschwunden.
+     Marken (Baustein `42-marke.css`)
+       `.rsum .s` und die drei Zustandsfarben
+       `.dchange .dtag` und die zwei Zustandsfarben
+       Beide hingen zunächst als Alias am `.chip`; Teilschritt I hat das
+       Markup umgestellt (`chip released` / `chip review` / `chip error`) und
+       die Aliase gelöscht.
+     Flächen (Baustein `43-flaeche.css`)
+       `.version-bump` (Rahmen, Radius, Fläche, Innenabstand) → `.card`
+     Menü (Baustein `44-dialog.css`)
+       `.changes a` (Anordnung, Innenabstand, Radius) → Alias `.menu-item`
+
+   Umgekehrt gilt die Bedeutungsumkehr aus dem Kopf von
+   `40-schaltflaeche.css`: das nackte `class="btn"` war die akzentfarbene
+   Hauptaktion, `"btn ghost"` die neutrale Umrissform. Jetzt ist `.btn` die
+   neutrale Grundform und `.btn.primary` die Hauptaktion. review-view.tsx ist
+   entsprechend umgeschrieben.
+
+   ── Was hier BLEIBT und warum ─────────────────────────────────────────────
+   1. `.page-body` bleibt unangetastet (Bestandsaufnahme §6.1). Es trägt
+      Lesen, Bearbeiten und Prüfen gleichzeitig, und die Klassennamen der
+      Diff-Injektion (`cell-add`, `cellflag`, `diff-frontmatter`) kommen aus
+      `packages/markdown`. Geändert sind dort ausschliesslich die drei
+      Marker-BREITEN: `3px` → `var(--rule-marker)`, wertgleich
+      (Bestandsaufnahme §5.2: „Marker auf `--rule-marker`").
+   2. `.notice.*` bleibt. Die Basis `.notice` steht in `61-lese.css` und wird
+      von Leseansicht, Editor UND Review geteilt (§6.6); der Umzug auf
+      `.callout` ist deshalb kein Schnitt entlang einer Ansicht. Die
+      Rollen-Aliase in `43-flaeche.css` stehen bereit, hier ändert sich
+      nichts.
+   3. `.viewbar` zieht ihre Haarlinie weiter selbst — und deshalb bleibt der
+      Modifier `.tabs.flush` aus `45-auswahl.css` bestehen, anders als dort
+      vermutet. Grund: die Leiste trägt nicht nur die zwei Reiter, sondern
+      auch die Diff-Legende. Die Grundlinie des Reiter-Bausteins ist so breit
+      wie die Reiter, nicht wie die Leiste; gäbe `.viewbar` ihre Linie ab,
+      liefe der Trennstrich zwischen Leiste und Diff nach zwei Wörtern aus.
+      Die Reiter buendig auf die Leistenlinie zu setzen ist möglich, aber
+      eine Gestaltungsänderung (Höhe und Ausrichtung der Leiste) und gehört
+      damit zu Etappe 3, nicht zu einem Aufräum-Teilschritt.
+   4. Die drei `!important` bei `td.cell-add`/`.cell-chg`/`tr.row-add`
+      (§6.4) schlagen `.page-body tbody tr:hover` aus `61-lese.css` und
+      müssen bleiben, solange der Hover-Zebra auf Tabellen steht.
+   5. Die Handoff-Literale `--rev-bg`/`--rel-bg`/`--rev-ln`/`--rel-ln`/
+      `--dgr-ln` bleiben, wo kein Baustein greift (Blockflächen, Legende,
+      Zellen, Markdown-Zeilen). Teilschritt B hat sie ausdrücklich als
+      Meldung 4–9 dem Auftraggeber vorgelegt (`10-ableitungen.css`); sie
+      aufzulösen ist eine Farbentscheidung für Etappe 3, kein Aufräumen.
+      Wo ein Baustein greift (`.rsum .s`, `.dtag`), tritt dagegen der
+      `-wash`-Token an ihre Stelle — das ist die in `42-marke.css` bereits
+      angekündigte Angleichung.
+
+   ── Zugesicherte Eigenschaft 3 in der Diff-Ansicht ────────────────────────
+   „Statusfarben tragen immer zusätzlich Zeichen und Wort." In einer
+   Diff-Ansicht ist das die am leichtesten gebrochene Zusage. Hier trägt
+   jede Unterscheidung mindestens zwei Merkmale ausser der Farbe:
+
+     Block hinzugefügt  Randbalken links + Marke „HINZUGEFÜGT" mit Pluszeichen
+     Block geändert     Randbalken links + Marke „GEÄNDERT" mit Stiftzeichen
+     Block entfernt     `<details>` mit dem Wort „Entfernt" und Pfeilzeichen
+     Wort eingefügt     `<ins>` + Unterstreichung (2px) + Vorlesesoftware
+     Wort gelöscht      `<del>` + Durchstreichung + Vorlesesoftware
+     Zelle geändert     Randbalken links in der Zelle + `.cellflag` mit dem
+                        Zeichen `~`
+     Zelle neu          Randbalken links in der Zelle + `.cellflag` mit dem
+                        Zeichen `+`
+                        ── H3 hatte hier einen echten Bruch von Zusage 3
+                        gemessen: `.cellflag` war ein LEERES, per `aria-hidden`
+                        verstecktes `<span>`, „hinzugefügt" gegen „geändert"
+                        trennte damit ausschließlich die Farbe (grün gegen
+                        bernstein bei identischem 3-px-Balken und identischer
+                        8-px-Marke), und Vorlesesoftware bekam gar nichts.
+                        Behoben in Teilschritt I:
+                        `packages/markdown/src/diff.ts#CELL_FLAG_GLYPH` schreibt
+                        je Art ein eigenes Zeichen als ECHTEN Text in die Marke
+                        und das `aria-hidden` ist entfallen. Das ausgeschriebene
+                        Wort steht in der lokalisierten Legende (`.lg-sign`) —
+                        `packages/markdown` kennt keine Sprache und darf keine
+                        deutschen Wörter ausliefern.
+     Frontmatter        Randbalken links + Durchstreichung (entfernt)
+     Markdown-Zeile     Randbalken links; „entfernt" zusätzlich durchgestrichen
+                        und abgedunkelt (`buildMdLines` in
+                        `packages/markdown/src/diff.ts` setzt KEIN `+`/`-`
+                        vor die Zeile — die Durchstreichung ist das einzige
+                        farbfreie Merkmal, das die beiden trennt)
+     Legende            Farbfleck UND ausgeschriebenes Wort daneben; bei
+                        „hinzugefügt"/„geändert" zusätzlich das Zeichen der
+                        Zellmarke (`.lg-sign`)
+     Zusammenfassung    Zahl + Zeichen je Marke (`.rsum .s`)
+
+   Herkunft: `app/globals.css` Zeilen 3676-4346 (Stand vor der Aufteilung,
+   4522 Zeilen). Die Kaskadenreihenfolge steht ausschließlich in der
+   @import-Liste von `app/globals.css` — NICHT in den Dateinamen.
+   ========================================================================= */
+.rhead {
+  /* Erscheinungsbild 2026, Breitenstufen (Etappe 3): seitlicher Steg aus
+     `--layout-gutter` wie `.body` darunter (s. `61-lese.css`) — der Diff-Body
+     ist seit dem Wegfall der 760px-Grenze nicht mehr zentriert, Kopf und Body
+     stehen jetzt auf EINER Kante. */
+  padding: var(--space-5) var(--layout-gutter) var(--space-4);
+  border-bottom: var(--rule-hair) solid var(--color-border);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: var(--panel-2);
+}
+.rtitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-top: var(--space-3);
+}
+.rtitle h1 {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-strong);
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+.rtitle .pr {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  font-weight: var(--weight-display);
+}
+.rmeta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-top: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+.rmeta .who {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.rmeta b {
+  color: var(--color-text);
+  font-weight: var(--weight-strong);
+}
+/* Kleinster der drei Avatare der Anwendung (24/30/22 px, Bestandsaufnahme
+   §2.3). Die Bausteine kennen bis heute keinen Avatar — §5.2 sieht „ein
+   Baustein mit drei Größen" vor, keiner der Teilschritte C–G hat ihn
+   angelegt. Deshalb bleiben Maß und Schriftgrad hier stehen; der
+   `10px`-Literal ist die einzige eigene Schriftgröße dieser Datei und
+   gemeldet (s. Bericht H3). */
+.uav {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-strong);
+  flex: none;
+  background: color-mix(in srgb, var(--color-text) 72%, var(--color-bg));
+  color: var(--color-bg);
+}
+.rlink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: var(--weight-strong);
+  font-size: var(--text-sm);
+  color: var(--link);
+}
+.rlink svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* ---- Umschalter Visuell | Markdown ---- */
+/* Der Umschalter ist seit Teilschritt G der Reiter-Baustein `.tabs` aus
+   `styles/45-auswahl.css` (`diff-view.tsx`). Diese Leiste zieht die
+   Haarlinie zwischen Umschalter und Diff — s. Punkt 3 im Dateikopf, warum
+   `.tabs.flush` deshalb bleibt. */
+.viewbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-2) var(--space-6);
+  border-bottom: var(--rule-hair) solid var(--color-border);
+}
+.viewbar .grow {
+  flex: 1;
+}
+.difflegend {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  flex-wrap: wrap;
+}
+.difflegend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: var(--weight-strong);
+}
+/* Farbfleck der Legende. Wie `ins.add`, `del.rm` und `.cellflag` ein 8-10 px
+   grosser Marker; bis Etappe 2 stand hier das Literal `2px`, weil
+   `--radius-sm` damals 8 px betrug und aus dem Quadrat einen Kreis machte.
+   Seit dem Editorial-Katalog ist `--radius-sm` genau diese 2 px.
+   Die Farbe steht nie allein: neben jedem Fleck steht das Wort. */
+.lg-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-sm);
+  border: var(--rule-hair) solid;
+}
+.lg-dot.add {
+  background: var(--rel-bg);
+  border-color: var(--color-status-released);
+}
+.lg-dot.chg {
+  background: var(--rev-bg);
+  border-color: var(--color-status-review);
+}
+.lg-dot.rm {
+  background: var(--color-danger-wash);
+  border-color: var(--color-danger);
+}
+/* Teilschritt I: Das Zeichen, das `diff.ts` in eine geänderte bzw. neue
+   TABELLENZELLE schreibt (`+` / `~`), einmal neben seinem ausgeschriebenen,
+   lokalisierten Wort. Nur so bekommt das Zeichen in der Zelle eine Bedeutung,
+   ohne dass `packages/markdown` eine Sprache kennen müsste. Dicktengleich und
+   in derselben Farbe wie die Marke in der Zelle. */
+.difflegend .lg-sign {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-strong);
+}
+.difflegend .lg-sign.add {
+  color: var(--color-status-released);
+}
+.difflegend .lg-sign.chg {
+  color: var(--color-status-review);
+}
+
+/* ---- Diff-Markierungen im Visuell-Tab (`.page-body` trägt die eigentliche
+   Typografie, s. `diff-view.tsx`-Kopfkommentar zur `.doc`-Abgrenzung) — nie
+   Farbe allein: jeder Zustand trägt zusätzlich Randbalken + Icon (bzw.
+   Durchstreichung bei Entfernungen), s. Tabelle im Dateikopf. ---- */
+.dchange {
+  position: relative;
+  scroll-margin-top: 70px;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
+  margin: 0 0 var(--space-3);
+}
+/* Der Randbalken. `--radius-pill` statt des früheren `3px`-Literals: bei
+   3 px Breite rechnet der Browser beide Angaben auf dieselben 1,5 px
+   Eckenradius herunter (die Radien werden proportional gestaucht, sobald
+   ihre Summe die Kastenbreite übersteigt) — wertgleich, ein Literal weniger. */
+.dchange::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--rule-marker);
+  border-radius: var(--radius-pill);
+}
+/* Die Marke selbst ist seit Teilschritt I der Baustein `.chip` — das Markup
+   trägt `chip released` bzw. `chip review` (`diff-view.tsx`), der Alias
+   `.dchange .dtag` in `42-marke.css` ist ersatzlos entfallen. Hier bleibt nur
+   der Abstand zum Text darunter: der Baustein bringt bewusst KEINEN
+   Aussenabstand mit („der Abstand nach aussen gehört dem Kontext",
+   `42-marke.css`/`43-flaeche.css`) — der Kontext ist diese Zeile, und der
+   Wert ist der bisherige.
+
+   Die Zeichengrösse (`12px`) ist ebenfalls entfallen: `.chip > svg` setzt
+   `1em`, und `1em` sind auf `--text-xs` genau dieselben 12px. */
+.dchange .chip {
+  margin-bottom: var(--space-1);
+}
+.dchange.chg {
+  background: var(--rev-bg);
+}
+.dchange.chg::before {
+  background: var(--color-status-review);
+}
+.dchange.add {
+  background: var(--rel-bg);
+}
+.dchange.add::before {
+  background: var(--color-status-released);
+}
+
+/* Wort-Diff inline (`packages/markdown/src/diff.ts#buildParagraphWordDiffHtml`)
+   — `<ins>`/`<del>` sind bedeutungstragende Elemente; Unterstreichung bzw.
+   Durchstreichung tragen die Unterscheidung zusätzlich zur Farbe. */
+ins.add {
+  background: var(--rel-bg);
+  color: var(--color-status-released);
+  text-decoration: none;
+  border-bottom: var(--rule-strong) solid var(--color-status-released);
+  border-radius: var(--radius-sm);
+  padding: 0 2px;
+  font-weight: var(--weight-display);
+}
+del.rm {
+  background: var(--color-danger-wash);
+  color: var(--color-danger);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  border-radius: var(--radius-sm);
+  padding: 0 2px;
+}
+
+/* Aufklappbarer "Entfernt"-Block */
+.removed {
+  margin: 0 0 var(--space-4);
+  border: var(--rule-hair) solid var(--dgr-ln);
+  border-radius: var(--radius-md);
+  background: var(--color-danger-wash);
+  overflow: hidden;
+}
+.removed > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  list-style: none;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-strong);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-danger);
+}
+.removed > summary::-webkit-details-marker {
+  display: none;
+}
+.removed > summary .chev {
+  width: 14px;
+  height: 14px;
+  transition: transform 0.18s ease;
+}
+.removed[open] > summary .chev {
+  transform: rotate(90deg);
+}
+.removed .rbody {
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  border-top: var(--rule-hair) solid var(--dgr-ln);
+}
+
+/* Tabellen-Zellvergleich (`diff.ts#injectTableDiffAttributes`) — die injizierten
+   Klassen/`data-diff`-Attribute landen auf echten `<table>`-Elementen innerhalb
+   `.page-body` (dieselbe Render-Pipeline wie die Leseansicht, s. o.), deshalb
+   unter `.page-body` gescoped statt eines eigenen `.tbl-wrap`-Wrappers wie im
+   Mockup — `.page-body table` liefert bereits den Overflow-Container. */
+.page-body td.cell-add {
+  background: var(--rel-bg) !important;
+  box-shadow: inset var(--rule-marker) 0 0 var(--color-status-released);
+}
+.page-body td.cell-chg {
+  background: var(--rev-bg) !important;
+  box-shadow: inset var(--rule-marker) 0 0 var(--color-status-review);
+}
+.page-body tr.row-add td {
+  background: var(--rel-bg) !important;
+}
+.page-body tr.row-add td:first-child {
+  box-shadow: inset var(--rule-marker) 0 0 var(--color-status-released);
+}
+/* `<span class="cellflag" data-diff="cell-add|cell-chg">+|~</span>` — Marke am
+   Zellinhalt aus `diff.ts`.
+
+   Teilschritt I: Die Marke war ein LEERES, per `aria-hidden` verstecktes
+   8-px-Quadrat. „hinzugefügt" und „geändert" trennte damit ausschließlich die
+   Farbe (grün gegen bernstein bei identischem Balken und identischer Marke),
+   und Vorlesesoftware bekam nichts — der Bruch der zugesicherten Eigenschaft 3,
+   den H3 gemessen und gemeldet hat (s. Tabelle im Dateikopf). Jetzt trägt die
+   Marke je Art ein eigenes Zeichen als ECHTEN Text (`+` bzw. `~`,
+   `CELL_FLAG_GLYPH` in `packages/markdown/src/diff.ts`) und steht damit auch im
+   Zugänglichkeitsbaum. Das ausgeschriebene Wort steht in der lokalisierten
+   Legende der Umschaltleiste (`.difflegend`, s. unten) — `packages/markdown`
+   kennt keine Sprache.
+
+   Deshalb kein festes 8 × 8 px mehr, sondern ein Kästchen, das sich um das
+   Zeichen legt: dicktengleiche Schrift, damit `+` und `~` gleich breit
+   ausfallen und die Spaltenbreite nicht von der Art der Änderung abhängt. */
+.page-body .cellflag {
+  display: inline-block;
+  min-width: 1.1em;
+  padding: 0 2px;
+  border-radius: var(--radius-sm);
+  /* Der Abstand steht RECHTS, nicht links wie beim leeren Vorgänger: `diff.ts`
+     setzt die Marke VOR den Zellinhalt, ein linker Abstand ließe sie am Text
+     kleben (im Versuch nachgesehen: „+Ada" ohne Lücke). */
+  margin-inline-end: var(--space-2);
+  border: var(--rule-hair) solid;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-strong);
+  line-height: 1.25;
+  text-align: center;
+  /* Die Marke ist eine Randnotiz zum Zellinhalt, kein Teil des Satzes — sie
+     soll die Zeilenhöhe der Tabelle nicht anheben. */
+  vertical-align: 1px;
+}
+.page-body .cellflag[data-diff='cell-add'] {
+  background: var(--rel-bg);
+  border-color: var(--color-status-released);
+  color: var(--color-status-released);
+}
+.page-body .cellflag[data-diff='cell-chg'] {
+  background: var(--rev-bg);
+  border-color: var(--color-status-review);
+  color: var(--color-status-review);
+}
+
+/* Frontmatter-Synthetik-Block (`diff.ts#buildFrontmatterDiffBlock`) — kein
+   Mockup-Vorbild (das Mockup zeigt keine Frontmatter-Änderung), Token-Werte
+   wie `.mdview pre`/`.conflict-col pre`. */
+.page-body .diff-frontmatter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+}
+.page-body pre.diff-frontmatter {
+  margin: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  overflow-x: auto;
+  background: var(--color-code-bg);
+  color: var(--color-code-text);
+  border: var(--rule-hair) solid var(--code-line);
+}
+.page-body pre.diff-frontmatter.rm {
+  border-left: var(--rule-marker) solid var(--color-danger);
+  text-decoration: line-through;
+  opacity: 0.75;
+}
+.page-body pre.diff-frontmatter.add {
+  border-left: var(--rule-marker) solid var(--color-status-released);
+}
+
+/* Markdown-Tab */
+.mdview {
+  padding: var(--space-5) var(--space-6);
+}
+.mdview pre {
+  background: var(--color-code-bg);
+  color: var(--color-code-text);
+  border: var(--rule-hair) solid var(--code-line);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin: 0;
+  overflow-x: auto;
+  font-size: var(--text-sm);
+  line-height: var(--leading-code);
+}
+.mdview .ml-add {
+  display: block;
+  background: color-mix(in srgb, var(--color-status-released) 22%, var(--color-code-bg));
+  border-left: var(--rule-marker) solid var(--color-status-released);
+  padding-left: var(--space-2);
+  margin-left: calc(-1 * var(--space-2));
+}
+.mdview .ml-rm {
+  display: block;
+  background: color-mix(in srgb, var(--color-danger) 22%, var(--color-code-bg));
+  border-left: var(--rule-marker) solid var(--color-danger);
+  padding-left: var(--space-2);
+  margin-left: calc(-1 * var(--space-2));
+  text-decoration: line-through;
+  color: color-mix(in srgb, var(--color-code-text) 60%, var(--color-code-bg));
+}
+
+/* ---- Aktionsbereich (components/review/review-view.tsx) ---- */
+.actions {
+  padding: var(--space-5) var(--space-6);
+  border-top: var(--rule-hair) solid var(--color-border);
+  background: var(--panel-2);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+.actions h4 {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+}
+/* Das Kommentarfeld ist im Markup jetzt `class="commentbox input"`; Fläche,
+   Rahmen, Radius, Innenabstand, Platzhalter und Fokusring kommen aus
+   `41-eingabe.css`. Hier bleiben die zwei Eigenschaften, die ein
+   mehrzeiliges Feld von einem einzeiligen unterscheiden.
+
+   Der Element-Selektor ist tragend, nicht Geschmack: `41-eingabe.css` nennt
+   `textarea.input` (0,1,1), um mehrzeilige Felder mitzunehmen. Ein blosses
+   `.commentbox` (0,1,0) verliert dagegen — nachgemessen wäre das Feld von
+   76 auf 44 px geschrumpft. Mit `textarea.commentbox` (0,1,1) und der
+   späteren Position in der @import-Liste gewinnt wieder diese Zeile. */
+textarea.commentbox {
+  resize: vertical;
+  /* Vier Zeilen Platz, damit das Feld nicht wie eine Zeile aussieht. Kein
+     Katalog-Token — Feldhöhen jenseits der Zielgröße sind dort nicht
+     vorgesehen. */
+  min-height: 76px;
+}
+/* Nur noch der Abstand nach oben; die Anordnung kommt aus `.btn-row`
+   (`40-schaltflaeche.css`), die im Markup danebensteht. */
+.act-row {
+  margin-top: var(--space-3);
+}
+.act-hint {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin: var(--space-2) 0 0;
+}
+/* Fehlerfassung desselben Hinweises (Kommentarpflicht bei „Änderungen
+   anfordern"). Stand bis H3 als Inline-Stil im JSX — derselbe Token, nur
+   ohne die Wiederholung im Markup (Bestandsaufnahme §4.3). Der Name folgt
+   `.field .err` aus `41-eingabe.css`, damit Etappe 3 den Hinweis ohne
+   Umbenennung in ein `.field` einhängen kann. */
+.act-hint.err {
+  color: var(--color-danger);
+}
+/* Sprunggröße + Änderungsnotiz (`<fieldset className="card version-bump">`
+   in review-view.tsx). Rahmen, Radius, Fläche und Innenraum kommen seit H3
+   aus `.card` (`43-flaeche.css`); hier bleibt nur die Anordnung der Kinder.
+   Die vorgeschlagene Versionsnummer hebt sich wie ein Suchtreffer (`mark.hl`)
+   mit `--color-accent-wash`/`--color-accent` hervor. Sie ist BEWUSST keine
+   Statusmarke geworden, obwohl `42-marke.css` sie als Alias führt und die
+   Entscheidung dort ausdrücklich H3 überlässt: ein `<b>1.3.0</b>` im
+   Fliesstext ist ein hervorgehobener WERT, kein Zustand — es hat weder
+   Zeichen noch Zustandswort, und Versalien auf einer Versionsnummer sind
+   sinnlos. Der Alias `.version-bump label b` in `42-marke.css` ist damit
+   ersatzlos entfallen (Teilschritt I hat ihn gelöscht). */
+.version-bump {
+  margin: var(--space-3) 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.version-bump legend {
+  padding: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-display);
+}
+.version-bump label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-text);
+  color: var(--color-text);
+}
+.version-bump label b {
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-wash);
+  color: var(--color-accent);
+  font-weight: var(--weight-strong);
+  font-size: var(--text-xs);
+}
+.version-bump label span {
+  color: var(--color-text-muted);
+}
+/* Letztes Label = Änderungsnotiz (Text statt Radio, s. JSX) — eigene Zeile
+   mit Trenner, damit es sich von den drei Sprunggrößen-Optionen darüber
+   absetzt, statt wie ein vierter Radio-Eintrag zu wirken. Das Feld selbst
+   trägt im Markup `class="input"`. */
+.version-bump > label:last-of-type {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+  padding-top: var(--space-2);
+  border-top: var(--rule-hair) solid var(--color-border-strong);
+}
+
+/* ---- Notices (Konflikt/Erfolg/Fehler) — Basis `.notice` s. `61-lese.css`.
+   Bleibt bis auf Weiteres, s. Punkt 2 im Dateikopf. ---- */
+.notice.conflict {
+  background: var(--color-danger-wash);
+  border-color: var(--dgr-ln);
+  color: var(--color-text);
+}
+.notice.conflict .ic {
+  color: var(--color-danger);
+}
+.notice.conflict b {
+  color: var(--color-danger);
+}
+.notice.rel {
+  background: var(--rel-bg);
+  border-color: var(--rel-ln);
+  color: var(--color-text);
+}
+.notice.rel .ic {
+  color: var(--color-status-released);
+}
+.notice-stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
+}
+.notice-stack p {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+.notice-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+.recovery-pre {
+  background: var(--color-code-bg);
+  color: var(--color-code-text);
+  border: var(--rule-hair) solid var(--code-line);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  margin: 0;
+  max-height: 260px;
+  overflow: auto;
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ---- Rechte Leiste — "Änderungen"-Card (app/wiki/…/review/page.tsx) ---- */
+.rsum {
+  display: flex;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  flex-wrap: wrap;
+}
+/* Die drei Zusammenfassungs-Marken sind seit Teilschritt I der Baustein
+   `.chip` (`chip released` / `chip review` / `chip error` in der Route-Datei);
+   der Alias `.rsum .s` in `42-marke.css` ist ersatzlos entfallen. Die eigene
+   Zeichengrösse (`11px`) fällt mit: `.chip > svg` setzt `1em`, auf
+   `--text-xs` also 12px. Der eine Pixel ist die einzige Sichtänderung dieser
+   Stelle — und ein Baustein-Wert statt eines Literals. */
+.changes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+/* Anordnung, Innenabstand und Radius der Zeile kommen aus dem Menü-Alias
+   `.changes a` in `44-dialog.css`. Hier bleibt, was eine Sprungmarke von
+   einer Menüzeile unterscheidet: Textfarbe, Schriftgrad und der farbige
+   Balken links, der beim Überfahren die Art der Änderung wiederholt. */
+.changes a {
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  border-left: var(--rule-strong) solid transparent;
+}
+.changes a:hover {
+  background: var(--panel-2);
+  text-decoration: none;
+}
+.changes a .ci {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border-radius: var(--radius-sm);
+  display: grid;
+  place-items: center;
+  margin-top: 1px;
+}
+.changes a .ci svg {
+  width: 12px;
+  height: 12px;
+}
+.changes a.add .ci {
+  color: var(--color-status-released);
+  background: var(--rel-bg);
+  border: var(--rule-hair) solid var(--rel-ln);
+}
+.changes a.chg .ci {
+  color: var(--color-status-review);
+  background: var(--rev-bg);
+  border: var(--rule-hair) solid var(--rev-ln);
+}
+.changes a.rm .ci {
+  color: var(--color-danger);
+  background: var(--color-danger-wash);
+  border: var(--rule-hair) solid var(--dgr-ln);
+}
+.changes a .cl {
+  min-width: 0;
+}
+.changes a .cl b {
+  display: block;
+  font-weight: var(--weight-strong);
+  font-size: var(--text-sm);
+}
+.changes a.add:hover {
+  border-color: var(--rel-ln);
+}
+.changes a.chg:hover {
+  border-color: var(--rev-ln);
+}
+.changes a.rm:hover {
+  border-color: var(--dgr-ln);
+}
+.meta dd .mini-rev {
+  color: var(--color-status-review);
+  font-weight: var(--weight-strong);
+}
+
+/* =========================================================================
+   Versionsliste (Seitenversionierung Etappe 2,
+   `app/wiki/[space]/(shell)/[pageId]/versions/page.tsx`). Der Diff darunter
+   ist die `DiffView` der Review-Ansicht und bringt seine Regeln oben mit;
+   hier steht nur die Liste. Nur Tokens — kein neues Literal (css:inventar).
+   ========================================================================= */
+.versions-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-width: var(--measure);
+}
+.versions-list li {
+  padding: var(--space-4) 0;
+  border-bottom: var(--rule-hair) solid var(--color-border);
+}
+.versions-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-3);
+}
+.versions-head b {
+  font-size: var(--text-md);
+  font-weight: var(--weight-strong);
+}
+.versions-meta,
+.versions-empty {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+.versions-note {
+  margin: var(--space-2) 0;
+}

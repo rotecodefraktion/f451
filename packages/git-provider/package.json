@@ -1,0 +1,21 @@
+{
+  "name": "@f451/git-provider",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:contract:github": "GITHUB_CONTRACT=1 vitest run test/github.contract.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "testcontainers": "^10.13.0",
+    "typescript": "^5.7.0",
+    "undici": "^7.0.0",
+    "vitest": "^3.0.0"
+  }
+}

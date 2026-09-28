@@ -1,0 +1,657 @@
+<!doctype html>
+<html lang="de" data-theme="">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>f451 — Deployment · Review-Diff (PR)</title>
+<style>
+/* =========================================================================
+   generiert aus @f451/design-tokens — nicht von Hand ändern
+   ========================================================================= */
+:root {
+  --color-bg: #ffffff;
+  --color-bg-raised: #f5f5f5;
+  --color-text: #242424;
+  --color-text-muted: #707377;
+  --color-accent: #e70c2e;
+  --color-accent-contrast: #ffffff;
+  --color-border: #d9d9d9;
+  --color-danger: #b90a25;
+  --color-status-working: #4d5a68;
+  --color-status-review: #cb5e00;
+  --color-status-released: #1c7a30;
+  --color-status-archived: #7c8084;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-7: 1.75rem;
+  --space-8: 2rem;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --shadow-sm: 0 1px 2px rgba(36, 36, 36, 0.08);
+  --shadow-md: 0 4px 12px rgba(36, 36, 36, 0.12);
+}
+[data-theme="dark"] {
+  --color-bg: #1c1c1c;
+  --color-bg-raised: #262626;
+  --color-text: #f5f5f5;
+  --color-text-muted: #898d90;
+  --color-accent: #ed4962;
+  --color-accent-contrast: #000000;
+  --color-border: #3a3a3a;
+  --color-danger: #e91f3f;
+  --color-status-working: #949ca4;
+  --color-status-review: #f28c33;
+  --color-status-released: #60a26e;
+  --color-status-archived: #96999d;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-7: 1.75rem;
+  --space-8: 2rem;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+  --color-bg: #1c1c1c;
+  --color-bg-raised: #262626;
+  --color-text: #f5f5f5;
+  --color-text-muted: #898d90;
+  --color-accent: #ed4962;
+  --color-accent-contrast: #000000;
+  --color-border: #3a3a3a;
+  --color-danger: #e91f3f;
+  --color-status-working: #949ca4;
+  --color-status-review: #f28c33;
+  --color-status-released: #60a26e;
+  --color-status-archived: #96999d;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-7: 1.75rem;
+  --space-8: 2rem;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* =========================================================================
+   Semantische Ableitungen — AUSSCHLIESSLICH aus den Token-Variablen gemischt
+   (color-mix). Keine rohen Farbwerte. Panel/Page-Rollen flippen im Dark-Theme,
+   damit Karten in beiden Themes „aufliegen" (hell: weiße Karte auf Grau;
+   dunkel: hellere Karte auf dunklerem Grund).
+   ========================================================================= */
+:root{
+  --page:  var(--color-bg-raised);
+  --panel: var(--color-bg);
+  --panel-2:   color-mix(in srgb, var(--color-text) 4%,  var(--panel));
+  --line:      var(--color-border);
+  --line-2:    color-mix(in srgb, var(--color-text) 16%, var(--color-border));
+  /* Markenrot: als Fläche pur, als Fließtext-Link leicht in Textfarbe abgedunkelt
+     (WCAG) — im Dark-Theme hellt derselbe Mix den Akzent adaptiv auf. */
+  --link:        color-mix(in srgb, var(--color-accent) 82%, var(--color-text));
+  --accent-wash: color-mix(in srgb, var(--color-accent) 9%,  var(--panel));
+  --accent-line: color-mix(in srgb, var(--color-accent) 34%, var(--panel));
+  /* Status-Töne — Text = Token, Fläche/Linie daraus gemischt */
+  --work-fg: var(--color-status-working);
+  --work-bg: color-mix(in srgb, var(--color-status-working) 12%, var(--panel));
+  --work-ln: color-mix(in srgb, var(--color-status-working) 38%, var(--panel));
+  --rev-fg:  var(--color-status-review);
+  --rev-bg:  color-mix(in srgb, var(--color-status-review) 13%, var(--panel));
+  --rev-ln:  color-mix(in srgb, var(--color-status-review) 42%, var(--panel));
+  --rel-fg:  var(--color-status-released);
+  --rel-bg:  color-mix(in srgb, var(--color-status-released) 14%, var(--panel));
+  --rel-ln:  color-mix(in srgb, var(--color-status-released) 40%, var(--panel));
+  --dgr-fg:  var(--color-danger);
+  --dgr-bg:  color-mix(in srgb, var(--color-danger) 11%, var(--panel));
+  --dgr-ln:  color-mix(in srgb, var(--color-danger) 40%, var(--panel));
+  /* Codeblock — dunkle Fläche aus Textfarbe abgeleitet */
+  --code-bg:   color-mix(in srgb, var(--color-text) 92%, var(--color-accent) 8%);
+  --code-text: var(--color-bg-raised);
+  --code-line: color-mix(in srgb, var(--color-text) 78%, var(--color-bg));
+  --code-comment: color-mix(in srgb, var(--code-text) 55%, var(--code-bg));
+}
+:root[data-theme="dark"]{ --page: var(--color-bg); --panel: var(--color-bg-raised);
+  --code-bg: color-mix(in srgb, var(--color-bg) 88%, var(--color-text) 4%);
+  --code-text: var(--color-text); --code-line: color-mix(in srgb, var(--color-text) 22%, var(--color-bg)); }
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --page: var(--color-bg); --panel: var(--color-bg-raised);
+  --code-bg: color-mix(in srgb, var(--color-bg) 88%, var(--color-text) 4%);
+  --code-text: var(--color-text); --code-line: color-mix(in srgb, var(--color-text) 22%, var(--color-bg)); } }
+
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--page);color:var(--color-text);
+  font-family:var(--font-sans);font-size:var(--text-sm);line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--link);text-decoration:none}
+a:hover{text-decoration:underline}
+code,pre{font-family:var(--font-mono)}
+
+/* ---- Topbar ---- */
+.topbar{
+  position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:var(--space-4);
+  height:52px;padding:0 var(--space-4);background:var(--panel);border-bottom:1px solid var(--line-2);
+}
+.brand{display:flex;align-items:center;gap:var(--space-2);font-weight:800;font-size:var(--text-lg);letter-spacing:-.01em}
+.brand .mark{width:26px;height:26px;border-radius:var(--radius-sm);background:var(--color-accent);color:var(--color-accent-contrast);display:grid;place-items:center;box-shadow:var(--shadow-sm)}
+.brand .mark svg{width:16px;height:16px}
+.brand .app{color:var(--color-text-muted);font-weight:600;font-size:var(--text-xs);border-left:1px solid var(--line-2);padding-left:var(--space-3);margin-left:var(--space-1)}
+.topbar .grow{flex:1;min-width:0}
+.brand{flex:0 1 auto;min-width:0;overflow:hidden}
+.search{display:flex;align-items:center;flex:0 1 auto;gap:var(--space-2);height:34px;width:min(440px,44vw);min-width:0;padding:0 var(--space-3);background:var(--panel-2);border:1px solid var(--line-2);border-radius:var(--radius-md);color:var(--color-text-muted);font-size:var(--text-sm);cursor:text;overflow:hidden;white-space:nowrap}
+.search svg{width:15px;height:15px;flex:none}
+.search .ph{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:34px}
+.search .short{display:none;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:34px}
+.search .kbd{margin-left:auto;flex:none;font-size:var(--text-xs);font-weight:600;background:var(--panel);border:1px solid var(--line-2);border-radius:var(--radius-sm);padding:1px 6px;color:var(--color-text-muted)}
+.tbtn{height:34px;width:34px;flex:none;border:1px solid var(--line-2);background:var(--panel);border-radius:var(--radius-md);color:var(--color-text-muted);display:grid;place-items:center;cursor:pointer}
+.tbtn:hover{background:var(--accent-wash);color:var(--color-accent);border-color:var(--accent-line)}
+.tbtn svg{width:17px;height:17px}
+.avatar{width:32px;height:32px;flex:none;border-radius:var(--radius-md);background:color-mix(in srgb,var(--color-text) 78%,var(--panel));color:var(--panel);display:grid;place-items:center;font-weight:700;font-size:var(--text-xs)}
+
+/* ---- Topbar: schmale Viewports (Mobil) ---- */
+@media(max-width:640px){
+  .topbar{gap:var(--space-2);padding:0 var(--space-3)}
+  .brand .app{display:none}
+  .search{flex:0 1 auto;width:auto;min-width:0;max-width:none;padding:0 10px;gap:6px}
+  .search .ph{display:none}
+  .search .short{display:block;flex:none}
+  .search .kbd{margin-left:2px}
+}
+
+/* ---- Topbar: sehr schmale Viewports ---- */
+@media(max-width:400px){
+  .search .short{display:none}
+  .search .kbd{margin-left:auto}
+}
+
+/* ---- Layout ---- */
+.shell{display:grid;grid-template-columns:250px minmax(0,1fr) 264px;gap:var(--space-4);max-width:1520px;margin:0 auto;padding:var(--space-4)}
+@media(max-width:1160px){.shell{grid-template-columns:230px minmax(0,1fr)}.rail{display:none}}
+@media(max-width:820px){.shell{grid-template-columns:1fr}.tree{display:none}}
+
+.card{background:var(--panel);border:1px solid var(--line-2);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm)}
+
+/* ---- Seitenbaum ---- */
+.tree{position:sticky;top:66px;align-self:start;max-height:calc(100vh - 80px);overflow:auto}
+.tree .head{display:flex;align-items:center;gap:var(--space-2);padding:var(--space-3);border-bottom:1px solid var(--line);background:var(--panel-2);border-radius:var(--radius-lg) var(--radius-lg) 0 0}
+.tree .head .sq{width:24px;height:24px;border-radius:var(--radius-sm);background:var(--color-accent);color:var(--color-accent-contrast);display:grid;place-items:center;font-weight:800;font-size:var(--text-xs)}
+.tree .head b{font-size:var(--text-sm)}
+.tree .head small{color:var(--color-text-muted);font-size:var(--text-xs);display:block;line-height:1.1;margin-top:1px;font-weight:600}
+.grp{font-size:var(--text-xs);font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--color-text-muted);padding:var(--space-3) var(--space-3) var(--space-1)}
+.nav a{display:flex;align-items:center;gap:var(--space-2);padding:6px var(--space-3);font-size:var(--text-sm);color:var(--color-text);border-left:2px solid transparent}
+.nav a:hover{background:var(--panel-2);text-decoration:none}
+.nav a svg{width:15px;height:15px;flex:none;color:var(--color-text-muted)}
+.nav a.active{background:var(--accent-wash);border-left-color:var(--color-accent);color:var(--color-accent);font-weight:700}
+.nav a.active svg{color:var(--color-accent)}
+.nav a .lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.badge{margin-left:auto;font-size:var(--text-xs);font-weight:800;letter-spacing:.03em;text-transform:uppercase;border-radius:var(--radius-sm);padding:0 6px;line-height:16px;transform:scale(.86);transform-origin:right center}
+.badge.draft{color:var(--work-fg);background:var(--work-bg);border:1px solid var(--work-ln)}
+.badge.rev{color:var(--rev-fg);background:var(--rev-bg);border:1px solid var(--rev-ln)}
+.badge.arch{color:var(--color-status-archived);background:color-mix(in srgb,var(--color-status-archived) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--color-status-archived) 34%,var(--panel))}
+/* Archiviert — entsättigt und zurückgenommen */
+.nav a.archived{color:var(--color-status-archived);opacity:.72;filter:saturate(.45)}
+.nav a.archived svg{color:var(--color-status-archived)}
+.nav a.archived:hover{opacity:1}
+
+/* ---- Mittelspalte (zwei Abschnitte) ---- */
+.center{min-width:0;display:flex;flex-direction:column;gap:var(--space-4)}
+.main{min-width:0}
+
+/* ---- Review-Kopf ---- */
+.rhead{padding:var(--space-5) var(--space-6) var(--space-4);border-bottom:1px solid var(--line);border-radius:var(--radius-lg) var(--radius-lg) 0 0;background:var(--panel-2)}
+.rhead .crumbs{font-size:var(--text-xs);color:var(--color-text-muted);font-weight:600;display:flex;align-items:center;gap:6px;margin-bottom:var(--space-3)}
+.rhead .crumbs a{color:var(--color-text-muted)}
+.rhead .crumbs a:hover{color:var(--color-accent)}
+.rhead .crumbs b{color:var(--color-text)}
+.rhead .crumbs .sep{opacity:.55}
+.rtitle{display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap}
+.rtitle h1{font-size:var(--text-xl);font-weight:800;letter-spacing:-.01em;margin:0}
+.rtitle .pr{font-family:var(--font-mono);font-size:var(--text-sm);color:var(--color-text-muted);font-weight:600}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:var(--text-xs);font-weight:700;padding:4px var(--space-2);border-radius:var(--radius-sm)}
+.chip svg{width:13px;height:13px}
+.chip.rev{color:var(--rev-fg);background:var(--rev-bg);border:1px solid var(--rev-ln)}
+.rmeta{display:flex;align-items:center;gap:var(--space-4);flex-wrap:wrap;margin-top:var(--space-3);font-size:var(--text-sm);color:var(--color-text-muted)}
+.rmeta .who{display:inline-flex;align-items:center;gap:var(--space-2)}
+.rmeta b{color:var(--color-text);font-weight:700}
+.uav{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:800;flex:none;background:color-mix(in srgb,var(--color-text) 72%,var(--panel));color:var(--panel)}
+.reviewers{display:inline-flex;align-items:center;gap:var(--space-2);flex-wrap:wrap}
+.rchip{display:inline-flex;align-items:center;gap:6px;font-size:var(--text-xs);font-weight:700;padding:3px var(--space-2) 3px 3px;border-radius:999px;border:1px solid var(--line-2);background:var(--panel)}
+.rchip .rc-av{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:9px;font-weight:800;color:var(--panel)}
+.rchip.ok{border-color:var(--rel-ln);background:var(--rel-bg);color:var(--rel-fg)}
+.rchip.ok .rc-av{background:var(--rel-fg)}
+.rchip.pending{border-color:var(--rev-ln);background:var(--rev-bg);color:var(--rev-fg)}
+.rchip.pending .rc-av{background:var(--rev-fg)}
+.rchip .st{display:inline-flex;align-items:center}
+.rchip .st svg{width:12px;height:12px}
+.rlink{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:var(--text-sm);color:var(--link)}
+.rlink svg{width:14px;height:14px}
+
+/* ---- Umschalter Visuell | Markdown ---- */
+.viewbar{display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;padding:var(--space-2) var(--space-6);border-bottom:1px solid var(--line)}
+.seg{display:inline-flex;background:var(--panel-2);border:1px solid var(--line-2);border-radius:var(--radius-md);padding:2px}
+.seg button{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-sans);font-size:var(--text-sm);font-weight:700;color:var(--color-text-muted);background:transparent;border:0;border-radius:calc(var(--radius-md) - 2px);padding:5px var(--space-3);cursor:pointer}
+.seg button svg{width:14px;height:14px}
+.seg button[aria-selected="true"]{background:var(--panel);color:var(--color-text);box-shadow:var(--shadow-sm)}
+.viewbar .grow{flex:1}
+.difflegend{display:inline-flex;align-items:center;gap:var(--space-3);font-size:var(--text-xs);color:var(--color-text-muted);flex-wrap:wrap}
+.difflegend span{display:inline-flex;align-items:center;gap:5px;font-weight:700}
+.lg-dot{width:10px;height:10px;border-radius:2px;border:1px solid}
+.lg-dot.add{background:var(--rel-bg);border-color:var(--rel-fg)}
+.lg-dot.chg{background:var(--rev-bg);border-color:var(--rev-fg)}
+.lg-dot.rm{background:var(--dgr-bg);border-color:var(--dgr-fg)}
+
+/* ---- Dokument (gerenderte Diff-Seite) ---- */
+.body{padding:var(--space-6) var(--space-7) var(--space-7)}
+.doc h1{font-size:var(--text-2xl);font-weight:800;letter-spacing:-.02em;line-height:1.15;margin:2px 0 var(--space-2)}
+.doc .lede{color:var(--color-text-muted);font-size:var(--text-lg);margin:0 0 var(--space-6);max-width:72ch;line-height:1.5}
+.doc h2{font-size:var(--text-xl);font-weight:800;letter-spacing:-.01em;margin:var(--space-7) 0 var(--space-3);padding-bottom:var(--space-2);border-bottom:2px solid var(--line);display:flex;align-items:center;gap:var(--space-2)}
+.doc h2 .hx{width:4px;height:18px;border-radius:2px;background:var(--color-accent)}
+.doc h3{font-size:var(--text-lg);font-weight:800;margin:var(--space-5) 0 var(--space-2)}
+.doc p{margin:0 0 var(--space-3);max-width:72ch;font-size:var(--text-md);line-height:1.62}
+.doc strong{font-weight:700}
+.doc :not(pre)>code{font-size:.85em;background:var(--panel-2);border:1px solid var(--line-2);border-radius:var(--radius-sm);padding:1px 5px;color:var(--link)}
+
+/* ---- Diff-Markierungen ----
+   Nie Farbe allein: jeder Zustand trägt zusätzlich Randbalken + Icon
+   (bzw. Durchstreichung bei Entfernungen). */
+.dchange{position:relative;scroll-margin-top:70px;border-radius:0 var(--radius-md) var(--radius-md) 0;padding:var(--space-2) var(--space-3) var(--space-2) var(--space-4);margin:0 0 var(--space-3)}
+.dchange::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px}
+.dchange .dtag{display:inline-flex;align-items:center;gap:5px;font-size:var(--text-xs);font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:1px var(--space-2);border-radius:var(--radius-sm);margin-bottom:var(--space-1)}
+.dchange .dtag svg{width:12px;height:12px}
+/* geändert — amber */
+.dchange.chg{background:var(--rev-bg)}
+.dchange.chg::before{background:var(--rev-fg)}
+.dchange.chg .dtag{color:var(--rev-fg);background:color-mix(in srgb,var(--color-status-review) 22%,var(--panel));border:1px solid var(--rev-ln)}
+/* hinzugefügt — grün */
+.dchange.add{background:var(--rel-bg)}
+.dchange.add::before{background:var(--rel-fg)}
+.dchange.add .dtag{color:var(--rel-fg);background:color-mix(in srgb,var(--color-status-released) 22%,var(--panel));border:1px solid var(--rel-ln)}
+.dchange p{margin:0;max-width:70ch}
+.dchange p + p{margin-top:var(--space-2)}
+
+/* Wort-Diff inline */
+ins.add{background:var(--rel-bg);color:var(--rel-fg);text-decoration:none;border-bottom:2px solid var(--rel-fg);border-radius:2px;padding:0 2px;font-weight:600}
+del.rm{background:var(--dgr-bg);color:var(--dgr-fg);text-decoration:line-through;text-decoration-thickness:1.5px;border-radius:2px;padding:0 2px}
+
+/* Aufklappbarer „Entfernt"-Block */
+.removed{margin:0 0 var(--space-4);border:1px solid var(--dgr-ln);border-radius:var(--radius-md);background:var(--dgr-bg);overflow:hidden}
+.removed>summary{display:flex;align-items:center;gap:var(--space-2);cursor:pointer;list-style:none;padding:var(--space-2) var(--space-3);font-size:var(--text-xs);font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--dgr-fg)}
+.removed>summary::-webkit-details-marker{display:none}
+.removed>summary .chev{width:14px;height:14px;transition:transform .18s ease}
+.removed[open]>summary .chev{transform:rotate(90deg)}
+.removed>summary .rc{margin-left:auto;font-weight:700;text-transform:none;letter-spacing:0;color:var(--color-text-muted)}
+.removed .rbody{padding:var(--space-2) var(--space-3) var(--space-3);border-top:1px solid var(--dgr-ln)}
+.removed .rbody p{margin:0;max-width:70ch;color:color-mix(in srgb,var(--color-text) 62%,var(--dgr-bg));text-decoration:line-through;text-decoration-thickness:1px;text-decoration-color:var(--dgr-ln)}
+
+/* Tabelle — sichtbares Raster (aus Shell), mit Zellen-Highlight */
+.tbl-wrap{overflow-x:auto;margin:var(--space-2) 0 var(--space-5);border:1px solid var(--line-2);border-radius:var(--radius-md)}
+table{border-collapse:collapse;width:100%;font-size:var(--text-sm)}
+thead th{text-align:left;font-weight:700;font-size:var(--text-xs);letter-spacing:.05em;text-transform:uppercase;color:var(--color-text-muted);background:var(--panel-2);padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--line-2);border-right:1px solid var(--line)}
+tbody td{padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--line);border-right:1px solid var(--line);position:relative}
+th:last-child,td:last-child{border-right:0}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:nth-child(even){background:var(--panel-2)}
+td.cell-add{background:var(--rel-bg)!important;box-shadow:inset 3px 0 0 var(--rel-fg)}
+td.cell-chg{background:var(--rev-bg)!important;box-shadow:inset 3px 0 0 var(--rev-fg)}
+tr.row-add td{background:var(--rel-bg)!important}
+tr.row-add td:first-child{box-shadow:inset 3px 0 0 var(--rel-fg)}
+.cellflag{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;margin-left:var(--space-2);padding:0 4px;border-radius:var(--radius-sm);vertical-align:1px}
+.cellflag svg{width:9px;height:9px}
+.cellflag.add{color:var(--rel-fg);border:1px solid var(--rel-ln)}
+.cellflag.chg{color:var(--rev-fg);border:1px solid var(--rev-ln)}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:var(--text-xs);font-weight:700;padding:2px 8px;border-radius:var(--radius-sm)}
+.pill svg{width:10px;height:10px}
+.pill.ok{color:var(--rel-fg);background:var(--rel-bg);border:1px solid var(--rel-ln)}
+
+/* Markdown-Ansicht (versteckt, Umschalter deutet Modus an) */
+.mdview{display:none;padding:var(--space-5) var(--space-6)}
+.mdview pre{background:var(--code-bg);color:var(--code-text);border:1px solid var(--code-line);border-radius:var(--radius-md);padding:var(--space-4);margin:0;overflow-x:auto;font-size:var(--text-sm);line-height:1.7}
+.mdview .ml-add{display:block;background:color-mix(in srgb,var(--color-status-released) 22%,var(--code-bg));border-left:3px solid var(--rel-fg);padding-left:var(--space-2);margin-left:calc(-1 * var(--space-2))}
+.mdview .ml-rm{display:block;background:color-mix(in srgb,var(--color-danger) 22%,var(--code-bg));border-left:3px solid var(--dgr-fg);padding-left:var(--space-2);margin-left:calc(-1 * var(--space-2));text-decoration:line-through;color:color-mix(in srgb,var(--code-text) 60%,var(--code-bg))}
+
+/* ---- Aktionsbereich ---- */
+.actions{padding:var(--space-5) var(--space-6);border-top:1px solid var(--line);background:var(--panel-2);border-radius:0 0 var(--radius-lg) var(--radius-lg)}
+.actions h4{margin:0 0 var(--space-3);font-size:var(--text-sm);font-weight:800}
+.commentbox{width:100%;font-family:var(--font-sans);font-size:var(--text-sm);color:var(--color-text);background:var(--panel);border:1px solid var(--line-2);border-radius:var(--radius-md);padding:var(--space-3);resize:vertical;min-height:76px;line-height:1.55}
+.commentbox:focus{outline:none;border-color:var(--accent-line);box-shadow:0 0 0 3px var(--accent-wash)}
+.commentbox::placeholder{color:var(--color-text-muted)}
+.act-row{display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;margin-top:var(--space-3)}
+.act-row .grow{flex:1}
+.act-hint{font-size:var(--text-xs);color:var(--color-text-muted)}
+.btn{display:inline-flex;align-items:center;gap:6px;font-size:var(--text-sm);font-weight:700;font-family:var(--font-sans);padding:8px var(--space-4);border-radius:var(--radius-md);cursor:pointer;border:1px solid var(--color-accent);background:var(--color-accent);color:var(--color-accent-contrast)}
+.btn:hover{background:color-mix(in srgb,var(--color-accent) 84%,var(--color-text));border-color:color-mix(in srgb,var(--color-accent) 84%,var(--color-text))}
+.btn.ghost{background:var(--panel);color:var(--color-text);border-color:var(--line-2)}
+.btn.ghost:hover{background:var(--panel-2);color:var(--color-text)}
+.btn.merge{border-color:var(--rel-fg);background:var(--rel-fg);color:var(--panel)}
+.btn.merge:hover{background:color-mix(in srgb,var(--color-status-released) 84%,var(--color-text));border-color:color-mix(in srgb,var(--color-status-released) 84%,var(--color-text))}
+.btn svg{width:15px;height:15px}
+
+/* ---- Konfliktfall-Abschnitt (angedeutet) ---- */
+.conflict-sec{opacity:.9}
+.conflict-sec .csec-head{display:flex;align-items:center;gap:var(--space-2);padding:var(--space-3) var(--space-5);border-bottom:1px solid var(--line);color:var(--color-text-muted);font-size:var(--text-xs);font-weight:800;letter-spacing:.06em;text-transform:uppercase;border-radius:var(--radius-lg) var(--radius-lg) 0 0;background:var(--panel-2)}
+.csec-head .n{margin-left:auto;font-weight:700;letter-spacing:0;text-transform:none;color:color-mix(in srgb,var(--color-text-muted) 80%,var(--panel))}
+.notice{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3) var(--space-4);margin:var(--space-4) var(--space-5);border-radius:var(--radius-md);font-size:var(--text-sm);border:1px solid}
+.notice .ic{flex:none;display:grid;place-items:center}
+.notice .ic svg{width:18px;height:18px}
+.notice .txt{min-width:0}
+.notice .grow{flex:1}
+.notice.conflict{background:var(--dgr-bg);border-color:var(--dgr-ln);color:var(--color-text)}
+.notice.conflict .ic{color:var(--dgr-fg)}
+.notice.conflict b{color:var(--dgr-fg)}
+.notice.conflict .btn{padding:6px var(--space-3);font-size:var(--text-sm)}
+.notice.conflict .btn.rebase{border-color:var(--dgr-fg);background:var(--dgr-fg);color:var(--panel)}
+.notice.conflict .btn.rebase:hover{background:color-mix(in srgb,var(--color-danger) 84%,var(--color-text));border-color:color-mix(in srgb,var(--color-danger) 84%,var(--color-text))}
+.csec-body{padding:0 var(--space-5) var(--space-5);color:var(--color-text-muted);font-size:var(--text-sm)}
+
+/* ---- Rechte Leiste ---- */
+.rail{position:sticky;top:66px;align-self:start;max-height:calc(100vh - 80px);overflow:auto;display:flex;flex-direction:column;gap:var(--space-4)}
+.rp{padding:var(--space-3) var(--space-4)}
+.rp h4{font-size:var(--text-xs);letter-spacing:.09em;text-transform:uppercase;color:var(--color-text-muted);margin:0 0 var(--space-3);font-weight:800}
+.rsum{display:flex;gap:var(--space-2);margin:0 0 var(--space-3);flex-wrap:wrap}
+.rsum .s{display:inline-flex;align-items:center;gap:5px;font-size:var(--text-xs);font-weight:800;padding:2px var(--space-2);border-radius:var(--radius-sm);border:1px solid}
+.rsum .s svg{width:11px;height:11px}
+.rsum .s.add{color:var(--rel-fg);background:var(--rel-bg);border-color:var(--rel-ln)}
+.rsum .s.chg{color:var(--rev-fg);background:var(--rev-bg);border-color:var(--rev-ln)}
+.rsum .s.rm{color:var(--dgr-fg);background:var(--dgr-bg);border-color:var(--dgr-ln)}
+.changes{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.changes a{display:flex;align-items:flex-start;gap:var(--space-2);padding:6px var(--space-2);border-radius:var(--radius-sm);color:var(--color-text);font-size:var(--text-sm);border-left:2px solid transparent}
+.changes a:hover{background:var(--panel-2);text-decoration:none}
+.changes a .ci{width:18px;height:18px;flex:none;border-radius:var(--radius-sm);display:grid;place-items:center;margin-top:1px}
+.changes a .ci svg{width:12px;height:12px}
+.changes a.add .ci{color:var(--rel-fg);background:var(--rel-bg);border:1px solid var(--rel-ln)}
+.changes a.chg .ci{color:var(--rev-fg);background:var(--rev-bg);border:1px solid var(--rev-ln)}
+.changes a.rm .ci{color:var(--dgr-fg);background:var(--dgr-bg);border:1px solid var(--dgr-ln)}
+.changes a .cl{min-width:0}
+.changes a .cl b{display:block;font-weight:700;font-size:var(--text-sm)}
+.changes a .cl small{display:block;color:var(--color-text-muted);font-size:var(--text-xs);line-height:1.35}
+.changes a.add:hover{border-color:var(--rel-ln)}
+.changes a.chg:hover{border-color:var(--rev-ln)}
+.changes a.rm:hover{border-color:var(--dgr-ln)}
+.meta{display:grid;grid-template-columns:auto 1fr;gap:6px var(--space-3);font-size:var(--text-sm)}
+.meta dt{color:var(--color-text-muted)}
+.meta dd{margin:0;font-weight:600;text-align:right}
+.meta dd .mini-rev{color:var(--rev-fg);font-weight:700}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="mark"><svg viewBox="0 0 24 24" fill="none"><path d="M6 3h13v3H10v4h7v3h-7v8H6z" fill="currentColor"/></svg></span>
+    f451<span class="app">Betrieb-Wiki</span>
+  </div>
+  <div class="grow"></div>
+  <div class="search" role="search" tabindex="0">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2" stroke-linecap="round"/></svg>
+    <span class="ph">Seiten, Spaces, Personen suchen …</span><span class="short">Suchen</span><span class="kbd">⌘K</span>
+  </div>
+  <button class="tbtn" id="themeToggle" title="Hell/Dunkel umschalten" aria-label="Theme umschalten">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" stroke-linejoin="round"/></svg>
+  </button>
+  <div class="avatar" title="David Krček">DK</div>
+</header>
+
+<div class="shell">
+
+  <!-- Seitenbaum -->
+  <nav class="tree card" aria-label="Seiten im Space Betrieb">
+    <div class="head"><span class="sq">B</span><div><b>Betrieb</b><small>11 Seiten · Space</small></div></div>
+    <div class="grp">Seiten</div>
+    <div class="nav">
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10" stroke-linecap="round"/></svg><span class="lbl">Übersicht</span></a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10" stroke-linecap="round"/></svg><span class="lbl">Onboarding</span></a>
+      <a href="#" class="active" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 3 8v8l9 5 9-5V8z" stroke-linejoin="round"/></svg><span class="lbl">Deployment</span><span class="badge rev">Review</span></a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10" stroke-linecap="round"/></svg><span class="lbl">Monitoring</span></a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10" stroke-linecap="round"/></svg><span class="lbl">Incident-Response</span></a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10" stroke-linecap="round"/></svg><span class="lbl">Backup &amp; Recovery</span></a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10" stroke-linecap="round"/></svg><span class="lbl">Netzwerk</span></a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10" stroke-linecap="round"/></svg><span class="lbl">Zugänge &amp; Rechte</span><span class="badge draft">Entwurf</span></a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10" stroke-linecap="round"/></svg><span class="lbl">Runbooks</span></a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10" stroke-linecap="round"/></svg><span class="lbl">Changelog</span></a>
+      <a href="#" class="archived" title="Archiviert – schreibgeschützt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h18v3H3zM5 10v9h14v-9M9 13h6" stroke-linejoin="round"/></svg><span class="lbl">Deploy v1 (Legacy)</span><span class="badge arch">Archiv</span></a>
+    </div>
+    <div style="padding:var(--space-3)"></div>
+  </nav>
+
+  <!-- Mittelspalte: Review-Ansicht + Konfliktabschnitt -->
+  <div class="center">
+
+  <!-- Review-Ansicht eines Pull-Requests -->
+  <main class="main card">
+    <div class="rhead">
+      <span class="crumbs"><a href="#">Betrieb</a><span class="sep">/</span><a href="#">Runbooks</a><span class="sep">/</span><b>Deployment</b></span>
+      <div class="rtitle">
+        <h1>Deployment</h1>
+        <span class="pr">#f451-142</span>
+        <span class="chip rev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2.5 2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>In Review</span>
+      </div>
+      <div class="rmeta">
+        <span class="who"><span class="uav" style="background:color-mix(in srgb,var(--color-status-review) 70%,var(--color-text));">AN</span>Autorin <b>Anna Nowak</b></span>
+        <span>·</span>
+        <span class="reviewers">Reviewer
+          <span class="rchip ok"><span class="rc-av">MV</span>M. Vogel<span class="st"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="m5 13 4 4 10-11" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>
+          <span class="rchip pending"><span class="rc-av">DK</span>D. Krček<span class="st"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2.5 2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>
+        </span>
+        <span class="grow"></span>
+        <a class="rlink" href="#" title="Pull-Request in Forgejo öffnen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M6 8.5v7M18 15.5V12a4 4 0 0 0-4-4H9" stroke-linecap="round" stroke-linejoin="round"/></svg>PR in Forgejo öffnen</a>
+      </div>
+    </div>
+
+    <!-- Umschalter Visuell | Markdown -->
+    <div class="viewbar">
+      <div class="seg" role="tablist" aria-label="Ansicht umschalten">
+        <button role="tab" id="tab-visual" aria-selected="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke-linejoin="round"/><circle cx="12" cy="12" r="3"/></svg>Visuell</button>
+        <button role="tab" id="tab-md" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M6 15V9l3 3 3-3v6M17 9v6M15 13l2 2 2-2" stroke-linecap="round" stroke-linejoin="round"/></svg>Markdown</button>
+      </div>
+      <span class="grow"></span>
+      <span class="difflegend">
+        <span><span class="lg-dot add"></span>Einfügung</span>
+        <span><span class="lg-dot chg"></span>Geändert</span>
+        <span><span class="lg-dot rm"></span>Entfernt</span>
+      </span>
+    </div>
+
+    <!-- Visueller Diff — gerenderte Seite mit Änderungsmarkierung -->
+    <div class="body" id="view-visual">
+    <article class="doc">
+      <h1>Deployment</h1>
+      <p class="lede">Standardprozess für das Ausrollen neuer Plattform-Versionen in die Produktionsumgebung — verbindlich für das Betriebsteam.</p>
+
+      <h2 id="ueberblick"><span class="hx"></span>Überblick</h2>
+
+      <!-- geänderter Absatz -->
+      <div class="dchange chg" id="c1">
+        <span class="dtag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h4L18 10l-4-4L4 16z" stroke-linejoin="round"/><path d="m13 5 3 3" stroke-linecap="round"/></svg>Geändert</span>
+        <p>Deployments erfolgen ausschließlich über die CI-Pipeline und werden aus dem Branch <code>main</code> ausgelöst. Jede Freigabe durchläuft die drei Zustände <strong>working</strong>, <strong>review</strong> und <strong>released</strong>, bevor eine Version produktiv geht. Ein Deployment gilt erst als abgeschlossen, wenn der automatische Health-Check <del class="rm">erfolgreich war</del><ins class="add">über alle Instanzen hinweg zwei Minuten lang stabil bleibt</ins>.</p>
+      </div>
+
+      <!-- eingefügter Absatz -->
+      <div class="dchange add" id="c2">
+        <span class="dtag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>Hinzugefügt</span>
+        <p>Seit Version 2.5 wird jede Freigabe zusätzlich durch einen zweiten Reviewer aus dem Team Betrieb gegengezeichnet. Ohne diese zweite Freigabe kann der Pull-Request nicht gemergt werden.</p>
+      </div>
+
+      <p>Verantwortlich für den produktiven Rollout ist das Team Betrieb.</p>
+
+      <!-- aufklappbarer „Entfernt"-Block -->
+      <details class="removed" id="c3" open>
+        <summary>
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m9 6 6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" style="width:13px;height:13px"><path d="M5 12h14" stroke-linecap="round"/></svg>
+          Entfernt — 1 Absatz
+          <span class="rc">aus dieser Version herausgenommen</span>
+        </summary>
+        <div class="rbody">
+          <p>Die frühere Vorgehensweise ist in der alten Rollback-Strategie beschrieben — dieser Verweis ist nicht mehr auflösbar und wurde deshalb aus dem Dokument entfernt.</p>
+        </div>
+      </details>
+
+      <h2 id="umgebungen"><span class="hx"></span>Umgebungen</h2>
+      <p>Die Plattform läuft in drei Umgebungen. Staging spiegelt die Produktion vollständig, dient aber nur der Vorabprüfung.</p>
+
+      <!-- geänderte Tabelle mit Zellen-Highlight -->
+      <div class="tbl-wrap" id="c4">
+        <table>
+          <thead><tr><th>Umgebung</th><th>Adresse</th><th>Verantwortlich</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>Produktion</td><td><code>app.f451.io</code></td><td>Team Betrieb</td><td><span class="pill ok"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="7"/></svg>Aktiv</span></td></tr>
+            <tr><td>Staging</td><td><code>staging.f451.internal</code></td><td class="cell-chg">Team Betrieb &amp; QA<span class="cellflag chg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M4 20h4L18 10l-4-4L4 16z" stroke-linejoin="round"/></svg>geänd.</span></td><td><span class="pill ok"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="7"/></svg>Aktiv</span></td></tr>
+            <tr class="row-add"><td>Canary<span class="cellflag add"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>neu</span></td><td><code>canary.f451.io</code></td><td>Team Betrieb</td><td><span class="pill ok"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="7"/></svg>Aktiv</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="zugaenge">Zugänge</h3>
+      <p>Der Zugriff auf die Produktionsumgebung erfolgt über den zentralen SSO-Login. Deployment-Rechte werden ausschließlich über die Gruppe <code>ops-deploy</code> vergeben und quartalsweise überprüft.</p>
+    </article>
+    </div>
+
+    <!-- Markdown-Ansicht (durch Umschalter aktivierbar) -->
+    <div class="mdview" id="view-md">
+      <pre><code>## Überblick
+
+<span class="ml-rm">Ein Deployment gilt erst als abgeschlossen, wenn der Health-Check erfolgreich war.</span><span class="ml-add">Ein Deployment gilt erst als abgeschlossen, wenn der Health-Check über alle Instanzen hinweg zwei Minuten lang stabil bleibt.</span>
+
+<span class="ml-add">Seit Version 2.5 wird jede Freigabe zusätzlich durch einen zweiten Reviewer aus dem Team Betrieb gegengezeichnet.</span>
+
+Verantwortlich für den produktiven Rollout ist das Team Betrieb.
+
+<span class="ml-rm">Die frühere Vorgehensweise ist in der alten Rollback-Strategie beschrieben.</span>
+
+## Umgebungen
+
+| Umgebung | Adresse | Verantwortlich | Status |
+|----------|---------|----------------|--------|
+| Produktion | app.f451.io | Team Betrieb | Aktiv |
+<span class="ml-rm">| Staging | staging.f451.internal | Team Betrieb | Aktiv |</span><span class="ml-add">| Staging | staging.f451.internal | Team Betrieb &amp; QA | Aktiv |</span>
+<span class="ml-add">| Canary | canary.f451.io | Team Betrieb | Aktiv |</span></code></pre>
+    </div>
+
+    <!-- Aktionsbereich -->
+    <div class="actions">
+      <h4>Review abschließen</h4>
+      <textarea class="commentbox" placeholder="Kommentar zum Review hinzufügen … (optional bei Freigabe, erforderlich bei Änderungswunsch)"></textarea>
+      <div class="act-row">
+        <button class="btn merge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="8" r="2.5"/><path d="M6 8.5v7M18 10.5c0 4-6 3-6 7" stroke-linecap="round" stroke-linejoin="round"/></svg>Freigeben &amp; mergen</button>
+        <button class="btn ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14 4 9l5-5M4 9h11a5 5 0 0 1 5 5v3" stroke-linecap="round" stroke-linejoin="round"/></svg>Änderungen anfragen</button>
+        <span class="grow"></span>
+        <span class="act-hint">1 von 2 Freigaben erteilt · deine Freigabe ausstehend</span>
+      </div>
+    </div>
+  </main>
+
+  <!-- Zweiter Abschnitt: Konfliktfall angedeutet -->
+  <section class="main card conflict-sec" aria-label="Konfliktfall (Vorschau)">
+    <div class="csec-head">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M12 3 2 20h20L12 3Z" stroke-linejoin="round"/><path d="M12 10v4M12 17v.01" stroke-linecap="round"/></svg>
+      Konfliktfall
+      <span class="n">tritt auf, wenn sich <code>main</code> während des Reviews ändert</span>
+    </div>
+    <div class="notice conflict" role="status">
+      <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 2 20h20L12 3Z" stroke-linejoin="round"/><path d="M12 10v4M12 17v.01" stroke-linecap="round"/></svg></span>
+      <span class="txt"><b>main hat sich geändert.</b> Seit Beginn dieses Reviews wurden 2 neue Freigaben auf <code>main</code> gemergt. Der Entwurf muss aktualisiert werden, bevor er freigegeben werden kann.</span>
+      <span class="grow"></span>
+      <button class="btn rebase"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12a8 8 0 0 1 13.7-5.7L20 8M20 12a8 8 0 0 1-13.7 5.7L4 16" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 4v4h-4M4 20v-4h4" stroke-linecap="round" stroke-linejoin="round"/></svg>Entwurf aktualisieren</button>
+    </div>
+    <div class="csec-body">
+      Solange der Entwurf nicht auf den neuesten Stand von <code>main</code> gebracht ist, ist „Freigeben &amp; mergen" oben deaktiviert. Das Aktualisieren führt die zwischenzeitlichen Änderungen zusammen — bei überlappenden Bearbeitungen wird ein manueller Konfliktdialog geöffnet.
+    </div>
+  </section>
+
+  </div><!-- /.center -->
+
+  <!-- Rechte Leiste: Änderungsliste mit Sprungmarken -->
+  <aside class="rail" aria-label="Änderungen im Pull-Request">
+    <section class="card rp">
+      <h4>Änderungen</h4>
+      <div class="rsum">
+        <span class="s add"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>2</span>
+        <span class="s chg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 20h4L18 10l-4-4L4 16z" stroke-linejoin="round"/></svg>2</span>
+        <span class="s rm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M5 12h14" stroke-linecap="round"/></svg>1</span>
+      </div>
+      <ul class="changes">
+        <li><a class="chg" href="#c1"><span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h4L18 10l-4-4L4 16z" stroke-linejoin="round"/></svg></span><span class="cl"><b>Health-Check-Kriterium präzisiert</b><small>Überblick · Absatz 1</small></span></a></li>
+        <li><a class="add" href="#c2"><span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg></span><span class="cl"><b>Zweite Freigabe ergänzt</b><small>Überblick · neuer Absatz</small></span></a></li>
+        <li><a class="rm" href="#c3"><span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M5 12h14" stroke-linecap="round"/></svg></span><span class="cl"><b>Toter Verweis entfernt</b><small>Überblick · alte Rollback-Strategie</small></span></a></li>
+        <li><a class="chg" href="#c4"><span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h4L18 10l-4-4L4 16z" stroke-linejoin="round"/></svg></span><span class="cl"><b>Staging: Verantwortliche erweitert</b><small>Umgebungen · Tabelle</small></span></a></li>
+        <li><a class="add" href="#c4"><span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg></span><span class="cl"><b>Canary-Umgebung hinzugefügt</b><small>Umgebungen · neue Zeile</small></span></a></li>
+      </ul>
+    </section>
+    <section class="card rp">
+      <h4>Pull-Request</h4>
+      <dl class="meta">
+        <dt>Status</dt><dd><span class="mini-rev">In Review</span></dd>
+        <dt>Quelle</dt><dd><code>draft/v2.5</code></dd>
+        <dt>Ziel</dt><dd><code>main</code></dd>
+        <dt>Autorin</dt><dd>A. Nowak</dd>
+        <dt>Eröffnet</dt><dd>08.07.2026</dd>
+        <dt>Freigaben</dt><dd>1 / 2</dd>
+      </dl>
+    </section>
+  </aside>
+
+</div>
+
+<script>
+(function(){
+  document.getElementById('themeToggle').addEventListener('click',function(){
+    var el=document.documentElement,cur=el.getAttribute('data-theme');
+    el.setAttribute('data-theme', cur==='dark'?'light':(cur==='light'?'dark':(matchMedia('(prefers-color-scheme:dark)').matches?'light':'dark')));
+  });
+  // Umschalter Visuell | Markdown
+  var tv=document.getElementById('tab-visual'),tm=document.getElementById('tab-md');
+  var vv=document.getElementById('view-visual'),vm=document.getElementById('view-md');
+  function show(mode){
+    var visual=mode==='visual';
+    tv.setAttribute('aria-selected',visual);tm.setAttribute('aria-selected',!visual);
+    vv.style.display=visual?'':'none';vm.style.display=visual?'none':'block';
+  }
+  tv.addEventListener('click',function(){show('visual');});
+  tm.addEventListener('click',function(){show('md');});
+})();
+</script>
+</body>
+</html>

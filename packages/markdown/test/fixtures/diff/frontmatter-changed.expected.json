@@ -1,0 +1,58 @@
+{
+  "blocks": [
+    {
+      "kind": "changed",
+      "html": "<div class=\"diff-frontmatter\"><pre class=\"diff-frontmatter rm\"><code>---\nid: doc\ntitle: Alt\n---\n</code></pre><pre class=\"diff-frontmatter add\"><code>---\nid: doc\ntitle: Neu\n---\n</code></pre></div>",
+      "anchor": "c1"
+    },
+    {
+      "kind": "same",
+      "html": "<h1 id=\"titel\">Titel</h1>",
+      "anchor": "c2"
+    },
+    {
+      "kind": "same",
+      "html": "<p>Text.</p>",
+      "anchor": "c3"
+    }
+  ],
+  "summary": {
+    "added": 0,
+    "changed": 1,
+    "removed": 0
+  },
+  "mdLines": [
+    {
+      "kind": "same",
+      "text": "---"
+    },
+    {
+      "kind": "same",
+      "text": "id: doc"
+    },
+    {
+      "kind": "rm",
+      "text": "title: Alt"
+    },
+    {
+      "kind": "add",
+      "text": "title: Neu"
+    },
+    {
+      "kind": "same",
+      "text": "---"
+    },
+    {
+      "kind": "same",
+      "text": "# Titel"
+    },
+    {
+      "kind": "same",
+      "text": ""
+    },
+    {
+      "kind": "same",
+      "text": "Text."
+    }
+  ]
+}

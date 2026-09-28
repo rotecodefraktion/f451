@@ -1,0 +1,1 @@
+ALTER TABLE "provider_accounts" ADD COLUMN "needs_reconnect" boolean DEFAULT false NOT NULL;

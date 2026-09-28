@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="de" data-theme="">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>f451 — Deployment · Leseansicht (finale Shell)</title>
+<style>
+/* =========================================================================
+   generiert aus @f451/design-tokens — nicht von Hand ändern
+   ========================================================================= */
+:root {
+  --color-bg: #ffffff;
+  --color-bg-raised: #f5f5f5;
+  --color-text: #242424;
+  --color-text-muted: #707377;
+  --color-accent: #e70c2e;
+  --color-accent-contrast: #ffffff;
+  --color-border: #d9d9d9;
+  --color-danger: #b90a25;
+  --color-status-working: #4d5a68;
+  --color-status-review: #cb5e00;
+  --color-status-released: #1c7a30;
+  --color-status-archived: #7c8084;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-7: 1.75rem;
+  --space-8: 2rem;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --shadow-sm: 0 1px 2px rgba(36, 36, 36, 0.08);
+  --shadow-md: 0 4px 12px rgba(36, 36, 36, 0.12);
+}
+[data-theme="dark"] {
+  --color-bg: #1c1c1c;
+  --color-bg-raised: #262626;
+  --color-text: #f5f5f5;
+  --color-text-muted: #898d90;
+  --color-accent: #ed4962;
+  --color-accent-contrast: #000000;
+  --color-border: #3a3a3a;
+  --color-danger: #e91f3f;
+  --color-status-working: #949ca4;
+  --color-status-review: #f28c33;
+  --color-status-released: #60a26e;
+  --color-status-archived: #96999d;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-7: 1.75rem;
+  --space-8: 2rem;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+  --color-bg: #1c1c1c;
+  --color-bg-raised: #262626;
+  --color-text: #f5f5f5;
+  --color-text-muted: #898d90;
+  --color-accent: #ed4962;
+  --color-accent-contrast: #000000;
+  --color-border: #3a3a3a;
+  --color-danger: #e91f3f;
+  --color-status-working: #949ca4;
+  --color-status-review: #f28c33;
+  --color-status-released: #60a26e;
+  --color-status-archived: #96999d;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-7: 1.75rem;
+  --space-8: 2rem;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* =========================================================================
+   Semantische Ableitungen — AUSSCHLIESSLICH aus den Token-Variablen gemischt
+   (color-mix). Keine rohen Farbwerte. Panel/Page-Rollen flippen im Dark-Theme,
+   damit Karten in beiden Themes „aufliegen" (hell: weiße Karte auf Grau;
+   dunkel: hellere Karte auf dunklerem Grund).
+   ========================================================================= */
+:root{
+  --page:  var(--color-bg-raised);
+  --panel: var(--color-bg);
+  --panel-2:   color-mix(in srgb, var(--color-text) 4%,  var(--panel));
+  --line:      var(--color-border);
+  --line-2:    color-mix(in srgb, var(--color-text) 16%, var(--color-border));
+  /* Markenrot: als Fläche pur, als Fließtext-Link leicht in Textfarbe abgedunkelt
+     (WCAG) — im Dark-Theme hellt derselbe Mix den Akzent adaptiv auf. */
+  --link:        color-mix(in srgb, var(--color-accent) 82%, var(--color-text));
+  --accent-wash: color-mix(in srgb, var(--color-accent) 9%,  var(--panel));
+  --accent-line: color-mix(in srgb, var(--color-accent) 34%, var(--panel));
+  /* Status-Töne — Text = Token, Fläche/Linie daraus gemischt */
+  --work-fg: var(--color-status-working);
+  --work-bg: color-mix(in srgb, var(--color-status-working) 12%, var(--panel));
+  --work-ln: color-mix(in srgb, var(--color-status-working) 38%, var(--panel));
+  --rev-fg:  var(--color-status-review);
+  --rev-bg:  color-mix(in srgb, var(--color-status-review) 13%, var(--panel));
+  --rev-ln:  color-mix(in srgb, var(--color-status-review) 42%, var(--panel));
+  --rel-fg:  var(--color-status-released);
+  --rel-bg:  color-mix(in srgb, var(--color-status-released) 14%, var(--panel));
+  --rel-ln:  color-mix(in srgb, var(--color-status-released) 40%, var(--panel));
+  --dgr-fg:  var(--color-danger);
+  --dgr-bg:  color-mix(in srgb, var(--color-danger) 11%, var(--panel));
+  --dgr-ln:  color-mix(in srgb, var(--color-danger) 40%, var(--panel));
+  /* Codeblock — dunkle Fläche aus Textfarbe abgeleitet */
+  --code-bg:   color-mix(in srgb, var(--color-text) 92%, var(--color-accent) 8%);
+  --code-text: var(--color-bg-raised);
+  --code-line: color-mix(in srgb, var(--color-text) 78%, var(--color-bg));
+  --code-comment: color-mix(in srgb, var(--code-text) 55%, var(--code-bg));
+}
+:root[data-theme="dark"]{ --page: var(--color-bg); --panel: var(--color-bg-raised);
+  --code-bg: color-mix(in srgb, var(--color-bg) 88%, var(--color-text) 4%);
+  --code-text: var(--color-text); --code-line: color-mix(in srgb, var(--color-text) 22%, var(--color-bg)); }
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --page: var(--color-bg); --panel: var(--color-bg-raised);
+  --code-bg: color-mix(in srgb, var(--color-bg) 88%, var(--color-text) 4%);
+  --code-text: var(--color-text); --code-line: color-mix(in srgb, var(--color-text) 22%, var(--color-bg)); } }
+
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--page);color:var(--color-text);
+  font-family:var(--font-sans);font-size:var(--text-sm);line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--link);text-decoration:none}
+a:hover{text-decoration:underline}
+code,pre{font-family:var(--font-mono)}
+
+/* ---- Topbar ---- */
+.topbar{
+  position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:var(--space-4);
+  height:52px;padding:0 var(--space-4);background:var(--panel);border-bottom:1px solid var(--line-2);
+}
+.brand{display:flex;align-items:center;gap:var(--space-2);font-weight:800;font-size:var(--text-lg);letter-spacing:-.01em}
+.brand .mark{width:26px;height:26px;border-radius:var(--radius-sm);background:var(--color-accent);color:var(--color-accent-contrast);display:grid;place-items:center;box-shadow:var(--shadow-sm)}
+.brand .mark svg{width:16px;height:16px}
+.brand .app{color:var(--color-text-muted);font-weight:600;font-size:var(--text-xs);border-left:1px solid var(--line-2);padding-left:var(--space-3);margin-left:var(--space-1)}
+.topbar .grow{flex:1;min-width:0}
+.brand{flex:0 1 auto;min-width:0;overflow:hidden}
+.search{display:flex;align-items:center;flex:0 1 auto;gap:var(--space-2);height:34px;width:min(440px,44vw);min-width:0;padding:0 var(--space-3);background:var(--panel-2);border:1px solid var(--line-2);border-radius:var(--radius-md);color:var(--color-text-muted);font-size:var(--text-sm);cursor:text;overflow:hidden;white-space:nowrap}
+.search svg{width:15px;height:15px;flex:none}
+.search .ph{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:34px}
+.search .short{display:none;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:34px}
+.search .kbd{margin-left:auto;flex:none;font-size:var(--text-xs);font-weight:600;background:var(--panel);border:1px solid var(--line-2);border-radius:var(--radius-sm);padding:1px 6px;color:var(--color-text-muted)}
+.tbtn{height:34px;width:34px;flex:none;border:1px solid var(--line-2);background:var(--panel);border-radius:var(--radius-md);color:var(--color-text-muted);display:grid;place-items:center;cursor:pointer}
+.tbtn:hover{background:var(--accent-wash);color:var(--color-accent);border-color:var(--accent-line)}
+.tbtn svg{width:17px;height:17px}
+.avatar{width:32px;height:32px;flex:none;border-radius:var(--radius-md);background:color-mix(in srgb,var(--color-text) 78%,var(--panel));color:var(--panel);display:grid;place-items:center;font-weight:700;font-size:var(--text-xs)}
+
+/* ---- Topbar: schmale Viewports (Mobil) ---- */
+@media(max-width:640px){
+  .topbar{gap:var(--space-2);padding:0 var(--space-3)}
+  .brand .app{display:none}
+  .search{flex:0 1 auto;width:auto;min-width:0;max-width:none;padding:0 10px;gap:6px}
+  .search .ph{display:none}
+  .search .short{display:block;flex:none}
+  .search .kbd{margin-left:2px}
+}
+
+/* ---- Topbar: sehr schmale Viewports ---- */
+@media(max-width:400px){
+  .search .short{display:none}
+  .search .kbd{margin-left:auto}
+}
+
+/* ---- Layout ---- */
+.shell{display:grid;grid-template-columns:250px minmax(0,1fr) 264px;gap:var(--space-4);max-width:1520px;margin:0 auto;padding:var(--space-4)}
+@media(max-width:1160px){.shell{grid-template-columns:230px minmax(0,1fr)}.rail{display:none}}
+@media(max-width:820px){.shell{grid-template-columns:1fr}.tree{display:none}}
+
+.card{background:var(--panel);border:1px solid var(--line-2);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm)}
+
+/* ---- Seitenbaum ---- */
+.tree{position:sticky;top:66px;align-self:start;max-height:calc(100vh - 80px);overflow:auto}
+.tree .head{display:flex;align-items:center;gap:var(--space-2);padding:var(--space-3);border-bottom:1px solid var(--line);background:var(--panel-2);border-radius:var(--radius-lg) var(--radius-lg) 0 0}
+.tree .head .sq{width:24px;height:24px;border-radius:var(--radius-sm);background:var(--color-accent);color:var(--color-accent-contrast);display:grid;place-items:center;font-weight:800;font-size:var(--text-xs)}
+.tree .head b{font-size:var(--text-sm)}
+.tree .head small{color:var(--color-text-muted);font-size:var(--text-xs);display:block;line-height:1.1;margin-top:1px;font-weight:600}
+.grp{font-size:var(--text-xs);font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--color-text-muted);padding:var(--space-3) var(--space-3) var(--space-1)}
+.nav a{display:flex;align-items:center;gap:var(--space-2);padding:6px var(--space-3);font-size:var(--text-sm);color:var(--color-text);border-left:2px solid transparent}
+.nav a:hover{background:var(--panel-2);text-decoration:none}
+.nav a svg{width:15px;height:15px;flex:none;color:var(--color-text-muted)}
+.nav a.active{background:var(--accent-wash);border-left-color:var(--color-accent);color:var(--color-accent);font-weight:700}
+.nav a.active svg{color:var(--color-accent)}
+.nav a .lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.badge{margin-left:auto;font-size:var(--text-xs);font-weight:800;letter-spacing:.03em;text-transform:uppercase;border-radius:var(--radius-sm);padding:0 6px;line-height:16px;transform:scale(.86);transform-origin:right center}
+.badge.draft{color:var(--work-fg);background:var(--work-bg);border:1px solid var(--work-ln)}
+.badge.arch{color:var(--color-status-archived);background:color-mix(in srgb,var(--color-status-archived) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--color-status-archived) 34%,var(--panel))}
+/* Archiviert — entsättigt und zurückgenommen */
+.nav a.archived{color:var(--color-status-archived);opacity:.72;filter:saturate(.45)}
+.nav a.archived svg{color:var(--color-status-archived)}
+.nav a.archived:hover{opacity:1}
+
+/* ---- Hauptbereich ---- */
+.main{min-width:0}
+.toolbar{display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;padding:var(--space-2) var(--space-4);border-bottom:1px solid var(--line);border-radius:var(--radius-lg) var(--radius-lg) 0 0;background:var(--panel-2)}
+.crumbs{font-size:var(--text-xs);color:var(--color-text-muted);font-weight:600;display:flex;align-items:center;gap:6px}
+.crumbs a{color:var(--color-text-muted)}
+.crumbs a:hover{color:var(--color-accent)}
+.crumbs b{color:var(--color-text)}
+.crumbs .sep{opacity:.55}
+.toolbar .grow{flex:1}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:var(--text-xs);font-weight:700;padding:4px var(--space-2);border-radius:var(--radius-sm)}
+.chip svg{width:13px;height:13px}
+.chip.rel{color:var(--rel-fg);background:var(--rel-bg);border:1px solid var(--rel-ln)}
+.btn{display:inline-flex;align-items:center;gap:6px;font-size:var(--text-sm);font-weight:700;font-family:var(--font-sans);padding:6px var(--space-3);border-radius:var(--radius-md);cursor:pointer;border:1px solid var(--color-accent);background:var(--color-accent);color:var(--color-accent-contrast)}
+.btn:hover{background:color-mix(in srgb,var(--color-accent) 84%,var(--color-text));border-color:color-mix(in srgb,var(--color-accent) 84%,var(--color-text))}
+.btn.ghost{background:var(--panel);color:var(--color-text);border-color:var(--line-2)}
+.btn.ghost:hover{background:var(--panel-2);color:var(--color-text)}
+.btn svg{width:14px;height:14px}
+.subbar{display:flex;align-items:center;gap:var(--space-4);flex-wrap:wrap;padding:var(--space-2) var(--space-5);border-bottom:1px solid var(--line);font-size:var(--text-xs);color:var(--color-text-muted)}
+.subbar b{color:var(--color-text);font-weight:700}
+
+/* ---- Demonstrations-Banner (Hinweis / Soft-Lock) ---- */
+.notices{display:flex;flex-direction:column;gap:var(--space-2);padding:var(--space-3) var(--space-5) 0}
+.notice{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-2) var(--space-3);border-radius:var(--radius-md);font-size:var(--text-sm);border:1px solid}
+.notice .ic{flex:none;display:grid;place-items:center}
+.notice .ic svg{width:17px;height:17px}
+.notice .txt{min-width:0}
+.notice .grow{flex:1}
+.notice a{font-weight:700;white-space:nowrap}
+/* „Es existiert ein neuerer Entwurf" — working/Entwurf-Ton (grau-blau) */
+.notice.draft{background:var(--work-bg);border-color:var(--work-ln);color:var(--color-text)}
+.notice.draft .ic{color:var(--work-fg)}
+.notice.draft a{color:var(--link)}
+/* Soft-Lock „Anna bearbeitet gerade" — review-Ton (amber) */
+.notice.lock{background:var(--rev-bg);border-color:var(--rev-ln);color:var(--color-text)}
+.notice.lock .ic{color:var(--rev-fg)}
+.notice.lock .who{width:22px;height:22px;border-radius:50%;flex:none;background:var(--rev-fg);color:var(--panel);display:grid;place-items:center;font-size:10px;font-weight:800}
+.notice.lock b{color:var(--rev-fg)}
+
+/* ---- Dokument ---- */
+.body{padding:var(--space-6) var(--space-7) var(--space-8)}
+.doc h1{font-size:var(--text-2xl);font-weight:800;letter-spacing:-.02em;line-height:1.15;margin:2px 0 var(--space-2)}
+.doc .lede{color:var(--color-text-muted);font-size:var(--text-lg);margin:0 0 var(--space-6);max-width:72ch;line-height:1.5}
+.doc h2{font-size:var(--text-xl);font-weight:800;letter-spacing:-.01em;margin:var(--space-7) 0 var(--space-3);padding-bottom:var(--space-2);border-bottom:2px solid var(--line);display:flex;align-items:center;gap:var(--space-2)}
+.doc h2 .hx{width:4px;height:18px;border-radius:2px;background:var(--color-accent)}
+.doc h3{font-size:var(--text-lg);font-weight:800;margin:var(--space-5) 0 var(--space-2)}
+.doc p{margin:0 0 var(--space-3);max-width:72ch;font-size:var(--text-md);line-height:1.62}
+.doc strong{font-weight:700}
+.doc :not(pre)>code{font-size:.85em;background:var(--panel-2);border:1px solid var(--line-2);border-radius:var(--radius-sm);padding:1px 5px;color:var(--link)}
+/* Broken-Link im Fließtext — gepunktet, Danger-Ton, mit Warn-Icon */
+a.broken{color:var(--dgr-fg);text-decoration:underline dotted;text-underline-offset:2px;text-decoration-thickness:1.5px;cursor:not-allowed;white-space:nowrap}
+a.broken:hover{background:var(--dgr-bg)}
+a.broken svg{width:12px;height:12px;vertical-align:-1px;margin-right:1px}
+
+/* Tabelle — sichtbares Raster */
+.tbl-wrap{overflow-x:auto;margin:var(--space-2) 0 var(--space-5);border:1px solid var(--line-2);border-radius:var(--radius-md)}
+table{border-collapse:collapse;width:100%;font-size:var(--text-sm)}
+thead th{text-align:left;font-weight:700;font-size:var(--text-xs);letter-spacing:.05em;text-transform:uppercase;color:var(--color-text-muted);background:var(--panel-2);padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--line-2);border-right:1px solid var(--line)}
+tbody td{padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--line);border-right:1px solid var(--line)}
+th:last-child,td:last-child{border-right:0}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:nth-child(even){background:var(--panel-2)}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:var(--text-xs);font-weight:700;padding:2px 8px;border-radius:var(--radius-sm)}
+.pill svg{width:10px;height:10px}
+.pill.ok{color:var(--rel-fg);background:var(--rel-bg);border:1px solid var(--rel-ln)}
+.pill.warn{color:var(--rev-fg);background:var(--rev-bg);border:1px solid var(--rev-ln)}
+
+/* Codeblock */
+.pre-head{display:flex;align-items:center;gap:var(--space-2);font-size:var(--text-xs);font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--color-text-muted);background:var(--panel-2);border:1px solid var(--line-2);border-bottom:0;border-radius:var(--radius-md) var(--radius-md) 0 0;padding:6px var(--space-3);margin:var(--space-2) 0 0}
+.pre-head .dot{width:9px;height:9px;border-radius:50%;background:var(--rev-fg)}
+pre{background:var(--code-bg);color:var(--code-text);border:1px solid var(--code-line);border-radius:0 0 var(--radius-md) var(--radius-md);padding:var(--space-3) var(--space-4);margin:0 0 var(--space-5);overflow-x:auto;font-size:var(--text-sm);line-height:1.65}
+pre code{font-size:inherit}
+pre .c{color:var(--code-comment)}
+
+/* Hinweisbox (Callout) */
+.callout{display:flex;gap:var(--space-3);background:var(--rev-bg);border:1px solid var(--rev-ln);border-left:3px solid var(--rev-fg);border-radius:var(--radius-md);padding:var(--space-3);margin:var(--space-2) 0 var(--space-5);font-size:var(--text-sm);line-height:1.55}
+.callout .ic{flex:none;color:var(--rev-fg)}
+.callout .ic svg{width:18px;height:18px}
+.callout b{color:var(--rev-fg);text-transform:uppercase;font-size:var(--text-xs);letter-spacing:.05em;display:block;margin-bottom:1px}
+
+/* Bild / SVG-Figur */
+figure{margin:var(--space-2) 0 var(--space-6)}
+.figbox{border:1px solid var(--line-2);border-radius:var(--radius-md);background:var(--panel-2);padding:var(--space-4)}
+figcaption{font-size:var(--text-xs);color:var(--color-text-muted);margin-top:var(--space-2)}
+
+/* ---- Rechte Leiste ---- */
+.rail{position:sticky;top:66px;align-self:start;max-height:calc(100vh - 80px);overflow:auto;display:flex;flex-direction:column;gap:var(--space-4)}
+.rp{padding:var(--space-3) var(--space-4)}
+.rp h4{font-size:var(--text-xs);letter-spacing:.09em;text-transform:uppercase;color:var(--color-text-muted);margin:0 0 var(--space-3);font-weight:800}
+.toc{list-style:none;margin:0;padding:0;font-size:var(--text-sm)}
+.toc a{display:block;color:var(--color-text-muted);padding:4px 0 4px var(--space-3);border-left:2px solid var(--line-2)}
+.toc a:hover{color:var(--color-accent);text-decoration:none;border-color:var(--accent-line)}
+.toc a.here{color:var(--color-accent);font-weight:700;border-color:var(--color-accent)}
+.toc .sub{padding-left:var(--space-6)}
+.tags{display:flex;flex-wrap:wrap;gap:var(--space-2)}
+.tag{display:inline-flex;align-items:center;gap:3px;font-size:var(--text-xs);font-weight:600;color:var(--color-text);background:var(--panel-2);border:1px solid var(--line-2);border-radius:999px;padding:2px var(--space-2)}
+.tag .h{color:var(--color-accent);font-weight:800}
+.tag:hover{border-color:var(--accent-line);background:var(--accent-wash)}
+.meta{display:grid;grid-template-columns:auto 1fr;gap:6px var(--space-3);font-size:var(--text-sm)}
+.meta dt{color:var(--color-text-muted)}
+.meta dd{margin:0;font-weight:600;text-align:right}
+.meta dd .mini-rel{color:var(--rel-fg);font-weight:700}
+.graph svg{width:100%;height:auto;display:block}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="mark"><svg viewBox="0 0 24 24" fill="none"><path d="M6 3h13v3H10v4h7v3h-7v8H6z" fill="currentColor"/></svg></span>
+    f451<span class="app">Betrieb-Wiki</span>
+  </div>
+  <div class="grow"></div>
+  <div class="search" role="search" tabindex="0">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2" stroke-linecap="round"/></svg>
+    <span class="ph">Seiten, Spaces, Personen suchen …</span><span class="short">Suchen</span><span class="kbd">⌘K</span>
+  </div>
+  <button class="tbtn" id="themeToggle" title="Hell/Dunkel umschalten" aria-label="Theme umschalten">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" stroke-linejoin="round"/></svg>
+  </button>
+  <div class="avatar" title="David Krček">DK</div>
+</header>
+
+<div class="shell">
+
+  <!-- Seitenbaum -->
+  <nav class="tree card" aria-label="Seiten im Space Betrieb">
+    <div class="head"><span class="sq">B</span><div><b>Betrieb</b><small>11 Seiten · Space</small></div></div>
+    <div class="grp">Seiten</div>
+    <div class="nav">
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10" stroke-linecap="round"/></svg><span class="lbl">Übersicht</span></a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10" stroke-linecap="round"/></svg><span class="lbl">Onboarding</span></a>
+      <a href="#" class="active" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 3 8v8l9 5 9-5V8z" stroke-linejoin="round"/></svg><span class="lbl">Deployment</span></a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10" stroke-linecap="round"/></svg><span class="lbl">Monitoring</span></a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10" stroke-linecap="round"/></svg><span class="lbl">Incident-Response</span></a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10" stroke-linecap="round"/></svg><span class="lbl">Backup &amp; Recovery</span></a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10" stroke-linecap="round"/></svg><span class="lbl">Netzwerk</span></a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10" stroke-linecap="round"/></svg><span class="lbl">Zugänge &amp; Rechte</span><span class="badge draft">Entwurf</span></a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10" stroke-linecap="round"/></svg><span class="lbl">Runbooks</span></a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10" stroke-linecap="round"/></svg><span class="lbl">Changelog</span></a>
+      <a href="#" class="archived" title="Archiviert – schreibgeschützt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h18v3H3zM5 10v9h14v-9M9 13h6" stroke-linejoin="round"/></svg><span class="lbl">Deploy v1 (Legacy)</span><span class="badge arch">Archiv</span></a>
+    </div>
+    <div style="padding:var(--space-3)"></div>
+  </nav>
+
+  <!-- Hauptbereich -->
+  <main class="main card">
+    <div class="toolbar">
+      <span class="crumbs"><a href="#">Betrieb</a><span class="sep">/</span><a href="#">Runbooks</a><span class="sep">/</span><b>Deployment</b></span>
+      <span class="grow"></span>
+      <span class="chip rel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="m5 13 4 4 10-11" stroke-linecap="round" stroke-linejoin="round"/></svg>Released</span>
+      <button class="btn ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>Teilen</button>
+      <button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h4L18 10l-4-4L4 16z" stroke-linejoin="round"/><path d="m13 5 3 3" stroke-linecap="round"/></svg>Bearbeiten</button>
+    </div>
+    <div class="subbar">
+      <span>Version <b>v2.4.0</b></span>
+      <span>Autor <b>M. Vogel</b></span>
+      <span><b>vor 3 Tagen</b> freigegeben</span>
+      <span>Lesezeit <b>3 Min</b></span>
+    </div>
+
+    <!-- Demonstrations-Banner -->
+    <div class="notices">
+      <div class="notice draft" role="status">
+        <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6v18h12V8z" stroke-linejoin="round"/><path d="M14 3v5h5M9 13h6M9 17h4" stroke-linecap="round"/></svg></span>
+        <span class="txt">Es existiert ein <strong>neuerer Entwurf</strong> dieser Seite (<b>v2.5.0-draft</b>) — noch nicht freigegeben.</span>
+        <span class="grow"></span>
+        <a href="#">Entwurf ansehen →</a>
+      </div>
+      <div class="notice lock" role="status">
+        <span class="who">AN</span>
+        <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3" stroke-linecap="round"/></svg></span>
+        <span class="txt"><b>Anna Nowak</b> bearbeitet gerade den Entwurf — seit 14:20. Bearbeiten ist bis dahin gesperrt.</span>
+      </div>
+    </div>
+
+    <div class="body">
+    <article class="doc">
+      <h1>Deployment</h1>
+      <p class="lede">Standardprozess für das Ausrollen neuer Plattform-Versionen in die Produktionsumgebung — verbindlich für das Betriebsteam.</p>
+
+      <h2 id="ueberblick"><span class="hx"></span>Überblick</h2>
+      <p>Deployments erfolgen ausschließlich über die CI-Pipeline und werden aus dem Branch <code>main</code> ausgelöst. Jede Freigabe durchläuft die drei Zustände <strong>working</strong>, <strong>review</strong> und <strong>released</strong>, bevor eine Version produktiv geht. Ein Deployment gilt erst als abgeschlossen, wenn der automatische Health-Check über alle Instanzen erfolgreich war.</p>
+      <p>Verantwortlich für den produktiven Rollout ist das Team Betrieb. Die frühere Vorgehensweise ist in <a class="broken" href="#" aria-disabled="true" title="Ziel nicht gefunden – die verlinkte Seite wurde archiviert oder gelöscht"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 3 2 20h20L12 3Z" stroke-linejoin="round"/><path d="M12 10v4M12 17v.01" stroke-linecap="round"/></svg>Alte Rollback-Strategie</a> beschrieben — dieser Verweis ist nicht mehr auflösbar.</p>
+
+      <h2 id="umgebungen"><span class="hx"></span>Umgebungen</h2>
+      <p>Die Plattform läuft in drei Umgebungen. Staging spiegelt die Produktion vollständig, dient aber nur der Vorabprüfung.</p>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Umgebung</th><th>Adresse</th><th>Verantwortlich</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>Produktion</td><td><code>app.f451.io</code></td><td>Team Betrieb</td><td><span class="pill ok"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="7"/></svg>Aktiv</span></td></tr>
+            <tr><td>Staging</td><td><code>staging.f451.internal</code></td><td>Team Betrieb</td><td><span class="pill ok"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="7"/></svg>Aktiv</span></td></tr>
+            <tr><td>Sandbox</td><td><code>sandbox.f451.internal</code></td><td>Team Entwicklung</td><td><span class="pill warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M12 8v5M12 16.5v.01" stroke-linecap="round"/></svg>Wartung</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="zugaenge">Zugänge</h3>
+      <p>Der Zugriff auf die Produktionsumgebung erfolgt über den zentralen SSO-Login. Deployment-Rechte werden ausschließlich über die Gruppe <code>ops-deploy</code> vergeben und quartalsweise überprüft.</p>
+
+      <h2 id="ablauf"><span class="hx"></span>Ablauf</h2>
+      <p>Ein Deployment wird in drei Schritten durchgeführt. Prüfe vor jedem Rollout den aktuellen Stand des Ziel-Branches:</p>
+      <div class="pre-head"><span class="dot"></span>Terminal · bash</div>
+      <pre><code><span class="c"># 1 · Aktuellen Stand prüfen</span>
+git fetch origin main
+git status
+
+<span class="c"># 2 · Pipeline auslösen</span>
+f451 deploy --env production --tag v2.4.0
+
+<span class="c"># 3 · Health-Check beobachten</span>
+f451 status --watch</code></pre>
+
+      <div class="callout">
+        <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 2 20h20L12 3Z" stroke-linejoin="round"/><path d="M12 10v4M12 17v.01" stroke-linecap="round"/></svg></span>
+        <div><b>Hinweis</b>Führe produktive Deployments nie während der Kernarbeitszeit (09–17 Uhr) durch. Nutze die Wartungsfenster am Dienstag- und Donnerstagabend ab 20 Uhr.</div>
+      </div>
+
+      <figure>
+        <div class="figbox">
+          <svg viewBox="0 0 620 150" width="100%" role="img" aria-label="Diagramm der Deployment-Pipeline von Commit bis Produktion">
+            <defs><marker id="arB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10z" fill="var(--color-accent)"/></marker></defs>
+            <g font-family="var(--font-sans)" font-size="13">
+            <rect x="14" y="50" width="120" height="50" rx="8" fill="var(--panel)" stroke="var(--line-2)"/><text x="74" y="80" text-anchor="middle" fill="var(--color-text)">Commit → main</text>
+            <rect x="176" y="50" width="120" height="50" rx="8" fill="var(--panel)" stroke="var(--line-2)"/><text x="236" y="80" text-anchor="middle" fill="var(--color-text)">CI-Build</text>
+            <rect x="338" y="50" width="120" height="50" rx="8" fill="var(--panel)" stroke="var(--line-2)"/><text x="398" y="80" text-anchor="middle" fill="var(--color-text)">Staging</text>
+            <rect x="500" y="50" width="106" height="50" rx="8" fill="var(--accent-wash)" stroke="var(--color-accent)" stroke-width="1.6"/><text x="553" y="80" text-anchor="middle" fill="var(--color-accent)" font-weight="700">Produktion</text>
+            <path d="M134 75h38" stroke="var(--color-accent)" stroke-width="1.8" fill="none" marker-end="url(#arB)"/>
+            <path d="M296 75h38" stroke="var(--color-accent)" stroke-width="1.8" fill="none" marker-end="url(#arB)"/>
+            <path d="M458 75h38" stroke="var(--color-accent)" stroke-width="1.8" fill="none" marker-end="url(#arB)"/>
+            </g>
+          </svg>
+        </div>
+        <figcaption>Abb. 1 — Deployment-Pipeline von Commit bis Produktion</figcaption>
+      </figure>
+
+      <h2 id="rollback"><span class="hx"></span>Rollback</h2>
+      <p>Schlägt der Health-Check fehl, wird die Version automatisch auf den vorherigen Stand zurückgerollt. Ein manueller Rollback ist jederzeit über <code>f451 rollback --env production</code> möglich; der fehlerhafte Stand bleibt für die Analyse erhalten.</p>
+    </article>
+    </div>
+  </main>
+
+  <!-- Rechte Leiste -->
+  <aside class="rail" aria-label="Seiteninformationen">
+    <section class="card rp">
+      <h4>Inhaltsverzeichnis</h4>
+      <ul class="toc">
+        <li><a href="#ueberblick" class="here">Überblick</a></li>
+        <li><a href="#umgebungen">Umgebungen</a></li>
+        <li><a href="#zugaenge" class="sub">Zugänge</a></li>
+        <li><a href="#ablauf">Ablauf</a></li>
+        <li><a href="#rollback">Rollback</a></li>
+      </ul>
+    </section>
+    <section class="card rp">
+      <h4>Tags</h4>
+      <div class="tags">
+        <span class="tag"><span class="h">#</span>betrieb</span>
+        <span class="tag"><span class="h">#</span>deployment</span>
+        <span class="tag"><span class="h">#</span>ci-cd</span>
+        <span class="tag"><span class="h">#</span>produktion</span>
+        <span class="tag"><span class="h">#</span>runbook</span>
+      </div>
+    </section>
+    <section class="card rp">
+      <h4>Metadaten</h4>
+      <dl class="meta">
+        <dt>Status</dt><dd><span class="mini-rel">Released</span></dd>
+        <dt>Version</dt><dd>v2.4.0</dd>
+        <dt>Autor</dt><dd>M. Vogel</dd>
+        <dt>Aktualisiert</dt><dd>06.07.2026</dd>
+        <dt>Space</dt><dd>Betrieb</dd>
+        <dt>Sichtbarkeit</dt><dd>Intern</dd>
+      </dl>
+    </section>
+    <section class="card rp">
+      <h4>Verknüpfte Seiten</h4>
+      <div class="graph">
+        <svg viewBox="0 0 240 180" role="img" aria-label="Mini-Graph verknüpfter Seiten">
+          <g>
+          <line x1="120" y1="90" x2="52" y2="40" stroke="var(--line-2)" stroke-width="1.4"/>
+          <line x1="120" y1="90" x2="200" y2="44" stroke="var(--line-2)" stroke-width="1.4"/>
+          <line x1="120" y1="90" x2="40" y2="136" stroke="var(--line-2)" stroke-width="1.4"/>
+          <line x1="120" y1="90" x2="196" y2="146" stroke="var(--line-2)" stroke-width="1.4"/>
+          <line x1="120" y1="90" x2="120" y2="162" stroke="var(--line-2)" stroke-width="1.4"/>
+          <rect x="86" y="80" width="68" height="22" rx="6" fill="var(--color-accent)"/><text x="120" y="95" text-anchor="middle" font-family="var(--font-sans)" font-size="11" font-weight="700" fill="var(--color-accent-contrast)">Deployment</text>
+          <circle cx="52" cy="40" r="6.5" fill="var(--panel)" stroke="var(--line-2)" stroke-width="1.4"/><text x="52" y="27" text-anchor="middle" font-family="var(--font-sans)" font-size="10" fill="var(--color-text-muted)">Monitoring</text>
+          <circle cx="200" cy="44" r="6.5" fill="var(--panel)" stroke="var(--line-2)" stroke-width="1.4"/><text x="200" y="31" text-anchor="middle" font-family="var(--font-sans)" font-size="10" fill="var(--color-text-muted)">Backup</text>
+          <circle cx="40" cy="136" r="6.5" fill="var(--panel)" stroke="var(--line-2)" stroke-width="1.4"/><text x="40" y="156" text-anchor="middle" font-family="var(--font-sans)" font-size="10" fill="var(--color-text-muted)">Netzwerk</text>
+          <circle cx="196" cy="146" r="6.5" fill="var(--panel)" stroke="var(--line-2)" stroke-width="1.4"/><text x="196" y="166" text-anchor="middle" font-family="var(--font-sans)" font-size="10" fill="var(--color-text-muted)">Runbooks</text>
+          <circle cx="120" cy="162" r="6.5" fill="var(--panel)" stroke="var(--line-2)" stroke-width="1.4"/><text x="120" y="178" text-anchor="middle" font-family="var(--font-sans)" font-size="10" fill="var(--color-text-muted)">Incident</text>
+          </g>
+        </svg>
+      </div>
+    </section>
+  </aside>
+
+</div>
+
+<script>
+(function(){
+  document.getElementById('themeToggle').addEventListener('click',function(){
+    var el=document.documentElement,cur=el.getAttribute('data-theme');
+    el.setAttribute('data-theme', cur==='dark'?'light':(cur==='light'?'dark':(matchMedia('(prefers-color-scheme:dark)').matches?'light':'dark')));
+  });
+  document.querySelectorAll('a.broken').forEach(function(a){
+    a.addEventListener('click',function(e){e.preventDefault();});
+  });
+})();
+</script>
+</body>
+</html>

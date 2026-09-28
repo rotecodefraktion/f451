@@ -1,0 +1,26 @@
+/* =========================================================================
+   Design-Tokens — Einstiegspunkt
+
+   Bindet die von `pnpm sync-tokens` erzeugte `app/tokens.css` ein
+   (@f451/design-tokens → dist/tokens.css → app/tokens.css, gitignored).
+   Diese Datei enthält selbst KEINE Regeln; sie hält nur den @import, damit
+   die Token-Ebene in der Import-Liste von globals.css sichtbar an erster
+   Stelle steht.
+
+   Besitzer im weiteren Umbau: Teilschritt B (Farbvokabular).
+
+   Herkunft: `app/globals.css` Zeilen 1-7 (Stand vor der Aufteilung,
+   4522 Zeilen). Teilschritt A war rein mechanisch: kein Wert, kein Selektor,
+   keine Reihenfolge geändert. Die Kaskadenreihenfolge steht ausschließlich
+   in der @import-Liste von `app/globals.css` — NICHT in den Dateinamen.
+   ========================================================================= */
+/* =========================================================================
+   Design-Tokens — generiert aus @f451/design-tokens (siehe sync-tokens-Script).
+   tokens.css wird bei pre(dev|build) erzeugt und ist gitignored.
+   :root = Light, [data-theme="dark"] + prefers-color-scheme = Dark.
+   ========================================================================= */
+/* Pfad gegenüber dem alten `./tokens.css` um eine Ebene angehoben, weil diese
+   Datei jetzt unter `app/styles/` liegt — die einzige inhaltliche Anpassung
+   der gesamten Aufteilung, und sie zeigt auf dieselbe Datei wie zuvor. */
+@import '../tokens.css';
+

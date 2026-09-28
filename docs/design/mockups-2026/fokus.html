@@ -1,0 +1,2862 @@
+<!doctype html>
+<html lang="de" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>f451 — Design-Entwurf „Fokus“</title>
+<style>
+/* =========================================================================
+   1. TOKENS — Basis (hell)
+   Alles, was ein Theme verschieben können muss, steht hier. Kein Baustein
+   weiter unten enthält einen Hex-Wert, eine px-Angabe oder eine rem-Zahl.
+   ========================================================================= */
+:root, [data-theme='light'] {
+  color-scheme: light;
+
+  /* Flächen & Text */
+  --color-bg: #ffffff;            /* Blatt (Lesefläche) */
+  --color-bg-raised: #f1f0ec;     /* Umgebung (warmes Papier) */
+  --color-text: #1a1a17;
+  --color-text-muted: #63635e;
+
+  /* Marke / Akzent */
+  --color-accent: #c8300f;
+  --color-accent-contrast: #ffffff;
+
+  /* Linien */
+  --color-border: #e2e0da;
+
+  /* Signale */
+  --color-danger: #9d1239;
+  --color-info: #0f6f8e;
+  --color-focus: #0b5bd3;
+  --color-veil: #1a1a17;
+
+  --color-status-working: #4f46e5;
+  --color-status-review: #a35a00;
+  --color-status-released: #15803d;
+  --color-status-archived: #63635e;
+
+  /* Schrift */
+  --font-sans: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-display: 'Schibsted Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;   /* Fließtext der Leseansicht */
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
+  --text-3xl: 2.75rem;
+
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  --leading-tight: 1.05;
+  --leading-snug: 1.3;
+  --leading-body: 1.7;
+
+  --track-tight: -0.022em;
+  --track-wide: 0.09em;
+
+  /* Raum */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-7: 1.75rem;
+  --space-8: 2rem;
+  --space-9: 2.5rem;
+  --space-10: 3rem;
+  --space-11: 4rem;
+
+  /* Form */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 1rem;
+  --radius-pill: 999rem;
+
+  --line-w: 1px;
+  --line-w-strong: 2px;
+
+  /* Maße */
+  --measure-read: 34rem;   /* Zeilenlänge des Fließtexts ≈ 68 Zeichen */
+  --measure-wide: 72rem;   /* Obergrenze der Inhaltsfläche — Tabellen, Code, Diagramme */
+  --size-edge: 3.5rem;     /* Breite der Randspalten */
+  --size-panel: 19rem;     /* Breite einer angedockten Seitenleiste */
+  --size-tap: 2.75rem;     /* Mindest-Zielgröße 44px */
+  --size-griff: 30rem;     /* Breite des Griffs */
+  --size-frame: 44rem;     /* Bühne der Mockup-Demos */
+  --size-col-min: 15rem;   /* schmalste Spalte in Karten-Rastern */
+
+  /* Schatten */
+  --shadow-sm: 0 1px 2px rgba(26, 26, 23, 0.05);
+  --shadow-md: 0 8px 24px rgba(26, 26, 23, 0.09);
+  --shadow-lg: 0 24px 60px rgba(26, 26, 23, 0.18);
+  --shadow-accent: 0 6px 18px rgba(200, 48, 15, 0.28);
+
+  /* Bewegung */
+  --motion-fast: 120ms;
+  --motion-slow: 260ms;
+  --motion-ease: cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+/* =========================================================================
+   2. TOKENS — Basis (dunkel)
+   ========================================================================= */
+[data-theme='dark'] {
+  color-scheme: dark;
+  --color-bg: #101010;
+  --color-bg-raised: #1b1b19;
+  --color-text: #f5f4f1;
+  --color-text-muted: #a3a29c;
+  --color-accent: #ff6a45;
+  --color-accent-contrast: #17110d;
+  --color-border: #2f2e2b;
+  --color-danger: #ff8098;
+  --color-info: #6ec8e8;
+  --color-focus: #8ab4ff;
+  --color-veil: #000000;
+  --color-status-working: #a5b4fc;
+  --color-status-review: #fbbf24;
+  --color-status-released: #5ddc8f;
+  --color-status-archived: #a3a29c;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.7);
+  --shadow-accent: 0 6px 18px rgba(255, 106, 69, 0.3);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --color-bg: #101010;
+    --color-bg-raised: #1b1b19;
+    --color-text: #f5f4f1;
+    --color-text-muted: #a3a29c;
+    --color-accent: #ff6a45;
+    --color-accent-contrast: #17110d;
+    --color-border: #2f2e2b;
+    --color-danger: #ff8098;
+    --color-info: #6ec8e8;
+    --color-focus: #8ab4ff;
+    --color-veil: #000000;
+    --color-status-working: #a5b4fc;
+    --color-status-review: #fbbf24;
+    --color-status-released: #5ddc8f;
+    --color-status-archived: #a3a29c;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.55);
+    --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.7);
+    --shadow-accent: 0 6px 18px rgba(255, 106, 69, 0.3);
+  }
+}
+
+/* =========================================================================
+   3. TOKENS — abgeleitete Rollen
+   Ausschließlich aus den Basis-Tokens gemischt. Auf `:root, [data-theme]`
+   deklariert, damit jede Theme-Insel (auch die Farbfelder in der
+   Token-Tabelle) sie gegen ihre eigenen Basiswerte neu berechnet.
+   ========================================================================= */
+:root, [data-theme] {
+  --surface-page: var(--color-bg-raised);
+  --surface-sheet: var(--color-bg);
+  --surface-quiet: color-mix(in srgb, var(--color-text) 3%, var(--color-bg));
+  --surface-hover: color-mix(in srgb, var(--color-text) 7%, var(--color-bg));
+  --surface-sunken: color-mix(in srgb, var(--color-text) 5%, var(--color-bg-raised));
+  --hairline: var(--color-border);
+  --hairline-strong: color-mix(in srgb, var(--color-text) 16%, var(--color-border));
+  --veil: color-mix(in srgb, var(--color-veil) 55%, transparent);
+  --link: var(--color-accent);
+  --accent-wash: color-mix(in srgb, var(--color-accent) 9%, var(--color-bg));
+  --accent-line: color-mix(in srgb, var(--color-accent) 40%, var(--color-bg));
+
+
+  /* Ton-Trio je Signalfarbe: Vordergrund / Fläche / Linie */
+  --t-accent-fg: color-mix(in srgb, var(--color-accent) 88%, var(--color-text));
+  --t-accent-bg: var(--accent-wash);
+  --t-accent-ln: var(--accent-line);
+  --t-info-fg: color-mix(in srgb, var(--color-info) 86%, var(--color-text));
+  --t-info-bg: color-mix(in srgb, var(--color-info) 10%, var(--color-bg));
+  --t-info-ln: color-mix(in srgb, var(--color-info) 38%, var(--color-bg));
+  --t-warn-fg: color-mix(in srgb, var(--color-status-review) 88%, var(--color-text));
+  --t-warn-bg: color-mix(in srgb, var(--color-status-review) 12%, var(--color-bg));
+  --t-warn-ln: color-mix(in srgb, var(--color-status-review) 40%, var(--color-bg));
+  --t-ok-fg: color-mix(in srgb, var(--color-status-released) 86%, var(--color-text));
+  --t-ok-bg: color-mix(in srgb, var(--color-status-released) 11%, var(--color-bg));
+  --t-ok-ln: color-mix(in srgb, var(--color-status-released) 38%, var(--color-bg));
+  --t-danger-fg: color-mix(in srgb, var(--color-danger) 88%, var(--color-text));
+  --t-danger-bg: color-mix(in srgb, var(--color-danger) 10%, var(--color-bg));
+  --t-danger-ln: color-mix(in srgb, var(--color-danger) 38%, var(--color-bg));
+  --t-work-fg: color-mix(in srgb, var(--color-status-working) 88%, var(--color-text));
+  --t-work-bg: color-mix(in srgb, var(--color-status-working) 10%, var(--color-bg));
+  --t-work-ln: color-mix(in srgb, var(--color-status-working) 38%, var(--color-bg));
+  --t-arch-fg: var(--color-status-archived);
+  --t-arch-bg: color-mix(in srgb, var(--color-status-archived) 12%, var(--color-bg));
+  --t-arch-ln: color-mix(in srgb, var(--color-status-archived) 34%, var(--color-bg));
+}
+
+/* Codeblock — die einzige Fläche, die das Theme spiegelt: hell = dunkle Tafel,
+   dunkel = noch tiefere Tafel mit Haarlinie. Deshalb pro Theme deklariert und
+   NACH dem Rollenblock, damit die Umkehrung nicht überschrieben wird. */
+:root, [data-theme='light'] {
+  --code-bg: color-mix(in srgb, var(--color-text) 94%, var(--color-accent) 6%);
+  --code-fg: color-mix(in srgb, var(--color-bg-raised) 92%, var(--color-accent) 8%);
+  --code-line: color-mix(in srgb, var(--code-fg) 18%, var(--code-bg));
+  --code-comment: color-mix(in srgb, var(--code-fg) 62%, var(--code-bg));
+  --code-key: color-mix(in srgb, var(--color-accent) 62%, var(--code-fg));
+  --code-str: color-mix(in srgb, var(--color-status-released) 70%, var(--code-fg));
+}
+[data-theme='dark'] {
+  --code-bg: color-mix(in srgb, var(--color-bg) 93%, var(--color-accent) 7%);
+  --code-fg: var(--color-text);
+  --code-line: color-mix(in srgb, var(--code-fg) 18%, var(--code-bg));
+  --code-comment: color-mix(in srgb, var(--code-fg) 62%, var(--code-bg));
+  --code-key: color-mix(in srgb, var(--color-accent) 70%, var(--code-fg));
+  --code-str: color-mix(in srgb, var(--color-status-released) 75%, var(--code-fg));
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --code-bg: color-mix(in srgb, var(--color-bg) 93%, var(--color-accent) 7%);
+    --code-fg: var(--color-text);
+    --code-line: color-mix(in srgb, var(--code-fg) 18%, var(--code-bg));
+    --code-comment: color-mix(in srgb, var(--code-fg) 62%, var(--code-bg));
+    --code-key: color-mix(in srgb, var(--color-accent) 70%, var(--code-fg));
+    --code-str: color-mix(in srgb, var(--color-status-released) 75%, var(--code-fg));
+  }
+}
+
+/* =========================================================================
+   4. Basis
+   ========================================================================= */
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--surface-page);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  font-weight: var(--weight-normal);
+  line-height: var(--leading-body);
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, h4, h5 {
+  font-family: var(--font-display);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-tight);
+  line-height: var(--leading-tight);
+  margin: 0;
+}
+p { margin: 0; }
+a { color: var(--link); text-underline-offset: var(--space-1); }
+ul, ol { margin: 0; padding: 0; }
+:focus-visible {
+  outline: var(--line-w-strong) solid var(--color-focus);
+  outline-offset: var(--line-w-strong);
+  border-radius: var(--radius-sm);
+}
+.sr {
+  position: absolute; width: var(--line-w); height: var(--line-w);
+  padding: 0; margin: calc(-1 * var(--line-w)); overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap;
+}
+.eyebrow {
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-wide);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+/* =========================================================================
+   5. Kopf des Entwurfs
+   ========================================================================= */
+.brief {
+  border-bottom: var(--line-w) solid var(--hairline);
+  background: var(--surface-sheet);
+}
+.brief-in {
+  max-width: calc(var(--measure-read) * 2.4);
+  margin: 0 auto;
+  padding: var(--space-9) var(--space-6) var(--space-7);
+  display: grid;
+  gap: var(--space-5);
+}
+.brief-top { display: flex; align-items: flex-start; gap: var(--space-5); flex-wrap: wrap; }
+.brief-title { flex: 1 1 calc(var(--size-col-min) * 1.3); }
+.brief-title h1 {
+  font-size: var(--text-3xl);
+  margin-bottom: var(--space-3);
+}
+.brief-title h1 .mark { color: var(--color-accent); }
+.brief-lead {
+  max-width: var(--measure-read);
+  font-size: var(--text-lg);
+  color: var(--color-text-muted);
+}
+.brief-nav { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.brief-nav a {
+  display: inline-flex; align-items: center;
+  min-height: var(--size-tap);
+  padding: 0 var(--space-4);
+  border: var(--line-w) solid var(--hairline);
+  border-radius: var(--radius-pill);
+  color: var(--color-text);
+  text-decoration: none;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  background: var(--surface-quiet);
+}
+.brief-nav a:hover { background: var(--surface-hover); border-color: var(--hairline-strong); }
+
+/* =========================================================================
+   6. Abschnitts-Rahmen des Mockup-Dokuments
+   ========================================================================= */
+.sec {
+  max-width: calc(var(--measure-read) * 2.4);
+  margin: 0 auto;
+  padding: var(--space-11) var(--space-6);
+  border-top: var(--line-w) solid var(--hairline);
+}
+.sec:first-of-type { border-top: 0; }
+.sec > header { max-width: var(--measure-read); margin-bottom: var(--space-8); }
+.sec > header h2 { font-size: var(--text-2xl); margin: var(--space-2) 0 var(--space-3); }
+.sec > header p { color: var(--color-text-muted); }
+.sub {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-tight);
+  margin: var(--space-10) 0 var(--space-4);
+}
+.note {
+  max-width: var(--measure-read);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  margin-top: var(--space-3);
+}
+.grid { display: grid; gap: var(--space-6); }
+.grid-2 { grid-template-columns: repeat(auto-fit, minmax(calc(var(--size-col-min) * 1.3), 1fr)); }
+.grid-3 { grid-template-columns: repeat(auto-fit, minmax(var(--size-col-min), 1fr)); }
+
+/* =========================================================================
+   7. Bühne (Demo-Rahmen)
+   ========================================================================= */
+.frame {
+  position: relative;
+  height: var(--size-frame);
+  border: var(--line-w) solid var(--hairline);
+  border-radius: var(--radius-lg);
+  background: var(--surface-sheet);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+  isolation: isolate;
+}
+.framecap {
+  display: flex; align-items: center; gap: var(--space-2);
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-3);
+}
+.framecap::before {
+  content: ''; width: var(--space-4); height: var(--line-w-strong);
+  border-radius: var(--radius-pill); background: var(--color-accent); flex: none;
+}
+.frame.short { height: calc(var(--size-frame) * 0.72); }
+
+/* Andock-Zustand: EINE Quelle der Wahrheit. `data-tree`/`data-info` auf dem
+   Rahmen schalten die Einrückung der Bühne und die Sichtbarkeit der Leisten —
+   dieselben Attribute setzt das Skript, merkt sie im localStorage und spiegelt
+   sie in `aria-expanded`. */
+.frame {
+  --pad-l: var(--size-edge);
+  --pad-r: var(--size-edge);
+}
+.frame[data-tree='open'] { --pad-l: calc(var(--size-edge) + var(--size-panel)); }
+.frame[data-info='open'] { --pad-r: calc(var(--size-edge) + var(--size-panel)); }
+
+/* =========================================================================
+   8. Ränder — die einzige Dauerpräsenz der Navigation
+   ========================================================================= */
+.edge {
+  position: absolute; top: 0; bottom: 0; z-index: 3;
+  width: var(--size-edge);
+  display: flex; flex-direction: column; align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+  background: var(--surface-page);
+}
+.edge-l { left: 0; border-right: var(--line-w) solid var(--hairline); }
+.edge-r { right: 0; border-left: var(--line-w) solid var(--hairline); padding-top: var(--space-9); }
+.handle {
+  position: relative;
+  width: var(--size-tap); height: var(--size-tap);
+  display: grid; place-items: center;
+  border: var(--line-w) solid transparent;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font: inherit;
+}
+.handle svg { width: var(--space-5); height: var(--space-5); }
+.handle:hover { background: var(--surface-hover); color: var(--color-text); }
+.handle[aria-expanded='true'], .handle.on {
+  background: var(--surface-sheet);
+  border-color: var(--hairline);
+  color: var(--color-text);
+}
+.handle .tip {
+  position: absolute; left: calc(100% + var(--space-2)); top: 50%;
+  transform: translateY(-50%) translateX(calc(-1 * var(--space-2)));
+  white-space: nowrap;
+  background: var(--color-text);
+  color: var(--surface-sheet);
+  font-size: var(--text-xs);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  opacity: 0; pointer-events: none;
+  transition: opacity var(--motion-fast) var(--motion-ease), transform var(--motion-fast) var(--motion-ease);
+  z-index: 8;
+}
+.edge-r .handle .tip { left: auto; right: calc(100% + var(--space-2)); transform: translateY(-50%) translateX(var(--space-2)); }
+.handle:hover .tip, .handle:focus-visible .tip { opacity: 1; transform: translateY(-50%) translateX(0); }
+.handle .tip kbd { color: color-mix(in srgb, var(--surface-sheet) 65%, var(--color-text)); font-family: var(--font-mono); }
+.handle .dot {
+  position: absolute; top: var(--space-2); right: var(--space-2);
+  width: var(--space-2); height: var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+}
+.monogram {
+  width: var(--size-tap); height: var(--size-tap);
+  display: grid; place-items: center;
+  border-radius: var(--radius-md);
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  font-family: var(--font-display);
+  font-weight: var(--weight-bold);
+  font-size: var(--text-sm);
+  letter-spacing: var(--track-tight);
+  border: 0; cursor: pointer;
+  margin-bottom: var(--space-2);
+}
+.edge-sp { flex: 1; }
+
+/* Inhaltsverzeichnis als stille Punktspur am rechten Rand */
+.spine { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); padding: var(--space-2) 0; }
+.spine a {
+  position: relative;
+  width: var(--space-6); height: var(--space-3);
+  display: grid; place-items: center;
+}
+.spine a::before {
+  content: '';
+  width: var(--space-3); height: var(--line-w-strong);
+  border-radius: var(--radius-pill);
+  background: var(--hairline-strong);
+  transition: width var(--motion-fast) var(--motion-ease), background var(--motion-fast) var(--motion-ease);
+}
+.spine a:hover::before { background: var(--color-text-muted); width: var(--space-5); }
+.spine a[aria-current='true']::before { background: var(--color-accent); width: var(--space-5); height: var(--space-1); }
+.spine a .tip {
+  position: absolute; right: calc(100% + var(--space-2)); top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  background: var(--color-text); color: var(--surface-sheet);
+  font-size: var(--text-xs); padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm); opacity: 0; pointer-events: none;
+  transition: opacity var(--motion-fast) var(--motion-ease);
+}
+.spine a:hover .tip, .spine a:focus-visible .tip { opacity: 1; }
+
+/* =========================================================================
+   9. Leseansicht
+   ========================================================================= */
+.stage {
+  position: absolute; top: 0; bottom: 0;
+  left: var(--pad-l, var(--size-edge));
+  right: var(--pad-r, var(--size-edge));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  transition: left var(--motion-slow) var(--motion-ease), right var(--motion-slow) var(--motion-ease);
+}
+/* Die Inhaltsfläche ist NICHT auf die Zeilenlänge eingeschnürt: sie nimmt die
+   ganze Bühne bis `--measure-wide`. Begrenzt wird allein der Fließtext (s.
+   `.prose > *` unten) — Tabellen, Codeblöcke, Diagramme und Bilder laufen über
+   die volle Breite und gewinnen genau das dazu, was eine eingeklappte Leiste
+   freigibt. */
+.read {
+  max-width: var(--measure-wide);
+  margin: 0 auto;
+  padding: var(--space-10) var(--space-6) calc(var(--space-11) * 2);
+}
+.crumb {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2);
+  max-width: var(--measure-read);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-5);
+}
+.crumb a { color: inherit; text-decoration: none; }
+.crumb a:hover { color: var(--color-text); text-decoration: underline; }
+.crumb .sep { opacity: 0.5; }
+.read h1 {
+  font-size: var(--text-3xl);
+  margin-bottom: var(--space-4);
+  max-width: var(--measure-read);
+  text-wrap: balance;
+}
+.metaline {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3);
+  max-width: var(--measure-read);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  padding-bottom: var(--space-6);
+  border-bottom: var(--line-w) solid var(--hairline);
+}
+.metaline .dotsep { opacity: 0.5; }
+.metaline .more {
+  border: 0; background: none; padding: var(--space-1) 0; cursor: pointer;
+  color: var(--color-text-muted); font: inherit; font-size: var(--text-sm);
+  text-decoration: underline; text-underline-offset: var(--space-1);
+}
+.metaline .more:hover { color: var(--color-text); }
+
+/* Fließtext — HIER sitzt die Zeilenlänge, nicht auf der Fläche.
+   Regel wie im Produkt (`globals.css`: `max-width: 72ch` auf `.page-body p`
+   und `ul/ol`): Absätze, Listen, Zitate, Überschriften und Hinweisblöcke
+   bleiben lesbar schmal; alles unter `.wide` nimmt die ganze Fläche. */
+.prose { font-size: var(--text-lg); }
+p.prose { max-width: var(--measure-read); }
+.prose > * { max-width: var(--measure-read); }
+.prose > .wide { max-width: none; }
+.prose > * + * { margin-top: var(--space-6); }
+.prose > .wide + * { margin-top: var(--space-8); }
+.prose > * + .wide { margin-top: var(--space-8); }
+.prose h2 {
+  font-size: var(--text-xl);
+  margin-top: var(--space-10);
+  padding-top: var(--space-2);
+}
+.prose h3 { font-size: var(--text-lg); margin-top: var(--space-8); }
+.prose .lead { color: var(--color-text-muted); }
+.prose strong { font-weight: var(--weight-semibold); }
+.prose code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--surface-sunken);
+  border: var(--line-w) solid var(--hairline);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-1);
+}
+.prose ul.bullets { padding-left: var(--space-6); list-style: disc; }
+.prose ul.bullets li + li { margin-top: var(--space-2); }
+
+/* Tabelle */
+.tablewrap {
+  overflow-x: auto;
+  border: var(--line-w) solid var(--hairline);
+  border-radius: var(--radius-md);
+}
+table.data { border-collapse: collapse; width: 100%; font-size: var(--text-sm); }
+table.data th, table.data td {
+  text-align: left;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: var(--line-w) solid var(--hairline);
+  vertical-align: top;
+  line-height: var(--leading-snug);
+}
+table.data thead th {
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  letter-spacing: var(--track-wide);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  background: var(--surface-quiet);
+}
+table.data tbody tr:last-child td { border-bottom: 0; }
+table.data td code { white-space: nowrap; }
+
+/* Code */
+.code {
+  background: var(--code-bg);
+  color: var(--code-fg);
+  border: var(--line-w) solid var(--code-line);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  font-size: var(--text-sm);
+}
+.code-head {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
+  border-bottom: var(--line-w) solid var(--code-line);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--code-comment);
+}
+.code-copy {
+  border: var(--line-w) solid var(--code-line);
+  background: none; color: var(--code-fg);
+  border-radius: var(--radius-sm);
+  font: inherit; font-size: var(--text-xs);
+  padding: var(--space-1) var(--space-3);
+  min-height: var(--space-7);
+  cursor: pointer;
+}
+.code-copy:hover { background: var(--code-line); }
+.code pre {
+  margin: 0; padding: var(--space-4);
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  line-height: var(--leading-snug);
+}
+.code .c { color: var(--code-comment); }
+.code .k { color: var(--code-key); }
+.code .s { color: var(--code-str); }
+.code .p { color: var(--code-comment); }
+
+/* Hinweisblöcke */
+.callout {
+  border: var(--line-w) solid var(--tone-ln, var(--hairline));
+  border-left-width: var(--space-1);
+  background: var(--tone-bg, var(--surface-quiet));
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-5);
+  display: flex; gap: var(--space-3);
+  font-size: var(--text-md);
+  line-height: var(--leading-snug);
+}
+.callout svg { flex: none; width: var(--space-5); height: var(--space-5); color: var(--tone-fg, var(--color-text)); margin-top: var(--space-1); }
+.callout .ct { display: grid; gap: var(--space-2); }
+.callout b { font-family: var(--font-display); color: var(--tone-fg, var(--color-text)); font-weight: var(--weight-semibold); }
+.callout p { color: var(--color-text); }
+.callout .acts { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-1); }
+.t-info { --tone-fg: var(--t-info-fg); --tone-bg: var(--t-info-bg); --tone-ln: var(--t-info-ln); }
+.t-warn { --tone-fg: var(--t-warn-fg); --tone-bg: var(--t-warn-bg); --tone-ln: var(--t-warn-ln); }
+.t-ok   { --tone-fg: var(--t-ok-fg);   --tone-bg: var(--t-ok-bg);   --tone-ln: var(--t-ok-ln); }
+.t-err  { --tone-fg: var(--t-danger-fg); --tone-bg: var(--t-danger-bg); --tone-ln: var(--t-danger-ln); }
+
+/* Diagramm */
+figure.dia { margin: 0; }
+figure.dia .box {
+  border: var(--line-w) solid var(--hairline);
+  border-radius: var(--radius-md);
+  background: var(--surface-quiet);
+  padding: var(--space-5) var(--space-4);
+  overflow-x: auto;
+}
+figure.dia svg { width: 100%; height: auto; min-width: calc(var(--measure-read) * 0.8); display: block; }
+.d-surface { fill: var(--surface-sheet); stroke: var(--hairline-strong); stroke-width: var(--line-w); }
+.d-surface-a { fill: var(--accent-wash); stroke: var(--accent-line); stroke-width: var(--line-w-strong); }
+.d-lane { fill: var(--surface-sunken); stroke: none; }
+.d-label { fill: var(--color-text); font-family: var(--font-sans); font-size: var(--text-sm); font-weight: var(--weight-medium); }
+.d-sub { fill: var(--color-text-muted); font-family: var(--font-mono); font-size: var(--text-xs); }
+.d-lane-label { fill: var(--color-text-muted); font-family: var(--font-display); font-size: var(--text-xs); letter-spacing: var(--track-wide); }
+.d-flow { stroke: var(--hairline-strong); stroke-width: var(--line-w-strong); fill: none; }
+.d-flow-a { stroke: var(--color-accent); stroke-width: var(--line-w-strong); fill: none; }
+.d-arrow { fill: var(--hairline-strong); }
+.d-arrow-a { fill: var(--color-accent); }
+figcaption {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  margin-top: var(--space-3);
+}
+.backlink {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  border: var(--line-w) solid var(--accent-line);
+  background: var(--accent-wash);
+  color: var(--t-accent-fg);
+  border-radius: var(--radius-pill);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  text-decoration: none;
+}
+.backlink svg { width: var(--space-4); height: var(--space-4); }
+
+/* =========================================================================
+   10. Schrittspur — Position halten in langen Prozeduren
+   ========================================================================= */
+.steps { list-style: none; display: grid; gap: 0; }
+.step {
+  position: relative;
+  padding-left: var(--space-10);
+  padding-bottom: var(--space-6);
+}
+.step::before {
+  content: '';
+  position: absolute; left: calc(var(--space-4) - var(--line-w));
+  top: var(--space-8); bottom: 0;
+  width: var(--line-w-strong);
+  background: var(--hairline);
+}
+.step:last-child::before { display: none; }
+.step .num {
+  position: absolute; left: 0; top: var(--space-1);
+  width: var(--space-8); height: var(--space-8);
+  border-radius: var(--radius-pill);
+  display: grid; place-items: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  border: var(--line-w-strong) solid var(--hairline-strong);
+  background: var(--surface-sheet);
+  color: var(--color-text-muted);
+}
+.step .st {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-tight);
+  line-height: var(--leading-snug);
+}
+.step .sm { font-size: var(--text-md); color: var(--color-text-muted); margin-top: var(--space-1); }
+.step .st, .step .sm, .step-body > p { max-width: var(--measure-read); }
+.step-body { display: grid; gap: var(--space-5); margin-top: var(--space-5); }
+/* Codeblock, Tabelle und Diagramm im Schritt laufen bis an den rechten Rand
+   der Inhaltsfläche — auch sie sind „breite Inhalte". */
+.step-body > .code, .step-body > .tablewrap, .step-body > figure { max-width: none; }
+
+.step.done .num { border-color: var(--t-ok-ln); background: var(--t-ok-bg); color: var(--t-ok-fg); }
+.step.done .st { color: var(--color-text-muted); font-weight: var(--weight-medium); }
+.step.done::before { background: var(--t-ok-ln); }
+.step.done .num svg { width: var(--space-4); height: var(--space-4); }
+
+.step.now { padding-bottom: var(--space-9); }
+.step.now .num {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  box-shadow: var(--shadow-accent);
+}
+.step.now .flag {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-wide);
+  text-transform: uppercase;
+  color: var(--t-accent-fg);
+  margin-bottom: var(--space-2);
+}
+.step.now .flag::before {
+  content: ''; width: var(--space-2); height: var(--space-2);
+  border-radius: var(--radius-pill); background: var(--color-accent);
+}
+.step.next .num { border-style: dashed; }
+.step.next .st { color: var(--color-text); font-weight: var(--weight-medium); }
+.step-done-act {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+/* =========================================================================
+   11. Der Griff — der eine Anker
+   ========================================================================= */
+.griff-wrap {
+  position: absolute; z-index: 5;
+  left: 50%; bottom: var(--space-6);
+  transform: translateX(-50%);
+  width: min(var(--size-griff), calc(100% - var(--space-11)));
+}
+.griff {
+  display: flex; align-items: center; gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2);
+  border: var(--line-w) solid var(--hairline-strong);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--surface-sheet) 88%, transparent);
+  backdrop-filter: blur(var(--space-3)) saturate(1.4);
+  box-shadow: var(--shadow-lg);
+}
+.griff-pos {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  flex: none;
+  min-height: var(--size-tap);
+  padding: 0 var(--space-3) 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--accent-wash);
+  border: var(--line-w) solid var(--accent-line);
+  color: var(--t-accent-fg);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+  text-decoration: none;
+}
+.griff-pos .ring {
+  width: var(--space-7); height: var(--space-7);
+  display: grid; place-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent); color: var(--color-accent-contrast);
+  font-family: var(--font-mono); font-size: var(--text-xs);
+}
+.griff-open {
+  flex: 1; display: flex; align-items: center; gap: var(--space-3);
+  min-height: var(--size-tap);
+  padding: 0 var(--space-3);
+  border: 0; background: none; cursor: pointer;
+  color: var(--color-text-muted);
+  font: inherit; font-size: var(--text-sm);
+  text-align: left;
+  border-radius: var(--radius-pill);
+  min-width: 0;
+}
+.griff-open:hover { background: var(--surface-hover); color: var(--color-text); }
+.griff-open svg { width: var(--space-5); height: var(--space-5); flex: none; }
+.griff-open .ph { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+kbd, .kbd {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  border: var(--line-w) solid var(--hairline-strong);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-1);
+  background: var(--surface-quiet);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+.griff-next {
+  flex: none;
+  width: var(--size-tap); height: var(--size-tap);
+  display: grid; place-items: center;
+  border-radius: var(--radius-pill);
+  border: 0;
+  background: var(--color-accent); color: var(--color-accent-contrast);
+  cursor: pointer;
+}
+.griff-next svg { width: var(--space-5); height: var(--space-5); }
+.griff-hint {
+  margin-top: var(--space-2);
+  text-align: center;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+/* =========================================================================
+   12. Ebenen — Baum, Info-Leiste, Palette, Werkzeugblatt
+   ========================================================================= */
+.veil {
+  position: absolute; inset: 0; z-index: 4;
+  background: var(--veil);
+  transition: opacity var(--motion-slow) var(--motion-ease);
+}
+/* Angedockte Leiste: nimmt der Bühne Breite weg statt sie zu verdecken —
+   nur so kommt beim Einklappen echte Breite zurück. Auf schmalen Ansichten
+   (< 56rem) legt sich dieselbe Leiste als Ebene über den Text, s. unten. */
+.layer {
+  position: absolute; z-index: 5; top: 0; bottom: 0;
+  width: var(--size-panel);
+  background: var(--surface-page);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.frame[data-tree='closed'] .layer-l,
+.frame[data-info='closed'] .layer-r { display: none; }
+.layer-l { left: var(--size-edge); border-right: var(--line-w) solid var(--hairline); }
+.layer-r { right: var(--size-edge); border-left: var(--line-w) solid var(--hairline); }
+.layer-head {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: var(--line-w) solid var(--hairline);
+}
+.layer-head h3 { font-size: var(--text-md); }
+.layer-body { overflow-y: auto; padding: var(--space-4) var(--space-5) var(--space-8); }
+
+/* Seitenbaum */
+.spaceswitch {
+  display: flex; align-items: center; gap: var(--space-3);
+  width: 100%;
+  min-height: var(--size-tap);
+  padding: var(--space-2) var(--space-3);
+  border: var(--line-w) solid var(--hairline);
+  border-radius: var(--radius-md);
+  background: var(--surface-quiet);
+  font: inherit; color: var(--color-text); cursor: pointer;
+  margin-bottom: var(--space-4);
+}
+.spaceswitch:hover { background: var(--surface-hover); }
+.spaceswitch .mono {
+  width: var(--space-8); height: var(--space-8); flex: none;
+  display: grid; place-items: center;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent); color: var(--color-accent-contrast);
+  font-family: var(--font-display); font-weight: var(--weight-bold); font-size: var(--text-xs);
+}
+.spaceswitch .txt { flex: 1; text-align: left; line-height: var(--leading-snug); }
+.spaceswitch .txt small { display: block; color: var(--color-text-muted); font-size: var(--text-xs); }
+.spaceswitch svg { width: var(--space-4); height: var(--space-4); color: var(--color-text-muted); }
+
+.tree { list-style: none; font-size: var(--text-sm); }
+.tree ul { list-style: none; padding-left: var(--space-5); border-left: var(--line-w) solid var(--hairline); margin-left: var(--space-4); }
+.tree a {
+  display: flex; align-items: center; gap: var(--space-2);
+  min-height: var(--size-tap);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  text-decoration: none;
+  line-height: var(--leading-snug);
+}
+.tree a:hover { background: var(--surface-hover); }
+.tree a .chev { width: var(--space-4); height: var(--space-4); flex: none; color: var(--color-text-muted); }
+.tree a[aria-current='page'] {
+  background: var(--accent-wash);
+  color: var(--t-accent-fg);
+  font-weight: var(--weight-semibold);
+  box-shadow: inset var(--line-w-strong) 0 0 var(--color-accent);
+}
+.tree .cnt { margin-left: auto; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-muted); }
+
+/* Info-Leiste */
+.rail-sec + .rail-sec { margin-top: var(--space-7); padding-top: var(--space-6); border-top: var(--line-w) solid var(--hairline); }
+.rail-sec > h4 {
+  font-size: var(--text-xs); letter-spacing: var(--track-wide); text-transform: uppercase;
+  color: var(--color-text-muted); margin-bottom: var(--space-3);
+}
+.toc { list-style: none; font-size: var(--text-sm); }
+.toc a {
+  display: block; padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted); text-decoration: none;
+  line-height: var(--leading-snug);
+}
+.toc a:hover { background: var(--surface-hover); color: var(--color-text); }
+.toc a[aria-current='true'] { color: var(--t-accent-fg); font-weight: var(--weight-semibold); background: var(--accent-wash); }
+.toc .lvl2 { padding-left: var(--space-7); }
+.tags { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.tag {
+  display: inline-flex; align-items: center;
+  border: var(--line-w) solid var(--hairline);
+  border-radius: var(--radius-pill);
+  background: var(--surface-quiet);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+.tag:hover { border-color: var(--hairline-strong); color: var(--color-text); }
+.tag .h { color: var(--color-accent); margin-right: var(--space-1); }
+dl.meta { display: grid; grid-template-columns: auto 1fr; gap: var(--space-2) var(--space-4); margin: 0; font-size: var(--text-sm); }
+dl.meta dt { color: var(--color-text-muted); }
+dl.meta dd { margin: 0; }
+.rel-group + .rel-group { margin-top: var(--space-4); }
+.rel-type {
+  font-size: var(--text-xs); color: var(--color-text-muted);
+  font-family: var(--font-mono); margin-bottom: var(--space-1);
+}
+.rel-list { list-style: none; font-size: var(--text-sm); display: grid; gap: var(--space-1); }
+.rel-list a {
+  display: flex; gap: var(--space-2); align-items: center;
+  color: var(--color-text); text-decoration: none;
+  padding: var(--space-1) 0;
+}
+.rel-list a:hover { color: var(--link); text-decoration: underline; }
+.rel-list a::before {
+  content: ''; width: var(--space-2); height: var(--space-2); flex: none;
+  border-radius: var(--radius-pill); background: var(--hairline-strong);
+}
+.minigraph { border: var(--line-w) solid var(--hairline); border-radius: var(--radius-md); background: var(--surface-quiet); padding: var(--space-3); }
+.minigraph svg { width: 100%; height: auto; display: block; }
+.g-node { fill: var(--surface-sheet); stroke: var(--hairline-strong); stroke-width: var(--line-w); }
+.g-node-c { fill: var(--color-accent); stroke: none; }
+.g-edge { stroke: var(--hairline-strong); stroke-width: var(--line-w); }
+.g-txt { fill: var(--color-text-muted); font-family: var(--font-sans); font-size: var(--text-xs); }
+
+/* Palette */
+.palette {
+  position: absolute; z-index: 5;
+  left: 50%; transform: translateX(-50%);
+  bottom: var(--space-6);
+  width: min(calc(var(--size-griff) * 1.25), calc(100% - var(--space-9)));
+  max-height: calc(100% - var(--space-10));
+  display: flex; flex-direction: column;
+  background: var(--surface-sheet);
+  border: var(--line-w) solid var(--hairline-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+.pal-input {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: var(--line-w) solid var(--hairline);
+}
+.pal-input svg { width: var(--space-5); height: var(--space-5); color: var(--color-text-muted); flex: none; }
+.pal-input .q { flex: 1; font-size: var(--text-lg); }
+.pal-input .q .caret {
+  display: inline-block; width: var(--line-w-strong); height: var(--text-lg);
+  background: var(--color-accent); vertical-align: text-bottom;
+}
+.pal-scope {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  font-size: var(--text-xs); color: var(--t-accent-fg);
+  background: var(--accent-wash); border: var(--line-w) solid var(--accent-line);
+  border-radius: var(--radius-pill); padding: var(--space-1) var(--space-3);
+  white-space: nowrap;
+}
+.pal-body { overflow-y: auto; padding: var(--space-3) 0; }
+.pal-group + .pal-group { margin-top: var(--space-3); padding-top: var(--space-3); border-top: var(--line-w) solid var(--hairline); }
+.pal-group > h5 {
+  font-family: var(--font-display);
+  font-size: var(--text-xs); letter-spacing: var(--track-wide); text-transform: uppercase;
+  color: var(--color-text-muted);
+  padding: var(--space-2) var(--space-5);
+  font-weight: var(--weight-semibold);
+}
+.pal-item {
+  display: flex; align-items: center; gap: var(--space-3);
+  width: 100%;
+  min-height: var(--size-tap);
+  padding: var(--space-2) var(--space-5);
+  border: 0; background: none; cursor: pointer;
+  font: inherit; text-align: left; color: var(--color-text);
+  text-decoration: none;
+}
+.pal-item:hover, .pal-item.active { background: var(--surface-hover); }
+.pal-item.active { box-shadow: inset var(--line-w-strong) 0 0 var(--color-accent); }
+.pal-item .ico {
+  width: var(--space-8); height: var(--space-8); flex: none;
+  display: grid; place-items: center;
+  border: var(--line-w) solid var(--hairline);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  background: var(--surface-quiet);
+}
+.pal-item .ico svg { width: var(--space-4); height: var(--space-4); }
+.pal-item .tx { flex: 1; min-width: 0; line-height: var(--leading-snug); }
+.pal-item .tx b { font-weight: var(--weight-medium); }
+.pal-item .tx small { display: block; color: var(--color-text-muted); font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pal-item mark { background: var(--accent-wash); color: var(--t-accent-fg); border-radius: var(--radius-sm); }
+.pal-foot {
+  display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  border-top: var(--line-w) solid var(--hairline);
+  background: var(--surface-quiet);
+  font-size: var(--text-xs); color: var(--color-text-muted);
+}
+.badge-new {
+  font-size: var(--text-xs);
+  color: var(--t-accent-fg);
+  background: var(--t-accent-bg);
+  border: var(--line-w) solid var(--t-accent-ln);
+  border-radius: var(--radius-pill);
+  padding: 0 var(--space-2);
+  white-space: nowrap;
+}
+
+/* Werkzeugblatt */
+.sheet {
+  position: absolute; z-index: 5; left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(calc(var(--measure-read) * 1.4), calc(100% - var(--space-9)));
+  max-height: calc(100% - var(--space-9));
+  overflow-y: auto;
+  background: var(--surface-sheet);
+  border: var(--line-w) solid var(--hairline-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-6);
+}
+.toolgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(calc(var(--size-col-min) * 0.87), 1fr)); gap: var(--space-3); margin-top: var(--space-5); }
+.toolcard {
+  display: grid; gap: var(--space-2);
+  padding: var(--space-4);
+  border: var(--line-w) solid var(--hairline);
+  border-radius: var(--radius-md);
+  background: var(--surface-quiet);
+  text-decoration: none; color: var(--color-text);
+}
+.toolcard:hover { border-color: var(--accent-line); background: var(--accent-wash); }
+.toolcard .th { display: flex; align-items: center; gap: var(--space-2); font-family: var(--font-display); font-weight: var(--weight-semibold); }
+.toolcard .th svg { width: var(--space-5); height: var(--space-5); color: var(--color-accent); }
+.toolcard p { font-size: var(--text-sm); color: var(--color-text-muted); line-height: var(--leading-snug); }
+.toolcard .kbd { justify-self: start; }
+
+/* Breiten-Lineal: zeigt die Regel, bevor man sie ausprobiert */
+.ruler { display: grid; gap: var(--space-3); }
+.ruler-row { display: flex; align-items: center; gap: var(--space-3); }
+.ruler-bar {
+  display: flex; align-items: center;
+  min-height: var(--space-9);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ruler-bar.text {
+  width: var(--measure-read); flex: none;
+  background: var(--surface-sunken);
+  border: var(--line-w) solid var(--hairline-strong);
+  color: var(--color-text);
+}
+.ruler-bar.wide {
+  flex: 1; max-width: var(--measure-wide);
+  background: var(--accent-wash);
+  border: var(--line-w) solid var(--accent-line);
+  color: var(--t-accent-fg);
+}
+.ruler-rest {
+  flex: 1; text-align: center;
+  font-size: var(--text-xs); color: var(--color-text-muted);
+  border-top: var(--line-w) dashed var(--hairline-strong);
+  padding-top: var(--space-1);
+}
+
+/* Verkleinerte Bühne für den Zustandsvergleich — reine Token-Überschreibungen,
+   kein eigenes Layout. */
+.frame.tiny {
+  height: calc(var(--size-frame) * 0.45);
+  --size-edge: 1.25rem;
+  --size-panel: 6rem;
+  --measure-read: 11rem;
+  --measure-wide: 60rem;
+  --text-lg: 0.62rem;
+  --text-md: 0.6rem;
+  --text-sm: 0.55rem;
+  --text-xs: 0.5rem;
+  --size-tap: 1rem;
+  --space-10: 1rem;
+  --space-11: 1.25rem;
+}
+.frame.tiny .read { padding: var(--space-5) var(--space-4) var(--space-5); }
+.frame.tiny .chip svg { display: none; }
+.edge-stub { flex: 1; }
+.ghost-line {
+  display: block; height: var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--surface-hover);
+  margin-bottom: var(--space-2);
+}
+.ghost-line:nth-child(2n) { width: 70%; }
+
+/* Live-Breitenanzeige unter der Bühne */
+.wmeter {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-5);
+  margin-top: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: var(--line-w) solid var(--hairline);
+  border-radius: var(--radius-md);
+  background: var(--surface-quiet);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+.wmeter b { color: var(--color-text); font-weight: var(--weight-semibold); }
+.wmeter .hi { color: var(--t-accent-fg); }
+
+/* =========================================================================
+   13. Bausteine
+   ========================================================================= */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  min-height: var(--size-tap);
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-pill);
+  border: var(--line-w) solid transparent;
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-tight);
+  cursor: pointer;
+  text-decoration: none;
+  background: var(--surface-quiet);
+  color: var(--color-text);
+  transition: background var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
+}
+.btn svg { width: var(--space-4); height: var(--space-4); }
+.btn-primary { background: var(--color-accent); color: var(--color-accent-contrast); box-shadow: var(--shadow-accent); }
+.btn-primary:hover { background: color-mix(in srgb, var(--color-accent) 85%, var(--color-text)); }
+.btn-secondary { border-color: var(--hairline-strong); background: var(--surface-sheet); }
+.btn-secondary:hover { background: var(--surface-hover); }
+.btn-ghost { background: none; color: var(--color-text-muted); }
+.btn-ghost:hover { background: var(--surface-hover); color: var(--color-text); }
+.btn-danger { background: var(--color-danger); color: var(--color-bg); }
+.btn-danger:hover { background: color-mix(in srgb, var(--color-danger) 85%, var(--color-text)); }
+.btn[disabled], .btn[aria-disabled='true'] {
+  opacity: 0.5; cursor: not-allowed; box-shadow: none;
+  background: var(--surface-sunken); color: var(--color-text-muted); border-color: var(--hairline);
+}
+.btn-sm { min-height: var(--space-8); padding: 0 var(--space-3); font-size: var(--text-xs); }
+.btn-icon { padding: 0; width: var(--size-tap); }
+.row { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
+
+.field { display: grid; gap: var(--space-2); max-width: calc(var(--measure-read) * 0.7); }
+.field > label { font-size: var(--text-sm); font-weight: var(--weight-medium); }
+.field .hint { font-size: var(--text-xs); color: var(--color-text-muted); }
+.field .err { font-size: var(--text-xs); color: var(--t-danger-fg); display: flex; align-items: center; gap: var(--space-2); }
+.field .err svg { width: var(--space-4); height: var(--space-4); }
+.input, .select, .textarea {
+  width: 100%;
+  min-height: var(--size-tap);
+  padding: var(--space-2) var(--space-4);
+  border: var(--line-w) solid var(--hairline-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-sheet);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-sm);
+}
+.textarea { min-height: calc(var(--size-tap) * 2.5); line-height: var(--leading-snug); font-family: var(--font-mono); }
+.input::placeholder, .textarea::placeholder { color: var(--color-text-muted); }
+.input:hover, .select:hover, .textarea:hover { border-color: var(--color-text-muted); }
+.input[aria-invalid='true'] { border-color: var(--color-danger); background: var(--t-danger-bg); }
+.input[disabled], .select[disabled] { background: var(--surface-sunken); color: var(--color-text-muted); cursor: not-allowed; }
+.select { appearance: none; padding-right: var(--space-9); background-image: none; }
+.select-wrap { position: relative; }
+.select-wrap svg {
+  position: absolute; right: var(--space-4); top: 50%; transform: translateY(-50%);
+  width: var(--space-4); height: var(--space-4); color: var(--color-text-muted); pointer-events: none;
+}
+.check { display: flex; align-items: center; gap: var(--space-3); min-height: var(--size-tap); font-size: var(--text-sm); cursor: pointer; }
+.check input { width: var(--space-5); height: var(--space-5); accent-color: var(--color-accent); }
+.switch { display: flex; align-items: center; gap: var(--space-3); min-height: var(--size-tap); font-size: var(--text-sm); cursor: pointer; }
+.switch input { position: absolute; opacity: 0; }
+.switch .tr {
+  width: calc(var(--space-8) + var(--space-3)); height: var(--space-6);
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+  border: var(--line-w) solid var(--hairline-strong);
+  position: relative; flex: none;
+  transition: background var(--motion-fast) var(--motion-ease);
+}
+.switch .tr::after {
+  content: ''; position: absolute; top: 50%; left: var(--space-1);
+  transform: translateY(-50%);
+  width: var(--space-4); height: var(--space-4);
+  border-radius: var(--radius-pill);
+  background: var(--color-text-muted);
+  transition: left var(--motion-fast) var(--motion-ease), background var(--motion-fast) var(--motion-ease);
+}
+.switch input:checked + .tr { background: var(--color-accent); border-color: var(--color-accent); }
+.switch input:checked + .tr::after { left: calc(100% - var(--space-4) - var(--space-1)); background: var(--color-accent-contrast); }
+.switch input:focus-visible + .tr { outline: var(--line-w-strong) solid var(--color-focus); outline-offset: var(--line-w-strong); }
+
+.card {
+  border: var(--line-w) solid var(--hairline);
+  border-radius: var(--radius-md);
+  background: var(--surface-sheet);
+  padding: var(--space-5);
+  display: grid; gap: var(--space-3);
+}
+.card.quiet { background: var(--surface-quiet); }
+.card > h4 { font-size: var(--text-md); }
+.card p { font-size: var(--text-sm); color: var(--color-text-muted); line-height: var(--leading-snug); }
+a.card { text-decoration: none; color: var(--color-text); }
+a.card:hover { border-color: var(--hairline-strong); box-shadow: var(--shadow-sm); }
+
+.chip {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  border-radius: var(--radius-pill);
+  border: var(--line-w) solid var(--tone-ln, var(--hairline));
+  background: var(--tone-bg, var(--surface-quiet));
+  color: var(--tone-fg, var(--color-text-muted));
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+.chip svg { width: var(--space-4); height: var(--space-4); }
+.c-work { --tone-fg: var(--t-work-fg); --tone-bg: var(--t-work-bg); --tone-ln: var(--t-work-ln); }
+.c-rev  { --tone-fg: var(--t-warn-fg); --tone-bg: var(--t-warn-bg); --tone-ln: var(--t-warn-ln); }
+.c-rel  { --tone-fg: var(--t-ok-fg);   --tone-bg: var(--t-ok-bg);   --tone-ln: var(--t-ok-ln); }
+.c-arch { --tone-fg: var(--t-arch-fg); --tone-bg: var(--t-arch-bg); --tone-ln: var(--t-arch-ln); }
+
+/* Tabs — ohne JS über :checked */
+.tabs { display: grid; gap: var(--space-4); }
+.tabs input { position: absolute; opacity: 0; pointer-events: none; }
+.tablist { display: flex; gap: var(--space-1); border-bottom: var(--line-w) solid var(--hairline); flex-wrap: wrap; }
+.tablist label {
+  display: inline-flex; align-items: center;
+  min-height: var(--size-tap);
+  padding: 0 var(--space-4);
+  font-size: var(--text-sm); font-weight: var(--weight-medium);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  border-bottom: var(--line-w-strong) solid transparent;
+  margin-bottom: calc(-1 * var(--line-w));
+}
+.tablist label:hover { color: var(--color-text); }
+#tab-a:focus-visible ~ .tablist label[for='tab-a'],
+#tab-b:focus-visible ~ .tablist label[for='tab-b'],
+#tab-c:focus-visible ~ .tablist label[for='tab-c'] {
+  outline: var(--line-w-strong) solid var(--color-focus);
+  outline-offset: calc(-1 * var(--line-w-strong));
+  color: var(--color-text);
+}
+.tabpanel { display: none; font-size: var(--text-sm); color: var(--color-text-muted); }
+#tab-a:checked ~ .tablist label[for='tab-a'],
+#tab-b:checked ~ .tablist label[for='tab-b'],
+#tab-c:checked ~ .tablist label[for='tab-c'] { color: var(--color-text); border-bottom-color: var(--color-accent); }
+#tab-a:checked ~ #panel-a, #tab-b:checked ~ #panel-b, #tab-c:checked ~ #panel-c { display: block; }
+
+/* Dialog */
+dialog.dlg {
+  border: var(--line-w) solid var(--hairline-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface-sheet);
+  color: var(--color-text);
+  box-shadow: var(--shadow-lg);
+  padding: 0;
+  width: min(calc(var(--measure-read) * 0.95), calc(100% - var(--space-8)));
+}
+dialog.dlg::backdrop { background: var(--veil); }
+.dlg-in { display: grid; gap: var(--space-4); padding: var(--space-6); }
+.dlg-in h3 { font-size: var(--text-xl); }
+.dlg-in p { font-size: var(--text-sm); color: var(--color-text-muted); }
+.dlg-foot { display: flex; justify-content: flex-end; gap: var(--space-3); flex-wrap: wrap; }
+
+/* Lade- und Leerzustand */
+.skel { display: grid; gap: var(--space-3); }
+.skel span {
+  display: block; height: var(--space-4);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--surface-sunken), var(--surface-hover), var(--surface-sunken));
+  background-size: 300% 100%;
+  animation: sh 1.6s var(--motion-ease) infinite;
+}
+.skel span:nth-child(2) { width: 82%; }
+.skel span:nth-child(3) { width: 64%; }
+@keyframes sh { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+.spinner {
+  width: var(--space-6); height: var(--space-6);
+  border-radius: var(--radius-pill);
+  border: var(--line-w-strong) solid var(--hairline-strong);
+  border-top-color: var(--color-accent);
+  animation: sp 800ms linear infinite;
+}
+@keyframes sp { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .skel span, .spinner { animation: none; }
+  * { transition-duration: 1ms !important; }
+}
+.empty {
+  display: grid; gap: var(--space-3); justify-items: center; text-align: center;
+  padding: var(--space-9) var(--space-5);
+  border: var(--line-w) dashed var(--hairline-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-quiet);
+}
+.empty svg { width: var(--space-9); height: var(--space-9); color: var(--color-text-muted); }
+.empty p { font-size: var(--text-sm); color: var(--color-text-muted); max-width: calc(var(--measure-read) * 0.7); }
+
+/* =========================================================================
+   14. Entdeckbarkeit / Token-Tabelle
+   ========================================================================= */
+.disc { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(calc(var(--size-col-min) * 1.07), 1fr)); }
+.disc .card { align-content: start; }
+.disc .n {
+  width: var(--space-8); height: var(--space-8);
+  display: grid; place-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent); color: var(--color-accent-contrast);
+  font-family: var(--font-mono); font-size: var(--text-xs);
+}
+
+.tokwrap { overflow-x: auto; border: var(--line-w) solid var(--hairline); border-radius: var(--radius-md); }
+table.tok { border-collapse: collapse; width: 100%; font-size: var(--text-sm); }
+table.tok th, table.tok td {
+  text-align: left; padding: var(--space-2) var(--space-4);
+  border-bottom: var(--line-w) solid var(--hairline);
+  vertical-align: middle; white-space: nowrap;
+}
+table.tok thead th {
+  font-family: var(--font-display); font-size: var(--text-xs);
+  letter-spacing: var(--track-wide); text-transform: uppercase;
+  color: var(--color-text-muted); background: var(--surface-quiet);
+  position: sticky; top: 0;
+}
+table.tok tbody tr:hover { background: var(--surface-quiet); }
+table.tok code { font-family: var(--font-mono); font-size: var(--text-xs); }
+table.tok .role { white-space: normal; color: var(--color-text-muted); font-size: var(--text-xs); line-height: var(--leading-snug); }
+.pin { display: inline-flex; align-items: center; gap: var(--space-2); }
+.sw {
+  width: var(--space-6); height: var(--space-6); flex: none;
+  border-radius: var(--radius-sm);
+  border: var(--line-w) solid var(--hairline-strong);
+  background: var(--surface-sheet);
+}
+.sw.pad { background: var(--color-accent); }
+.tok-new { color: var(--t-accent-fg); font-weight: var(--weight-semibold); }
+.legend { display: flex; flex-wrap: wrap; gap: var(--space-4); font-size: var(--text-xs); color: var(--color-text-muted); margin-bottom: var(--space-4); }
+
+/* Theme-Umschalter */
+.tswitch {
+  display: inline-flex; padding: var(--space-1);
+  border: var(--line-w) solid var(--hairline); border-radius: var(--radius-pill);
+  background: var(--surface-quiet); gap: var(--space-1);
+}
+.tswitch button {
+  min-height: var(--space-9); padding: 0 var(--space-4);
+  border: 0; border-radius: var(--radius-pill); background: none;
+  font: inherit; font-size: var(--text-sm); font-weight: var(--weight-medium);
+  color: var(--color-text-muted); cursor: pointer;
+  display: inline-flex; align-items: center; gap: var(--space-2);
+}
+.tswitch button svg { width: var(--space-4); height: var(--space-4); }
+.tswitch button[aria-pressed='true'] { background: var(--surface-sheet); color: var(--color-text); box-shadow: var(--shadow-sm); }
+
+/* =========================================================================
+   15. Schmale Ansichten
+   ========================================================================= */
+@media (max-width: 56rem) {
+  :root, [data-theme] { --measure-read: 24rem; --text-3xl: 2rem; --text-2xl: 1.6rem; --size-frame: 40rem; }
+  /* Unter 900 px ist keine Breite zu verteilen: dieselbe Leiste, derselbe
+     Griff — aber als Ebene über dem Text statt angedockt. */
+  .frame[data-tree='open'] { --pad-l: var(--size-edge); }
+  .frame[data-info='open'] { --pad-r: var(--size-edge); }
+  .frame[data-tree='open']::after,
+  .frame[data-info='open']::after {
+    content: ''; position: absolute; inset: 0; z-index: 4; background: var(--veil);
+  }
+  .layer {
+    width: min(calc(var(--size-panel) * 1.5), calc(100% - var(--size-edge)));
+    box-shadow: var(--shadow-lg);
+    background: var(--surface-sheet);
+  }
+  .layer-r { right: 0; }
+  .frame.tiny { --measure-wide: 30rem; }
+  .griff-wrap { width: calc(100% - var(--space-6)); }
+  .griff-pos .lbl { display: none; }
+  .sec { padding: var(--space-9) var(--space-4); }
+  .brief-in { padding: var(--space-8) var(--space-4) var(--space-6); }
+}
+@media (max-width: 36rem) {
+  .read { padding-left: var(--space-4); padding-right: var(--space-4); }
+  .step { padding-left: var(--space-8); }
+  .framecap { white-space: normal; }
+}
+</style>
+</head>
+<body>
+
+<!-- ====================================================================
+     Kopf des Entwurfs
+     ==================================================================== -->
+<header class="brief">
+  <div class="brief-in">
+    <div class="brief-top">
+      <div class="brief-title">
+        <p class="eyebrow">f451 — Design-Entwurf 2026</p>
+        <h1>Fokus<span class="mark">.</span></h1>
+        <p class="brief-lead">
+          Wer eine Betriebsanleitung öffnet, will genau eine Sache: den nächsten Schritt
+          ausführen, ohne Fehler. Deshalb steht hier nur der Inhalt auf der Bühne —
+          Navigation, Metadaten, Relationen und Werkzeuge sind einen Handgriff entfernt,
+          nicht dauerhaft im Blick.
+        </p>
+      </div>
+      <div class="tswitch" role="group" aria-label="Farbschema">
+        <button type="button" id="t-light" aria-pressed="true" onclick="setTheme('light')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M19 5l-1.5 1.5M6.5 17.5 5 19" stroke-linecap="round"/></svg>
+          Hell
+        </button>
+        <button type="button" id="t-dark" aria-pressed="false" onclick="setTheme('dark')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5Z" stroke-linejoin="round"/></svg>
+          Dunkel
+        </button>
+      </div>
+    </div>
+    <nav class="brief-nav" aria-label="Abschnitte des Entwurfs">
+      <a href="#lese">1 — Leseansicht</a>
+      <a href="#flaeche">2 — Lesefläche &amp; Leisten</a>
+      <a href="#bausteine">3 — Bausteine</a>
+      <a href="#navigation">4 — Navigation &amp; Suche</a>
+      <a href="#entdecken">5 — Entdeckbarkeit</a>
+      <a href="#tokens">6 — Tokens</a>
+    </nav>
+  </div>
+</header>
+
+<!-- ====================================================================
+     1. Leseansicht
+     ==================================================================== -->
+<section class="sec" id="lese">
+  <header>
+    <p class="eyebrow">1 — Kernansicht</p>
+    <h2>Leseansicht</h2>
+    <p>
+      Der <strong>Fließtext</strong> läuft auf ruhigem Papier in 18 px über 68 Zeichen —
+      Tabellen, Codeblöcke und Diagramme dagegen über die <strong>ganze Fläche</strong>.
+      Links und rechts stehen nur zwei schmale Ränder: links die Griffe zu Space, Baum
+      und Werkzeugen, rechts das Inhaltsverzeichnis als stille Punktspur. Beide Leisten
+      sind einzeln zuschaltbar (<kbd>B</kbd>, <kbd>I</kbd>, <kbd>⇧</kbd>+<kbd>F</kbd>) und
+      docken an, statt zu überlagern — was sie freigeben, bekommt die Tabelle. Unten liegt
+      <strong>der Griff</strong>: der eine Anker, der zugleich die Position in der Prozedur
+      hält („Schritt 4 von 9“).
+    </p>
+  </header>
+
+  <p class="framecap">/wiki/handbuch/wiederherstellung-azure-backup — bedienbar: <kbd>B</kbd>, <kbd>I</kbd>, <kbd>⇧</kbd>+<kbd>F</kbd></p>
+  <div class="frame" id="app-lese" data-tree="closed" data-info="closed">
+
+    <!-- Linker Rand: Griffe -->
+    <nav class="edge edge-l" aria-label="Bereiche">
+      <button class="monogram" type="button" aria-label="Space wechseln — handbuch">hb</button>
+      <button class="handle" type="button" data-toggle="tree" aria-expanded="false" aria-controls="panel-tree" aria-label="Seitenbaum öffnen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h7M4 12h11M4 18h7" stroke-linecap="round"/><circle cx="19" cy="18" r="2"/><circle cx="19" cy="6" r="2"/></svg>
+        <span class="tip">Seitenbaum <kbd>B</kbd></span>
+      </button>
+      <button class="handle" type="button" aria-expanded="false" aria-label="Werkzeuge des Space öffnen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14.5 5.5a3.5 3.5 0 0 0 4.6 4.6L21 12l-9 9-3-3 9-9 1.9-1.9Z" stroke-linejoin="round"/><path d="m6 6 3 3" stroke-linecap="round"/></svg>
+        <span class="dot" aria-hidden="true"></span>
+        <span class="tip">Werkzeuge <kbd>.</kbd> — 1 neu</span>
+      </button>
+      <span class="edge-sp"></span>
+      <button class="handle" type="button" aria-label="Bearbeiten">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 20h4l10-10-4-4L4 16v4Z" stroke-linejoin="round"/><path d="m14 6 4 4" stroke-linecap="round"/></svg>
+        <span class="tip">Bearbeiten <kbd>E</kbd></span>
+      </button>
+      <button class="handle" type="button" aria-label="Konto und Einstellungen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="3.2"/><path d="M5 20c1.4-3.4 4-5 7-5s5.6 1.6 7 5" stroke-linecap="round"/></svg>
+        <span class="tip">Konto &amp; Verbindungen</span>
+      </button>
+    </nav>
+
+    <!-- Rechter Rand: Inhaltsverzeichnis als Punktspur + Info-Griff -->
+    <nav class="edge edge-r" aria-label="Gliederung und Info">
+      <div class="spine">
+        <a href="#" aria-current="false"><span class="tip">Zweck</span></a>
+        <a href="#" aria-current="false"><span class="tip">Voraussetzungen</span></a>
+        <a href="#" aria-current="false"><span class="tip">Wiederherstellungspfad</span></a>
+        <a href="#" aria-current="true"><span class="tip">Durchführung — Schritt 4</span></a>
+        <a href="#" aria-current="false"><span class="tip">Nachbereitung</span></a>
+        <a href="#" aria-current="false"><span class="tip">Bekannte Fehlerbilder</span></a>
+      </div>
+      <span class="edge-sp"></span>
+      <button class="handle" type="button" data-toggle="info" aria-expanded="false" aria-controls="panel-info" aria-label="Info-Leiste öffnen: Inhalt, Tags, Metadaten, Relationen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.6v.6" stroke-linecap="round"/></svg>
+        <span class="tip">Info-Leiste <kbd>I</kbd></span>
+      </button>
+      <button class="handle" type="button" data-toggle="full" aria-pressed="true" aria-label="Vollbreite — beide Leisten schließen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 5 4 12l5 7M15 5l5 7-5 7" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 12h16" stroke-linecap="round"/></svg>
+        <span class="tip">Vollbreite <kbd>⇧F</kbd></span>
+      </button>
+    </nav>
+
+    <!-- Bühne -->
+    <div class="stage">
+      <article class="read">
+        <nav class="crumb" aria-label="Pfad">
+          <a href="#">handbuch</a><span class="sep">/</span>
+          <a href="#">azure betrieb</a><span class="sep">/</span>
+          <a href="#">backup restore</a><span class="sep">/</span>
+          <span aria-current="page">Wiederherstellung aus Azure Backup</span>
+        </nav>
+
+        <h1>Wiederherstellung einer SAP-HANA-Datenbank aus Azure Backup</h1>
+
+        <p class="metaline">
+          <span class="chip c-rel">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Released
+          </span>
+          <span>Version 1.4.0</span><span class="dotsep">·</span>
+          <span>Aktualisiert 25.07.2026</span><span class="dotsep">·</span>
+          <span>9 Schritte · ca. 45 min</span>
+          <button type="button" class="more">Alle Metadaten</button>
+        </p>
+
+        <div class="prose">
+          <div class="callout t-warn" role="note">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 4.5 21 19H3l9-14.5Z" stroke-linejoin="round"/><path d="M12 10v4M12 16.6v.5" stroke-linecap="round"/></svg>
+            <div class="ct">
+              <b>2 Verweise auf dieser Seite gehen ins Leere</b>
+              <p><code>backup-katalog-pruefen</code> und <code>vault-rollenmodell</code> wurden verschoben oder gelöscht.</p>
+              <div class="acts">
+                <a class="btn btn-secondary btn-sm" href="#">Im Bericht öffnen</a>
+                <button class="btn btn-ghost btn-sm" type="button">Hinweis ausblenden</button>
+              </div>
+            </div>
+          </div>
+
+          <p class="lead">
+            Diese Anleitung stellt eine produktive SAP-HANA-Mandantendatenbank (<code>HDB</code>)
+            aus einem Recovery Services Vault über den Backint-Agenten wieder her — punktgenau
+            auf einen Zeitstempel. Sie gilt für Einzelinstanzen auf Azure-VMs der M-Serie mit
+            HANA SPS 07 oder neuer.
+          </p>
+
+          <h2>Voraussetzungen</h2>
+          <p>Jede Zeile vor Beginn prüfen. Fehlt eine Voraussetzung, bricht die Wiederherstellung erst in Schritt 4 ab — nach dem Stopp der Instanz.</p>
+
+          <div class="tablewrap wide" data-wmeter>
+            <table class="data">
+              <caption class="sr">Prüfliste vor dem Start — neun Spalten je Voraussetzung</caption>
+              <thead>
+                <tr>
+                  <th scope="col">System</th><th scope="col">Komponente</th><th scope="col">Anforderung</th>
+                  <th scope="col">Ist-Wert</th><th scope="col">Prüfbefehl</th><th scope="col">Zuständig</th>
+                  <th scope="col">Frist</th><th scope="col">Kritikalität</th><th scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>PRD</td><th scope="row">HANA-Instanz</th><td>SPS 07 Rev. 76 oder neuer</td><td>Rev. 78</td><td><code>HDB version</code></td><td>SAP Basis</td><td>vor Start</td><td>hoch</td><td><span class="chip c-rel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" stroke-linecap="round" stroke-linejoin="round"/></svg>geprüft</span></td></tr>
+                <tr><td>PRD</td><th scope="row">Recovery Vault</th><td>gleiche Region (westeurope)</td><td>rsv-sap-weu-01</td><td><code>az backup vault list -o table</code></td><td>Cloud Ops</td><td>vor Start</td><td>hoch</td><td><span class="chip c-rel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" stroke-linecap="round" stroke-linejoin="round"/></svg>geprüft</span></td></tr>
+                <tr><td>PRD</td><th scope="row">Backint-Agent</th><td>Version 3.0.2 oder neuer</td><td>3.0.4</td><td><code>hdbbackint -v</code></td><td>SAP Basis</td><td>vor Start</td><td>mittel</td><td><span class="chip c-rel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" stroke-linecap="round" stroke-linejoin="round"/></svg>geprüft</span></td></tr>
+                <tr><td>PRD</td><th scope="row">Vault-Rolle</th><td>Backup Operator am Vault</td><td>nicht gesetzt</td><td><code>az role assignment list --scope …</code></td><td>Cloud Ops</td><td>vor Start</td><td>hoch</td><td><span class="chip c-rev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2" stroke-linecap="round" stroke-linejoin="round"/></svg>offen</span></td></tr>
+                <tr><td>PRD</td><th scope="row">Netzwerk</th><td>Port 30013/30015 zum Ziel-Host</td><td>offen</td><td><code>nc -vz hdb01 30015</code></td><td>Netzwerk</td><td>vor Start</td><td>mittel</td><td><span class="chip c-rel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" stroke-linecap="round" stroke-linejoin="round"/></svg>geprüft</span></td></tr>
+                <tr><td>QAS</td><th scope="row">Log-Bereich</th><td>mindestens 240 GB frei</td><td>312 GB</td><td><code>df -h /hana/log</code></td><td>SAP Basis</td><td>laufend</td><td>niedrig</td><td><span class="chip c-rel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" stroke-linecap="round" stroke-linejoin="round"/></svg>geprüft</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2>Wiederherstellungspfad</h2>
+          <figure class="dia wide">
+            <div class="box">
+              <svg viewBox="0 0 720 240" role="img" aria-labelledby="dia-t dia-d">
+                <title id="dia-t">Wiederherstellungspfad vom Vault bis zur laufenden Instanz</title>
+                <desc id="dia-d">Azure-Ebene: Recovery Services Vault und Backint-Agent. Host-Ebene: SYSTEMDB steuert die Wiederherstellung der Mandanten-Datenbank HDB, danach folgt das Log-Nachfahren.</desc>
+                <rect class="d-lane" x="0" y="8" width="720" height="96" rx="10"/>
+                <rect class="d-lane" x="0" y="120" width="720" height="112" rx="10"/>
+                <text class="d-lane-label" x="14" y="28">AZURE</text>
+                <text class="d-lane-label" x="14" y="140">HOST HDB01</text>
+
+                <rect class="d-surface" x="120" y="36" width="180" height="56" rx="10"/>
+                <text class="d-label" x="138" y="62">Recovery Services Vault</text>
+                <text class="d-sub" x="138" y="80">rsv-sap-weu-01</text>
+
+                <rect class="d-surface" x="360" y="36" width="180" height="56" rx="10"/>
+                <text class="d-label" x="378" y="62">Backint-Agent</text>
+                <text class="d-sub" x="378" y="80">hdbbackint</text>
+
+                <rect class="d-surface" x="120" y="152" width="180" height="56" rx="10"/>
+                <text class="d-label" x="138" y="178">SYSTEMDB</text>
+                <text class="d-sub" x="138" y="196">RECOVER DATABASE</text>
+
+                <rect class="d-surface-a" x="360" y="152" width="180" height="56" rx="10"/>
+                <text class="d-label" x="378" y="178">Mandant HDB</text>
+                <text class="d-sub" x="378" y="196">Ziel der Wiederherstellung</text>
+
+                <rect class="d-surface" x="580" y="152" width="120" height="56" rx="10"/>
+                <text class="d-label" x="598" y="178">Log-Nachlauf</text>
+                <text class="d-sub" x="598" y="196">bis 02:15</text>
+
+                <path class="d-flow" d="M300 64h48"/>
+                <polygon class="d-arrow" points="348,58 360,64 348,70"/>
+                <path class="d-flow" d="M450 92v40"/>
+                <polygon class="d-arrow" points="444,132 450,144 456,132"/>
+                <path class="d-flow-a" d="M300 180h48"/>
+                <polygon class="d-arrow-a" points="348,174 360,180 348,186"/>
+                <path class="d-flow" d="M540 180h28"/>
+                <polygon class="d-arrow" points="568,174 580,180 568,186"/>
+              </svg>
+            </div>
+            <figcaption>
+              <span>Abb. 1 — Daten- und Steuerfluss der Wiederherstellung.</span>
+              <a class="backlink" href="#">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M11 5 4 12l7 7" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 12h16" stroke-linecap="round"/></svg>
+                Zurück zu Schritt 4
+              </a>
+            </figcaption>
+          </figure>
+
+          <h2>Durchführung</h2>
+
+          <ol class="steps wide">
+            <li class="step done">
+              <span class="num" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m5 12.5 4.5 4.5L19 7.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              <p class="st">Vault und Sicherungspunkt ermitteln <span class="sr">— erledigt</span></p>
+              <p class="sm"><code>az backup recoverypoint list</code> — zuletzt: 25.07.2026 02:15 Uhr</p>
+            </li>
+            <li class="step done">
+              <span class="num" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m5 12.5 4.5 4.5L19 7.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              <p class="st">Log-Bereich sichern <span class="sr">— erledigt</span></p>
+              <p class="sm">Vollständigkeit im Backup-Katalog bestätigt</p>
+            </li>
+            <li class="step done">
+              <span class="num" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m5 12.5 4.5 4.5L19 7.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              <p class="st">Anwendungsserver stoppen, Mandant abmelden <span class="sr">— erledigt</span></p>
+              <p class="sm"><code>stopsap r3 PRD</code> auf app01 und app02</p>
+            </li>
+
+            <li class="step now">
+              <span class="num" aria-hidden="true">4</span>
+              <p class="flag">Aktueller Schritt · 4 von 9</p>
+              <p class="st">Wiederherstellung auf den Zeitstempel starten</p>
+              <div class="step-body">
+                <p>
+                  Die Anweisung läuft in der <code>SYSTEMDB</code>, nicht im Mandanten. Der Mandant
+                  wird dabei automatisch gestoppt; die Laufzeit hängt an der Größe des
+                  Datenbereichs (Richtwert PRD: 38 Minuten für 1,4 TB).
+                </p>
+
+                <div class="code">
+                  <div class="code-head">
+                    <span>recover_hdb.sql — SYSTEMDB</span>
+                    <button class="code-copy" type="button">Kopieren</button>
+                  </div>
+                  <pre><code><span class="c">-- Mandanten-DB HDB punktgenau zurückholen</span>
+<span class="k">RECOVER DATABASE FOR</span> HDB
+  <span class="k">UNTIL TIMESTAMP</span> <span class="s">'2026-07-25 02:15:00'</span>
+  <span class="k">CLEAR LOG</span>
+  <span class="k">USING SOURCE</span> <span class="s">'HDB@PRD'</span>
+  <span class="k">USING BACKINT</span> (<span class="s">'/usr/sap/PRD/SYS/global/hdb/opt/hdbbackint'</span>)
+  <span class="k">CHECK ACCESS USING BACKINT</span>;</code></pre>
+                </div>
+
+                <div class="callout t-err" role="note">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.4v.5" stroke-linecap="round"/></svg>
+                  <div class="ct">
+                    <b>Achtung: CLEAR LOG verwirft Log-Segmente</b>
+                    <p>
+                      Alle Einträge nach dem Zeitstempel gehen verloren. Ohne die Sicherung aus
+                      Schritt 2 ist dieser Schritt nicht umkehrbar.
+                    </p>
+                  </div>
+                </div>
+
+                <div class="code">
+                  <div class="code-head"><span>Konsole — hdb01, Benutzer prdadm</span></div>
+                  <pre><code><span class="p">$</span> hdbsql -i 00 -d SYSTEMDB -u SYSTEM -I /tmp/recover_hdb.sql
+<span class="c">0 rows affected (overall time 41:12.884 sec)</span></code></pre>
+                </div>
+
+                <div class="step-done-act">
+                  <button class="btn btn-primary" type="button">
+                    Schritt erledigt — weiter zu 5
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="m13 5 7 7-7 7" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 12H4" stroke-linecap="round"/></svg>
+                  </button>
+                  <button class="btn btn-ghost" type="button">Notiz anhängen</button>
+                </div>
+              </div>
+            </li>
+
+            <li class="step next">
+              <span class="num" aria-hidden="true">5</span>
+              <p class="st">Log-Nachlauf überwachen</p>
+              <p class="sm"><code>M_BACKUP_CATALOG</code> und <code>nameserver_hdb01.trc</code> beobachten</p>
+            </li>
+            <li class="step next">
+              <span class="num" aria-hidden="true">6</span>
+              <p class="st">Konsistenzprüfung des Mandanten</p>
+              <p class="sm"><code>CHECK TABLE CONSISTENCY</code> für alle Schemata</p>
+            </li>
+            <li class="step next">
+              <span class="num" aria-hidden="true">7</span>
+              <p class="st">Anwendungsserver wieder starten</p>
+            </li>
+            <li class="step next">
+              <span class="num" aria-hidden="true">8</span>
+              <p class="st">Erste Vollsicherung nach der Wiederherstellung anstoßen</p>
+            </li>
+            <li class="step next">
+              <span class="num" aria-hidden="true">9</span>
+              <p class="st">Protokoll im Betriebshandbuch vermerken</p>
+              <p class="sm">Vorlage „Restore-Protokoll“ im Space handbuch</p>
+            </li>
+          </ol>
+
+          <h2>Bekannte Fehlerbilder</h2>
+          <div class="callout t-info" role="note">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.6v.6" stroke-linecap="round"/></svg>
+            <div class="ct">
+              <b>„backint exited with exit code 2“</b>
+              <p>
+                In neun von zehn Fällen fehlt dem Dienstkonto die Vault-Rolle. Rollen prüfen,
+                danach den Schritt ohne Neustart der Instanz wiederholen.
+              </p>
+            </div>
+          </div>
+        </div>
+      </article>
+    </div>
+
+      <aside class="layer layer-l" id="panel-tree" aria-label="Seitenbaum">
+        <div class="layer-head">
+          <h3>handbuch</h3>
+          <div class="row">
+            <span class="kbd">B</span>
+            <button class="btn btn-ghost btn-sm btn-icon" type="button" aria-label="Seitenbaum schließen" data-toggle="tree">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" stroke-linecap="round"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="layer-body">
+          <button class="spaceswitch" type="button">
+            <span class="mono">hb</span>
+            <span class="txt">Betriebshandbuch<small>6 Spaces verbunden · Forgejo</small></span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m7 10 5 5 5-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <ul class="tree">
+            <li>
+              <a href="#"><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m8 5 7 7-7 7" stroke-linecap="round" stroke-linejoin="round"/></svg>azure betrieb<span class="cnt">24</span></a>
+              <ul>
+                <li>
+                  <a href="#"><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="transform:rotate(90deg)"><path d="m8 5 7 7-7 7" stroke-linecap="round" stroke-linejoin="round"/></svg>backup restore<span class="cnt">7</span></a>
+                  <ul>
+                    <li><a href="#">Sicherungskonzept PRD</a></li>
+                    <li><a href="#" aria-current="page">Wiederherstellung aus Azure Backup</a></li>
+                    <li><a href="#">Restore-Test — Protokollvorlage</a></li>
+                    <li><a href="#">Backint-Konfiguration</a></li>
+                  </ul>
+                </li>
+                <li><a href="#"><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m8 5 7 7-7 7" stroke-linecap="round" stroke-linejoin="round"/></svg>kerneltausch<span class="cnt">5</span></a></li>
+                <li><a href="#"><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m8 5 7 7-7 7" stroke-linecap="round" stroke-linejoin="round"/></svg>monitoring<span class="cnt">9</span></a></li>
+              </ul>
+            </li>
+            <li><a href="#"><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m8 5 7 7-7 7" stroke-linecap="round" stroke-linejoin="round"/></svg>hana<span class="cnt">31</span></a></li>
+            <li><a href="#"><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m8 5 7 7-7 7" stroke-linecap="round" stroke-linejoin="round"/></svg>maxdb<span class="cnt">12</span></a></li>
+            <li><a href="#"><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m8 5 7 7-7 7" stroke-linecap="round" stroke-linejoin="round"/></svg>netzwerk<span class="cnt">8</span></a></li>
+          </ul>
+        </div>
+      </aside>
+
+      <aside class="layer layer-r" id="panel-info" aria-label="Info-Leiste">
+        <div class="layer-head">
+          <h3>Über diese Seite</h3>
+          <div class="row">
+            <span class="kbd">I</span>
+            <button class="btn btn-ghost btn-sm btn-icon" type="button" aria-label="Info-Leiste schließen" data-toggle="info">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" stroke-linecap="round"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="layer-body">
+          <section class="rail-sec">
+            <h4>Inhalt</h4>
+            <ul class="toc">
+              <li><a href="#">Zweck</a></li>
+              <li><a href="#">Voraussetzungen</a></li>
+              <li><a href="#">Wiederherstellungspfad</a></li>
+              <li><a href="#" aria-current="true">Durchführung</a></li>
+              <li><a href="#" class="lvl2">Schritt 4 — Wiederherstellung starten</a></li>
+              <li><a href="#" class="lvl2">Schritt 5 — Log-Nachlauf</a></li>
+              <li><a href="#">Bekannte Fehlerbilder</a></li>
+            </ul>
+          </section>
+          <section class="rail-sec">
+            <h4>Schlagworte</h4>
+            <div class="tags">
+              <a class="tag" href="#"><span class="h">#</span>hana</a>
+              <a class="tag" href="#"><span class="h">#</span>azure</a>
+              <a class="tag" href="#"><span class="h">#</span>backup</a>
+              <a class="tag" href="#"><span class="h">#</span>restore</a>
+              <a class="tag" href="#"><span class="h">#</span>notfall</a>
+            </div>
+          </section>
+          <section class="rail-sec">
+            <h4>Metadaten</h4>
+            <dl class="meta">
+              <dt>Status</dt><dd><span class="chip c-rel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Released</span></dd>
+              <dt>Space</dt><dd>handbuch</dd>
+              <dt>Version</dt><dd>1.4.0</dd>
+              <dt>Aktualisiert</dt><dd>25.07.2026</dd>
+              <dt>Verantwortlich</dt><dd>Team SAP Basis</dd>
+              <dt>Kritikalität</dt><dd>hoch</dd>
+              <dt>Zuletzt geprüft</dt><dd>02.06.2026</dd>
+            </dl>
+          </section>
+          <section class="rail-sec">
+            <h4>Verknüpfte Seiten</h4>
+            <div class="minigraph">
+              <svg viewBox="0 0 300 130" role="img" aria-label="Nachbarschaftsgraph: diese Seite mit vier verknüpften Seiten">
+                <path class="g-edge" d="M150 65 60 30M150 65 60 100M150 65 244 30M150 65 244 100"/>
+                <circle class="g-node-c" cx="150" cy="65" r="11"/>
+                <circle class="g-node" cx="60" cy="30" r="8"/>
+                <circle class="g-node" cx="60" cy="100" r="8"/>
+                <circle class="g-node" cx="244" cy="30" r="8"/>
+                <circle class="g-node" cx="244" cy="100" r="8"/>
+                <text class="g-txt" x="4" y="18">Sicherungskonzept</text>
+                <text class="g-txt" x="4" y="122">Backint-Konfig.</text>
+                <text class="g-txt" x="196" y="18">Restore-Test</text>
+                <text class="g-txt" x="186" y="122">Vault-Rollenmodell</text>
+              </svg>
+            </div>
+            <div class="rel-group">
+              <div class="rel-type">setzt voraus</div>
+              <ul class="rel-list">
+                <li><a href="#">Backint-Konfiguration prüfen</a></li>
+                <li><a href="#">Sicherungskonzept PRD</a></li>
+              </ul>
+            </div>
+            <div class="rel-group">
+              <div class="rel-type">gilt für</div>
+              <ul class="rel-list">
+                <li><a href="#">PRD — HANA-Einzelinstanz hdb01</a></li>
+              </ul>
+            </div>
+            <div class="rel-group">
+              <div class="rel-type">siehe auch</div>
+              <ul class="rel-list">
+                <li><a href="#">Restore-Test — Protokollvorlage</a></li>
+              </ul>
+            </div>
+          </section>
+        </div>
+      </aside>
+
+    <!-- Der Griff -->
+    <div class="griff-wrap">
+      <div class="griff">
+        <a class="griff-pos" href="#" aria-label="Aktueller Schritt 4 von 9 — zum Schritt springen">
+          <span class="ring" aria-hidden="true">4</span>
+          <span class="lbl">von 9</span>
+        </a>
+        <button class="griff-open" type="button" aria-haspopup="dialog">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2" stroke-linecap="round"/></svg>
+          <span class="ph">Suchen, springen, anlegen, Werkzeuge …</span>
+          <span class="kbd">⌘K</span>
+        </button>
+        <button class="griff-next" type="button" aria-label="Weiter zu Schritt 5">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="m9 5 7 7-7 7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <p class="wmeter" id="wmeter" aria-live="polite">
+    <span>Zustand: <b id="wm-state">beide Leisten zu</b></span>
+    <span>Inhaltsfläche <b id="wm-area">–</b></span>
+    <span>Tabelle <b class="hi" id="wm-table">–</b></span>
+    <span>Fließtext <b id="wm-text">–</b></span>
+  </p>
+  <p class="note">
+    Probieren: <kbd>B</kbd> öffnet den Seitenbaum, <kbd>I</kbd> die Info-Leiste,
+    <kbd>⇧</kbd>+<kbd>F</kbd> schließt beide. Die Fließtextbreite bleibt in jedem
+    Zustand gleich — nur Tabelle, Codeblock und Diagramm wachsen und schrumpfen.
+    Der Zustand wird gemerkt und beim nächsten Laden wiederhergestellt.
+  </p>
+  <p class="note">
+    Der Griff ist die einzige dauerhaft sichtbare Funktionsfläche der App. Er trägt
+    drei Dinge: <strong>wo bin ich</strong> (Schritt 4 von 9, springt zum Schritt zurück),
+    <strong>was kann ich</strong> (Eingabefeld = Suche + Befehle + Werkzeuge) und
+    <strong>was kommt als Nächstes</strong> (Weiter-Taste). Nach jedem Ausflug —
+    Diagramm, Tabelle, verlinkte Seite — steht die Position unverändert unten am Rand.
+  </p>
+</section>
+
+<!-- ====================================================================
+     2. Ebenen
+     ==================================================================== -->
+<section class="sec" id="flaeche">
+  <header>
+    <p class="eyebrow">2 — Die Lesefläche gehört dir</p>
+    <h2>Schmal ist der Text, nicht die Fläche</h2>
+    <p>
+      Die 68 Zeichen gelten für <strong>Fließtext</strong> — Absätze, Listen, Hinweisblöcke.
+      Eine Betriebstabelle mit neun Spalten und ein draw.io-Diagramm sind kein Fließtext:
+      sie laufen bis an den rechten Rand der Inhaltsfläche. Was eine eingeklappte Leiste
+      freigibt, landet deshalb <strong>in der Tabelle</strong>, nicht im Rand.
+    </p>
+  </header>
+
+  <div class="ruler" aria-hidden="true">
+    <div class="ruler-row">
+      <span class="ruler-bar text"><span>Fließtext, Listen, Hinweisblöcke — 34 rem</span></span>
+      <span class="ruler-rest">bleibt frei</span>
+    </div>
+    <div class="ruler-row">
+      <span class="ruler-bar wide"><span>Tabellen · Codeblöcke · Diagramme · Bilder — volle Fläche bis 72 rem</span></span>
+    </div>
+  </div>
+  <p class="note">
+    Dieselbe Regel wie im heutigen Produkt (<code>globals.css</code>: <code>max-width: 72ch</code>
+    steht auf <code>.page-body p</code> und <code>ul/ol</code>, nicht auf dem Inhaltsbereich) —
+    hier nur konsequent auch auf Codeblöcke, Diagramme und Schritt-Anhänge angewandt.
+  </p>
+
+  <h3 class="sub">Derselbe Ausschnitt, beide Zustände</h3>
+  <div class="grid grid-2">
+    <div>
+      <p class="framecap">Beide Leisten offen — Tabelle bekommt, was übrig bleibt</p>
+      <div class="frame tiny" data-tree="open" data-info="open">
+        <nav class="edge edge-l" aria-label="Bereiche"><span class="edge-stub"></span></nav>
+        <nav class="edge edge-r" aria-label="Info"><span class="edge-stub"></span></nav>
+        <aside class="layer layer-l" aria-label="Seitenbaum (verkleinert)"><div class="layer-body"><span class="ghost-line"></span><span class="ghost-line"></span><span class="ghost-line"></span><span class="ghost-line"></span><span class="ghost-line"></span></div></aside>
+        <aside class="layer layer-r" aria-label="Info-Leiste (verkleinert)"><div class="layer-body"><span class="ghost-line"></span><span class="ghost-line"></span><span class="ghost-line"></span></div></aside>
+        <div class="stage">
+          <div class="read">
+            <div class="prose">
+              <p>Vor dem Start jede Zeile prüfen — fehlt eine Voraussetzung, bricht die Wiederherstellung erst in Schritt 4 ab.</p>
+              <div class="tablewrap wide" data-wmeter>
+                <table class="data">
+              <caption class="sr">Prüfliste vor dem Start, verkürzt</caption>
+              <thead>
+                <tr>
+                  <th scope="col">System</th><th scope="col">Komponente</th><th scope="col">Anforderung</th>
+                  <th scope="col">Ist-Wert</th><th scope="col">Prüfbefehl</th><th scope="col">Zuständig</th>
+                  <th scope="col">Frist</th><th scope="col">Kritikalität</th><th scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>PRD</td><th scope="row">HANA-Instanz</th><td>SPS 07 Rev. 76 oder neuer</td><td>Rev. 78</td><td><code>HDB version</code></td><td>SAP Basis</td><td>vor Start</td><td>hoch</td><td><span class="chip c-rel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" stroke-linecap="round" stroke-linejoin="round"/></svg>geprüft</span></td></tr>
+                <tr><td>PRD</td><th scope="row">Recovery Vault</th><td>gleiche Region (westeurope)</td><td>rsv-sap-weu-01</td><td><code>az backup vault list -o table</code></td><td>Cloud Ops</td><td>vor Start</td><td>hoch</td><td><span class="chip c-rel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" stroke-linecap="round" stroke-linejoin="round"/></svg>geprüft</span></td></tr>
+                <tr><td>PRD</td><th scope="row">Backint-Agent</th><td>Version 3.0.2 oder neuer</td><td>3.0.4</td><td><code>hdbbackint -v</code></td><td>SAP Basis</td><td>vor Start</td><td>mittel</td><td><span class="chip c-rel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" stroke-linecap="round" stroke-linejoin="round"/></svg>geprüft</span></td></tr>
+              </tbody>
+            </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <p class="framecap">Beide zu (Voreinstellung) — dieselbe Tabelle, ganze Fläche</p>
+      <div class="frame tiny" data-tree="closed" data-info="closed">
+        <nav class="edge edge-l" aria-label="Bereiche"><span class="edge-stub"></span></nav>
+        <nav class="edge edge-r" aria-label="Info"><span class="edge-stub"></span></nav>
+        <div class="stage">
+          <div class="read">
+            <div class="prose">
+              <p>Vor dem Start jede Zeile prüfen — fehlt eine Voraussetzung, bricht die Wiederherstellung erst in Schritt 4 ab.</p>
+              <div class="tablewrap wide" data-wmeter>
+                <table class="data">
+              <caption class="sr">Prüfliste vor dem Start, verkürzt</caption>
+              <thead>
+                <tr>
+                  <th scope="col">System</th><th scope="col">Komponente</th><th scope="col">Anforderung</th>
+                  <th scope="col">Ist-Wert</th><th scope="col">Prüfbefehl</th><th scope="col">Zuständig</th>
+                  <th scope="col">Frist</th><th scope="col">Kritikalität</th><th scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>PRD</td><th scope="row">HANA-Instanz</th><td>SPS 07 Rev. 76 oder neuer</td><td>Rev. 78</td><td><code>HDB version</code></td><td>SAP Basis</td><td>vor Start</td><td>hoch</td><td><span class="chip c-rel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" stroke-linecap="round" stroke-linejoin="round"/></svg>geprüft</span></td></tr>
+                <tr><td>PRD</td><th scope="row">Recovery Vault</th><td>gleiche Region (westeurope)</td><td>rsv-sap-weu-01</td><td><code>az backup vault list -o table</code></td><td>Cloud Ops</td><td>vor Start</td><td>hoch</td><td><span class="chip c-rel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" stroke-linecap="round" stroke-linejoin="round"/></svg>geprüft</span></td></tr>
+                <tr><td>PRD</td><th scope="row">Backint-Agent</th><td>Version 3.0.2 oder neuer</td><td>3.0.4</td><td><code>hdbbackint -v</code></td><td>SAP Basis</td><td>vor Start</td><td>mittel</td><td><span class="chip c-rel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" stroke-linecap="round" stroke-linejoin="round"/></svg>geprüft</span></td></tr>
+              </tbody>
+            </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="note">
+    Links quetschen sich neun Spalten in den Rest; rechts liegt dieselbe Tabelle offen —
+    <strong>der Fließtext darüber ist in beiden Bildern exakt gleich breit</strong>. Genau
+    das ist der Unterschied zwischen „Zeilenlänge begrenzen“ und „Inhalt einschnüren“.
+  </p>
+
+  <h3 class="sub">Steuerung der Leisten</h3>
+  <div class="disc">
+    <div class="card">
+      <span class="n">B</span>
+      <h4>Seitenbaum, einzeln</h4>
+      <p>
+        Griff am linken Rand oder Taste <kbd>B</kbd>. Der Griff trägt
+        <code>aria-expanded</code>, die Leiste andockt statt zu überlagern — sie nimmt
+        Breite weg und gibt sie beim Schließen zurück.
+      </p>
+    </div>
+    <div class="card">
+      <span class="n">I</span>
+      <h4>Info-Leiste, einzeln</h4>
+      <p>
+        Griff am rechten Rand oder Taste <kbd>I</kbd>. Unabhängig vom Baum — jede
+        Kombination der vier Zustände ist erreichbar.
+      </p>
+    </div>
+    <div class="card">
+      <span class="n">⇧</span>
+      <h4>Vollbreite in einem Griff</h4>
+      <p>
+        <kbd>⇧</kbd>+<kbd>F</kbd> oder die Schaltfläche „Vollbreite“ schließt beide
+        Leisten auf einmal. Ein zweites Mal stellt die vorherige Kombination wieder her.
+      </p>
+    </div>
+    <div class="card">
+      <span class="n">↺</span>
+      <h4>Gemerkter Zustand</h4>
+      <p>
+        Beide Zustände werden pro Konto gespeichert und beim nächsten Seitenaufruf
+        wiederhergestellt — auch im Mockup oben (<code>localStorage</code>). Wer breit
+        arbeitet, bleibt breit.
+      </p>
+    </div>
+    <div class="card quiet">
+      <span class="n">≡</span>
+      <h4>Unter 900 px</h4>
+      <p>
+        Dort ist keine Breite zu verteilen: derselbe Griff öffnet dieselbe Leiste dann
+        als Ebene über dem Text, mit abgedunkelter Bühne. Gleiches Bedienelement,
+        anderer Platzbedarf.
+      </p>
+    </div>
+    <div class="card quiet">
+      <span class="n">→</span>
+      <h4>Was mit der Breite passiert</h4>
+      <p>
+        Die Inhaltsfläche wächst bis <code>--measure-wide</code> (72 rem). Der Fließtext
+        rührt sich nicht — er ist an <code>--measure-read</code> gebunden und behält seine
+        Zeilenlänge in jedem Zustand.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================
+     3. Bausteine
+     ==================================================================== -->
+<section class="sec" id="bausteine">
+  <header>
+    <p class="eyebrow">3 — System, keine Sammlung</p>
+    <h2>Bausteine</h2>
+    <p>
+      Drei Regeln halten alles zusammen: <strong>eine Radius-Familie</strong> (Pille für
+      alles Klickbare, weicher Bogen für Flächen), <strong>eine Höhe</strong> (44 px
+      Zielgröße für jedes Bedienelement) und <strong>ein Ton-Trio</strong> pro Signalfarbe
+      (Vordergrund / Fläche / Linie). Jede Variante ist eine Token-Zuweisung, keine
+      neue Komponente.
+    </p>
+  </header>
+
+  <h3 class="sub">Schaltflächen</h3>
+  <div class="row">
+    <button class="btn btn-primary" type="button">Bearbeiten</button>
+    <button class="btn btn-secondary" type="button">Zur Freigabe einreichen</button>
+    <button class="btn btn-ghost" type="button">Verwerfen</button>
+    <button class="btn btn-danger" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 7h14M9 7V5h6v2M7 7l1 12h8l1-12" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Seite löschen
+    </button>
+    <button class="btn btn-primary" type="button" disabled>Freigeben</button>
+    <button class="btn btn-secondary btn-sm" type="button">Klein</button>
+    <button class="btn btn-secondary btn-icon" type="button" aria-label="Mehr Aktionen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><circle cx="6" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="18" cy="12" r="1.4" fill="currentColor" stroke="none"/></svg>
+    </button>
+  </div>
+  <p class="note">Deaktivierte Schaltflächen behalten ihre Fläche und verlieren nur den Kontrast — sie verschwinden nie, damit die Funktion auffindbar bleibt.</p>
+
+  <h3 class="sub">Eingaben</h3>
+  <div class="grid grid-3">
+    <div class="field">
+      <label for="f1">Seitentitel</label>
+      <input class="input" id="f1" type="text" value="Wiederherstellung aus Azure Backup">
+      <span class="hint">Erscheint im Baum, in der Suche und im Breadcrumb.</span>
+    </div>
+    <div class="field">
+      <label for="f2">Dateiname</label>
+      <input class="input" id="f2" type="text" value="wiederherstellung azure.md" aria-invalid="true" aria-describedby="f2e">
+      <span class="err" id="f2e">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.4v.5" stroke-linecap="round"/></svg>
+        Leerzeichen sind im Dateinamen nicht erlaubt.
+      </span>
+    </div>
+    <div class="field">
+      <label for="f3">Ziel-Space</label>
+      <div class="select-wrap">
+        <select class="select" id="f3">
+          <option>handbuch</option>
+          <option>hana</option>
+          <option>maxdb</option>
+          <option>netzwerk</option>
+        </select>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m7 10 5 5 5-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+    </div>
+    <div class="field">
+      <label for="f4">Änderungsnotiz</label>
+      <textarea class="textarea" id="f4">Backint-Pfad auf SPS 07 aktualisiert</textarea>
+    </div>
+    <div class="field">
+      <label for="f5">Gesperrtes Feld</label>
+      <input class="input" id="f5" type="text" value="handbuch/azure-betrieb" disabled>
+      <span class="hint">Pfad folgt aus dem Git-Repository.</span>
+    </div>
+    <div class="field">
+      <span>Optionen</span>
+      <label class="check"><input type="checkbox" checked> Nach Freigabe im Graph anzeigen</label>
+      <label class="check"><input type="checkbox"> Änderung als Patch-Version zählen</label>
+      <label class="switch"><input type="checkbox" checked><span class="tr"></span> Live-Vorschau im Editor</label>
+    </div>
+  </div>
+
+  <h3 class="sub">Status und Schlagworte</h3>
+  <div class="row">
+    <span class="chip c-work">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 19h4L18 9l-4-4L4 15v4Z" stroke-linejoin="round"/></svg>
+      Entwurf
+    </span>
+    <span class="chip c-rev">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      In Review
+    </span>
+    <span class="chip c-rel">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Released
+    </span>
+    <span class="chip c-arch">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 8h16v11H4zM3 5h18v3H3z" stroke-linejoin="round"/><path d="M10 12h4" stroke-linecap="round"/></svg>
+      Archiviert
+    </span>
+    <a class="tag" href="#"><span class="h">#</span>hana</a>
+    <a class="tag" href="#"><span class="h">#</span>notfall</a>
+  </div>
+  <p class="note">Jeder Status trägt Symbol <em>und</em> Wort — die Farbe ist Verstärkung, nie der einzige Träger der Bedeutung.</p>
+
+  <h3 class="sub">Karten</h3>
+  <div class="grid grid-3">
+    <a class="card" href="#">
+      <span class="chip c-rev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2" stroke-linecap="round" stroke-linejoin="round"/></svg>In Review</span>
+      <h4>Kerneltausch SAP NetWeaver 7.5</h4>
+      <p>Austausch von Kernel-Patch 1000 auf 1100, inkl. Rücksprungpfad. 14 Schritte.</p>
+    </a>
+    <a class="card" href="#">
+      <span class="chip c-rel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Released</span>
+      <h4>MaxDB — Sicherungsmedien einrichten</h4>
+      <p>Medienvorlagen, Prüfläufe und Aufbewahrung im Rechenzentrum Frankfurt.</p>
+    </a>
+    <div class="card quiet">
+      <h4>Space handbuch</h4>
+      <p>84 Seiten · 6 Vorlagen · zuletzt synchronisiert vor 3 Minuten</p>
+      <div class="row"><button class="btn btn-secondary btn-sm" type="button">Öffnen</button><button class="btn btn-ghost btn-sm" type="button">Synchronisieren</button></div>
+    </div>
+  </div>
+
+  <h3 class="sub">Reiter</h3>
+  <div class="tabs">
+    <input type="radio" name="tabs" id="tab-a" checked>
+    <input type="radio" name="tabs" id="tab-b">
+    <input type="radio" name="tabs" id="tab-c">
+    <div class="tablist" role="tablist" aria-label="Ansicht des Editors">
+      <label for="tab-a">Markdown</label>
+      <label for="tab-b">Vorschau</label>
+      <label for="tab-c">Änderungen (3)</label>
+    </div>
+    <div class="tabpanel" id="panel-a">Rohtext mit Frontmatter, Diagramm-Blöcken und Wikilinks.</div>
+    <div class="tabpanel" id="panel-b">Gerenderte Seite — identisch zur Leseansicht, inklusive Schrittspur.</div>
+    <div class="tabpanel" id="panel-c">Diff gegen <code>main</code>: 2 geänderte Absätze, 1 neuer Codeblock.</div>
+  </div>
+  <p class="note">Reiter arbeiten ohne JavaScript (Radio-Eingaben + <code>:checked</code>) und bleiben per Tastatur mit den Pfeiltasten bedienbar.</p>
+
+  <h3 class="sub">Hinweisblöcke</h3>
+  <div class="grid grid-2">
+    <div class="callout t-info" role="note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.6v.6" stroke-linecap="round"/></svg>
+      <div class="ct"><b>Hinweis</b><p>Ab SPS 07 liegt <code>hdbbackint</code> im Instanzverzeichnis, nicht mehr unter <code>/opt</code>.</p></div>
+    </div>
+    <div class="callout t-warn" role="note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 4.5 21 19H3l9-14.5Z" stroke-linejoin="round"/><path d="M12 10v4M12 16.6v.5" stroke-linecap="round"/></svg>
+      <div class="ct"><b>Warnung</b><p>Der Wartungsmodus trennt alle offenen Verbindungen der Anwendungsserver.</p></div>
+    </div>
+    <div class="callout t-err" role="note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.4v.5" stroke-linecap="round"/></svg>
+      <div class="ct"><b>Fehler</b><p>Der Vault antwortet nicht: <code>backint exited with exit code 2</code>.</p></div>
+    </div>
+    <div class="callout t-ok" role="note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="ct"><b>Erfolg</b><p>Wiederherstellung abgeschlossen, Mandant <code>HDB</code> ist wieder verfügbar.</p></div>
+    </div>
+  </div>
+
+  <h3 class="sub">Dialog, Laden, Leere</h3>
+  <div class="grid grid-3">
+    <div class="card">
+      <h4>Dialog</h4>
+      <p>Nativ (<code>&lt;dialog&gt;</code>) mit Fokusfalle, Escape und abgedunkelter Bühne.</p>
+      <button class="btn btn-secondary" type="button" onclick="document.getElementById('demo-dlg').showModal()">Dialog öffnen</button>
+    </div>
+    <div class="card">
+      <h4>Ladezustand</h4>
+      <div class="skel" aria-hidden="true"><span></span><span></span><span></span></div>
+      <div class="row"><span class="spinner" role="status" aria-label="Wird geladen"></span><p>Suchindex wird aufgebaut …</p></div>
+    </div>
+    <div class="card">
+      <h4>Leerzustand</h4>
+      <div class="empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M5 4h9l5 5v11H5z" stroke-linejoin="round"/><path d="M14 4v5h5" stroke-linejoin="round"/></svg>
+        <p>Noch keine Vorlage in diesem Space. Vorlagen sparen bei wiederkehrenden Protokollen die halbe Tipparbeit.</p>
+        <button class="btn btn-primary btn-sm" type="button">Erste Vorlage anlegen</button>
+      </div>
+    </div>
+  </div>
+
+  <dialog class="dlg" id="demo-dlg" aria-labelledby="dlg-h">
+    <form method="dialog" class="dlg-in">
+      <h3 id="dlg-h">Seite zur Freigabe einreichen?</h3>
+      <p>
+        f451 erzeugt einen Review-PR im Repository <code>handbuch</code> gegen <code>main</code>.
+        Die Seite bleibt bis zur Freigabe im Status „In Review“.
+      </p>
+      <div class="field">
+        <label for="dlg-note">Beschreibung für die Prüfer</label>
+        <input class="input" id="dlg-note" type="text" value="Backint-Pfad und Zeitstempel-Beispiel aktualisiert">
+      </div>
+      <div class="dlg-foot">
+        <button class="btn btn-ghost" value="cancel">Abbrechen</button>
+        <button class="btn btn-primary" value="ok">Einreichen</button>
+      </div>
+    </form>
+  </dialog>
+</section>
+
+<!-- ====================================================================
+     4. Navigation & Suche
+     ==================================================================== -->
+<section class="sec" id="navigation">
+  <header>
+    <p class="eyebrow">4 — Der eine Einstiegspunkt</p>
+    <h2>Navigation &amp; Suche</h2>
+    <p>
+      Der Griff öffnet sich an Ort und Stelle nach oben und wird zur Befehlsfläche.
+      Er sucht nicht nur — er springt, legt an und öffnet Werkzeuge. Die Treffer sind
+      nach Reichweite gruppiert: <strong>Hier</strong> (diese Seite),
+      <strong>Dieser Space</strong>, <strong>Werkzeuge</strong>, <strong>Überall</strong>.
+    </p>
+  </header>
+
+  <p class="framecap">Griff geöffnet — ⌘K</p>
+  <div class="frame">
+    <nav class="edge edge-l" aria-label="Bereiche">
+      <button class="monogram" type="button" aria-label="Space wechseln">hb</button>
+      <button class="handle" type="button" aria-label="Seitenbaum">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h7M4 12h11M4 18h7" stroke-linecap="round"/><circle cx="19" cy="18" r="2"/><circle cx="19" cy="6" r="2"/></svg>
+      </button>
+      <button class="handle" type="button" aria-label="Werkzeuge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14.5 5.5a3.5 3.5 0 0 0 4.6 4.6L21 12l-9 9-3-3 9-9 1.9-1.9Z" stroke-linejoin="round"/><path d="m6 6 3 3" stroke-linecap="round"/></svg>
+        <span class="dot" aria-hidden="true"></span>
+      </button>
+    </nav>
+    <div class="stage" aria-hidden="true">
+      <article class="read">
+        <h1>Wiederherstellung einer SAP-HANA-Datenbank aus Azure Backup</h1>
+        <p class="prose">Diese Anleitung stellt eine produktive Mandantendatenbank punktgenau auf einen Zeitstempel wieder her.</p>
+      </article>
+    </div>
+    <div class="veil"></div>
+
+    <div class="palette" role="dialog" aria-label="Suchen und Befehle">
+      <div class="pal-input">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2" stroke-linecap="round"/></svg>
+        <p class="q">restore<span class="caret" aria-hidden="true"></span></p>
+        <span class="pal-scope">handbuch <kbd>⇥</kbd> alle Spaces</span>
+      </div>
+      <div class="pal-body">
+        <div class="pal-group">
+          <h5>Hier — Wiederherstellung aus Azure Backup</h5>
+          <a class="pal-item active" href="#">
+            <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 12h16" stroke-linecap="round"/><path d="m13 5 7 7-7 7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <span class="tx"><b>Zu Schritt 4 springen</b><small>Wiederherstellung auf den Zeitstempel starten</small></span>
+            <span class="kbd">↵</span>
+          </a>
+          <a class="pal-item" href="#">
+            <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 20h4l10-10-4-4L4 16v4Z" stroke-linejoin="round"/></svg></span>
+            <span class="tx"><b>Seite bearbeiten</b><small>Entwurf abzweigen — Branch <code>entwurf/restore</code></small></span>
+            <span class="kbd">E</span>
+          </a>
+          <a class="pal-item" href="#">
+            <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 13a4 4 0 0 0 5.7 0l2.6-2.6A4 4 0 0 0 12.6 4.7L11.4 6" stroke-linecap="round"/><path d="M14 11a4 4 0 0 0-5.7 0l-2.6 2.6A4 4 0 0 0 11.4 19.3l1.2-1.3" stroke-linecap="round"/></svg></span>
+            <span class="tx"><b>Verweise dieser Seite prüfen</b><small>2 defekte Ziele gemeldet</small></span>
+          </a>
+        </div>
+
+        <div class="pal-group">
+          <h5>Space handbuch — 4 Seiten</h5>
+          <a class="pal-item" href="#">
+            <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 4h9l5 5v11H5z" stroke-linejoin="round"/><path d="M14 4v5h5" stroke-linejoin="round"/></svg></span>
+            <span class="tx"><b><mark>Restore</mark>-Test — Protokollvorlage</b><small>azure betrieb / backup restore · vierteljährlicher Nachweis</small></span>
+            <span class="chip c-rel">Released</span>
+          </a>
+          <a class="pal-item" href="#">
+            <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 4h9l5 5v11H5z" stroke-linejoin="round"/><path d="M14 4v5h5" stroke-linejoin="round"/></svg></span>
+            <span class="tx"><b>MaxDB — <mark>Restore</mark> aus Medienset</b><small>maxdb / betrieb · abweichender Ablauf ohne Backint</small></span>
+            <span class="chip c-rev">In Review</span>
+          </a>
+        </div>
+
+        <div class="pal-group">
+          <h5>Werkzeuge in diesem Space</h5>
+          <a class="pal-item" href="#">
+            <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 3h8l4 4v14H6z" stroke-linejoin="round"/><path d="M9 11h6M9 15h4" stroke-linecap="round"/></svg></span>
+            <span class="tx"><b>Vorlagen verwalten</b><small>6 Vorlagen — u. a. „Restore-Protokoll“</small></span>
+            <span class="badge-new">neu für dich</span>
+          </a>
+          <a class="pal-item" href="#">
+            <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10" stroke-linecap="round"/></svg></span>
+            <span class="tx"><b>Bericht: defekte Links &amp; Fehler</b><small>2 Befunde im Space handbuch</small></span>
+          </a>
+          <a class="pal-item" href="#">
+            <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="6" cy="7" r="2.5"/><circle cx="18" cy="7" r="2.5"/><circle cx="12" cy="17" r="2.5"/><path d="M7.6 8.8 11 15M16.4 8.8 13 15"/></svg></span>
+            <span class="tx"><b>Wissensgraph öffnen</b><small>84 Seiten, 212 Verknüpfungen</small></span>
+          </a>
+        </div>
+
+        <div class="pal-group">
+          <h5>Überall</h5>
+          <a class="pal-item" href="#">
+            <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2" stroke-linecap="round"/></svg></span>
+            <span class="tx"><b>„restore“ in allen 6 Spaces suchen</b><small>Volltext inklusive Codeblöcken</small></span>
+            <span class="kbd">⇥</span>
+          </a>
+          <a class="pal-item" href="#">
+            <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg></span>
+            <span class="tx"><b>Neue Seite „restore“ anlegen</b><small>in handbuch / azure betrieb / backup restore</small></span>
+          </a>
+        </div>
+      </div>
+      <div class="pal-foot">
+        <span><kbd>↑</kbd> <kbd>↓</kbd> wählen</span>
+        <span><kbd>↵</kbd> öffnen</span>
+        <span><kbd>⇥</kbd> Reichweite wechseln</span>
+        <span><kbd>Esc</kbd> zurück zu Schritt 4</span>
+      </div>
+    </div>
+  </div>
+
+  <h3 class="sub">Werkzeugblatt — alles, was dieser Space kann</h3>
+  <p class="note">
+    Erreichbar über den Werkzeug-Griff oder die Taste <kbd>.</kbd>. Jedes Werkzeug steht
+    mit einem Satz da, der erklärt, wofür es gut ist — der Grund, warum die
+    Vorlagenverwaltung monatelang unentdeckt blieb, war nie ihr Ort, sondern ihre
+    Wortlosigkeit.
+  </p>
+
+  <p class="framecap">Werkzeugblatt — Taste „.“</p>
+  <div class="frame short">
+    <div class="stage" aria-hidden="true"><article class="read"><h1>Wiederherstellung einer SAP-HANA-Datenbank</h1></article></div>
+    <div class="veil"></div>
+    <div class="sheet" role="dialog" aria-label="Werkzeuge des Space handbuch">
+      <p class="eyebrow">Space handbuch</p>
+      <h3 style="font-size: var(--text-xl); margin-top: var(--space-2)">Werkzeuge</h3>
+      <div class="toolgrid">
+        <a class="toolcard" href="#">
+          <span class="th"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 3h8l4 4v14H6z" stroke-linejoin="round"/><path d="M9 11h6M9 15h4" stroke-linecap="round"/></svg>Vorlagen <span class="badge-new">neu für dich</span></span>
+          <p>Gerüste für wiederkehrende Seiten — Restore-Protokoll, Kerneltausch, Wartungsfenster.</p>
+          <span class="kbd">V</span>
+        </a>
+        <a class="toolcard" href="#">
+          <span class="th"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M4 10h16M10 10v10" stroke-linecap="round"/></svg>Metadaten-Schema</span>
+          <p>Legt fest, welche Felder jede Seite trägt: Kritikalität, System, Prüfdatum.</p>
+          <span class="kbd">M</span>
+        </a>
+        <a class="toolcard" href="#">
+          <span class="th"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10" stroke-linecap="round"/></svg>Bericht</span>
+          <p>Defekte Verweise, Verarbeitungsfehler und Seiten ohne Prüfdatum auf einen Blick.</p>
+          <span class="kbd">R</span>
+        </a>
+        <a class="toolcard" href="#">
+          <span class="th"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="6" cy="7" r="2.5"/><circle cx="18" cy="7" r="2.5"/><circle cx="12" cy="17" r="2.5"/><path d="M7.6 8.8 11 15M16.4 8.8 13 15"/></svg>Wissensgraph</span>
+          <p>Zeigt, welche Anleitung auf welcher aufbaut — und welche Seite niemand verlinkt.</p>
+          <span class="kbd">G</span>
+        </a>
+        <a class="toolcard" href="#">
+          <span class="th"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M7 8 3 12l4 4M17 8l4 4-4 4M14 5l-4 14" stroke-linecap="round" stroke-linejoin="round"/></svg>Review-Übersicht</span>
+          <p>Offene Freigaben mit Diff und Kommentaren — 3 warten auf dich.</p>
+          <span class="kbd">P</span>
+        </a>
+        <a class="toolcard" href="#">
+          <span class="th"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v6M12 15v6M4.5 7.5 9 10M15 14l4.5 2.5M4.5 16.5 9 14M15 10l4.5-2.5" stroke-linecap="round"/><circle cx="12" cy="12" r="2.5"/></svg>Verbindungen</span>
+          <p>Git-Konten, Space-Repositories und API-Tokens für Agenten und Skripte.</p>
+          <span class="kbd">,</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================
+     5. Entdeckbarkeit
+     ==================================================================== -->
+<section class="sec" id="entdecken">
+  <header>
+    <p class="eyebrow">5 — Das Risiko der Reduktion</p>
+    <h2>Entdeckbarkeit ohne Dauerpräsenz</h2>
+    <p>
+      Wegräumen ist billig; wiederfinden ist die Arbeit. „Fokus“ ersetzt permanente
+      Sichtbarkeit durch fünf Mechaniken, die zusammen mehr Funktionen ans Licht bringen
+      als eine volle Werkzeugleiste — weil sie im richtigen Moment sprechen statt immer.
+    </p>
+  </header>
+
+  <div class="disc">
+    <div class="card">
+      <span class="n">1</span>
+      <h4>Ein Ort, der alles kann</h4>
+      <p>
+        Wer nicht weiß, wo etwas ist, tippt es. Der Griff nimmt Seitennamen, Befehle,
+        Werkzeuge und „Neue Seite …“ entgegen — es gibt keine zweite Stelle, an der man
+        hätte suchen müssen.
+      </p>
+    </div>
+    <div class="card">
+      <span class="n">2</span>
+      <h4>Ungesehenes meldet sich einmal</h4>
+      <p>
+        Werkzeuge, die dieses Konto noch nie geöffnet hat, tragen den Punkt am Griff und
+        die Marke <span class="badge-new">neu für dich</span>. Nach dem ersten Öffnen
+        verschwindet beides dauerhaft — kein Dauerblinken.
+      </p>
+    </div>
+    <div class="card">
+      <span class="n">3</span>
+      <h4>Anlass statt Katalog</h4>
+      <p>
+        Der Bericht taucht im Hinweis über defekte Links auf, die Vorlage im Leerzustand
+        „Noch keine Vorlage“, das Schema neben einem leeren Metadatenfeld. Funktionen
+        erscheinen dort, wo sie gerade das Problem lösen.
+      </p>
+    </div>
+    <div class="card">
+      <span class="n">4</span>
+      <h4>Jeder Griff hat ein Wort</h4>
+      <p>
+        Symbole allein erklären nichts. Jeder Rand-Griff zeigt bei Tastatur-Fokus und
+        Zeiger sofort Namen und Tastenkürzel; Screenreader bekommen dieselbe
+        Beschriftung über <code>aria-label</code>.
+      </p>
+    </div>
+    <div class="card">
+      <span class="n">5</span>
+      <h4>Das Werkzeugblatt als Landkarte</h4>
+      <p>
+        Ein Druck auf <kbd>.</kbd> zeigt alle sechs Werkzeuge des Space mit je einem Satz
+        Zweck. Wer einmal darauf war, weiß, was es gibt — ohne dass es danach Platz
+        belegt.
+      </p>
+    </div>
+    <div class="card quiet">
+      <span class="n">6</span>
+      <h4>Und wenn jemand alles sehen will?</h4>
+      <p>
+        Baum und Info-Leiste lassen sich anheften. Fokus ist die Voreinstellung, keine
+        Zwangsjacke — die angeheftete Variante nutzt dieselben Bausteine, nur ohne
+        Verdunkelung.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================
+     6. Tokens
+     ==================================================================== -->
+<section class="sec" id="tokens">
+  <header>
+    <p class="eyebrow">6 — Übergabe an die Themefähigkeit</p>
+    <h2>Tokens</h2>
+    <p>
+      Kein Baustein dieses Entwurfs enthält einen Farbwert, eine px-Angabe oder einen
+      Radius. Alles steht hier. Die Farbfelder sind echte Token-Auflösungen: die linke
+      Spalte ist in eine <code>[data-theme="light"]</code>-Insel gesetzt, die rechte in
+      eine dunkle — beide sind unabhängig vom Umschalter oben immer korrekt.
+    </p>
+  </header>
+
+  <p class="legend">
+    <span><span class="tok-new">Fett</span> = gegenüber dem heutigen Bestand neu eingeführt</span>
+    <span>Abgeleitete Rollen stehen in der zweiten Tabelle</span>
+  </p>
+
+  <h3 class="sub">Basis-Tokens</h3>
+  <div class="tokwrap">
+    <table class="tok">
+      <thead>
+        <tr><th scope="col">Token</th><th scope="col">Hell</th><th scope="col">Dunkel</th><th scope="col">Rolle</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>--color-bg</code></td>
+          <td><span class="pin" data-theme="light"><span class="sw" style="background:var(--color-bg)"></span>#ffffff</span></td>
+          <td><span class="pin" data-theme="dark"><span class="sw" style="background:var(--color-bg)"></span>#101010</span></td>
+          <td class="role">Blatt — die Lesefläche</td></tr>
+        <tr><td><code>--color-bg-raised</code></td>
+          <td><span class="pin" data-theme="light"><span class="sw" style="background:var(--color-bg-raised)"></span>#f1f0ec</span></td>
+          <td><span class="pin" data-theme="dark"><span class="sw" style="background:var(--color-bg-raised)"></span>#1b1b19</span></td>
+          <td class="role">Umgebung — Ränder, Bühne (im Dunkeln getauscht)</td></tr>
+        <tr><td><code>--color-text</code></td>
+          <td><span class="pin" data-theme="light"><span class="sw" style="background:var(--color-text)"></span>#1a1a17</span></td>
+          <td><span class="pin" data-theme="dark"><span class="sw" style="background:var(--color-text)"></span>#f5f4f1</span></td>
+          <td class="role">Fließtext, Überschriften — 16,4:1 auf dem Blatt</td></tr>
+        <tr><td><code>--color-text-muted</code></td>
+          <td><span class="pin" data-theme="light"><span class="sw" style="background:var(--color-text-muted)"></span>#63635e</span></td>
+          <td><span class="pin" data-theme="dark"><span class="sw" style="background:var(--color-text-muted)"></span>#a3a29c</span></td>
+          <td class="role">Metazeile, Hilfetexte — ≥ 4,8:1 auf beiden Flächen</td></tr>
+        <tr><td><code>--color-accent</code></td>
+          <td><span class="pin" data-theme="light"><span class="sw" style="background:var(--color-accent)"></span>#c8300f</span></td>
+          <td><span class="pin" data-theme="dark"><span class="sw" style="background:var(--color-accent)"></span>#ff6a45</span></td>
+          <td class="role">Der eine Anker: Griff, aktueller Schritt, aktive Seite</td></tr>
+        <tr><td><code>--color-accent-contrast</code></td>
+          <td><span class="pin" data-theme="light"><span class="sw" style="background:var(--color-accent-contrast)"></span>#ffffff</span></td>
+          <td><span class="pin" data-theme="dark"><span class="sw" style="background:var(--color-accent-contrast)"></span>#17110d</span></td>
+          <td class="role">Schrift auf Akzentfläche — 5,4:1 (hell) / 6,4:1 (dunkel)</td></tr>
+        <tr><td><code>--color-border</code></td>
+          <td><span class="pin" data-theme="light"><span class="sw" style="background:var(--color-border)"></span>#e2e0da</span></td>
+          <td><span class="pin" data-theme="dark"><span class="sw" style="background:var(--color-border)"></span>#2f2e2b</span></td>
+          <td class="role">Haarlinie</td></tr>
+        <tr><td><code>--color-danger</code></td>
+          <td><span class="pin" data-theme="light"><span class="sw" style="background:var(--color-danger)"></span>#9d1239</span></td>
+          <td><span class="pin" data-theme="dark"><span class="sw" style="background:var(--color-danger)"></span>#ff8098</span></td>
+          <td class="role">Zerstörende Aktionen — bewusst blaustichiges Rot, damit es nie mit dem Akzent verwechselt wird</td></tr>
+        <tr><td><code class="tok-new">--color-info</code></td>
+          <td><span class="pin" data-theme="light"><span class="sw" style="background:var(--color-info)"></span>#0f6f8e</span></td>
+          <td><span class="pin" data-theme="dark"><span class="sw" style="background:var(--color-info)"></span>#6ec8e8</span></td>
+          <td class="role"><span class="tok-new">Neu</span> — Info-Hinweisblock; bisher gab es keine eigene Info-Farbe</td></tr>
+        <tr><td><code class="tok-new">--color-focus</code></td>
+          <td><span class="pin" data-theme="light"><span class="sw" style="background:var(--color-focus)"></span>#0b5bd3</span></td>
+          <td><span class="pin" data-theme="dark"><span class="sw" style="background:var(--color-focus)"></span>#8ab4ff</span></td>
+          <td class="role"><span class="tok-new">Neu</span> — Fokusring; bewusst NICHT der Akzent, damit er auch auf Akzentflächen sichtbar bleibt</td></tr>
+        <tr><td><code class="tok-new">--color-veil</code></td>
+          <td><span class="pin" data-theme="light"><span class="sw" style="background:var(--color-veil)"></span>#1a1a17</span></td>
+          <td><span class="pin" data-theme="dark"><span class="sw" style="background:var(--color-veil)"></span>#000000</span></td>
+          <td class="role"><span class="tok-new">Neu</span> — Basis der Abdunklung hinter Ebenen (55 % Deckung)</td></tr>
+        <tr><td><code>--color-status-working</code></td>
+          <td><span class="pin" data-theme="light"><span class="sw" style="background:var(--color-status-working)"></span>#4f46e5</span></td>
+          <td><span class="pin" data-theme="dark"><span class="sw" style="background:var(--color-status-working)"></span>#a5b4fc</span></td>
+          <td class="role">Status Entwurf</td></tr>
+        <tr><td><code>--color-status-review</code></td>
+          <td><span class="pin" data-theme="light"><span class="sw" style="background:var(--color-status-review)"></span>#a35a00</span></td>
+          <td><span class="pin" data-theme="dark"><span class="sw" style="background:var(--color-status-review)"></span>#fbbf24</span></td>
+          <td class="role">Status In Review, zugleich Ton „Warnung“</td></tr>
+        <tr><td><code>--color-status-released</code></td>
+          <td><span class="pin" data-theme="light"><span class="sw" style="background:var(--color-status-released)"></span>#15803d</span></td>
+          <td><span class="pin" data-theme="dark"><span class="sw" style="background:var(--color-status-released)"></span>#5ddc8f</span></td>
+          <td class="role">Status Released, zugleich Ton „Erfolg“ und erledigter Schritt</td></tr>
+        <tr><td><code>--color-status-archived</code></td>
+          <td><span class="pin" data-theme="light"><span class="sw" style="background:var(--color-status-archived)"></span>#63635e</span></td>
+          <td><span class="pin" data-theme="dark"><span class="sw" style="background:var(--color-status-archived)"></span>#a3a29c</span></td>
+          <td class="role">Status Archiviert</td></tr>
+
+        <tr><td><code>--font-sans</code></td><td colspan="2">Hanken Grotesk → System-Stack</td><td class="role">Fließtext</td></tr>
+        <tr><td><code>--font-display</code></td><td colspan="2">Schibsted Grotesk → System-Stack</td><td class="role">Überschriften, Schaltflächen, Reiter, Schrittitel</td></tr>
+        <tr><td><code>--font-mono</code></td><td colspan="2">JetBrains Mono → System-Stack</td><td class="role">Code, Konsole, Zähler, Tastenkürzel</td></tr>
+
+        <tr><td><code>--text-xs</code> … <code>--text-2xl</code></td><td colspan="2">0.75 / 0.875 / 1 / 1.125 / 1.5 / 2 rem</td><td class="role">Unverändert im Umfang — <code>--text-lg</code> wird hier zur <em>Lesegröße</em> (18 px) befördert</td></tr>
+        <tr><td><code class="tok-new">--text-3xl</code></td><td colspan="2">2.75 rem</td><td class="role"><span class="tok-new">Neu</span> — Seitentitel; die 2xl-Stufe reicht für den einen Anker der Seite nicht aus</td></tr>
+        <tr><td><code class="tok-new">--weight-normal|medium|semibold|bold</code></td><td colspan="2">400 / 500 / 600 / 700</td><td class="role"><span class="tok-new">Neu</span> — Gewichte als Theme-Größe (variable Schriften)</td></tr>
+        <tr><td><code class="tok-new">--leading-tight|snug|body</code></td><td colspan="2">1.05 / 1.3 / 1.7</td><td class="role"><span class="tok-new">Neu</span> — Zeilenabstand als Dichte-Regler; 1.7 trägt die langen Prozeduren</td></tr>
+        <tr><td><code class="tok-new">--track-tight|wide</code></td><td colspan="2">-0.022em / 0.09em</td><td class="role"><span class="tok-new">Neu</span> — Laufweite für Display bzw. Kapitälchen-Labels</td></tr>
+
+        <tr><td><code>--space-1</code> … <code>--space-8</code></td><td colspan="2">0.25 … 2 rem</td><td class="role">Unverändert</td></tr>
+        <tr><td><code class="tok-new">--space-9|10|11</code></td><td colspan="2">2.5 / 3 / 4 rem</td><td class="role"><span class="tok-new">Neu</span> — die großen Ruheabstände, von denen der Fokus lebt</td></tr>
+
+        <tr><td><code>--radius-sm|md|lg</code></td><td colspan="2">0.375 / 0.625 / 1 rem</td><td class="role">Flächen und Felder</td></tr>
+        <tr><td><code class="tok-new">--radius-pill</code></td><td colspan="2">999 rem</td><td class="role"><span class="tok-new">Neu</span> — alles Klickbare ist rund: Griff, Schaltflächen, Chips, Schrittnummern</td></tr>
+
+        <tr><td><code class="tok-new">--line-w</code> / <code class="tok-new">--line-w-strong</code></td><td colspan="2">1px / 2px</td><td class="role"><span class="tok-new">Neu</span> — Linienstärken, damit auch Ränder und Fokusringe themebar sind</td></tr>
+        <tr><td><code class="tok-new">--measure-read</code></td><td colspan="2">34 rem (≈ 68 Zeichen)</td><td class="role"><span class="tok-new">Neu</span> — Zeilenlänge des <em>Fließtexts</em>; sitzt auf Absätzen, Listen und Hinweisblöcken, nie auf der Fläche</td></tr>
+        <tr><td><code class="tok-new">--measure-wide</code></td><td colspan="2">72 rem</td><td class="role"><span class="tok-new">Neu</span> — Obergrenze der Inhaltsfläche: so breit dürfen Tabellen, Codeblöcke, Diagramme und Bilder werden</td></tr>
+        <tr><td><code class="tok-new">--size-panel</code></td><td colspan="2">19 rem</td><td class="role"><span class="tok-new">Neu</span> — Breite einer angedockten Seitenleiste; genau dieser Betrag wandert beim Einklappen in die breiten Inhalte</td></tr>
+        <tr><td><code class="tok-new">--size-edge</code></td><td colspan="2">3.5 rem</td><td class="role"><span class="tok-new">Neu</span> — Breite der beiden Ränder</td></tr>
+        <tr><td><code class="tok-new">--size-tap</code></td><td colspan="2">2.75 rem (44 px)</td><td class="role"><span class="tok-new">Neu</span> — Mindest-Zielgröße; ein Theme darf sie erhöhen, nicht unterschreiten</td></tr>
+        <tr><td><code class="tok-new">--size-griff</code></td><td colspan="2">30 rem</td><td class="role"><span class="tok-new">Neu</span> — Breite des Griffs</td></tr>
+        <tr><td><code class="tok-new">--size-col-min</code></td><td colspan="2">15 rem</td><td class="role"><span class="tok-new">Neu</span> — schmalste Spalte in Karten-Rastern (Werkzeugblatt, Kartenlisten)</td></tr>
+        <tr><td><code class="tok-new">--size-frame</code></td><td colspan="2">44 rem</td><td class="role"><span class="tok-new">Neu</span> — nur die Bühne dieses Mockups, kein Produkt-Token</td></tr>
+
+        <tr><td><code>--shadow-sm</code></td>
+          <td><span class="pin" data-theme="light"><span class="sw" style="box-shadow:var(--shadow-sm)"></span>0 1px 2px / 5 %</span></td>
+          <td><span class="pin" data-theme="dark"><span class="sw" style="box-shadow:var(--shadow-sm)"></span>0 1px 2px / 50 %</span></td>
+          <td class="role">Karten im Hover</td></tr>
+        <tr><td><code>--shadow-md</code></td>
+          <td><span class="pin" data-theme="light"><span class="sw" style="box-shadow:var(--shadow-md)"></span>0 8px 24px / 9 %</span></td>
+          <td><span class="pin" data-theme="dark"><span class="sw" style="box-shadow:var(--shadow-md)"></span>0 8px 24px / 55 %</span></td>
+          <td class="role">Bühne</td></tr>
+        <tr><td><code class="tok-new">--shadow-lg</code></td>
+          <td><span class="pin" data-theme="light"><span class="sw" style="box-shadow:var(--shadow-lg)"></span>0 24px 60px / 18 %</span></td>
+          <td><span class="pin" data-theme="dark"><span class="sw" style="box-shadow:var(--shadow-lg)"></span>0 24px 60px / 70 %</span></td>
+          <td class="role"><span class="tok-new">Neu</span> — Griff, Palette, Ebenen: die schwebende Schicht</td></tr>
+        <tr><td><code>--shadow-accent</code></td>
+          <td><span class="pin" data-theme="light"><span class="sw" style="box-shadow:var(--shadow-accent)"></span>0 6px 18px / Akzent</span></td>
+          <td><span class="pin" data-theme="dark"><span class="sw" style="box-shadow:var(--shadow-accent)"></span>0 6px 18px / Akzent</span></td>
+          <td class="role">Primärschaltfläche und aktuelle Schrittnummer</td></tr>
+
+        <tr><td><code class="tok-new">--motion-fast|slow</code></td><td colspan="2">120 ms / 260 ms</td><td class="role"><span class="tok-new">Neu</span> — Tempo der Offenlegung</td></tr>
+        <tr><td><code class="tok-new">--motion-ease</code></td><td colspan="2">cubic-bezier(.2,.7,.3,1)</td><td class="role"><span class="tok-new">Neu</span> — gemeinsame Kurve</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="sub">Abgeleitete Rollen</h3>
+  <p class="note">
+    Diese Variablen mischen ausschließlich Basis-Tokens (<code>color-mix</code>). Ein Theme
+    verschiebt sie nie direkt — es verschiebt die Basis, und sie folgen. Deshalb kann ein
+    Kunden-Theme aus vierzehn Farbwerten das gesamte Erscheinungsbild drehen.
+  </p>
+  <div class="tokwrap">
+    <table class="tok">
+      <thead>
+        <tr><th scope="col">Rolle</th><th scope="col">Hell</th><th scope="col">Dunkel</th><th scope="col">Ableitung</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>--surface-page</code></td>
+          <td><span class="pin" data-theme="light"><span class="sw" style="background:var(--surface-page)"></span></span></td>
+          <td><span class="pin" data-theme="dark"><span class="sw" style="background:var(--surface-page)"></span></span></td>
+          <td class="role">= <code>--color-bg-raised</code> (Ränder, Bühne)</td></tr>
+        <tr><td><code>--surface-sheet</code></td>
+          <td><span class="pin" data-theme="light"><span class="sw" style="background:var(--surface-sheet)"></span></span></td>
+          <td><span class="pin" data-theme="dark"><span class="sw" style="background:var(--surface-sheet)"></span></span></td>
+          <td class="role">= <code>--color-bg</code> (Blatt, Ebenen, Dialoge)</td></tr>
+        <tr><td><code>--surface-quiet</code></td>
+          <td><span class="pin" data-theme="light"><span class="sw" style="background:var(--surface-quiet)"></span></span></td>
+          <td><span class="pin" data-theme="dark"><span class="sw" style="background:var(--surface-quiet)"></span></span></td>
+          <td class="role">3 % Text auf Blatt — Tabellenkopf, ruhige Karten</td></tr>
+        <tr><td><code>--surface-hover</code></td>
+          <td><span class="pin" data-theme="light"><span class="sw" style="background:var(--surface-hover)"></span></span></td>
+          <td><span class="pin" data-theme="dark"><span class="sw" style="background:var(--surface-hover)"></span></span></td>
+          <td class="role">7 % Text auf Blatt — Zeilen, Griffe</td></tr>
+        <tr><td><code>--surface-sunken</code></td>
+          <td><span class="pin" data-theme="light"><span class="sw" style="background:var(--surface-sunken)"></span></span></td>
+          <td><span class="pin" data-theme="dark"><span class="sw" style="background:var(--surface-sunken)"></span></span></td>
+          <td class="role">5 % Text auf Umgebung — gesperrte Felder, Inline-Code</td></tr>
+        <tr><td><code>--hairline-strong</code></td>
+          <td><span class="pin" data-theme="light"><span class="sw" style="background:var(--hairline-strong)"></span></span></td>
+          <td><span class="pin" data-theme="dark"><span class="sw" style="background:var(--hairline-strong)"></span></span></td>
+          <td class="role">16 % Text in der Randfarbe — Eingaben, Diagrammlinien</td></tr>
+        <tr><td><code>--accent-wash</code> / <code>--accent-line</code></td>
+          <td><span class="pin" data-theme="light"><span class="sw" style="background:var(--accent-wash)"></span><span class="sw" style="background:var(--accent-line)"></span></span></td>
+          <td><span class="pin" data-theme="dark"><span class="sw" style="background:var(--accent-wash)"></span><span class="sw" style="background:var(--accent-line)"></span></span></td>
+          <td class="role">9 % / 40 % Akzent auf Blatt — aktuelle Seite, aktueller Schritt</td></tr>
+        <tr><td><code>--veil</code></td>
+          <td><span class="pin" data-theme="light"><span class="sw" style="background:var(--veil)"></span></span></td>
+          <td><span class="pin" data-theme="dark"><span class="sw" style="background:var(--veil)"></span></span></td>
+          <td class="role">55 % <code>--color-veil</code> — Abdunklung hinter Ebenen</td></tr>
+        <tr><td><code>--code-bg</code> / <code>--code-fg</code></td>
+          <td><span class="pin" data-theme="light"><span class="sw" style="background:var(--code-bg)"></span><span class="sw" style="background:var(--code-fg)"></span></span></td>
+          <td><span class="pin" data-theme="dark"><span class="sw" style="background:var(--code-bg)"></span><span class="sw" style="background:var(--code-fg)"></span></span></td>
+          <td class="role">Einzige Fläche, die sich umdreht: hell = dunkle Tafel aus 94 % Text + 6 % Akzent, dunkel = tiefere Tafel aus 93 % Blatt + 7 % Akzent</td></tr>
+        <tr><td><code>--code-key</code> / <code>--code-str</code> / <code>--code-comment</code></td>
+          <td><span class="pin" data-theme="light"><span class="sw" style="background:var(--code-key)"></span><span class="sw" style="background:var(--code-str)"></span><span class="sw" style="background:var(--code-comment)"></span></span></td>
+          <td><span class="pin" data-theme="dark"><span class="sw" style="background:var(--code-key)"></span><span class="sw" style="background:var(--code-str)"></span><span class="sw" style="background:var(--code-comment)"></span></span></td>
+          <td class="role">Syntax aus Akzent, Released-Grün und Codefarbe gemischt — keine eigene Palette</td></tr>
+        <tr><td><code>--t-*-fg|bg|ln</code></td>
+          <td><span class="pin" data-theme="light">
+            <span class="sw" style="background:var(--t-info-bg);border-color:var(--t-info-ln)"></span>
+            <span class="sw" style="background:var(--t-warn-bg);border-color:var(--t-warn-ln)"></span>
+            <span class="sw" style="background:var(--t-ok-bg);border-color:var(--t-ok-ln)"></span>
+            <span class="sw" style="background:var(--t-danger-bg);border-color:var(--t-danger-ln)"></span>
+          </span></td>
+          <td><span class="pin" data-theme="dark">
+            <span class="sw" style="background:var(--t-info-bg);border-color:var(--t-info-ln)"></span>
+            <span class="sw" style="background:var(--t-warn-bg);border-color:var(--t-warn-ln)"></span>
+            <span class="sw" style="background:var(--t-ok-bg);border-color:var(--t-ok-ln)"></span>
+            <span class="sw" style="background:var(--t-danger-bg);border-color:var(--t-danger-ln)"></span>
+          </span></td>
+          <td class="role">Ton-Trio je Signalfarbe (Info, Warnung, Erfolg, Fehler, Entwurf, Archiviert) — ein Bauplan, sechs Töne</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<script>
+/* Seitenleisten: einzeln schaltbar, Tastenkürzel, aria-expanded, gemerkter
+   Zustand, Vollbreite in einem Griff. Einzige Zustandsquelle sind die
+   Attribute `data-tree`/`data-info` am Rahmen — das CSS leitet daraus die
+   Einrückung der Bühne ab. */
+(function () {
+  var app = document.getElementById('app-lese');
+  if (!app) return;
+  var KEY = 'f451-mockup-leisten';
+  var remembered = { tree: 'open', info: 'open' };
+
+  function isOpen(which) { return app.getAttribute('data-' + which) === 'open'; }
+
+  function reflect() {
+    var both = !isOpen('tree') && !isOpen('info');
+    app.querySelectorAll('[data-toggle]').forEach(function (btn) {
+      var which = btn.getAttribute('data-toggle');
+      if (which === 'full') {
+        btn.setAttribute('aria-pressed', String(both));
+        return;
+      }
+      if (btn.hasAttribute('aria-controls')) {
+        var open = isOpen(which);
+        btn.setAttribute('aria-expanded', String(open));
+        btn.classList.toggle('on', open);
+        var name = which === 'tree' ? 'Seitenbaum' : 'Info-Leiste';
+        btn.setAttribute('aria-label', name + (open ? ' schließen' : ' öffnen'));
+      }
+    });
+    try {
+      localStorage.setItem(KEY, JSON.stringify({
+        tree: app.getAttribute('data-tree'), info: app.getAttribute('data-info')
+      }));
+    } catch (e) {}
+    measure();
+  }
+
+  function set(which, open) {
+    app.setAttribute('data-' + which, open ? 'open' : 'closed');
+    reflect();
+  }
+  function toggle(which) { set(which, !isOpen(which)); }
+  function toggleFull() {
+    if (!isOpen('tree') && !isOpen('info')) {
+      set('tree', remembered.tree === 'open');
+      app.setAttribute('data-info', remembered.info);
+      reflect();
+    } else {
+      remembered = { tree: app.getAttribute('data-tree'), info: app.getAttribute('data-info') };
+      app.setAttribute('data-tree', 'closed');
+      app.setAttribute('data-info', 'closed');
+      reflect();
+    }
+  }
+
+  app.addEventListener('click', function (event) {
+    var btn = event.target.closest('[data-toggle]');
+    if (!btn) return;
+    var which = btn.getAttribute('data-toggle');
+    if (which === 'full') toggleFull(); else toggle(which);
+  });
+
+  document.addEventListener('keydown', function (event) {
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+    var t = event.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+    var k = event.key.toLowerCase();
+    if (k === 'b') { event.preventDefault(); toggle('tree'); }
+    else if (k === 'i') { event.preventDefault(); toggle('info'); }
+    else if (k === 'f' && event.shiftKey) { event.preventDefault(); toggleFull(); }
+  });
+
+  /* Breitenanzeige — macht ohne Ausprobieren sichtbar, wohin die Breite geht. */
+  var meter = {
+    state: document.getElementById('wm-state'),
+    area: document.getElementById('wm-area'),
+    table: document.getElementById('wm-table'),
+    text: document.getElementById('wm-text')
+  };
+  var stage = app.querySelector('.stage');
+  var read = app.querySelector('.read');
+  var table = app.querySelector('[data-wmeter]');
+  var para = app.querySelector('.prose > .lead');
+
+  function px(el) { return el ? Math.round(el.getBoundingClientRect().width) + ' px' : '–'; }
+  function measure() {
+    if (!meter.state) return;
+    var names = [];
+    if (isOpen('tree')) names.push('Seitenbaum');
+    if (isOpen('info')) names.push('Info-Leiste');
+    meter.state.textContent = names.length === 0 ? 'beide Leisten zu — Vollbreite'
+      : names.length === 2 ? 'beide Leisten offen' : names[0] + ' offen';
+    meter.area.textContent = px(read);
+    meter.table.textContent = px(table);
+    meter.text.textContent = px(para);
+  }
+
+  try {
+    var stored = JSON.parse(localStorage.getItem(KEY) || 'null');
+    if (stored && stored.tree && stored.info) {
+      app.setAttribute('data-tree', stored.tree);
+      app.setAttribute('data-info', stored.info);
+    }
+  } catch (e) {}
+  reflect();
+  if (window.ResizeObserver && stage) {
+    var ro = new ResizeObserver(measure);
+    ro.observe(stage);
+  }
+  window.addEventListener('resize', measure);
+  window.setTimeout(measure, 60);
+})();
+
+function setTheme(mode) {
+  document.documentElement.setAttribute('data-theme', mode);
+  document.getElementById('t-light').setAttribute('aria-pressed', String(mode === 'light'));
+  document.getElementById('t-dark').setAttribute('aria-pressed', String(mode === 'dark'));
+  try { localStorage.setItem('f451-mockup-theme', mode); } catch (e) {}
+}
+(function () {
+  var stored = null;
+  try { stored = localStorage.getItem('f451-mockup-theme'); } catch (e) {}
+  var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  setTheme(stored || (prefersDark ? 'dark' : 'light'));
+})();
+</script>
+</body>
+</html>

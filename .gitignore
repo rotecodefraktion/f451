@@ -1,0 +1,19 @@
+node_modules/
+dist/
+.next/
+*.log
+.env*
+!.env.example
+.DS_Store
+*.tsbuildinfo
+e2e-artifacts/
+
+# Ausgabe des graphify-Skills — generiert, nie versionieren
+graphify-out/
+
+# Lokale Compose-Ueberlagerungen (Host-IPs, Entwicklungs-Sonderwege)
+docker-compose.override.yml
+
+# Arbeitsblatt zum Azure-Aufbau: enthaelt Maschinennamen, private Adressen und
+# Subnetze. Betriebsdaten gehoeren nicht in dieses Repo.
+deploy/azure-aufbau.html

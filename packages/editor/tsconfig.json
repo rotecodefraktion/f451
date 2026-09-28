@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    // Tiptaps parseHTML/renderHTML-Signaturen (letztlich aus prosemirror-model)
+    // referenzieren DOM-Typen (HTMLElement etc.). Nur für die TS-Typprüfung nötig —
+    // zur Laufzeit läuft in diesem Paket nie echtes DOM-Code (Tests sind Node-vitest
+    // ohne jsdom, s. Vorgabe); die parseHTML/renderHTML-Callbacks werden von den
+    // Schema-Tests nie ausgeführt, nur ihre Form (Attrs/Content-Ausdrücke) geprüft.
+    "lib": ["ES2022", "DOM", "DOM.Iterable"]
+  },
+  "include": ["src"]
+}

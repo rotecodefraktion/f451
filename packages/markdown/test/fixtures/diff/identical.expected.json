@@ -1,0 +1,50 @@
+{
+  "blocks": [
+    {
+      "kind": "same",
+      "html": "<h1 id=\"titel\">Titel</h1>",
+      "anchor": "c1"
+    },
+    {
+      "kind": "same",
+      "html": "<p>Ein Absatz.</p>",
+      "anchor": "c2"
+    },
+    {
+      "kind": "same",
+      "html": "<ul><li>Punkt eins</li><li>Punkt zwei</li></ul>",
+      "anchor": "c3"
+    }
+  ],
+  "summary": {
+    "added": 0,
+    "changed": 0,
+    "removed": 0
+  },
+  "mdLines": [
+    {
+      "kind": "same",
+      "text": "# Titel"
+    },
+    {
+      "kind": "same",
+      "text": ""
+    },
+    {
+      "kind": "same",
+      "text": "Ein Absatz."
+    },
+    {
+      "kind": "same",
+      "text": ""
+    },
+    {
+      "kind": "same",
+      "text": "- Punkt eins"
+    },
+    {
+      "kind": "same",
+      "text": "- Punkt zwei"
+    }
+  ]
+}
