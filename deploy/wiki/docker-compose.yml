@@ -30,8 +30,10 @@ services:
       DRAWIO_INTERNAL_URL: http://drawio:8080
       # LAUFZEIT-Spiegel des Build-Args: das `/mcp`-Rewrite-Ziel.
       MCP_INTERNAL_URL: http://mcp:3002
+    # Host ports are configurable so a second stack (e.g. a demo under its
+    # own compose project name) can run next to this one.
     ports:
-      - "8080:3000"
+      - "${F451_WEB_PORT:-8080}:3000"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
       interval: 10s
@@ -45,7 +47,7 @@ services:
     image: jgraph/drawio:latest
     restart: unless-stopped
     ports:
-      - "8081:8080"
+      - "${F451_DRAWIO_PORT:-8081}:8080"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/"]
       interval: 10s
@@ -117,6 +119,8 @@ services:
       F451_OIDC_REDIRECT_URL: ${F451_OIDC_REDIRECT_URL:-}
       F451_TOKEN_KEY: ${F451_TOKEN_KEY:-}
       F451_INSECURE_COOKIES: ${F451_INSECURE_COOKIES:-}
+      # Cookie name prefix — set per instance when two stacks share a host.
+      F451_COOKIE_PREFIX: ${F451_COOKIE_PREFIX:-}
       # Auth-Härtung (Phase 4a Task 3, M2) — separat von F451_INSECURE_COOKIES,
       # siehe .env.example. In Produktion NICHT setzen.
       F451_OIDC_ALLOW_INSECURE: ${F451_OIDC_ALLOW_INSECURE:-}

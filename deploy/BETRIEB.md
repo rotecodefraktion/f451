@@ -71,6 +71,7 @@ Web-seitig gibt es genau EINE `NEXT_PUBLIC_*`-Variable (grep über
 | `F451_OIDC_CLIENT_SECRET` | ja, wenn `F451_OIDC_ISSUER` gesetzt | — | Entra-App-Registrierung, Client-Secret. |
 | `F451_OIDC_REDIRECT_URL` | ja, wenn `F451_OIDC_ISSUER` gesetzt | — | `https://<api-host>/auth/callback`, exakt wie bei Entra hinterlegt. |
 | `F451_INSECURE_COOKIES` | nein | `0` (aus) | `1` deaktiviert `secure` auf Session-/Transaktions-Cookies. **Nur lokale HTTP-Entwicklung — in Produktion NICHT setzen.** |
+| `F451_COOKIE_PREFIX` | nein | `f451` | Prefix of the auth cookie names (`<prefix>_session`, `_oidc_tx`, `_connect_tx`). Set a different value per instance when two stacks run on the same host — browsers do not separate cookies by port. |
 | `F451_OIDC_ALLOW_INSECURE` | nein | Wert von `F451_INSECURE_COOKIES` | `1` erlaubt http-Issuer bei der OIDC-Discovery, unabhängig vom Cookie-Modus. **In Produktion NICHT setzen** (Entra spricht ohnehin nur HTTPS). |
 | `F451_FORGEJO_OAUTH_CLIENT_ID` / `_SECRET` | nein (Paar) | — (Verknüpfung deaktiviert) | Aktiviert „Forgejo verbinden". Braucht zusätzlich `F451_FORGEJO_URL`. |
 | `F451_GITHUB_OAUTH_CLIENT_ID` / `_SECRET` | nein (Paar) | — (Verknüpfung deaktiviert) | Aktiviert „GitHub verbinden". |

@@ -25,7 +25,9 @@ SPACE_REPO="betrieb"
 OAUTH_APP_NAME="f451-wiki-dev"
 # Host-Dev-Basis (Browser) — Web proxyt /auth,/api,/admin,/media zur API.
 WEB_BASE="${WEB_BASE:-http://localhost:3000}"
-ENV_FILE="$REPO_ROOT/deploy/wiki/.env"
+# Overridable for a second instance (demo): pair with COMPOSE_PROJECT_NAME and
+# FORGEJO_URL/WEB_BASE pointing at that instance.
+ENV_FILE="${ENV_FILE:-$REPO_ROOT/deploy/wiki/.env}"
 
 say() { printf '\033[1;34m» %s\033[0m\n' "$*"; }
 die() { printf '\033[1;31mFehler: %s\033[0m\n' "$*" >&2; exit 1; }

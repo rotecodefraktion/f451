@@ -11,7 +11,23 @@ import { generateSessionId, hashApiToken, isApiToken } from './crypto.js'
  * beim Zugriff gelöscht statt nur ignoriert (kein "toter" Datenmüll).
  */
 
-export const SESSION_COOKIE_NAME = 'f451_session'
+/**
+ * Prefix for all auth cookies (session and login/connect transactions).
+ * Browsers do not separate cookies by port, so two instances on the same host
+ * (e.g. a demo stack next to the dev stack) would overwrite each other's
+ * session. Setting F451_COOKIE_PREFIX per instance keeps them apart.
+ */
+export const COOKIE_PREFIX = cookiePrefix(process.env.F451_COOKIE_PREFIX)
+
+export function cookiePrefix(value: string | undefined): string {
+  if (!value) return 'f451'
+  if (!/^[A-Za-z0-9_-]+$/.test(value)) {
+    throw new Error(`F451_COOKIE_PREFIX may only contain letters, digits, "_" and "-": ${value}`)
+  }
+  return value
+}
+
+export const SESSION_COOKIE_NAME = `${COOKIE_PREFIX}_session`
 
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000
 const SLIDING_REFRESH_RATIO = 0.5
