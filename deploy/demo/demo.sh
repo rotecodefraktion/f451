@@ -132,8 +132,9 @@ setup_forgejo() {
 
   fapi GET "/orgs/$ORG" >/dev/null || fapi POST /orgs "{\"username\":\"$ORG\",\"visibility\":\"public\"}" >/dev/null
 
-  if [ -z "$(env_get DEMO_VISITOR_PASSWORD)" ]; then
-    env_set DEMO_VISITOR_PASSWORD "$(secret 8)"
+  [ -n "$(env_get DEMO_VISITOR_PASSWORD)" ] || env_set DEMO_VISITOR_PASSWORD "$(secret 8)"
+  # Ask Forgejo, not demo.env: a failed earlier run may have stored the password only.
+  if ! fapi GET "/users/$VISITOR_USER" >/dev/null; then
     compose exec -T -u 1000 forgejo forgejo admin user create \
       --username "$VISITOR_USER" --password "$(env_get DEMO_VISITOR_PASSWORD)" \
       --email "$VISITOR_USER@$GIT_HOST" --must-change-password=false >/dev/null
