@@ -1,0 +1,101 @@
+/* f451 demo theme for Forgejo: the colours and typefaces of the app
+   (deploy/demo/theme/theme.css) on top of Forgejo's own auto theme. Selected
+   via FORGEJO__ui__DEFAULT_THEME=f451 (docker-compose.demo.yml). */
+@import url("theme-forgejo-auto.css");
+
+:root {
+  --fonts-regular: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --fonts-monospace: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --color-primary: #c8102e;
+  --color-primary-contrast: #ffffff;
+  --color-primary-dark-1: #b30e29;
+  --color-primary-dark-2: #a00d24;
+  --color-primary-dark-3: #8c0b20;
+  --color-primary-light-1: #d32642;
+  --color-primary-light-2: #dc4b62;
+  --color-primary-light-3: #e67083;
+  --color-primary-alpha-10: rgba(200, 16, 46, 0.1);
+  --color-primary-alpha-20: rgba(200, 16, 46, 0.2);
+  --color-primary-alpha-30: rgba(200, 16, 46, 0.3);
+  --color-primary-alpha-40: rgba(200, 16, 46, 0.4);
+  --color-body: #faf8f5;
+  --color-box-body: #ffffff;
+  --color-box-header: #f0eee9;
+  --color-navbar: #faf8f5;
+  --color-navbar-transparent: rgba(250, 248, 245, 0);
+  --color-text: #1a1a1a;
+  --color-text-light: #555555;
+  --color-text-light-2: #6e6e6e;
+  --color-text-light-3: #8a857d;
+  --color-secondary: #e5e0d8;
+  --color-secondary-dark-1: #d9d3ca;
+  --color-input-background: #ffffff;
+  --color-input-border: #e5e0d8;
+  --color-input-text: #1a1a1a;
+  --color-button: #ffffff;
+  --color-card: #ffffff;
+  --color-footer: #f0eee9;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-primary: #ff4d5e;
+    --color-primary-contrast: #141414;
+    --color-primary-dark-1: #ff3a4d;
+    --color-primary-dark-2: #f02a3e;
+    --color-primary-dark-3: #d92238;
+    --color-primary-light-1: #ff6b7a;
+    --color-primary-light-2: #ff8593;
+    --color-primary-light-3: #ffa2ad;
+    --color-primary-alpha-10: rgba(255, 77, 94, 0.1);
+    --color-primary-alpha-20: rgba(255, 77, 94, 0.2);
+    --color-primary-alpha-30: rgba(255, 77, 94, 0.3);
+    --color-primary-alpha-40: rgba(255, 77, 94, 0.4);
+    --color-body: #141414;
+    --color-box-body: #1e1e1e;
+    --color-box-header: #2a2a2a;
+    --color-navbar: #141414;
+    --color-navbar-transparent: rgba(20, 20, 20, 0);
+    --color-text: #e8e4df;
+    --color-text-light: #a8a8a8;
+    --color-text-light-2: #8f8f8f;
+    --color-text-light-3: #7a7a7a;
+    --color-secondary: #2e2e2e;
+    --color-secondary-dark-1: #3a3a3a;
+    --color-input-background: #1e1e1e;
+    --color-input-border: #2e2e2e;
+    --color-input-text: #e8e4df;
+    --color-button: #1e1e1e;
+    --color-card: #1e1e1e;
+    --color-footer: #1a1a1a;
+  }
+}
+
+/* Sign-in page: the same card as on the f451 sign-in page. */
+.page-content.user.signin .ui.container {
+  max-width: 440px !important;
+}
+.page-content.user.signin .ui.form .ui.attached.segment,
+.page-content.user.signin .ui.form .ui.attached.header {
+  border-color: var(--color-secondary);
+}
+.page-content.user.signin .ui.attached.header {
+  font-family: "Instrument Serif", Georgia, serif;
+  font-weight: 400;
+  font-size: 1.9rem;
+  text-align: center;
+  background: transparent;
+  border-bottom: none;
+}
+.page-content.user.signin .ui.attached.segment {
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+}
+.page-content.user.signin .ui.primary.button {
+  border-radius: 6px;
+}
+/* Nothing to explore, nothing to reset: the demo accounts are fixed. */
+.page-content.user.signin .ui.container > .ui.segment:not(.attached),
+#navbar .navbar-left .item:not(#navbar-logo) {
+  display: none;
+}

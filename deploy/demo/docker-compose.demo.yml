@@ -32,8 +32,16 @@ services:
 
   forgejo:
     restart: unless-stopped
+    volumes:
+      # Look of the Git side (see forgejo/README.md); nested in the data volume.
+      - ../demo/forgejo/public:/data/gitea/public:ro
+      - ../demo/forgejo/templates:/data/gitea/templates:ro
+      - ../demo/theme/webfonts:/data/gitea/public/assets/fonts:ro
     environment:
       FORGEJO__server__DOMAIN: ${F451_DEMO_GIT_HOST}
+      FORGEJO__server__LANDING_PAGE: login
+      FORGEJO__ui__THEMES: forgejo-auto,forgejo-light,forgejo-dark,f451
+      FORGEJO__ui__DEFAULT_THEME: f451
       FORGEJO__server__DISABLE_SSH: "true"
       # Visitors get accounts from the operator, never by self-registration.
       FORGEJO__service__DISABLE_REGISTRATION: "true"

@@ -59,20 +59,20 @@
   overflow: hidden;
 }
 .brand .mark {
-  /* Redesign Phase 2 (Handoff): 28px (vorher 26px). */
+  /* Redesign Phase 2 (Handoff): 28px (vorher 26px). The mark itself
+     (components/brand-mark.tsx) draws its own field and glyphs, so no
+     background here — only size and shadow. */
   width: 28px;
   height: 28px;
   border-radius: var(--radius-sm);
-  background: var(--color-accent);
-  color: var(--color-accent-contrast);
   display: grid;
   place-items: center;
   box-shadow: var(--shadow-sm);
   flex: none;
 }
 .brand .mark svg {
-  width: 16px;
-  height: 16px;
+  width: 100%;
+  height: 100%;
 }
 /* Home-Link (nur „f451"-Marke, NICHT der `.app`-Space-Name daneben) — soll
    optisch kein Standard-Link sein: `currentColor` statt Linkfarbe, keine

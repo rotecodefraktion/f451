@@ -21,6 +21,8 @@ export const settings = {
   serverUnreachable: 'Der Server ist aktuell nicht erreichbar.',
   retry: 'Erneut versuchen',
   login: {
+    // Claim der Marke unter dem Schriftzug — bleibt in jeder Sprache Englisch.
+    claim: 'Documents without handcuffs.',
     heading: 'Anmelden',
     lede: 'Melde dich an, um auf die Dokumentationsplattform zuzugreifen.',
     // Anmeldeweg ohne eingestellten Namen (`F451_OIDC_PROVIDER_NAME` fehlt).

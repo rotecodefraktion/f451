@@ -6,6 +6,8 @@ export const settings: Messages['settings'] = {
   serverUnreachable: 'The server is currently unreachable.',
   retry: 'Try again',
   login: {
+    // Brand claim under the wordmark — kept in English in every locale.
+    claim: 'Documents without handcuffs.',
     heading: 'Sign in',
     lede: 'Sign in to access the documentation platform.',
     button: 'Sign in',

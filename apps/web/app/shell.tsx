@@ -1,3 +1,4 @@
+import { BrandMark } from '../components/brand-mark'
 import type { ReactNode } from 'react'
 import { SearchDialog } from '../components/search-dialog'
 import { ShortcutsDialog } from '../components/shortcuts-dialog'
@@ -70,9 +71,7 @@ export async function Shell({ space, spaces, currentSpaceId, avatar, sidebar, ch
         <div className="brand">
           <a className="brand-home" href="/wiki" aria-label={t('shell.topbar.homeAriaLabel')}>
             <span className="mark">
-              <svg viewBox="0 0 24 24" fill="none">
-                <path d="M6 3h13v3H10v4h7v3h-7v8H6z" fill="currentColor" />
-              </svg>
+              <BrandMark />
             </span>
             <span className="brand-wort">f451</span>
           </a>

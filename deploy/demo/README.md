@@ -55,6 +55,9 @@ OAuth app, token key, visitor passwords) and prints both visitor logins.
 | `demo.sh reset` | Runs nightly at 03:30 (timer). Closes open reviews, deletes draft branches, restores all spaces to `demo/*`, reindexes. |
 | `demo.sh status` | Container status and the deployed commit. |
 
+The Git side gets the same colours, typefaces and mark as the app
+(`forgejo/`, see the README there).
+
 While a deploy replaces the containers, Caddy shows a "rebuilding" page
 (`maintenance/index.html`, HTTP 503, reloads itself) — `demo.sh` switches it on
 and off via a flag file in the `maintenance-state` volume. Requests that hit a

@@ -1,6 +1,6 @@
 # f451
 
-**A wiki for documentation that lives in Git.**
+**Documents without handcuffs.** A wiki for documentation that lives in Git.
 
 f451 combines the comfort of a wiki — page tree, search, editor, approvals —
 with Git as the single source of truth. Every page is a Markdown file in a

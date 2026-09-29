@@ -1,7 +1,9 @@
 # TLS certificates come from Let's Encrypt automatically.
 # Maintenance mode: demo.sh creates /srv/state/maintenance for the duration of
-# a deploy (see `maintenance` there); while the file exists every request gets
-# the rebuilding page with 503. No reload needed — the matcher checks per request.
+# a deploy (see `maintenance` there); while the file exists every request to
+# the APP host gets the rebuilding page with 503. No reload needed — the matcher
+# checks per request. Forgejo stays reachable: a deploy never restarts it, and
+# the API's start-up discovers the OIDC issuer through this very proxy.
 (maintenance) {
 	@maintenance {
 		file {
@@ -39,7 +41,6 @@
 
 {$F451_DEMO_GIT_HOST} {
 	encode zstd gzip
-	import maintenance
 	reverse_proxy forgejo:3000 {
 		lb_try_duration 60s
 		lb_try_interval 250ms
