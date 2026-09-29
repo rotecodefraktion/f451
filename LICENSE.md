@@ -1,16 +1,23 @@
-# f451 License 1.0
+# f451 License 1.1
 
 Required Notice: Copyright (c) 2026 David Krcek / rote code fraktion — f451, https://github.com/rotecodefraktion/f451
 
+Licensor Line of Business: f451 documentation platform (https://github.com/rotecodefraktion/f451)
+
 ## Summary (not part of the license terms)
 
-- **Noncommercial use is free** — use, copy, change and share f451 for any
-  noncommercial purpose.
-- **Name and link are required** — keep the notice above in every copy, and show
-  "Based on f451 by www.rotecodefraktion.de" in any installation others can use,
-  with "f451" linking to https://github.com/rotecodefraktion/f451.
-- **Commercial use requires a separate license** from the licensor:
+- **Use is free — for everyone, companies included.** Run f451 for your own
+  documentation, internally or publicly, change it, extend it, build it into
+  other products that are not documentation platforms themselves.
+- **Paid services are free too** — installing, customising, operating or
+  supporting f451 for someone who uses it themselves.
+- **Free forks are allowed** — you may share changed versions of f451 free of
+  charge.
+- **A license is needed only to sell f451** — selling f451 or a changed version
+  as a product, or offering it to others as a paid hosted service. Contact:
   david@rotecodefraktion.de.
+- **Name and link are required** — keep the notice above in every copy, and show
+  "Based on f451 by www.rotecodefraktion.de" in any installation others can use.
 - **Excluded** are the AfD and the organizations and platforms listed under
   Additional Conditions.
 
@@ -18,21 +25,21 @@ f451 is source-available, not OSI-approved Open Source.
 
 ## Structure
 
-This license consists of the PolyForm Noncommercial License 1.0.0, reproduced
-unchanged below, and the Additional Conditions that follow it. Where they
-differ, the Additional Conditions prevail.
+This license consists of the PolyForm Shield License 1.0.0, reproduced
+unchanged below, and the Additional Conditions that follow it. The Additional
+Conditions grant additional permissions and add conditions; where they differ
+from the PolyForm Shield License, the Additional Conditions prevail.
 
 This license covers everything in this repository — source code as well as
 documentation, design materials and other content. Wherever this license or
-the PolyForm Noncommercial License 1.0.0 refers to "the software" or "the
-Software", that includes all of it, together with any changes and new works
-based on it.
+the PolyForm Shield License 1.0.0 refers to "the software", that includes all
+of it, together with any changes and new works based on it.
 
 ---
 
-# PolyForm Noncommercial License 1.0.0
+# PolyForm Shield License 1.0.0
 
-<https://polyformproject.org/licenses/noncommercial/1.0.0>
+<https://polyformproject.org/licenses/shield/1.0.0>
 
 ## Acceptance
 
@@ -60,17 +67,27 @@ The licensor grants you an additional copyright license to make changes and new 
 
 The licensor grants you a patent license for the software that covers patent claims the licensor can license, or becomes able to license, that you would infringe by using the software.
 
-## Noncommercial Purposes
+## Noncompete
 
-Any noncommercial purpose is a permitted purpose.
+Any purpose is a permitted purpose, except for providing any product that competes with the software or any product the licensor or any of its affiliates provides using the software.
 
-## Personal Uses
+## Competition
 
-Personal use for research, experiment, and testing for the benefit of public knowledge, personal study, private entertainment, hobby projects, amateur pursuits, or religious observance, without any anticipated commercial application, is use for a permitted purpose.
+Goods and services compete even when they provide functionality through different kinds of interfaces or for different technical platforms.  Applications can compete with services, libraries with plugins, frameworks with development tools, and so on, even if they're written in different programming languages or for different computer architectures.  Goods and services compete even when provided free of charge.  If you market a product as a practical substitute for the software or another product, it definitely competes.
 
-## Noncommercial Organizations
+## New Products
 
-Use by any charitable organization, educational institution, public research organization, public safety or health organization, environmental protection organization, or government institution is use for a permitted purpose regardless of the source of funding or obligations resulting from the funding.
+If you are using the software to provide a product that does not compete, but the licensor or any of its affiliates brings your product into competition by providing a new version of the software or another product using the software, you may continue using versions of the software available under these terms beforehand to provide your competing product, but not any later versions.
+
+## Discontinued Products
+
+You may begin using the software to compete with a product or service that the licensor or any of its affiliates has stopped providing, unless the licensor includes a plain-text line beginning with `Licensor Line of Business:` with the software that mentions that line of business.  For example:
+
+> Licensor Line of Business: YoyodyneCMS Content Management System (http://example.com/cms)
+
+## Sales of Business
+
+If the licensor or any of its affiliates sells a line of business developing the software or using the software to provide a product, the buyer can also enforce [Noncompete](#noncompete) for that product.
 
 ## Fair Use
 
@@ -96,9 +113,15 @@ The first time you are notified in writing that you have violated any of these t
 
 The **licensor** is the individual or entity offering these terms, and the **software** is the software the licensor makes available under these terms.
 
+A **product** can be a good or service, or a combination of them.
+
 **You** refers to the individual or entity agreeing to these terms.
 
-**Your company** is any legal entity, sole proprietorship, or other kind of organization that you work for, plus all organizations that have control over, are under the control of, or are under common control with that organization.  **Control** means ownership of substantially all the assets of an entity, or the power to direct its management and policies by vote, contract, or otherwise.  Control can be direct or indirect.
+**Your company** is any legal entity, sole proprietorship, or other kind of organization that you work for, plus all its affiliates.
+
+**Affiliates** means the other organizations than an organization has control over, is under the control of, or is under common control with.
+
+**Control** means ownership of substantially all the assets of an entity, or the power to direct its management and policies by vote, contract, or otherwise.  Control can be direct or indirect.
 
 **Your licenses** are all the licenses granted to you for the software under these terms.
 
@@ -107,6 +130,37 @@ The **licensor** is the individual or entity offering these terms, and the **sof
 ---
 
 # Additional Conditions
+
+ADDITIONAL PERMISSION — FREE DISTRIBUTION
+=========================================
+
+Notwithstanding the Noncompete section above, you may distribute the software
+and changed versions or new works based on it, and make them available for
+others to use, as long as you do so free of charge — without fees,
+subscriptions, paid access, or payment tied to the software in any other
+form. This permission does not cover offering the software as part of a paid
+product or a paid hosted service.
+
+CLARIFICATION — WHAT DOES NOT COMPETE
+=====================================
+
+For the purposes of the Noncompete section, none of the following is providing
+a product that competes with the software:
+
+  (a) using the software, changed or not, for your own purposes or those of
+      your company, including commercial purposes, internally or publicly;
+  (b) providing services for a person or organization that uses the software
+      themselves — for example installation, configuration, customisation,
+      operation on their behalf, support or training — even for a fee;
+  (c) including the software as a component of a product whose main purpose
+      is not documentation, knowledge management or wiki functionality.
+
+WHAT REQUIRES A SEPARATE LICENSE
+================================
+
+Selling the software or a changed version or new work based on it as a
+product, or offering it to others as a paid hosted service, requires a
+separate written license from the licensor: david@rotecodefraktion.de.
 
 ATTRIBUTION
 ===========
@@ -124,13 +178,6 @@ In addition to the Notices section above:
       links to https://www.rotecodefraktion.de (for example in a page footer,
       a sidebar or on an "About" page). The notice may be adapted to the
       language of the user interface, but must keep both names and both links.
-
-COMMERCIAL USE
-==============
-
-Any use for purposes other than noncommercial purposes as defined above
-requires a separate written license from the licensor. Such licenses are
-granted on request: david@rotecodefraktion.de.
 
 ADDITIONAL CONDITION — USE RESTRICTION
 ======================================
