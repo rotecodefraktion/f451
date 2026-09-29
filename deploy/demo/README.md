@@ -10,9 +10,9 @@ Internet ──443──▶ Caddy ─┬─ <F451_DEMO_HOST>      → web (app, 
                          └─ <F451_DEMO_GIT_HOST>  → Forgejo (sign-in + repositories)
 ```
 
-Spaces: **User Guide**, **Developer Guide**, **Admin Guide** (read-only for
-visitors) and **Playground** (visitors may write). Visitors sign in with the
-Forgejo account `demo`; registration is disabled.
+Spaces: **User Guide**, **Developer Guide**, **Admin Guide** and
+**Playground**. Two visitor accounts in Forgejo: `demo` reads every space,
+`writer` may also write in the Playground. Registration is disabled.
 
 ## Requirements
 
@@ -45,7 +45,7 @@ systemctl enable --now f451-demo-update.timer f451-demo-reset.timer
 ```
 
 `setup` writes all secrets into `demo.env` (Forgejo admin, service token,
-OAuth app, token key, visitor password) and prints the visitor login.
+OAuth app, token key, visitor passwords) and prints both visitor logins.
 
 ## Operation
 

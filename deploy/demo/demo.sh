@@ -24,7 +24,9 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 DEMO_ENV="${DEMO_ENV:-/opt/f451-demo/demo.env}"
 ORG=f451
 ADMIN_USER=f451-admin
-VISITOR_USER=demo
+# Visitor accounts: "demo" reads every space, "writer" may also write in the playground.
+READER_USER=demo
+WRITER_USER=writer
 # Spaces: <id>:<name>. Each is demo/<id>/ in this repository.
 SPACES=("user-guide:User Guide" "developer-guide:Developer Guide" "admin-guide:Admin Guide" "playground:Playground")
 WRITABLE_SPACE=playground
@@ -132,12 +134,18 @@ setup_forgejo() {
 
   fapi GET "/orgs/$ORG" >/dev/null || fapi POST /orgs "{\"username\":\"$ORG\",\"visibility\":\"public\"}" >/dev/null
 
-  [ -n "$(env_get DEMO_VISITOR_PASSWORD)" ] || env_set DEMO_VISITOR_PASSWORD "$(secret 8)"
+  ensure_user "$READER_USER" DEMO_READER_PASSWORD
+  ensure_user "$WRITER_USER" DEMO_WRITER_PASSWORD
+}
+
+ensure_user() {  # ensure_user NAME ENV_KEY_FOR_PASSWORD
+  local name="$1" key="$2"
+  [ -n "$(env_get "$key")" ] || env_set "$key" "$(secret 8)"
   # Ask Forgejo, not demo.env: a failed earlier run may have stored the password only.
-  if ! fapi GET "/users/$VISITOR_USER" >/dev/null; then
+  if ! fapi GET "/users/$name" >/dev/null; then
     compose exec -T -u 1000 forgejo forgejo admin user create \
-      --username "$VISITOR_USER" --password "$(env_get DEMO_VISITOR_PASSWORD)" \
-      --email "$VISITOR_USER@$GIT_HOST" --must-change-password=false >/dev/null
+      --username "$name" --password "$(env_get "$key")" \
+      --email "$name@$GIT_HOST" --must-change-password=false >/dev/null
   fi
 }
 
@@ -148,15 +156,23 @@ ensure_repos() {
     fapi GET "/repos/$ORG/$id" >/dev/null || fapi POST "/orgs/$ORG/repos" \
       "{\"name\":\"$id\",\"auto_init\":true,\"default_branch\":\"main\",\"private\":false}" >/dev/null
   done
-  # Visitors may write only in the playground: a team with write access to it.
-  local team
-  team=$(fapi GET "/orgs/$ORG/teams/search?q=visitors" | python3 -c 'import sys,json;d=json.load(sys.stdin)["data"];print(d[0]["id"] if d else "")')
-  if [ -z "$team" ]; then
-    team=$(fapi POST "/orgs/$ORG/teams" '{"name":"visitors","permission":"write","units":["repo.code","repo.pulls"],"includes_all_repositories":false}' \
-      | python3 -c 'import sys,json;print(json.load(sys.stdin)["id"])')
-  fi
-  fapi PUT "/teams/$team/repos/$ORG/$WRITABLE_SPACE" >/dev/null
-  fapi PUT "/teams/$team/members/$VISITOR_USER" >/dev/null
+  # "demo" reads all spaces, "writer" reads all and writes the playground.
+  local readers writers
+  readers=$(ensure_team readers read true)
+  writers=$(ensure_team writers write false)
+  fapi PUT "/teams/$readers/members/$READER_USER" >/dev/null
+  fapi PUT "/teams/$readers/members/$WRITER_USER" >/dev/null
+  fapi PUT "/teams/$writers/repos/$ORG/$WRITABLE_SPACE" >/dev/null
+  fapi PUT "/teams/$writers/members/$WRITER_USER" >/dev/null
+}
+
+ensure_team() {  # ensure_team NAME PERMISSION ALL_REPOS → prints the team id
+  local name="$1" perm="$2" all="$3" id
+  id=$(fapi GET "/orgs/$ORG/teams/search?q=$name" | python3 -c "import sys,json;d=[t for t in json.load(sys.stdin)['data'] if t['name']=='$name'];print(d[0]['id'] if d else '')")
+  [ -n "$id" ] || id=$(fapi POST "/orgs/$ORG/teams" \
+    "{\"name\":\"$name\",\"permission\":\"$perm\",\"units\":[\"repo.code\",\"repo.pulls\"],\"includes_all_repositories\":$all}" \
+    | python3 -c 'import sys,json;print(json.load(sys.stdin)["id"])')
+  echo "$id"
 }
 
 # --- content -----------------------------------------------------------------
@@ -213,7 +229,10 @@ for r in json.load(sys.stdin):
 deploy() {
   say "Build, migrate, start"
   compose build web api mcp
-  compose up -d postgres
+  compose up -d postgres forgejo caddy
+  # The API discovers the OIDC issuer over HTTPS at start-up; on a fresh
+  # server Caddy first has to obtain the certificate.
+  wait_for "https://$GIT_HOST/.well-known/openid-configuration"
   compose run --rm api node dist/db/migrate-cli.js
   compose up -d
   git -C "$REPO" rev-parse HEAD > "$(dirname "$DEMO_ENV")/deployed-commit"
@@ -229,7 +248,8 @@ case "${1:-}" in
     seed
     deploy
     reindex
-    printf '\n\033[1;32m✓ Demo: https://%s — visitor login %s / %s\033[0m\n' "$HOST" "$VISITOR_USER" "$(env_get DEMO_VISITOR_PASSWORD)"
+    printf '\n\033[1;32m✓ Demo: https://%s\033[0m\n  %s / %s (read)\n  %s / %s (write: %s)\n' "$HOST" \
+      "$READER_USER" "$(env_get DEMO_READER_PASSWORD)" "$WRITER_USER" "$(env_get DEMO_WRITER_PASSWORD)" "$WRITABLE_SPACE"
     ;;
   update)
     git -C "$REPO" fetch -q origin main
