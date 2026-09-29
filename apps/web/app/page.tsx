@@ -25,14 +25,15 @@ interface SignInMethod {
   label: string | null
 }
 
-/** Sign-in methods offered by the API (#8). Falls back to the OIDC login when
- *  the API can't say — the page then behaves as before. */
-async function signInMethods(): Promise<SignInMethod[]> {
+/** Sign-in methods offered by the API (#8), plus the operator's optional note
+ *  (`F451_SIGNIN_NOTE`). Falls back to the OIDC login when the API can't say —
+ *  the page then behaves as before. */
+async function signInOptions(): Promise<{ methods: SignInMethod[]; note: string | null }> {
   try {
-    const { methods } = await apiFetch<{ methods: SignInMethod[] }>('/auth/methods')
-    return methods
+    const { methods, note } = await apiFetch<{ methods: SignInMethod[]; note?: string | null }>('/auth/methods')
+    return { methods, note: note ?? null }
   } catch {
-    return [{ id: 'oidc', href: '/auth/login', label: null }]
+    return { methods: [{ id: 'oidc', href: '/auth/login', label: null }], note: null }
   }
 }
 
@@ -62,7 +63,7 @@ export default async function Home({ searchParams }: HomeProps) {
     redirect('/wiki')
   }
 
-  const methods = await signInMethods()
+  const { methods, note } = await signInOptions()
   const retryHref = `/?next=${encodeURIComponent(target)}`
   const { t } = await getT()
 
@@ -93,6 +94,7 @@ export default async function Home({ searchParams }: HomeProps) {
             {m.label ? t('settings.login.buttonWith', { provider: m.label }) : t('settings.login.button')}
           </a>
         ))}
+        {note ? <p className="login-note">{note}</p> : null}
         <p className="foot">{t('settings.login.foot')}</p>
         <Attribution />
       </div>

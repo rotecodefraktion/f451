@@ -550,8 +550,9 @@ const methodsSchema = {
             required: ['id', 'href', 'label'],
           },
         },
+        note: { type: ['string', 'null'] },
       },
-      required: ['methods'],
+      required: ['methods', 'note'],
     },
   },
 } as const
@@ -561,8 +562,11 @@ const methodsSchema = {
  * the sign-in page needs it before anyone is signed in; it reveals only what the
  * sign-in page shows anyway.
  */
-export function registerAuthMethodsRoute(app: FastifyInstance, deps: { methods: SignInMethod[] }): void {
-  app.get('/auth/methods', { schema: methodsSchema }, async () => ({ methods: deps.methods }))
+export function registerAuthMethodsRoute(
+  app: FastifyInstance,
+  deps: { methods: SignInMethod[]; note?: string },
+): void {
+  app.get('/auth/methods', { schema: methodsSchema }, async () => ({ methods: deps.methods, note: deps.note ?? null }))
 }
 
 /**

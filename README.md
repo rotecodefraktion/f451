@@ -12,6 +12,39 @@ f451 is built for operations, process and project documentation that has to be
 traceable, reviewable and durable — and that people can still maintain without
 knowing Git.
 
+## Why f451
+
+There are plenty of wikis and documentation platforms. f451 is built around a
+few requirements that most of them don't meet together:
+
+- **An open, portable format.** Pages are plain Markdown — no proprietary
+  extensions outside the standard. Your documentation is never locked into a
+  vendor, the way it is with SharePoint or, in parts, Confluence.
+- **Open to AI agents.** Any agent can connect through the built-in MCP server,
+  and because pages are plain Markdown, agents read and write them as easily
+  as people do.
+- **Permissions and approval from day one.** Access follows the repository;
+  every change goes through draft, review and release. Version control is not
+  an add-on — it is Git.
+- **Data sovereignty.** The documents live in your repositories. When someone
+  leaves, there are no synced local copies scattered across laptops to worry
+  about.
+
+## Live demo
+
+**https://f451.rotecodefraktion.de** — sign in with Forgejo:
+
+| Account | Password | May |
+|---|---|---|
+| `demo` | `da9d33b2efdb41ed` | read every space |
+| `writer` | `43dc099d5da028f4` | also write in the Playground |
+
+The demo is reset every night. It contains the f451 documentation itself: a
+**User Guide** (reading, writing, reviews, the editor, AI agents), a
+**Developer Guide** (architecture, local setup, extending f451) and an
+**Admin Guide** (sign-in options such as Entra ID, configuration, operations) —
+the same content as [`demo/`](demo/) in this repository.
+
 ## What f451 does
 
 **Git as the source of truth**

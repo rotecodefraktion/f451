@@ -100,6 +100,13 @@
 .login-card .login-btn + .login-btn {
   margin-top: var(--space-3);
 }
+.login-card .login-note {
+  /* Operator note (F451_SIGNIN_NOTE), plain text; line breaks come from the value. */
+  margin: var(--space-4) 0 0;
+  white-space: pre-line;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
 .login-card .foot {
   margin-top: var(--space-5);
   font-size: var(--text-xs);

@@ -295,7 +295,7 @@ describe.sequential('GitHub sign-in (#8)', () => {
     it('includes github when githubLogin is enabled', async () => {
       const res = await app.inject({ method: 'GET', url: '/auth/methods' })
       expect(res.statusCode).toBe(200)
-      expect(res.json()).toEqual({ methods: [{ id: 'github', href: '/auth/github/login', label: 'GitHub' }] })
+      expect(res.json()).toEqual({ methods: [{ id: 'github', href: '/auth/github/login', label: 'GitHub' }], note: null })
     })
 
     it('omits github when githubLogin is not enabled', async () => {
@@ -305,12 +305,14 @@ describe.sequential('GitHub sign-in (#8)', () => {
           tokenKey: TOKEN_KEY,
           insecureCookies: true,
           connect: { github: { clientId: GITHUB_CLIENT_ID, clientSecret: GITHUB_CLIENT_SECRET } },
+          signInNote: 'Demo: sign in as demo\nReset nightly.',
         },
       })
       await withoutGithubLogin.ready()
       try {
         const res = await withoutGithubLogin.inject({ method: 'GET', url: '/auth/methods' })
-        expect(res.json()).toEqual({ methods: [] })
+        // The operator note is passed through as plain text.
+        expect(res.json()).toEqual({ methods: [], note: 'Demo: sign in as demo\nReset nightly.' })
       } finally {
         await withoutGithubLogin.close()
       }
@@ -343,6 +345,7 @@ describe.sequential('GitHub sign-in (#8)', () => {
               { id: 'oidc', href: '/auth/login', label: null },
               { id: 'github', href: '/auth/github/login', label: 'GitHub' },
             ],
+            note: null,
           })
         } finally {
           await both.close()

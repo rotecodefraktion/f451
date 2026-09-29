@@ -171,7 +171,7 @@ describe.sequential('OIDC-Login (Entra) mit Mock-IdP', () => {
     it('lists the OIDC sign-in with a neutral label when no provider name is set', async () => {
       const res = await app.inject({ method: 'GET', url: '/auth/methods' })
       expect(res.statusCode).toBe(200)
-      expect(res.json()).toEqual({ methods: [{ id: 'oidc', href: '/auth/login', label: null }] })
+      expect(res.json()).toEqual({ methods: [{ id: 'oidc', href: '/auth/login', label: null }], note: null })
     })
   })
 
