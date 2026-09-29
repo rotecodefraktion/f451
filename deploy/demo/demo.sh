@@ -7,6 +7,7 @@
 #                                migrate, restart, refresh the guides, reindex
 #   deploy/demo/demo.sh reset    nightly: guides and playground back to demo/,
 #                                open reviews closed, draft branches deleted
+#   deploy/demo/demo.sh apply    deploy the checked-out commit (used by update)
 #   deploy/demo/demo.sh status   containers and the last deployed commit
 #
 # Configuration lives OUTSIDE the repository in $DEMO_ENV (default
@@ -265,6 +266,10 @@ case "${1:-}" in
     if [ "$deployed" = "$target" ] && [ "${2:-}" != "--force" ]; then exit 0; fi
     say "Update ${deployed:0:7} → ${target:0:7}"
     git -C "$REPO" checkout -q main && git -C "$REPO" merge -q --ff-only origin/main
+    # Continue with the script version we just pulled, not the one running now.
+    exec "$REPO/deploy/demo/demo.sh" apply
+    ;;
+  apply)
     write_static_config
     setup_forgejo   # idempotent: keeps accounts, OAuth app and sign-in note in line
     ensure_repos
@@ -282,7 +287,7 @@ case "${1:-}" in
     echo "deployed: $(cat "$(dirname "$DEMO_ENV")/deployed-commit" 2>/dev/null || echo -)"
     ;;
   *)
-    sed -n '4,11p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '4,12p' "$0" | sed 's/^# \{0,1\}//'
     exit 1
     ;;
 esac
