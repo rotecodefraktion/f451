@@ -36,7 +36,6 @@ services:
       # Look of the Git side (see forgejo/README.md); nested in the data volume.
       - ../demo/forgejo/public:/data/gitea/public:ro
       - ../demo/forgejo/templates:/data/gitea/templates:ro
-      - ../demo/theme/webfonts:/data/gitea/public/assets/fonts:ro
     environment:
       FORGEJO__server__DOMAIN: ${F451_DEMO_GIT_HOST}
       FORGEJO__server__LANDING_PAGE: login
