@@ -22,7 +22,7 @@ set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 DEMO_ENV="${DEMO_ENV:-/opt/f451-demo/demo.env}"
-ORG=demo
+ORG=f451
 ADMIN_USER=f451-admin
 VISITOR_USER=demo
 # Spaces: <id>:<name>. Each is demo/<id>/ in this repository.
