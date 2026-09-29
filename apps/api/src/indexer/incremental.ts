@@ -186,13 +186,29 @@ export async function indexChangedFiles(
       await tx.delete(pages).where(and(eq(pages.ref, ref), inArray(pages.id, removedRows.map((r) => r.id))))
     }
 
+    // Issue #7: dieselbe Id-Konflikt-Grenze wie der Voll-Reindex
+    // (`index-space.ts#indexSpace`) — `upsertPage` verweigert das Schreiben,
+    // wenn `(p.id, ref)` bereits einem ANDEREN Space gehört (WHERE-Klausel im
+    // `onConflictDoUpdate`, s. dortiger Kommentar). Eine so übersprungene Seite
+    // bekommt hier keine Kanten — sie würden sonst unter der Id der FREMDEN
+    // Zeile landen, obwohl der Inhalt von DIESEM Space stammt.
+    const conflictedIds = new Set<string>()
     for (const p of changedInfos) {
-      await upsertPage(tx, space.id, ref, p, resolver, {
+      const result = await upsertPage(tx, space.id, ref, p, resolver, {
         lastAuthor: lastAuthorByPath.get(p.path) ?? null,
         lastBlobSha: lastBlobShaByPath.get(p.path) ?? null,
       })
+      if (!result.written) {
+        conflictedIds.add(p.id)
+        logger?.warn(`indexer: id-Konflikt (inkrementell), Seite gehört bereits einem anderen Space: ${p.id}`, {
+          spaceId: space.id,
+          path: p.path,
+          ownerSpace: result.conflictingSpaceId ?? 'unknown',
+        })
+      }
     }
     for (const p of changedInfos) {
+      if (conflictedIds.has(p.id)) continue
       await replaceEdgesForPage(tx, p, resolver)
     }
 

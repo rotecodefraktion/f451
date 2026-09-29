@@ -631,3 +631,140 @@ describe.sequential('indexSpace: `.order`-Dateien → orderKey (Phase 3.3)', () 
     expect(rows.find((r) => r.id === 'b')!.orderKey).toBeNull()
   })
 })
+
+describe.sequential('indexSpace: Id-Konflikt zwischen zwei Spaces (Issue #7)', () => {
+  let pg: PgTestInstance
+  let forgejo: ForgejoTestInstance
+  let handle: Awaited<ReturnType<typeof createDb>>
+  let db: Db
+  let provider: ForgejoProvider
+  let repoA: RepoRef
+  let repoB: RepoRef
+  let spaceA: SpaceConfig
+  let spaceB: SpaceConfig
+
+  beforeAll(async () => {
+    ;[pg, forgejo] = await Promise.all([startPg(), startForgejo()])
+    handle = createDb(pg.connectionString)
+    db = handle.db
+    await handle.migrate()
+
+    provider = new ForgejoProvider({ baseUrl: forgejo.baseUrl, token: forgejo.token })
+    repoA = await forgejo.createRepo('indexer-conflict-a')
+    repoB = await forgejo.createRepo('indexer-conflict-b')
+
+    // Space A: der spätere legitime Eigentümer der Id "shared" — ein Tag und eine
+    // ausgehende Kante, um zu prüfen, dass Space B beides unangetastet lässt.
+    await write(provider, repoA, 'index.md', `---
+id: shared
+title: A Home
+lang: de
+tags:
+  - alpha
+---
+# A Home
+
+Siehe [[other]].
+`)
+    await write(provider, repoA, 'other/index.md', `---
+id: other
+title: Other
+lang: de
+---
+# Other
+`)
+
+    // Space B: unabhängig entstandene Seite mit derselben Frontmatter-Id (Kopierfehler/
+    // Kollision) — genau der Fall aus Issue #7.
+    await write(provider, repoB, 'index.md', `---
+id: shared
+title: B Home
+lang: de
+tags:
+  - beta
+---
+# B Home
+
+Inhalt von Space B.
+`)
+
+    spaceA = {
+      id: 'conflict-a',
+      name: 'Space A',
+      provider: 'forgejo',
+      owner: repoA.owner,
+      repo: repoA.repo,
+      defaultLang: 'de',
+      repoRef: repoA,
+    }
+    spaceB = {
+      id: 'conflict-b',
+      name: 'Space B',
+      provider: 'forgejo',
+      owner: repoB.owner,
+      repo: repoB.repo,
+      defaultLang: 'de',
+      repoRef: repoB,
+    }
+  }, 240_000)
+
+  afterAll(async () => {
+    await handle?.close()
+    await Promise.all([pg?.stop(), forgejo?.stop()])
+  })
+
+  it(
+    'Space B darf die bereits Space A gehörende Seite nicht übernehmen — A bleibt ' +
+      'Eigentümer, B meldet den Konflikt im Report statt die Zeile stillschweigend zu verschieben',
+    async () => {
+      // Space A zuerst indexieren: legitimer Eigentümer der Id "shared".
+      const reportA = await indexSpace({ db, provider }, spaceA)
+      expect(reportA.idConflicts).toEqual([])
+      expect(reportA.pagesWithErrors).toBe(0)
+
+      const sharedBefore = (await db.select().from(pages).where(eq(pages.id, 'shared')))[0]!
+      expect(sharedBefore.spaceId).toBe('conflict-a')
+      expect(sharedBefore.title).toBe('A Home')
+
+      const tagsBefore = await db.select().from(tags).where(eq(tags.pageId, 'shared'))
+      const edgesBefore = await db.select().from(edges).where(eq(edges.fromPageId, 'shared'))
+      expect(tagsBefore.map((t) => t.tag)).toEqual(['alpha'])
+      expect(edgesBefore).toHaveLength(1)
+      expect(edgesBefore[0]?.toPageId).toBe('other')
+
+      // Space B versucht, dieselbe Id zu indexieren — muss abgelehnt werden.
+      const reportB = await indexSpace({ db, provider }, spaceB)
+      expect(reportB.pagesIndexed).toBe(1)
+      expect(reportB.pagesWithErrors).toBe(1)
+      expect(reportB.idConflicts).toEqual([{ id: 'shared', path: 'index.md', ownerSpace: 'conflict-a' }])
+
+      // Space A ist unverändert: gleicher Inhalt, gleiche Tags, gleiche Kanten.
+      const sharedAfter = (await db.select().from(pages).where(eq(pages.id, 'shared')))[0]!
+      expect(sharedAfter).toEqual(sharedBefore)
+      const tagsAfter = await db.select().from(tags).where(eq(tags.pageId, 'shared'))
+      const edgesAfter = await db.select().from(edges).where(eq(edges.fromPageId, 'shared'))
+      expect(tagsAfter).toEqual(tagsBefore)
+      expect(edgesAfter).toEqual(edgesBefore)
+
+      // Space B selbst hat KEINE Zeile für "shared" — der Schreibversuch wurde abgelehnt,
+      // nicht etwa unter einer anderen Id abgelegt.
+      const bOwnedRows = await db.select().from(pages).where(eq(pages.spaceId, 'conflict-b'))
+      expect(bOwnedRows).toHaveLength(0)
+    },
+    120_000,
+  )
+
+  it(
+    'ein erneuter Reindex von Space B verschiebt die Seite weiterhin nicht (kein Ownership-Flip)',
+    async () => {
+      const before = (await db.select().from(pages).where(eq(pages.id, 'shared')))[0]!
+
+      const report = await indexSpace({ db, provider }, spaceB)
+      expect(report.idConflicts).toEqual([{ id: 'shared', path: 'index.md', ownerSpace: 'conflict-a' }])
+
+      const after = (await db.select().from(pages).where(eq(pages.id, 'shared')))[0]!
+      expect(after).toEqual(before)
+    },
+    120_000,
+  )
+})

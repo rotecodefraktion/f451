@@ -180,7 +180,17 @@ Nach Totalverlust (Spec §8): der Index ist reine Ableitung aus Forgejo, NUR
    eine bekannte Seite ist über `GET /api/pages/:id` lesbar, `GET
    /admin/status` zeigt `counters.indexerErrors: 0` für den gerade
    gelaufenen Reindex (> 0 heißt: mindestens eine Datei konnte nicht gelesen
-   werden — Provider-/Netzwerkproblem, erneut reindexieren).
+   werden — Provider-/Netzwerkproblem, erneut reindexieren). Zusätzlich prüfen:
+   `report.idConflicts` jedes Space sollte leer sein (Issue #7) — ein Eintrag
+   `{id, path, ownerSpace}` heißt, diese Seite trägt im Frontmatter dieselbe
+   `id` wie eine bereits einem ANDEREN Space gehörende Seite; Ids sind
+   instanzweit gedacht (nicht nur je Space), Seiten-`id`s aus unterschiedlichen
+   Spaces dürfen sich also nie überschneiden. Der Indexer übernimmt eine so
+   kollidierende Seite NICHT (der zuerst indexierte Space bleibt Eigentümer,
+   `pagesWithErrors` zählt den Konflikt mit) — betroffen ist nur die
+   nachrückende Seite, sie fehlt so lange im Index, bis die `id` im Frontmatter
+   von Hand korrigiert wird (kein automatischer Reparaturpfad, da nicht
+   entscheidbar, welche der beiden Seiten die „richtige" Id behalten soll).
 
 Sessions/Provider-Verknüpfungen sind NICHT Teil dieser Prozedur (Abschnitt 1)
 — Nutzer melden sich nach einem `pg-data`-Verlust einmalig neu an und
