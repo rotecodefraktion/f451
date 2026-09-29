@@ -95,7 +95,7 @@
   border-radius: 6px;
 }
 /* Nothing to explore, nothing to reset: the demo accounts are fixed. */
-.page-content.user.signin .ui.container > .ui.segment:not(.attached),
+.page-content.user.signin .ui.segment:has(a[href*="forgot_password"]),
 #navbar .navbar-left .item:not(#navbar-logo) {
   display: none;
 }
