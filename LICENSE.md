@@ -1,6 +1,6 @@
 # f451 License 1.1
 
-Required Notice: Copyright (c) 2026 David Krcek / rote code fraktion — f451, https://github.com/rotecodefraktion/f451
+Required Notice: Copyright (c) 2026 David Krcek / rotecodefraktion — f451, https://github.com/rotecodefraktion/f451
 
 Licensor Line of Business: f451 documentation platform (https://github.com/rotecodefraktion/f451)
 
