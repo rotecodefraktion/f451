@@ -1,0 +1,14 @@
+# Forgejo look of the demo
+
+Forgejo reads a custom directory (`GITEA_CUSTOM=/data/gitea` in the image).
+`docker-compose.demo.yml` mounts these folders into it:
+
+- `public/assets/css/theme-f451.css` — the app's colours and typefaces on top
+  of Forgejo's auto theme; selected with `FORGEJO__ui__DEFAULT_THEME=f451`.
+- `public/assets/css/f451-fonts.css` — `@font-face` for the self-hosted fonts
+  (mounted from `deploy/demo/theme/webfonts` to `/assets/fonts/`).
+- `public/assets/img/logo.svg`, `favicon.svg` — the f451 mark.
+- `templates/custom/header.tmpl` — loads fonts and favicon.
+- `templates/custom/body_inner_pre.tmpl` — the note on the sign-in page.
+
+Templates are read at start; a change needs a Forgejo restart.

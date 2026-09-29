@@ -1,5 +1,7 @@
 import { cookies } from 'next/headers'
 import { Attribution } from '../components/attribution'
+import { BrandMark } from '../components/brand-mark'
+import { SignInNote } from '../components/sign-in-note'
 import { redirect } from 'next/navigation'
 import { apiFetch } from '../lib/api'
 import { getT } from '../lib/i18n/server'
@@ -71,11 +73,10 @@ export default async function Home({ searchParams }: HomeProps) {
     <main className="login-page">
       <div className="login-card card">
         <span className="mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none">
-            <path d="M6 3h13v3H10v4h7v3h-7v8H6z" fill="currentColor" />
-          </svg>
+          <BrandMark />
         </span>
         <span className="brandline">f451</span>
+        <p className="claim">{t('settings.login.claim')}</p>
         <h1>{t('settings.login.heading')}</h1>
         <p className="lede">{t('settings.login.lede')}</p>
         {anmeldung === 'abgelaufen' || anmeldung === 'fehlgeschlagen' ? (
@@ -94,7 +95,7 @@ export default async function Home({ searchParams }: HomeProps) {
             {m.label ? t('settings.login.buttonWith', { provider: m.label }) : t('settings.login.button')}
           </a>
         ))}
-        {note ? <p className="login-note">{note}</p> : null}
+        {note ? <SignInNote text={note} /> : null}
         <p className="foot">{t('settings.login.foot')}</p>
         <Attribution />
       </div>

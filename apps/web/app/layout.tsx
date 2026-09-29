@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { headers } from 'next/headers'
-import { Hanken_Grotesk, JetBrains_Mono, Schibsted_Grotesk } from 'next/font/google'
+import localFont from 'next/font/local'
 import { LocaleProvider } from '../lib/i18n/provider.js'
 import { getT } from '../lib/i18n/server.js'
 // Ein einziger Stil-Einstieg: `globals.css` ist nur noch die @import-Liste
@@ -11,32 +11,42 @@ import { getT } from '../lib/i18n/server.js'
 import './globals.css'
 
 /**
- * Redesign Phase 1 (Design-Handoff „f451 Knowledge Base"): die drei
- * Google-Fonts werden CSP-sicher über `next/font/google` self-hosted — die
- * App hat eine strenge Nonce-CSP (`script-src 'self' 'nonce-…'`, s.
- * `middleware.ts`); ein externes `<link href="https://fonts.googleapis.com/…">`
- * würde daran brechen. `next/font/google` lädt die Font-Dateien beim Build
- * und liefert sie vom eigenen Host aus (`'self'`), keine externe Anfrage zur
- * Laufzeit. Jede Instanz exportiert ihre Werte über eine CSS-Variable
+ * The three typefaces ship with the repository (`app/fonts/`, latin subsets as
+ * woff2, SIL OFL — licence texts next to them) and are loaded through
+ * `next/font/local`. Until now `next/font/google` fetched them from Google at
+ * build time, which made every build depend on Google's servers — CI and the
+ * demo deploy failed repeatedly with "An error occurred in `next/font`". The
+ * app has a strict nonce CSP (`script-src 'self' 'nonce-…'`, `middleware.ts`),
+ * so serving the files from the own host (`'self'`) is also the only option
+ * that works without touching the CSP. Jede Instanz exportiert ihre Werte über eine CSS-Variable
  * (`variable: '--font-…'`), die per `.variable`-Klasse an `<html>` gehängt
  * wird; `globals.css` referenziert diese Variablen für `--font-sans` /
  * `--font-display` / `--font-mono` (s. dortiger `:root`-Block).
  */
-const hankenGrotesk = Hanken_Grotesk({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
+const hankenGrotesk = localFont({
+  src: [
+    { path: './fonts/hanken-grotesk-latin.woff2', style: 'normal' },
+    { path: './fonts/hanken-grotesk-italic-latin.woff2', style: 'italic' },
+  ],
+  weight: '100 900',
   variable: '--font-hanken-grotesk',
   display: 'swap',
 })
-const schibstedGrotesk = Schibsted_Grotesk({
-  subsets: ['latin'],
-  weight: ['500', '600', '700', '800'],
+const schibstedGrotesk = localFont({
+  src: [
+    { path: './fonts/schibsted-grotesk-latin.woff2', style: 'normal' },
+    { path: './fonts/schibsted-grotesk-italic-latin.woff2', style: 'italic' },
+  ],
+  weight: '400 900',
   variable: '--font-schibsted-grotesk',
   display: 'swap',
 })
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ['latin'],
-  weight: ['400', '500'],
+const jetbrainsMono = localFont({
+  src: [
+    { path: './fonts/jet-brains-mono-latin.woff2', style: 'normal' },
+    { path: './fonts/jet-brains-mono-italic-latin.woff2', style: 'italic' },
+  ],
+  weight: '100 800',
   variable: '--font-jetbrains-mono',
   display: 'swap',
 })
