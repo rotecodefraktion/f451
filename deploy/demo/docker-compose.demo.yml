@@ -41,7 +41,8 @@ services:
     environment:
       FORGEJO__server__DOMAIN: ${F451_DEMO_GIT_HOST}
       FORGEJO__server__LANDING_PAGE: login
-      FORGEJO__DEFAULT__APP_NAME: f451 Git
+      # Top-level app.ini key: four underscores = no section.
+      FORGEJO____APP_NAME: f451 Git
       FORGEJO__ui__THEMES: forgejo-auto,forgejo-light,forgejo-dark,f451
       FORGEJO__ui__DEFAULT_THEME: f451
       FORGEJO__server__DISABLE_SSH: "true"
