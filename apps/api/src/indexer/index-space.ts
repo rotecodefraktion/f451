@@ -33,6 +33,14 @@ export interface IndexSpaceOptions {
   ref?: string
 }
 
+/** A page whose frontmatter `id` already belongs to a DIFFERENT space (same
+ *  `ref`) — see `IndexReport.idConflicts` below for the full explanation. */
+export interface IdConflict {
+  id: string
+  path: string
+  ownerSpace: string
+}
+
 export interface IndexReport {
   pagesIndexed: number
   pagesWithErrors: number
@@ -44,6 +52,18 @@ export interface IndexReport {
    *  ein Drift-Job den Lauf wiederholt. */
   filesSkippedIo: number
   headSha: string
+  /**
+   * Issue #7: Seiten-Ids sind instanzweit eindeutig gedacht, `pages` erzwingt das
+   * aber nur als `(id, ref)` — OHNE `space_id`. Enthält zwei Spaces zufällig oder
+   * durch einen Kopierfehler dieselbe Frontmatter-`id`, würde ein reines
+   * `onConflictDoUpdate` auf `(id, ref)` die Zeile stillschweigend dem zuletzt
+   * indexierten Space zuschlagen — der andere Space verliert seine Seite, ohne
+   * dass der Report das zeigt. `upsertPage` verweigert diese Übernahme jetzt
+   * (WHERE-Klausel auf `space_id`, s. dort); jeder so übersprungene Fund landet
+   * hier statt im Index. Erster indexierter Space gewinnt, seine Zeile bleibt
+   * unangetastet. Leer im Normalfall. Zählt zusätzlich in `pagesWithErrors`.
+   */
+  idConflicts: IdConflict[]
 }
 
 /**
@@ -274,10 +294,40 @@ export interface UpsertPageOptions {
   orderKey?: number | null
 }
 
+/** Ergebnis eines `upsertPage`-Aufrufs. `written: false` (Issue #7) heißt: die
+ *  `(id, ref)`-Zeile gehört bereits einem ANDEREN Space — die WHERE-Klausel im
+ *  `onConflictDoUpdate` unten hat den Schreibversuch verweigert, die bestehende
+ *  Zeile (Inhalt, Tags, eingehende Kanten) ist unangetastet geblieben. Der
+ *  Aufrufer MUSS in diesem Fall auch alle nachgelagerten, an `p.id` hängenden
+ *  Schreibvorgänge (Kanten, `page_versions`-Rekonstruktion) für diese Seite
+ *  überspringen — sie würden sonst unter der Id des ANDEREN Space' Zeile landen. */
+export interface UpsertPageResult {
+  html: string
+  plain: string
+  written: boolean
+  /** Nur gesetzt, wenn `written === false`: `spaceId` der Zeile, die die Id
+   *  tatsächlich hält — für die Konflikt-Meldung im `IndexReport`. */
+  conflictingSpaceId?: string
+}
+
 /**
  * Rendert HTML (mit aufgelösten Hrefs/Medien) und upsertet eine Seite inkl.
  * Suchvektor und (optional) Tags. Gemeinsamer Baustein für Voll- und
  * Inkremental-Indexierung sowie die Draft-Indexierung (Task 3, ohne Tags).
+ *
+ * Issue #7 (Ids sind instanzweit gedacht, aber `pages` erzwingt nur `(id, ref)`
+ * OHNE `space_id`): ohne Schutz würde `onConflictDoUpdate` unten die Zeile
+ * eines Space A stillschweigend Space B zuschlagen, sobald B eine Seite mit
+ * derselben `id` indexiert (zufällige Kollision oder Kopierfehler im
+ * Frontmatter) — A verliert seine Seite, ohne dass irgendein Report das zeigt.
+ * Die `where`-Klausel macht die UPDATE-Hälfte des Upserts atomar bedingt: sie
+ * greift nur, wenn die BESTEHENDE Zeile bereits `spaceId` gehört (Normalfall:
+ * dieselbe Seite wird erneut indexiert) ODER es noch gar keine Zeile gibt
+ * (reiner INSERT, `where` betrifft nur den Conflict-Zweig). Gehört die Zeile
+ * einem ANDEREN Space, bleibt sie exakt wie eine `DO NOTHING`-Zeile unangetastet
+ * — `.returning()` liefert dafür keine Zeile, das ist das (race-freie) Signal
+ * an den Aufrufer, per `Tx` in DERSELBEN Transaktion geprüft, keine separate
+ * Lese-dann-Schreib-Runde, die eine Race erlauben würde.
  */
 export async function upsertPage(
   tx: Tx,
@@ -286,7 +336,7 @@ export async function upsertPage(
   p: PageInfo,
   resolver: LinkResolver,
   opts?: UpsertPageOptions,
-): Promise<{ html: string; plain: string }> {
+): Promise<UpsertPageResult> {
   // `resolveLink`/`resolveImage`: geteilte Konstruktion (`resolve-links.ts`, Finding 2
   // Fix-Runde 1) — dieselben Callbacks nutzt auch `GET /review` (`routes/workflow.ts`),
   // damit beide Aufrufer garantiert dieselbe Auflösung verwenden statt einer Kopie,
@@ -304,7 +354,7 @@ export async function upsertPage(
   const plain = p.errorStatus ? p.raw : htmlToPlainText(html)
   const now = new Date()
 
-  await tx
+  const writtenRows = await tx
     .insert(pages)
     .values({
       id: p.id,
@@ -365,7 +415,25 @@ export async function upsertPage(
         // unangetastet lassen, exakt wie bei `lastAuthor` oben.
         orderKey: opts?.orderKey !== undefined ? opts.orderKey : sql`${pages.orderKey}`,
       },
+      // Issue #7: greift NUR, wenn die bestehende Zeile schon `spaceId` gehört
+      // (Normalfall: dieselbe Seite erneut indexiert) — gehört sie einem
+      // ANDEREN Space, bleibt die UPDATE-Hälfte aus (wie `DO NOTHING` für
+      // diese eine Zeile), Postgres liefert dafür unten keine `RETURNING`-Zeile.
+      where: eq(pages.spaceId, spaceId),
     })
+    .returning({ id: pages.id })
+
+  if (writtenRows.length === 0) {
+    // Konflikt: `(p.id, ref)` gehört bereits einem anderen Space, die WHERE-
+    // Klausel oben hat das Update verweigert — die fremde Zeile ist unangetastet.
+    // Aufrufer (`indexSpace`) muss Tags/Kanten für DIESE Seite überspringen.
+    const owner = await tx
+      .select({ spaceId: pages.spaceId })
+      .from(pages)
+      .where(and(eq(pages.id, p.id), eq(pages.ref, ref)))
+      .limit(1)
+    return { html, plain, written: false, conflictingSpaceId: owner[0]?.spaceId }
+  }
 
   // Suchvektor explizit (Sprachwahl pro Zeile, Plan Global Constraints). WHERE
   // filtert zusätzlich auf `ref` (Phase 2a Task 3): seit derselben Id für
@@ -399,7 +467,7 @@ export async function upsertPage(
     }
   }
 
-  return { html, plain }
+  return { html, plain, written: true }
 }
 
 /**
@@ -574,6 +642,13 @@ export async function indexSpace(
     logger,
   )
 
+  // Issue #7: Ids, die `upsertPage` unten wegen fremder Space-Zugehörigkeit
+  // ablehnt — gefüllt innerhalb der Transaktion, aber außerhalb deklariert,
+  // damit sowohl Pass 2 (Kanten) als auch die Versionsrekonstruktion NACH der
+  // Transaktion (unten) dieselbe Ausschlussliste sehen.
+  const idConflicts: IdConflict[] = []
+  const conflictedIds = new Set<string>()
+
   await db.transaction(async (tx) => {
     // Space-Zeile upserten (FK-Ziel für pages.spaceId).
     await tx
@@ -613,18 +688,35 @@ export async function indexSpace(
     }
 
     // --- Seiten upserten (Pass 1b: HTML, Suchvektor, Tags, orderKey) ------------
+    // Issue #7: eine Seite, deren `id` bereits einem anderen Space gehört, wird
+    // von `upsertPage` NICHT geschrieben (`written: false`) — ihre `id` landet
+    // in `conflictedIds`, damit Pass 2 unten und die Versionsrekonstruktion nach
+    // der Transaktion sie überspringen (sonst würden Kanten/`page_versions` unter
+    // der Id der FREMDEN Zeile landen, obwohl der Inhalt von DIESEM Space stammt).
     for (const p of pageInfos) {
-      await upsertPage(tx, space.id, ref, p, resolver, {
+      const result = await upsertPage(tx, space.id, ref, p, resolver, {
         orderKey: orderKeys.get(p.id) ?? null,
         // Befund 1 (Final-Review): der frisch gelesene SHA aus Pass 1 — der
         // Voll-Reindex ist damit die bessere, nicht die schlechtere Quelle
         // für `lastBlobSha` (s. Kommentar über der Map oben für das WARUM).
         lastBlobSha: lastBlobShaByPath.get(p.path) ?? null,
       })
+      if (!result.written) {
+        const ownerSpace = result.conflictingSpaceId ?? 'unknown'
+        conflictedIds.add(p.id)
+        idConflicts.push({ id: p.id, path: p.path, ownerSpace })
+        // Bewusst ohne Seiteninhalt (nur Id/Pfad/Owner-Space) — s. Aufruf-Vertrag.
+        logger?.warn(`indexer: id-Konflikt, Seite gehört bereits Space "${ownerSpace}": ${p.id}`, {
+          spaceId: space.id,
+          path: p.path,
+          ownerSpace,
+        })
+      }
     }
 
     // --- Kanten ersetzen (Pass 2: alle Seiten existieren jetzt) -----------------
     for (const p of pageInfos) {
+      if (conflictedIds.has(p.id)) continue
       brokenLinks += await replaceEdgesForPage(tx, p, resolver)
     }
 
@@ -639,18 +731,25 @@ export async function indexSpace(
   // Git-Historie nachtragen — nach der Transaktion, weil die Einträge an
   // `spaces` hängen und ein Provider-Aussetzer hier den Index nicht kippen darf.
   if (ref === 'main') {
+    // Issue #7: konfliktbehaftete Seiten ausgenommen — `pageVersions.pageId` hat
+    // keinen FK auf `pages` (Kommentar `db/schema.ts`, `pageVersions` ist reiner
+    // Ableitungs-Cache), ein Eintrag unter der Id der FREMDEN Zeile mit
+    // `spaceId = space.id` würde hier sonst unbemerkt durchgehen.
     await reconstructMissingVersions(
       { db, provider, logger },
       space,
-      pageInfos.map((p) => ({ id: p.id, path: p.path, version: p.frontmatter.version })),
+      pageInfos
+        .filter((p) => !conflictedIds.has(p.id))
+        .map((p) => ({ id: p.id, path: p.path, version: p.frontmatter.version })),
     )
   }
 
   return {
     pagesIndexed: pageInfos.length,
-    pagesWithErrors: pageInfos.filter((p) => p.errorStatus !== null).length,
+    pagesWithErrors: pageInfos.filter((p) => p.errorStatus !== null).length + idConflicts.length,
     brokenLinks,
     filesSkippedIo: ioSkippedPaths.length,
     headSha,
+    idConflicts,
   }
 }

@@ -86,19 +86,13 @@ class FakeDocument {
   }
 }
 
-const ALERT_TITLES: Record<AlertType, string> = {
-  note: 'Hinweis',
-  tip: 'Tipp',
-  important: 'Wichtig',
-  warning: 'Warnung',
-  caution: 'Achtung',
-}
+const ALERT_TYPES: readonly AlertType[] = ['note', 'tip', 'important', 'warning', 'caution']
 
 describe('Alert-Node: echter ProseMirror-DOMSerializer (Issue #22 Regression)', () => {
   const schema = getEditorSchema()
   const serializer = DOMSerializer.fromSchema(schema)
 
-  it.each(Object.keys(ALERT_TITLES) as AlertType[])(
+  it.each(ALERT_TYPES)(
     'serialisiert alertType=%s ohne "Content hole"-Absturz',
     (alertType) => {
       const node = schema.nodeFromJSON({
@@ -130,24 +124,26 @@ describe('Alert-Node: echter ProseMirror-DOMSerializer (Issue #22 Regression)', 
     },
   )
 
-  it.each(Object.keys(ALERT_TITLES) as AlertType[])(
-    'CSS liefert den Titel "%s" als generierten Inhalt für .alert-%s',
+  it.each(ALERT_TYPES)(
+    'CSS liefert den Titel für .alert-%s als CSS-Variable, nicht als Literal (Issue #9)',
     (alertType) => {
       // Gesucht wird im GESAMTEN Anwendungs-CSS, nicht in einer bestimmten
       // Datei: Seit dem Umbau des Bausteinsystems enthält `globals.css` nur
-      // noch die Import-Liste, die Regeln stehen in `app/styles/*.css`. Dieser
-      // Test hing am alten Pfad und schlug seither fehl, ohne dass es auffiel —
-      // er gehört zu keinem Modul, das seither geändert wurde. In welcher
-      // Teildatei die Regel liegt, ist für die Zusage („der Titel kommt aus
-      // dem CSS, nicht aus einem statischen Absatz") ohnehin belanglos.
+      // noch die Import-Liste, die Regeln stehen in `app/styles/*.css`. In
+      // welcher Teildatei die Regel liegt, ist für die Zusage („der Titel
+      // kommt aus einer CSS-Variable, nicht aus einem statischen Absatz oder
+      // einem im CSS fest verdrahteten deutschen Wort") ohnehin belanglos.
+      //
+      // Seit Issue #9 folgt der Titeltext der UI-Sprache (de/en-Umschalter),
+      // nicht der Seitensprache: das CSS selbst enthält keinen Titeltext mehr,
+      // nur noch einen Verweis auf `--label-alert-<typ>`, den
+      // `apps/web/app/layout.tsx` aus `lib/i18n` setzt.
       const stylesDir = fileURLToPath(new URL('../../../apps/web/app/styles/', import.meta.url))
       const css = readdirSync(stylesDir)
         .filter((name) => name.endsWith('.css'))
         .map((name) => readFileSync(join(stylesDir, name), 'utf8'))
         .join('\n')
-      const rule = new RegExp(
-        `\\.alert-${alertType}::before\\s*\\{[^}]*content:\\s*["']${ALERT_TITLES[alertType]}["']`,
-      )
+      const rule = new RegExp(`\\.alert-${alertType}::before\\s*\\{[^}]*content:\\s*var\\(--label-alert-${alertType}\\)`)
       expect(css).toMatch(rule)
     },
   )

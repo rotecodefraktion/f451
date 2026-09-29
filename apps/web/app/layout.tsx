@@ -99,10 +99,27 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // s. `lib/i18n/server.ts#getLocale`) und den Client-`<LocaleProvider>`
   // damit seeden — der Client leitet die Sprache NIE selbst ab, das hält
   // Server-/Client-Render hydration-sicher konsistent (s. `provider.tsx`).
-  const { locale, messages } = await getT()
+  const { locale, messages, t } = await getT()
+  // UI-sprachige Beschriftungen für sprachneutral gespeichertes Seiten-HTML
+  // (Issue #9: Alert-/Callout-Titel, YouTube-Abspiel-Beschriftung). Markdown
+  // rendert dafür nur leere Struktur-Elemente (packages/markdown/src/alerts.ts,
+  // render.ts) — der Text kommt hier als CSS Custom Property herein, gelesen
+  // von `::before { content: var(--label-…) }` in `app/styles/61-lese.css`/
+  // `62-editor.css`. `JSON.stringify` liefert den nötigen Anführungszeichen-Wert
+  // für die CSS-`content`-Eigenschaft UND escaped darin enthaltene Sonderzeichen
+  // sicher (z. B. ein `"` im übersetzten Text).
+  const contentLabels = {
+    '--label-alert-note': JSON.stringify(t('read.alerts.note')),
+    '--label-alert-tip': JSON.stringify(t('read.alerts.tip')),
+    '--label-alert-important': JSON.stringify(t('read.alerts.important')),
+    '--label-alert-warning': JSON.stringify(t('read.alerts.warning')),
+    '--label-alert-caution': JSON.stringify(t('read.alerts.caution')),
+    '--label-youtube-play': JSON.stringify(t('read.youtube.play')),
+  } as React.CSSProperties
   return (
     <html
       lang={locale}
+      style={contentLabels}
       // Der Schalter des Bausteinsystem-Umbaus (Etappe 2, Teilschritt I).
       // Bis hierher hielten die Baustein-Dateien `40-schaltflaeche.css`,
       // `41-eingabe.css` und `45-auswahl.css` an ihrem Dateifuß je einen

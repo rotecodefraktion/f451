@@ -154,6 +154,15 @@ export async function indexDraftPage(
     // indexTags: false — siehe `UpsertPageOptions`-Kommentar in index-space.ts:
     // `tags` hat keinen `ref` im Primärschlüssel, Draft-Tags könnten daher
     // Insert-Konflikte mit main-Tags auslösen oder über die main-Lese-API leaken.
+    //
+    // Issue #7: `upsertPage` verweigert das Schreiben (WHERE-Klausel im
+    // `onConflictDoUpdate`, s. dort), wenn `(pageId, 'draft')` bereits einer
+    // ANDEREN `space.id` gehört (zwei Spaces mit derselben Frontmatter-`id`) —
+    // derselbe Schutz wie beim main-Voll-/Inkremental-Reindex, ohne Sonderfall
+    // hier. Der Rückgabewert wird bewusst ignoriert: der Git-Commit auf dem
+    // Draft-Branch ist in diesem Fall bereits geschrieben (s. `writeFile` oben),
+    // nur der Such-/Vorschau-Indexeintrag bliebe dann aus — ableitbar, ein
+    // Reindex holt ihn nach, sobald die Id-Kollision im Frontmatter behoben ist.
     await upsertPage(tx, space.id, 'draft', { ...info, id: pageId }, resolver, { indexTags: false })
   })
 }

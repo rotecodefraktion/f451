@@ -1096,12 +1096,25 @@
   line-height: var(--leading-ui);
   margin: 0 0 var(--space-1);
 }
+/* Titeltext (Issue #9): `packages/markdown/src/alerts.ts` liefert das
+   `<p class="alert-title">` LEER — der Text folgt der UI-Sprache (de/en-
+   Umschalter), nicht der Seitensprache, und kommt als CSS Custom Property
+   herein, die `apps/web/app/layout.tsx` aus `lib/i18n` (`read.alerts.*`) setzt.
+   `:empty` UND das Attribut sind wichtig für gespeichertes ALTES HTML (vor
+   diesem Fix reindiziert): dort steht der deutsche Titel bereits als Text im
+   `<p>` — ohne `:empty` erschiene der Titel dann DOPPELT (alter Text + neues
+   Label). Nach einem `POST /admin/reindex` sind alle `<p class="alert-title">`
+   wieder leer (s. `deploy/BETRIEB.md`), das `:empty`-Gate ist der Übergang bis
+   dahin. */
 .page-body .alert-note {
   background: var(--color-status-working-wash);
   border-color: var(--work-ln);
 }
 .page-body .alert-note .alert-title {
   color: var(--color-status-working);
+}
+.page-body .alert-note .alert-title:empty::before {
+  content: var(--label-alert-note);
 }
 .page-body .alert-tip {
   background: var(--rel-bg);
@@ -1110,12 +1123,18 @@
 .page-body .alert-tip .alert-title {
   color: var(--color-status-released);
 }
+.page-body .alert-tip .alert-title:empty::before {
+  content: var(--label-alert-tip);
+}
 .page-body .alert-important {
   background: var(--color-accent-wash);
   border-color: var(--color-accent-line);
 }
 .page-body .alert-important .alert-title {
   color: var(--color-accent);
+}
+.page-body .alert-important .alert-title:empty::before {
+  content: var(--label-alert-important);
 }
 .page-body .alert-warning {
   background: var(--rev-bg);
@@ -1124,12 +1143,18 @@
 .page-body .alert-warning .alert-title {
   color: var(--color-status-review);
 }
+.page-body .alert-warning .alert-title:empty::before {
+  content: var(--label-alert-warning);
+}
 .page-body .alert-caution {
   background: var(--color-danger-wash);
   border-color: var(--dgr-ln);
 }
 .page-body .alert-caution .alert-title {
   color: var(--color-danger);
+}
+.page-body .alert-caution .alert-title:empty::before {
+  content: var(--label-alert-caution);
 }
 
 /* YouTube-Embed (Phase 3d): Thumbnail-zuerst-Karte; das iframe kommt erst
@@ -1168,6 +1193,16 @@
   color: var(--color-bg);
   font-size: var(--text-sm);
   font-weight: var(--weight-display);
+}
+/* Beschriftungstext (Issue #9): folgt der UI-Sprache statt der Seitensprache,
+   `packages/markdown/src/render.ts` liefert `.yt-play` daher LEER — der Text
+   kommt als CSS Custom Property herein (`apps/web/app/layout.tsx`). `:empty`
+   ist der Übergang für gespeichertes ALTES HTML (vor Reindex nach diesem Fix),
+   das den deutschen Text bereits als Kind-Textknoten trägt — ohne `:empty`
+   stünde der Text dort doppelt (s. Kommentar bei `.alert-title` oben,
+   `deploy/BETRIEB.md`). */
+.page-body .yt-embed .yt-play:empty::before {
+  content: var(--label-youtube-play);
 }
 .page-body .yt-embed iframe.yt-frame {
   width: 100%;

@@ -47,6 +47,21 @@ const errorSchema = {
   required: ['status', 'reason'],
 } as const
 
+// Issue #7: Seiten, deren Frontmatter-`id` bereits einem anderen Space gehört
+// (siehe `IndexReport.idConflicts`-Kommentar in `indexer/index-space.ts`) — ohne
+// diesen Eintrag im Response-Schema würde Fastify das Feld aus der JSON-Antwort
+// entfernen (unbekannte Properties werden gegen das Schema verworfen), der
+// Konflikt bliebe für `POST /admin/reindex`-Aufrufer unsichtbar.
+const idConflictItemSchema = {
+  type: 'object',
+  properties: {
+    id: { type: 'string' },
+    path: { type: 'string' },
+    ownerSpace: { type: 'string' },
+  },
+  required: ['id', 'path', 'ownerSpace'],
+} as const
+
 const indexReportSchema = {
   type: 'object',
   properties: {
@@ -55,8 +70,16 @@ const indexReportSchema = {
     brokenLinks: { type: 'number' },
     filesSkippedIo: { type: 'number' },
     headSha: { type: 'string' },
+    idConflicts: { type: 'array', items: idConflictItemSchema },
   },
-  required: ['pagesIndexed', 'pagesWithErrors', 'brokenLinks', 'filesSkippedIo', 'headSha'],
+  required: [
+    'pagesIndexed',
+    'pagesWithErrors',
+    'brokenLinks',
+    'filesSkippedIo',
+    'headSha',
+    'idConflicts',
+  ],
 } as const
 
 const reindexResultItemSchema = {
