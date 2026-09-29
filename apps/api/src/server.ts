@@ -266,3 +266,20 @@ app.listen({ port, host: '0.0.0.0' }).catch((err) => {
   app.log.error(err)
   process.exit(1)
 })
+
+// Graceful shutdown: `docker stop` sends SIGTERM. Without a handler Node exits
+// at once and drops requests that are half-way through a multi-step Git
+// operation (e.g. create page: branch created, file not yet written).
+// `app.close()` stops accepting connections and lets in-flight requests finish.
+for (const signal of ['SIGTERM', 'SIGINT'] as const) {
+  process.once(signal, () => {
+    app.log.info({ signal }, 'shutting down: finishing in-flight requests')
+    app.close().then(
+      () => process.exit(0),
+      (err) => {
+        app.log.error(err)
+        process.exit(1)
+      },
+    )
+  })
+}

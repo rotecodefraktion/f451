@@ -1,15 +1,47 @@
 # TLS certificates come from Let's Encrypt automatically.
+# Maintenance mode: demo.sh creates /srv/state/maintenance for the duration of
+# a deploy (see `maintenance` there); while the file exists every request gets
+# the rebuilding page with 503. No reload needed — the matcher checks per request.
+(maintenance) {
+	@maintenance {
+		file {
+			root /srv/state
+			try_files /maintenance
+		}
+	}
+	handle @maintenance {
+		root * /srv/maintenance
+		header Cache-Control no-store
+		header Retry-After 10
+		rewrite * /index.html
+		file_server {
+			status 503
+		}
+	}
+}
+
 {$F451_DEMO_HOST} {
 	encode zstd gzip
+	import maintenance
 	# Instance theme (colours + typefaces), loaded via F451_CUSTOM_STYLESHEET.
 	handle_path /custom/* {
 		root * /srv/theme
 		file_server
 	}
-	reverse_proxy web:3000
+	reverse_proxy web:3000 {
+		# A deploy replaces the app containers; hold requests until the new
+		# one answers instead of failing with 502. Retries happen only while
+		# dialing, so unsafe requests are never sent twice.
+		lb_try_duration 60s
+		lb_try_interval 250ms
+	}
 }
 
 {$F451_DEMO_GIT_HOST} {
 	encode zstd gzip
-	reverse_proxy forgejo:3000
+	import maintenance
+	reverse_proxy forgejo:3000 {
+		lb_try_duration 60s
+		lb_try_interval 250ms
+	}
 }

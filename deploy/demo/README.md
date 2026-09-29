@@ -55,6 +55,11 @@ OAuth app, token key, visitor passwords) and prints both visitor logins.
 | `demo.sh reset` | Runs nightly at 03:30 (timer). Closes open reviews, deletes draft branches, restores all spaces to `demo/*`, reindexes. |
 | `demo.sh status` | Container status and the deployed commit. |
 
+While a deploy replaces the containers, Caddy shows a "rebuilding" page
+(`maintenance/index.html`, HTTP 503, reloads itself) — `demo.sh` switches it on
+and off via a flag file in the `maintenance-state` volume. Requests that hit a
+container while it is starting are held for up to 60 s instead of failing.
+
 Logs: `journalctl -u f451-demo-update -u f451-demo-reset`.
 
 Nothing here needs a backup: the demo is rebuilt from this repository.

@@ -212,9 +212,11 @@ export async function createPage(
   const pageId = id
   const branch = draftBranchName(pageId)
 
+  let branchCreatedHere = false
   if (!(await branchExists(provider, repo, branch))) {
     try {
       await provider.createBranch(repo, branch, 'main')
+      branchCreatedHere = true
     } catch (err) {
       // Bereits von einer parallelen Anfrage angelegt (Race) — derselbe
       // Toleranz-Grundsatz wie `createOrGetDraft` (`drafts/lifecycle.ts`).
@@ -249,9 +251,16 @@ export async function createPage(
     body = `# ${normalizedTitle}\n`
   }
   const content = `---\n${frontmatterBlock}\n---\n\n${body}`
-  await provider.writeFile(repo, path, content, { branch, message: `docs: „${normalizedTitle}" anlegen` })
-
-  await indexDraftPage(deps.db, space, pageId, path, content)
+  try {
+    await provider.writeFile(repo, path, content, { branch, message: `docs: „${normalizedTitle}" anlegen` })
+    await indexDraftPage(deps.db, space, pageId, path, content)
+  } catch (err) {
+    // A branch without the page file is an orphan nobody can reach or discard
+    // from the UI (no index row). Remove it again if this request created it;
+    // the original error stays the answer.
+    if (branchCreatedHere) await provider.deleteBranch(repo, branch).catch(() => undefined)
+    throw err
+  }
 
   return { id: pageId, space: space.id, path, branch, baseSha: gitBlobSha1(content), content }
 }

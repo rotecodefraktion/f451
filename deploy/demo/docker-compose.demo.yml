@@ -23,6 +23,8 @@ services:
       # Relative paths resolve from deploy/git (the first compose file).
       - ../demo/Caddyfile:/etc/caddy/Caddyfile:ro
       - ../demo/theme:/srv/theme:ro
+      - ../demo/maintenance:/srv/maintenance:ro
+      - maintenance-state:/srv/state
       - caddy-data:/data
       - caddy-config:/config
     # No depends_on: the API discovers the OIDC issuer through Caddy
@@ -40,5 +42,6 @@ services:
       FORGEJO__admin__DISABLE_REGULAR_ORG_CREATION: "true"
 
 volumes:
+  maintenance-state:
   caddy-data:
   caddy-config:
