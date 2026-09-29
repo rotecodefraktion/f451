@@ -223,7 +223,8 @@ reindex() {
 import sys, json
 for r in json.load(sys.stdin):
     rep = r["report"]
-    print(f"  {r[\"space\"]}: {rep[\"pagesIndexed\"]} pages, {rep[\"pagesWithErrors\"]} errors, {rep[\"brokenLinks\"]} broken links")'
+    print("  %s: %d pages, %d errors, %d broken links, %d id conflicts" % (
+        r["space"], rep["pagesIndexed"], rep["pagesWithErrors"], rep["brokenLinks"], len(rep.get("idConflicts", []))))'
 }
 
 deploy() {
