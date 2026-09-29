@@ -376,6 +376,7 @@ const releaseSchema = {
     403: forbiddenSchema,
     404: errorSchema,
     409: errorWithOptionalReasonSchema,
+    422: errorWithOptionalReasonSchema,
     502: errorSchema,
   },
 } as const
@@ -529,6 +530,16 @@ export function registerWorkflowRoutes(app: FastifyInstance, deps: WorkflowDeps)
             return reply.code(409).send({ error: 'kein Entwurf vorhanden' })
           }
 
+          // Fix #11: ein Draft-Branch ohne jeden Commit gegenüber main lässt sich bei
+          // Forgejo zwar zu einem PR machen, der Merge scheitert dann aber dauerhaft
+          // mit transientem 405 (s. `ForgejoProvider#mergePullRequest`-Kommentar) —
+          // die 502-Antwort, die der Aufrufer davon bisher zu sehen bekam, ist kein
+          // Provider-Ausfall, sondern ein leerer Entwurf. Abgefangen VOR der PR-Anlage:
+          // kein PR, den der Nutzer danach von Hand wieder schließen müsste.
+          if ((await ctx.provider.countCommitsAhead(repo, 'main', branch)) === 0) {
+            return reply.code(422).send({ error: 'Draft has no changes', reason: 'no_changes' })
+          }
+
           const { pr, created } = await findOrCreateOpenPr(
             ctx.provider,
             repo,
@@ -664,6 +675,22 @@ export function registerWorkflowRoutes(app: FastifyInstance, deps: WorkflowDeps)
           const pr = open[0]
           if (!pr) {
             return reply.code(409).send({ error: 'kein offener Pull Request vorhanden' })
+          }
+
+          // Fix #11 (dieselbe Prüfung wie POST /review, hier zusätzlich für Drafts
+          // nötig, deren PR vor diesem Fix ODER unabhängig von der API eröffnet wurde):
+          // ein Branch ohne jeden Commit gegenüber main ist bei Forgejo zwar mergebar
+          // laut `mergeable`-Feld, der eigentliche Merge-POST scheitert aber dauerhaft
+          // mit transientem 405, bis das interne ~15s-Retry-Budget von
+          // `mergePullRequest` ausgeschöpft ist (502 an den Aufrufer). Geprüft VOR den
+          // release-eigenen Zusatz-Commits (`fillReleaseMetadataOnDraft`/
+          // `applyVersionOnDraft`): die zählen nicht als "echte" Änderung des Autors —
+          // ein Draft, der nur durch automatisch vorbelegte Metadaten/Versionsnummern
+          // von main abweicht, hat inhaltlich nichts zu veröffentlichen, und ein
+          // Zusatz-Commit VOR dieser Prüfung würde den PR erst nachträglich (und ohne
+          // Autorabsicht) "echt" aussehen lassen.
+          if ((await ctx.provider.countCommitsAhead(repo, 'main', branch)) === 0) {
+            return reply.code(422).send({ error: 'Draft has no changes', reason: 'no_changes' })
           }
 
           // Freigabe-Vorbelegung (Metadaten-Feature M3b Teil B) — VOR dem Merge:
@@ -919,8 +946,13 @@ export function registerWorkflowRoutes(app: FastifyInstance, deps: WorkflowDeps)
 
           let pr: { number: number; url: string } | null = null
           let state: 'working' | 'review' = 'working'
-          if (result.hadOpenPr) {
-            const branch = draftBranchName(ctx.row.id)
+          const branch = draftBranchName(ctx.row.id)
+          // #11: after `take-main` the draft may carry no own commits any more —
+          // reopening the review would create an empty PR that can never be
+          // merged. The draft then simply stays in `working`.
+          const hasChanges =
+            result.hadOpenPr && (await ctx.provider.countCommitsAhead(ctx.space.repoRef, 'main', branch)) > 0
+          if (hasChanges) {
             // Race-Fix (Task 7, s. waitForPrClosed): erst warten, bis Forgejo
             // den alten PR wirklich geschlossen hat — sonst liefert die
             // idempotente Anlage den sterbenden Alt-PR als "Bestand" zurück

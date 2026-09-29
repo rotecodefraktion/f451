@@ -190,6 +190,22 @@ describe('GitHubProvider (Fixtures)', () => {
     await expect(p.getHeadSha(repo, 'gibt-es-nicht')).rejects.toBeInstanceOf(NotFoundError)
   })
 
+  it('countCommitsAhead liest ahead_by aus dem Compare-Endpunkt', async () => {
+    api()
+      .intercept({ path: '/repos/acme/docs/compare/main...draft%2Fp-1', method: 'GET' })
+      .reply(200, { ahead_by: 3, behind_by: 0, total_commits: 3 })
+    const p = new GitHubProvider({ token: 't' })
+    await expect(p.countCommitsAhead(repo, 'main', 'draft/p-1')).resolves.toBe(3)
+  })
+
+  it('countCommitsAhead: 0 für einen Branch ohne Commits gegenüber base (Fix #11)', async () => {
+    api()
+      .intercept({ path: '/repos/acme/docs/compare/main...draft%2Fleer', method: 'GET' })
+      .reply(200, { ahead_by: 0, behind_by: 0, total_commits: 0 })
+    const p = new GitHubProvider({ token: 't' })
+    await expect(p.countCommitsAhead(repo, 'main', 'draft/leer')).resolves.toBe(0)
+  })
+
   it('createBranch liest zuerst den HEAD-SHA von fromBranch und legt dann den Ref an', async () => {
     api()
       .intercept({ path: '/repos/acme/docs/branches/main', method: 'GET' })

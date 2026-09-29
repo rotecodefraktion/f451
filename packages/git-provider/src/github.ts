@@ -262,6 +262,18 @@ export class GitHubProvider implements GitProvider {
     }))
   }
 
+  /** Siehe `GitProvider#countCommitsAhead`. GitHubs Compare-Endpunkt nimmt
+   *  `base`/`head` ebenfalls als EIN Pfadsegment mit literalem `...`-Trenner —
+   *  Branch-Namen einzeln `encodeURIComponent`-kodiert (dasselbe "ein Segment"-
+   *  Muster wie `branches/{branch}`, s. Encoding-Konvention am Dateiende). */
+  async countCommitsAhead(repo: RepoRef, base: string, head: string): Promise<number> {
+    const data = (await this.#request(
+      'GET',
+      `/repos/${repo.owner}/${repo.repo}/compare/${encodeURIComponent(base)}...${encodeURIComponent(head)}`,
+    )) as { ahead_by: number }
+    return data.ahead_by
+  }
+
   async createPullRequest(
     repo: RepoRef,
     opts: { head: string; base: string; title: string; body?: string },

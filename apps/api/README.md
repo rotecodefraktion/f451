@@ -762,16 +762,29 @@ zur Review-Ansicht angehängt: `<F451_PUBLIC_BASE_URL>/wiki/<space>/<pageId>/rev
   noch (der Client kann später erneut `POST /review` aufrufen, idempotent).
 - `403` / `404` wie bei den Draft-Routen (Gate-Kette).
 - `409` `{error: 'kein Entwurf vorhanden'}` — kein Draft-Branch für die Seite.
-- `422` — `reviewers` enthält einen unbekannten Login-Namen (oder ein anderer
-  Provider-Fehler bei der Reviewer-Zuweisung): der **PR bleibt trotzdem
-  bestehen**, nur die Reviewer-Zuweisung ist gescheitert (Server-Meldung im
-  `error`-Feld).
+- `422` `{error: 'Draft has no changes', reason: 'no_changes'}` — der
+  Draft-Branch hat gegenüber `main` noch keinen einzigen Commit
+  (`countCommitsAhead`). **Kein PR wird angelegt.** Forgejo lässt einen PR
+  ohne jeden Diff zwar prinzipiell anlegen, der spätere `mergePullRequest`
+  scheitert dann aber dauerhaft mit transientem `405`, bis das interne ~15s-
+  Retry-Budget ausgeschöpft ist (`502` an den Aufrufer) — dieser Fall wird
+  hier VORAB abgefangen.
+- `422` (anderer Fall) — `reviewers` enthält einen unbekannten Login-Namen
+  (oder ein anderer Provider-Fehler bei der Reviewer-Zuweisung): der **PR
+  bleibt trotzdem bestehen**, nur die Reviewer-Zuweisung ist gescheitert
+  (Server-Meldung im `error`-Feld, kein `reason`-Feld).
 - `502` Provider nicht erreichbar.
 
 ### `POST /api/pages/:id/release`
 
 Freigeben & mergen. Body optional `{ comment?: string }`.
 
+0. Vorab-Prüfung (wie bei `POST /review`): hat der Branch des offenen PR
+   gegenüber `main` keinen einzigen Commit (`countCommitsAhead`), antwortet die
+   Route SOFORT mit `422` — VOR jedem Approve-/Merge-Versuch und VOR den
+   release-eigenen Zusatz-Commits (Punkt 1 unten zählt nicht als Autor-
+   Änderung). Betrifft PRs, die vor diesem Fix oder unabhängig von der API
+   eröffnet wurden.
 1. Best-effort-**Approve** vor dem Merge (`submitPullRequestReview`,
    `event: 'approve'`). Nur die **tolerierte Fehlerklasse** — `ConflictError`,
    worüber sich sowohl das Self-Review-Verbot als auch „bereits approved"
@@ -805,6 +818,7 @@ Freigeben & mergen. Body optional `{ comment?: string }`.
 - `409` `{error: 'kein offener Pull Request vorhanden'}` (kein offener PR) —
   oder `{error, reason: 'conflict'}`, wenn der PR nicht mergebar ist (die UI
   zeigt daraus die Konflikt-Notice und verweist auf `POST /draft/update`).
+- `422` `{error: 'Draft has no changes', reason: 'no_changes'}` — Punkt 0 oben.
 - `502` Provider nicht erreichbar.
 
 ### `POST /api/pages/:id/review/request-changes`

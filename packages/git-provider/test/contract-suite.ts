@@ -258,6 +258,19 @@ export function runGitProviderContractTests(
       expect(Date.parse(commits[0]!.date)).not.toBeNaN()
     })
 
+    it('countCommitsAhead: 0 für einen frisch von main abgezweigten Branch, 1 nach einem Commit darauf', async () => {
+      await ctx.provider.createBranch(ctx.repo, 'draft/count-test', 'main')
+      expect(await ctx.provider.countCommitsAhead(ctx.repo, 'main', 'draft/count-test')).toBe(0)
+
+      await ctx.provider.writeFile(ctx.repo, 'betrieb/count-test/index.md', '# Count Test\n', {
+        branch: 'draft/count-test',
+        message: 'docs: Count-Test',
+      })
+      expect(await ctx.provider.countCommitsAhead(ctx.repo, 'main', 'draft/count-test')).toBe(1)
+
+      await ctx.provider.deleteBranch(ctx.repo, 'draft/count-test')
+    })
+
     it('Draft-Workflow: Branch → Commit → PR → Merge → Datei auf main', async () => {
       await ctx.provider.createBranch(ctx.repo, 'draft/8f3ka2', 'main')
       await ctx.provider.writeFile(ctx.repo, 'betrieb/monitoring/index.md', '# Monitoring\n', {

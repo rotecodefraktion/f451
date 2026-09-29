@@ -130,6 +130,16 @@ export interface GitProvider {
   deleteBranch(repo: RepoRef, name: string): Promise<void>
   /** Commit-Historie, optional auf einen Pfad eingeschränkt, neueste zuerst. */
   listCommits(repo: RepoRef, opts: { ref: string; path?: string; limit?: number }): Promise<CommitInfo[]>
+  /**
+   * Anzahl der Commits, die `head` gegenüber `base` voraus hat (git: `base..head`).
+   * Billige Vorab-Prüfung, BEVOR ein Review-PR eröffnet oder gemerged wird: ein
+   * Draft-Branch ohne jeden Commit gegenüber `main` lässt sich bei Forgejo zwar
+   * anlegen, der Merge scheitert dann aber dauerhaft mit transientem 405 (siehe
+   * `ForgejoProvider#mergePullRequest`-Kommentar) — `0` ist das Signal dafür,
+   * diesen Fall VOR dem PR bzw. Merge-Versuch mit einer klaren 422-Antwort
+   * abzufangen (`apps/api/src/routes/workflow.ts`).
+   */
+  countCommitsAhead(repo: RepoRef, base: string, head: string): Promise<number>
   createPullRequest(
     repo: RepoRef,
     opts: { head: string; base: string; title: string; body?: string },

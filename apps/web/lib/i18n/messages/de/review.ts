@@ -89,6 +89,7 @@ export const review = {
   },
   errors: {
     conflictOnMerge: 'main hat sich seit Beginn dieses Reviews geändert — bitte den Entwurf zuerst aktualisieren.',
+    reviewNoChanges: 'Dieses Review enthält keine Änderungen — es gibt nichts freizugeben. Verwirf den Entwurf, um es zu schließen.',
     mergeFailedRetry: 'Freigeben ist fehlgeschlagen — bitte erneut versuchen.',
     mergeFailedOffline: 'Freigeben ist fehlgeschlagen — der Server ist aktuell nicht erreichbar.',
     requestChangesFailed: 'Änderungen anfordern ist fehlgeschlagen — bitte erneut versuchen.',

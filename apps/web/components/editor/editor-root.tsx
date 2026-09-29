@@ -744,6 +744,10 @@ function EditorSession({
           return
         }
         setRequestingReview(false)
+        if (result.reason === 'no-changes') {
+          window.alert(t('editor.errors.reviewNoChanges'))
+          return
+        }
         window.alert(t('editor.errors.reviewNoDraft'))
       })
       .catch(() => {

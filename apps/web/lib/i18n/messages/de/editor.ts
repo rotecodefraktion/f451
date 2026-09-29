@@ -31,6 +31,7 @@ export const editor = {
     discardFailed: 'Der Entwurf konnte nicht verworfen werden — bitte erneut versuchen.',
     deletePageFailed: 'Die Seite konnte nicht gelöscht werden — bitte erneut versuchen.',
     reviewNoDraft: 'Für diese Seite existiert aktuell kein Entwurf — Review kann nicht angefordert werden.',
+    reviewNoChanges: 'Dieser Entwurf enthält noch keine Änderungen — bearbeite zuerst die Seite oder verwirf den Entwurf.',
     reviewFailed: 'Review konnte nicht angefordert werden — bitte erneut versuchen.',
     resetFailed: 'Der Entwurf konnte nicht auf den letzten freigegebenen Stand zurückgesetzt werden — bitte erneut versuchen.',
     contentUnreadable: 'Der Editor-Inhalt konnte nicht gelesen werden.',

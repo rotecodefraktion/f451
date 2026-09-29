@@ -132,6 +132,23 @@ describe.sequential('Workflow-Routen: review/release/request-changes/draft-updat
     expect(res.statusCode).toBe(200)
   }
 
+  /** Committet eine kleine, echte Änderung auf den Draft-Branch — Vorbedingung für
+   *  `POST /review`/`POST /release` seit Fix #11 (Drafts ohne Commits gegenüber
+   *  main werden dort mit 422 `no_changes` abgelehnt, s. `routes/workflow.ts`).
+   *  `createDraft` allein legt den Branch nur an (== main, 0 Commits), viele
+   *  Szenarien in dieser Datei brauchen aber keinen bestimmten Inhalt, nur
+   *  irgendeinen echten Diff. */
+  async function editDraft(targetApp: FastifyInstance, pageId: string, path: string, session: string): Promise<void> {
+    const before = await provider.readFile(repo, path, draftBranchName(pageId))
+    const res = await targetApp.inject({
+      method: 'PUT',
+      url: `/api/pages/${pageId}/draft`,
+      cookies: cookiesOf(session),
+      payload: { content: `${before.content}\nBearbeitet für den Review-Test.\n`, baseSha: before.sha },
+    })
+    expect(res.statusCode).toBe(200)
+  }
+
   /** Ruft `POST /review` wiederholt auf (idempotent, sicher mehrfach aufrufbar),
    *  bis `mergeable !== null` oder das Budget ausgeschöpft ist — robuster als
    *  eine einzelne Anfrage, deren serverseitiges 5s-Poll-Fenster knapp sein
@@ -170,8 +187,9 @@ describe.sequential('Workflow-Routen: review/release/request-changes/draft-updat
     })
 
     it('eröffnet den PR und ist idempotent (zweiter Aufruf liefert denselben PR)', async () => {
-      await seedPage('wf-review', 'Review Idempotent', 'wf-review')
+      const path = await seedPage('wf-review', 'Review Idempotent', 'wf-review')
       await createDraft('wf-review', writerSession)
+      await editDraft(app, 'wf-review', path, writerSession)
 
       const first = await app.inject({
         method: 'POST',
@@ -205,6 +223,31 @@ describe.sequential('Workflow-Routen: review/release/request-changes/draft-updat
       expect(stateRes.json().workflow.state).toBe('review')
       expect(stateRes.json().workflow.pr.number).toBe(firstBody.number)
     }, 15_000)
+
+    it(
+      'Fix #11: Draft ohne jeden Commit gegenüber main → 422 no_changes, KEIN PR wird eröffnet ' +
+        '(vorher: Forgejo ließ den PR anlegen, der Merge scheiterte dann dauerhaft mit transientem 405)',
+      async () => {
+        await seedPage('wf-review-empty', 'Review Leer', 'wf-review-empty')
+        await createDraft('wf-review-empty', writerSession)
+
+        const res = await app.inject({
+          method: 'POST',
+          url: '/api/pages/wf-review-empty/review',
+          cookies: cookiesOf(writerSession),
+          payload: {},
+        })
+        expect(res.statusCode).toBe(422)
+        expect(res.json()).toEqual({ error: 'Draft has no changes', reason: 'no_changes' })
+
+        const open = await provider.listPullRequests(repo, {
+          head: draftBranchName('wf-review-empty'),
+          base: 'main',
+          state: 'open',
+        })
+        expect(open).toHaveLength(0)
+      },
+    )
 
     it('künstlicher Konflikt (main-Commit auf dieselbe Zeile nach Draft-Erstellung) → mergeable false', async () => {
       const path = await seedPage('wf-conflict', 'Konflikt', 'wf-conflict')
@@ -590,6 +633,39 @@ describe.sequential('Workflow-Routen: review/release/request-changes/draft-updat
       // hier 400 statt 409).
       expect(res.statusCode).toBe(409)
     })
+
+    it(
+      'Fix #11: offener PR ohne jeden Commit gegenüber main (Branch/PR direkt über den Provider ' +
+        'angelegt, am neuen POST /review-Schutz vorbei — z. B. ein Altfall von vor diesem Fix) → ' +
+        '422 no_changes SOFORT, kein 502 nach dem internen ~15s-Merge-Retry-Budget (der eigentliche Bug)',
+      async () => {
+        const pageId = 'wf-release-empty'
+        await seedPage(pageId, 'Release Leer', pageId)
+        const branch = draftBranchName(pageId)
+        await provider.createBranch(repo, branch, 'main')
+        const pr = await provider.createPullRequest(repo, {
+          head: branch, base: 'main', title: 'Release Leer', body: 'ohne Änderungen',
+        })
+
+        const start = Date.now()
+        const res = await app.inject({
+          method: 'POST',
+          url: `/api/pages/${pageId}/release`,
+          cookies: cookiesOf(releaserSession),
+          payload: {},
+        })
+        const elapsedMs = Date.now() - start
+
+        expect(res.statusCode).toBe(422)
+        expect(res.json()).toEqual({ error: 'Draft has no changes', reason: 'no_changes' })
+        expect(elapsedMs).toBeLessThan(5_000)
+
+        // Kein Merge-Versuch: der PR ist unangetastet weiterhin offen.
+        const stillOpen = await provider.getPullRequest(repo, pr.number)
+        expect(stillOpen.state).toBe('open')
+      },
+      20_000,
+    )
 
     it(
       'Freigabe durch einen ZWEITEN Nutzer mit Schreibrecht: approve+merge, synchroner Cleanup ' +
@@ -1408,8 +1484,9 @@ describe.sequential('Workflow-Routen: review/release/request-changes/draft-updat
     })
 
     it('eigener PR → Provider-Fehler als 422 durchgereicht', async () => {
-      await seedPage('wf-rc-self', 'Eigener PR', 'wf-rc-self')
+      const path = await seedPage('wf-rc-self', 'Eigener PR', 'wf-rc-self')
       await createDraft('wf-rc-self', writerSession)
+      await editDraft(app, 'wf-rc-self', path, writerSession)
       const reviewRes = await app.inject({
         method: 'POST',
         url: '/api/pages/wf-rc-self/review',
@@ -1429,8 +1506,9 @@ describe.sequential('Workflow-Routen: review/release/request-changes/draft-updat
     }, 15_000)
 
     it('zweiter Nutzer fordert Änderungen an → 204', async () => {
-      await seedPage('wf-rc-other', 'Fremder Reviewer', 'wf-rc-other')
+      const path = await seedPage('wf-rc-other', 'Fremder Reviewer', 'wf-rc-other')
       await createDraft('wf-rc-other', writerSession)
+      await editDraft(app, 'wf-rc-other', path, writerSession)
       const reviewRes = await app.inject({
         method: 'POST',
         url: '/api/pages/wf-rc-other/review',
@@ -1483,9 +1561,10 @@ describe.sequential('Workflow-Routen: review/release/request-changes/draft-updat
       expect(body.warning).toContain('wf-update-media/_media/bild.png')
     }, 15_000)
 
-    it('take-main: Draft wird == main, ein zuvor offener PR wird neu eröffnet', async () => {
-      await seedPage('wf-update-take', 'Take Main', 'wf-update-take')
+    it('take-main: draft becomes == main and stays in working — no empty review is reopened (#11)', async () => {
+      const path = await seedPage('wf-update-take', 'Take Main', 'wf-update-take')
       await createDraft('wf-update-take', writerSession)
+      await editDraft(app, 'wf-update-take', path, writerSession)
 
       const reviewRes = await app.inject({
         method: 'POST',
@@ -1503,29 +1582,13 @@ describe.sequential('Workflow-Routen: review/release/request-changes/draft-updat
       })
       expect(updateRes.statusCode).toBe(200)
       const body = updateRes.json()
-      expect(body.state).toBe('review')
-      expect(body.pr.number).toBeGreaterThan(0)
+      expect(body.state).toBe('working')
+      expect(body.pr).toBeNull()
       expect(body.content).toContain('v1')
 
       const mainFile = await provider.readFile(repo, 'wf-update-take/index.md', 'main')
       expect(body.content).toBe(mainFile.content)
       expect(body.baseSha).toBe(mainFile.sha)
-
-      // Der zurückgegebene PR ist tatsächlich offen (`POST /review` ist
-      // idempotent — dieselbe Find-or-Create-Logik wie die Neuanlage in
-      // `POST /draft/update` — und heilt einen eventuell durch Forgejos
-      // Zeitverhalten zwischenzeitlich abweichenden Zustand selbst aus; ob der
-      // alte, durch die Branch-Löschung eigentlich geschlossene PR dabei
-      // wiederverwendet oder ein neuer angelegt wird, ist ein Forgejo-internes
-      // Timing-Detail ohne fachliche Bedeutung, siehe `keep-mine`-Test unten).
-      const confirmRes = await app.inject({
-        method: 'POST',
-        url: '/api/pages/wf-update-take/review',
-        cookies: cookiesOf(writerSession),
-        payload: {},
-      })
-      expect(confirmRes.statusCode).toBe(200)
-      expect((confirmRes.json() as ReviewResult).state).toBe('review')
     }, 15_000)
 
     it('keep-mine: eigener Inhalt bleibt erhalten, ein zuvor offener PR wird neu eröffnet (mergeable true)', async () => {
@@ -1592,8 +1655,9 @@ describe.sequential('Workflow-Routen: review/release/request-changes/draft-updat
     }
 
     it('ohne konfigurierte publicBaseUrl bleibt der PR-Body linklos (Bestandsverhalten)', async () => {
-      await seedPage('wf-review-nolink', 'Ohne Link', 'wf-review-nolink')
+      const path = await seedPage('wf-review-nolink', 'Ohne Link', 'wf-review-nolink')
       await createDraft('wf-review-nolink', writerSession)
+      await editDraft(app, 'wf-review-nolink', path, writerSession)
 
       const res = await app.inject({
         method: 'POST',
@@ -1624,13 +1688,14 @@ describe.sequential('Workflow-Routen: review/release/request-changes/draft-updat
 
       try {
         const pageId = 'wf-review-link'
-        await seedPage(pageId, 'Mit Link', pageId)
+        const path = await seedPage(pageId, 'Mit Link', pageId)
         const draftRes = await appWithLink.inject({
           method: 'POST',
           url: `/api/pages/${pageId}/draft`,
           cookies: cookiesOf(writerSession),
         })
         expect(draftRes.statusCode).toBe(200)
+        await editDraft(appWithLink, pageId, path, writerSession)
 
         const reviewRes = await appWithLink.inject({
           method: 'POST',

@@ -152,6 +152,10 @@ export function ReviewView({ pageId, space, pr, versioning = false, currentVersi
             setActionError(t('review.errors.conflictOnMerge'))
             return
           }
+          if (result.status === 422 && result.reason === 'no_changes') {
+            setActionError(t('review.errors.reviewNoChanges'))
+            return
+          }
           setActionError(result.error)
           return
         }
