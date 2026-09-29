@@ -137,11 +137,13 @@ Contributions are welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## License
 
-f451 is source-available, not Open Source in the OSI sense. For noncommercial
-purposes, use, modification and redistribution are free — with credit to
-rote code fraktion and a link to this repository, both in the code and in the
-user interface of every installation ("Based on f451 by www.rotecodefraktion.de" —
-f451 shows this notice itself).
-Commercial use requires a separate license on request. Excluded are the AfD and
-the organizations and platforms named in the license. The license covers code,
-documentation and design alike; details in [`LICENSE.md`](LICENSE.md).
+f451 is source-available, not Open Source in the OSI sense. Anyone — companies
+included — may use, change and share it for free, run it for their own
+documentation, offer paid services around it, and build it into other
+products. A separate license is needed only to **sell** f451 or a changed
+version, or to offer it as a **paid hosted service**. Credit is required in the
+code and in the user interface of every installation ("Based on f451 by
+www.rotecodefraktion.de" — f451 shows this notice itself). Excluded are the AfD
+and the organizations and platforms named in the license. The license
+(PolyForm Shield 1.0.0 plus additional conditions) covers code, documentation
+and design alike; details in [`LICENSE.md`](LICENSE.md).
