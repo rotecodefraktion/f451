@@ -65,16 +65,18 @@ Web-seitig gibt es genau EINE `NEXT_PUBLIC_*`-Variable (grep über
 | `F451_WEBHOOK_SECRET_GITHUB` | nein, analog | — | HMAC-Secret für GitHub-Webhooks. |
 | `F451_ADMIN_TOKEN` | nein, aber ohne sie sind `POST /admin/reindex` UND `GET /admin/status` fail-closed (503) deaktiviert | — | Bearer-Token für beide Admin-Endpunkte (dasselbe Gate). In Produktion praktisch Pflicht (Restore-Prozedur Abschnitt 3 braucht ihn). |
 | `F451_GLOBAL_TEMPLATES` | nein | — | JSON-Objekt `{"provider","owner","repo"}` — providerweites Zusatz-Vorlagen-Repo. |
-| `F451_OIDC_ISSUER` | nein | — (Auth deaktiviert) | Gesetzt = Auth aktiv (`/api/*`, `/admin/*`, `/media/*` erfordern Session). **Ohne sie ist die gesamte API ungeschützt** — in Produktion praktisch Pflicht. |
-| `F451_TOKEN_KEY` | ja, wenn `F451_OIDC_ISSUER` gesetzt (sonst Fail-Fast beim Start) | — | 32 Byte base64 (`openssl rand -base64 32`), AES-256-GCM-Schlüssel für Provider-Tokens. |
+| `F451_OIDC_ISSUER` | nein | — (Auth deaktiviert, außer `F451_GITHUB_LOGIN=1` ist gesetzt) | Gesetzt = Auth aktiv (`/api/*`, `/admin/*`, `/media/*` erfordern Session). **Ohne sie UND ohne `F451_GITHUB_LOGIN=1` ist die gesamte API ungeschützt** — in Produktion praktisch Pflicht (mindestens eine der beiden). |
+| `F451_TOKEN_KEY` | ja, wenn `F451_OIDC_ISSUER` ODER `F451_GITHUB_LOGIN=1` gesetzt (sonst Fail-Fast beim Start) | — | 32 Byte base64 (`openssl rand -base64 32`), AES-256-GCM-Schlüssel für Provider-Tokens. |
 | `F451_OIDC_CLIENT_ID` | ja, wenn `F451_OIDC_ISSUER` gesetzt | — | Entra-App-Registrierung, Client-Id. |
 | `F451_OIDC_CLIENT_SECRET` | ja, wenn `F451_OIDC_ISSUER` gesetzt | — | Entra-App-Registrierung, Client-Secret. |
 | `F451_OIDC_REDIRECT_URL` | ja, wenn `F451_OIDC_ISSUER` gesetzt | — | `https://<api-host>/auth/callback`, exakt wie bei Entra hinterlegt. |
+| `F451_OIDC_PROVIDER_NAME` | nein | — | Name on the sign-in button (`Sign in with <name>`), e.g. `Microsoft Entra`, `Forgejo`. Unset → neutral `Sign in`. |
 | `F451_INSECURE_COOKIES` | nein | `0` (aus) | `1` deaktiviert `secure` auf Session-/Transaktions-Cookies. **Nur lokale HTTP-Entwicklung — in Produktion NICHT setzen.** |
 | `F451_COOKIE_PREFIX` | nein | `f451` | Prefix of the auth cookie names (`<prefix>_session`, `_oidc_tx`, `_connect_tx`). Set a different value per instance when two stacks run on the same host — browsers do not separate cookies by port. |
 | `F451_OIDC_ALLOW_INSECURE` | nein | Wert von `F451_INSECURE_COOKIES` | `1` erlaubt http-Issuer bei der OIDC-Discovery, unabhängig vom Cookie-Modus. **In Produktion NICHT setzen** (Entra spricht ohnehin nur HTTPS). |
 | `F451_FORGEJO_OAUTH_CLIENT_ID` / `_SECRET` | nein (Paar) | — (Verknüpfung deaktiviert) | Aktiviert „Forgejo verbinden". Braucht zusätzlich `F451_FORGEJO_URL`. |
-| `F451_GITHUB_OAUTH_CLIENT_ID` / `_SECRET` | nein (Paar) | — (Verknüpfung deaktiviert) | Aktiviert „GitHub verbinden". |
+| `F451_GITHUB_OAUTH_CLIENT_ID` / `_SECRET` | nein (Paar) | — (Verknüpfung deaktiviert) | Aktiviert „GitHub verbinden". Mit `F451_GITHUB_LOGIN=1` doppelt dieselbe App als Sign-in-App — die Authorization-callback-URL muss dann `https://<api-host>/auth/` erlauben (deckt sowohl `/auth/github/callback` als auch `/auth/connect/github/callback` ab). |
+| `F451_GITHUB_LOGIN` | nein | `0` (aus) | `1` aktiviert „Sign in with GitHub" (#8) — braucht zusätzlich `F451_GITHUB_OAUTH_CLIENT_ID`/`_SECRET` (Fail-Fast, wenn nur `F451_GITHUB_LOGIN=1` gesetzt ist) und `F451_TOKEN_KEY`, auch OHNE `F451_OIDC_ISSUER` (GitHub-only-Instanzen). Der angemeldete Account wird sofort als GitHub-Verknüpfung übernommen — kein separater „GitHub verbinden"-Schritt nötig. |
 | `F451_MAX_UPLOAD_MB` | nein | `10` | Größenlimit (MiB) für Media-Uploads in Entwürfe. |
 | `F451_RATE_LIMIT_AUTH_MAX` | nein | `10` | Anfragen/Minute PRO Auth-Route und Client-IP (6 Routen, je EIGENER Zähler — kein Gesamtbudget). |
 | `F451_RATE_LIMIT_SEARCH_MAX` | nein | `60` | Anfragen/Minute für `GET /api/search` pro Client-IP; Aufrufe mit API-Token zählen pro Nutzer. |

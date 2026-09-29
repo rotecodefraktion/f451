@@ -39,6 +39,9 @@ const GITHUB_AUTHORIZE_URL = 'https://github.com/login/oauth/authorize'
 // unterstützten) Refresh-Grant wiederverwendet statt dupliziert.
 export const GITHUB_TOKEN_URL = 'https://github.com/login/oauth/access_token'
 const GITHUB_USER_URL = 'https://api.github.com/user'
+// Issue #8 (GitHub sign-in): only reachable when the access token carries the
+// `user:email` scope — see `fetchGithubLoginProfile` below.
+const GITHUB_EMAILS_URL = 'https://api.github.com/user/emails'
 
 export function isConnectProvider(value: string): value is ConnectProvider {
   return value === 'forgejo' || value === 'github'
@@ -57,12 +60,18 @@ export function generateConnectState(): string {
   return randomBytes(16).toString('base64url')
 }
 
-/** Baut die Authorize-Redirect-URL für den gewählten Provider. Wirft, wenn der Provider nicht konfiguriert ist. */
+/** Baut die Authorize-Redirect-URL für den gewählten Provider. Wirft, wenn der Provider nicht konfiguriert ist.
+ *  `scope` (Issue #8, GitHub sign-in): überschreibt den GitHub-Default `repo read:user`
+ *  — der Sign-in-Flow (`routes/auth.ts#registerGithubLoginRoutes`) braucht zusätzlich
+ *  `user:email`, um im Callback eine Mailadresse abrufen zu können. Ohne Angabe
+ *  bleibt das bisherige Connect-Verhalten unverändert. Für Forgejo ohne Wirkung
+ *  (Forgejo kennt keine Scope-Einschränkung im Authorize-Request). */
 export function buildConnectAuthorizeUrl(
   provider: ConnectProvider,
   connect: ConnectOptions,
   redirectUri: string,
   state: string,
+  scope?: string,
 ): string {
   if (provider === 'github') {
     const config = connect.github
@@ -71,7 +80,7 @@ export function buildConnectAuthorizeUrl(
     url.searchParams.set('client_id', config.clientId)
     url.searchParams.set('redirect_uri', redirectUri)
     url.searchParams.set('state', state)
-    url.searchParams.set('scope', 'repo read:user')
+    url.searchParams.set('scope', scope ?? 'repo read:user')
     return url.href
   }
 
@@ -171,6 +180,51 @@ export async function fetchConnectLogin(
   const data = (await res.json()) as { login?: string }
   if (!data.login) throw new Error('Abruf des Provider-Nutzers fehlgeschlagen (kein login-Feld in der Antwort).')
   return data.login
+}
+
+/** The profile fields GitHub sign-in needs (Issue #8) — a superset of what
+ *  {@link fetchConnectLogin} returns for the connect flow. */
+export interface GithubLoginProfile {
+  id: number
+  login: string
+  name: string | null
+  email: string
+}
+
+/**
+ * Fetches the GitHub profile for sign-in (#8): id, login, display name and an
+ * email address. GitHub omits `email` from `GET /user` unless the account has
+ * a public address; in that case a second call to `GET /user/emails` (needs
+ * the `user:email` scope, see `buildConnectAuthorizeUrl`) resolves the
+ * primary, verified address. Falls back to an empty string if even that
+ * yields nothing (e.g. no verified email at all) — sign-in must not depend on
+ * a GitHub email being present. Throws only when `id`/`login` themselves are
+ * missing; a failed or empty emails lookup is not fatal.
+ */
+export async function fetchGithubLoginProfile(accessToken: string): Promise<GithubLoginProfile> {
+  const headers = {
+    Authorization: `Bearer ${accessToken}`,
+    Accept: 'application/vnd.github+json',
+    'User-Agent': USER_AGENT,
+  }
+
+  const res = await fetch(GITHUB_USER_URL, { headers })
+  if (!res.ok) throw new Error(`Abruf des GitHub-Nutzers fehlgeschlagen (Status ${res.status}).`)
+  const data = (await res.json()) as { id?: number; login?: string; name?: string | null; email?: string | null }
+  if (typeof data.id !== 'number' || !data.login) {
+    throw new Error('Abruf des GitHub-Nutzers fehlgeschlagen (unvollständige Antwort).')
+  }
+
+  let email = data.email ?? ''
+  if (!email) {
+    const emailsRes = await fetch(GITHUB_EMAILS_URL, { headers })
+    if (emailsRes.ok) {
+      const emails = (await emailsRes.json()) as Array<{ email: string; primary: boolean; verified: boolean }>
+      email = emails.find((entry) => entry.primary && entry.verified)?.email ?? ''
+    }
+  }
+
+  return { id: data.id, login: data.login, name: data.name ?? null, email }
 }
 
 /**

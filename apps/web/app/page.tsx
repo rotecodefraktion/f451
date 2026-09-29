@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers'
 import { Attribution } from '../components/attribution'
 import { redirect } from 'next/navigation'
+import { apiFetch } from '../lib/api'
 import { getT } from '../lib/i18n/server'
 import { getMe } from '../lib/session'
 
@@ -16,6 +17,23 @@ interface HomeProps {
 function safeNext(raw: string | undefined): string {
   if (!raw || raw[0] !== '/' || raw[1] === '/' || raw[1] === '\\') return '/wiki'
   return raw
+}
+
+interface SignInMethod {
+  id: string
+  href: string
+  label: string | null
+}
+
+/** Sign-in methods offered by the API (#8). Falls back to the OIDC login when
+ *  the API can't say — the page then behaves as before. */
+async function signInMethods(): Promise<SignInMethod[]> {
+  try {
+    const { methods } = await apiFetch<{ methods: SignInMethod[] }>('/auth/methods')
+    return methods
+  } catch {
+    return [{ id: 'oidc', href: '/auth/login', label: null }]
+  }
 }
 
 /**
@@ -44,7 +62,7 @@ export default async function Home({ searchParams }: HomeProps) {
     redirect('/wiki')
   }
 
-  const loginHref = `/auth/login?next=${encodeURIComponent(target)}`
+  const methods = await signInMethods()
   const retryHref = `/?next=${encodeURIComponent(target)}`
   const { t } = await getT()
 
@@ -70,9 +88,11 @@ export default async function Home({ searchParams }: HomeProps) {
             <a href={retryHref}>{t('settings.retry')}</a>
           </div>
         ) : null}
-        <a className="btn primary login-btn" href={loginHref}>
-          {t('settings.login.button')}
-        </a>
+        {methods.map((m) => (
+          <a key={m.id} className="btn primary login-btn" href={`${m.href}?next=${encodeURIComponent(target)}`}>
+            {m.label ? t('settings.login.buttonWith', { provider: m.label }) : t('settings.login.button')}
+          </a>
+        ))}
         <p className="foot">{t('settings.login.foot')}</p>
         <Attribution />
       </div>

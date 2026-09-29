@@ -1,5 +1,5 @@
 import { timingSafeEqual } from 'node:crypto'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import type { Db } from '../db/client.js'
 import {
@@ -7,12 +7,14 @@ import {
   deleteProviderAccount,
   exchangeConnectCode,
   fetchConnectLogin,
+  fetchGithubLoginProfile,
   generateConnectState,
   getProviderConfig,
   isConnectProvider,
   updateProviderTokens,
   upsertProviderAccount,
   type ConnectOptions,
+  type GithubConnectConfig,
   type ProviderTokens,
 } from '../auth/connect.js'
 import {
@@ -71,8 +73,10 @@ export interface AuthRoutesDeps {
    *  einen Grant, und jeder Code-Tausch bei der Anmeldung erklärt den
    *  gespeicherten Refresh-Token der Verknüpfung für verbraucht. Der Callback
    *  übernimmt deshalb die frischen Anmelde-Tokens in eine bestehende
-   *  Verknüpfung; eine neue legt er nicht an. */
-  sharedForgejoGrant?: { tokenKey: string }
+   *  Verknüpfung. Gibt es noch keine, legt er sie an (#8): Forgejo ist dann
+   *  Login-Provider und Git-Konto zugleich, ein zweiter Schritt unter
+   *  Settings → Connections wäre überflüssig. */
+  sharedForgejoGrant?: { tokenKey: string; connect: ConnectOptions }
   /** Öffentliche Basis-URL (`F451_PUBLIC_BASE_URL`). Beginnt die Anmeldung auf
    *  einer anderen Adresse (z. B. `localhost` statt der LAN-Adresse), lägen
    *  Login-Cookie und Rücksprung auf verschiedenen Hosts und der Rücksprung
@@ -273,20 +277,24 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
           })
 
         if (deps.sharedForgejoGrant) {
+          const { tokenKey, connect } = deps.sharedForgejoGrant
           try {
-            await updateProviderTokens(
-              deps.db,
-              identity.sub,
-              'forgejo',
-              identity.tokens,
-              deps.sharedForgejoGrant.tokenKey,
-            )
-            invalidateUserPermissions(identity.sub)
+            const [linked] = await deps.db
+              .select({ userId: providerAccounts.userId })
+              .from(providerAccounts)
+              .where(and(eq(providerAccounts.userId, identity.sub), eq(providerAccounts.provider, 'forgejo')))
+            if (linked) {
+              await updateProviderTokens(deps.db, identity.sub, 'forgejo', identity.tokens, tokenKey)
+              invalidateUserPermissions(identity.sub)
+            } else {
+              const login = await fetchConnectLogin('forgejo', connect, identity.tokens.accessToken)
+              await upsertProviderAccount(deps.db, identity.sub, 'forgejo', login, identity.tokens, tokenKey)
+            }
           } catch (err) {
             // Die Anmeldung selbst ist gültig — sie scheitert nicht an der Verknüpfung.
             req.log.warn(
               { err: err instanceof Error ? err.message : 'unbekannt' },
-              'oidc/callback: Auffrischen der Forgejo-Verknüpfung fehlgeschlagen',
+              'oidc/callback: Forgejo-Verknüpfung nicht angelegt/aufgefrischt',
             )
           }
         }
@@ -297,8 +305,20 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
         return reply.redirect(sanitizeNext(tx.next), 302)
       },
     )
+  })
+}
 
-    // POST /auth/logout → Session zerstören + Cookie löschen (CSRF-sicher: POST + SameSite).
+/**
+ * `POST /auth/logout` → Session zerstören + Cookie löschen (CSRF-sicher: POST +
+ * SameSite). Registered whenever auth is on, independent of the sign-in method —
+ * a GitHub-only instance (#8) has no OIDC routes but still needs to sign out.
+ */
+export function registerLogoutRoute(
+  app: FastifyInstance,
+  deps: { db: Db; insecureCookies?: boolean; rateLimit: { max: number; windowMs: number } },
+): void {
+  const cookieOpts: SessionCookieOptions = { insecureCookies: deps.insecureCookies }
+  app.register(async (instance) => {
     instance.post(
       '/auth/logout',
       {
@@ -313,6 +333,236 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
       },
     )
   })
+}
+
+export interface GithubLoginRoutesDeps {
+  db: Db
+  /** Same client id/secret as the GitHub connect app (`AuthOptions.connect.github`)
+   *  — sign-in and account linking share one OAuth app, see `AuthOptions.githubLogin`. */
+  github: GithubConnectConfig
+  /** Key for provider-token encryption (F451_TOKEN_KEY) — sign-in stores the token
+   *  as the user's GitHub connection right away (`upsertProviderAccount`). */
+  tokenKey: string
+  /** Dev/test: sets cookies without `secure` (F451_INSECURE_COOKIES). */
+  insecureCookies?: boolean
+  rateLimit: AuthRateLimit
+  /** Public base URL (`F451_PUBLIC_BASE_URL`) — same role as in `AuthRoutesDeps`/
+   *  `ConnectRoutesDeps`: basis for the `redirect_uri` and for starting the flow on
+   *  the public address (mirrors `/auth/login`). */
+  publicBaseUrl?: string
+}
+
+/** Scope for GitHub sign-in (#8): `read:user`/`user:email` for the profile
+ *  fields the callback needs, `repo` because the account becomes the user's git
+ *  connection in the same step (no separate Settings → Connections step
+ *  afterwards) — see `GithubLoginRoutesDeps.github`. */
+const GITHUB_LOGIN_SCOPE = 'read:user user:email repo'
+
+/** Short-lived, signed cookie for the GitHub sign-in context (state + next). */
+const GITHUB_TX_COOKIE_NAME = `${COOKIE_PREFIX}_github_tx`
+const GITHUB_TX_TTL_SECONDS = 10 * 60
+
+interface GithubLoginTransaction {
+  state: string
+  next: string
+}
+
+function githubTxCookieOptions(insecureCookies: boolean | undefined): Record<string, unknown> {
+  return {
+    signed: true,
+    httpOnly: true,
+    sameSite: 'lax' as const,
+    secure: !insecureCookies,
+    path: '/',
+    maxAge: GITHUB_TX_TTL_SECONDS,
+  }
+}
+
+function clearGithubTxCookie(reply: FastifyReply, insecureCookies: boolean | undefined): void {
+  reply.clearCookie(GITHUB_TX_COOKIE_NAME, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: !insecureCookies,
+    path: '/',
+  })
+}
+
+function buildGithubLoginRedirectUri(deps: GithubLoginRoutesDeps, req: FastifyRequest): string {
+  const base = deps.publicBaseUrl?.replace(/\/+$/, '') ?? `${req.protocol}://${req.hostname}`
+  return `${base}/auth/github/callback`
+}
+
+/**
+ * Registers GitHub sign-in (#8): `GET /auth/github/login` + `GET
+ * /auth/github/callback`. Called from `app.ts` only when `opts.auth.githubLogin`
+ * is set AND `opts.auth.connect.github` is configured — the connect app doubles
+ * as the sign-in app. Unlike `registerAuthRoutes`, this needs no discovery step
+ * (GitHub's OAuth endpoints are fixed, see `auth/connect.ts`).
+ */
+export function registerGithubLoginRoutes(app: FastifyInstance, deps: GithubLoginRoutesDeps): void {
+  const cookieOpts: SessionCookieOptions = { insecureCookies: deps.insecureCookies }
+  const connect: ConnectOptions = { github: deps.github }
+
+  app.register(async (instance) => {
+    // GET /auth/github/login → 302 to GitHub; state + next in a signed transaction cookie.
+    instance.get(
+      '/auth/github/login',
+      {
+        schema: { tags: ['auth'], response: { 429: errorSchema } },
+        config: { rateLimit: { max: deps.rateLimit.max, timeWindow: deps.rateLimit.windowMs } },
+      },
+      async (req, reply) => {
+        const next = sanitizeNext((req.query as Record<string, unknown>).next)
+        // Start on the public address, same reasoning as `/auth/login`: the
+        // tx cookie set below must be readable again when GitHub redirects back.
+        if (deps.publicBaseUrl) {
+          const oeffentlich = new URL(deps.publicBaseUrl)
+          const forwarded = req.headers['x-forwarded-host']
+          const host = (Array.isArray(forwarded) ? forwarded[0] : forwarded) ?? req.headers.host
+          if (host && host !== oeffentlich.host) {
+            return reply.redirect(`${oeffentlich.origin}/auth/github/login?next=${encodeURIComponent(next)}`, 302)
+          }
+        }
+
+        const state = generateConnectState()
+        const redirectUri = buildGithubLoginRedirectUri(deps, req)
+        const url = buildConnectAuthorizeUrl('github', connect, redirectUri, state, GITHUB_LOGIN_SCOPE)
+
+        const tx: GithubLoginTransaction = { state, next }
+        reply.setCookie(GITHUB_TX_COOKIE_NAME, JSON.stringify(tx), githubTxCookieOptions(deps.insecureCookies))
+        return reply.redirect(url, 302)
+      },
+    )
+
+    // GET /auth/github/callback?code&state → token exchange, profile fetch, user
+    // upsert, GitHub connection upsert, session.
+    instance.get(
+      '/auth/github/callback',
+      {
+        schema: { tags: ['auth'], response: { 429: errorSchema } },
+        config: { rateLimit: { max: deps.rateLimit.max, timeWindow: deps.rateLimit.windowMs } },
+      },
+      async (req, reply) => {
+        const rawTx = req.cookies[GITHUB_TX_COOKIE_NAME]
+        const unsigned = rawTx ? reply.unsignCookie(rawTx) : { valid: false, value: null }
+        if (!unsigned.valid || !unsigned.value) {
+          clearGithubTxCookie(reply, deps.insecureCookies)
+          return reply.redirect('/?anmeldung=abgelaufen', 302)
+        }
+
+        let tx: GithubLoginTransaction
+        try {
+          tx = JSON.parse(unsigned.value)
+        } catch {
+          clearGithubTxCookie(reply, deps.insecureCookies)
+          return reply.redirect('/?anmeldung=abgelaufen', 302)
+        }
+
+        const query = req.query as Record<string, string | undefined>
+        if (!query.state || !timingSafeEqualString(query.state, tx.state)) {
+          clearGithubTxCookie(reply, deps.insecureCookies)
+          return reply.redirect('/?anmeldung=fehlgeschlagen', 302)
+        }
+
+        const code = query.code
+        if (!code) {
+          clearGithubTxCookie(reply, deps.insecureCookies)
+          return reply.redirect('/?anmeldung=fehlgeschlagen', 302)
+        }
+
+        const redirectUri = buildGithubLoginRedirectUri(deps, req)
+
+        let tokens: ProviderTokens
+        try {
+          tokens = await exchangeConnectCode('github', connect, code, redirectUri)
+        } catch (err) {
+          // Deliberately generic message — NEVER token/code values (project convention).
+          req.log.warn(
+            { err: err instanceof Error ? err.message : 'unknown' },
+            'github/login/callback: token exchange failed',
+          )
+          clearGithubTxCookie(reply, deps.insecureCookies)
+          return reply.redirect('/?anmeldung=fehlgeschlagen', 302)
+        }
+
+        let profile: Awaited<ReturnType<typeof fetchGithubLoginProfile>>
+        try {
+          profile = await fetchGithubLoginProfile(tokens.accessToken)
+        } catch (err) {
+          req.log.warn(
+            { err: err instanceof Error ? err.message : 'unknown' },
+            'github/login/callback: fetching the GitHub profile failed',
+          )
+          clearGithubTxCookie(reply, deps.insecureCookies)
+          return reply.redirect('/?anmeldung=fehlgeschlagen', 302)
+        }
+
+        const userId = `github:${profile.id}`
+        const displayName = profile.name || profile.login
+
+        // User upsert, mirroring the OIDC callback (same conflict target: no
+        // duplicate on repeated sign-in).
+        await deps.db
+          .insert(users)
+          .values({ id: userId, email: profile.email, displayName })
+          .onConflictDoUpdate({
+            target: users.id,
+            set: { email: profile.email, displayName },
+          })
+
+        // Store the token as the user's GitHub connection right away (#8) — no
+        // separate Settings → Connections step needed. `profile.login` is
+        // already known from the profile fetch above, so unlike the connect
+        // flow this does not call `fetchConnectLogin` a second time.
+        await upsertProviderAccount(deps.db, userId, 'github', profile.login, tokens, deps.tokenKey)
+
+        const session = await createSession(deps.db, userId)
+        clearGithubTxCookie(reply, deps.insecureCookies)
+        setSessionCookie(reply, session.id, cookieOpts)
+        return reply.redirect(sanitizeNext(tx.next), 302)
+      },
+    )
+  })
+}
+
+/** One way to sign in, as offered on the sign-in page. `label` null → the UI's
+ *  neutral wording. */
+export interface SignInMethod {
+  id: 'oidc' | 'github'
+  href: string
+  label: string | null
+}
+
+const methodsSchema = {
+  response: {
+    200: {
+      type: 'object',
+      properties: {
+        methods: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              href: { type: 'string' },
+              label: { type: ['string', 'null'] },
+            },
+            required: ['id', 'href', 'label'],
+          },
+        },
+      },
+      required: ['methods'],
+    },
+  },
+} as const
+
+/**
+ * `GET /auth/methods` (#8): which sign-in methods this instance offers. Public —
+ * the sign-in page needs it before anyone is signed in; it reveals only what the
+ * sign-in page shows anyway.
+ */
+export function registerAuthMethodsRoute(app: FastifyInstance, deps: { methods: SignInMethod[] }): void {
+  app.get('/auth/methods', { schema: methodsSchema }, async () => ({ methods: deps.methods }))
 }
 
 /**

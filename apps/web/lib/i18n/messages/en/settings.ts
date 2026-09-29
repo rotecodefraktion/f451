@@ -7,8 +7,9 @@ export const settings: Messages['settings'] = {
   retry: 'Try again',
   login: {
     heading: 'Sign in',
-    lede: 'Sign in with your Microsoft Entra account to access the documentation platform.',
-    button: 'Sign in with Microsoft Entra',
+    lede: 'Sign in to access the documentation platform.',
+    button: 'Sign in',
+    buttonWith: 'Sign in with {provider}',
     foot: 'Internal access · f451 documentation platform',
     expired: 'Sign-in was interrupted or has expired. Please sign in again.',
     failed: 'Sign-in failed. Please try again.',

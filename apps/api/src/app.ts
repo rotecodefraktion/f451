@@ -18,7 +18,15 @@ import { getUserProvider, type UserProviderDeps } from './drafts/user-provider.j
 import { createOpsCounters } from './ops/counters.js'
 import { hasValidAdminToken, registerAdminRoutes } from './routes/admin.js'
 import { registerVersionRoutes } from './routes/versions.js'
-import { registerAuthRoutes, registerConnectRoutes, registerMeRoute } from './routes/auth.js'
+import {
+  registerAuthMethodsRoute,
+  registerAuthRoutes,
+  registerConnectRoutes,
+  registerGithubLoginRoutes,
+  registerLogoutRoute,
+  registerMeRoute,
+  type SignInMethod,
+} from './routes/auth.js'
 import { registerBrokenLinksRoutes } from './routes/broken-links.js'
 import { registerCreatePageRoute } from './routes/create-page.js'
 import { registerDeletePageRoute } from './routes/delete-page.js'
@@ -523,6 +531,19 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
     // GET /api/me: unabhängig von OIDC/Connect, solange Auth überhaupt aktiv
     // ist — spiegelt nur den aktuellen Session-/Verknüpfungsstand aus der DB.
     registerMeRoute(app, { db })
+    registerLogoutRoute(app, { db, insecureCookies: opts.auth.insecureCookies, rateLimit: rateLimits.auth })
+
+    // Sign-in methods for the sign-in page (#8). GitHub only appears when
+    // BOTH `githubLogin` is on AND the connect app is configured — mirrors the
+    // condition that actually registers `/auth/github/login` below.
+    const githubLoginEnabled = Boolean(opts.auth.githubLogin && opts.auth.connect?.github)
+    const signInMethods: SignInMethod[] = [
+      ...(opts.auth.oidc
+        ? [{ id: 'oidc' as const, href: '/auth/login', label: opts.auth.oidc.providerName ?? null }]
+        : []),
+      ...(githubLoginEnabled ? [{ id: 'github' as const, href: '/auth/github/login', label: 'GitHub' }] : []),
+    ]
+    registerAuthMethodsRoute(app, { methods: signInMethods })
 
     // Persönliche API-Token-Verwaltung (MCP-Phase 0, `routes/tokens.ts`):
     // unabhängig von OIDC/Connect, analog `registerMeRoute` — die Routen
@@ -541,7 +562,7 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
         publicBaseUrl: opts.publicBaseUrl,
         sharedForgejoGrant:
           opts.auth.connect?.forgejo?.clientId === opts.auth.oidc.clientId
-            ? { tokenKey: opts.auth.tokenKey }
+            ? { tokenKey: opts.auth.tokenKey, connect: opts.auth.connect }
             : undefined,
       })
     }
@@ -551,6 +572,20 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
       registerConnectRoutes(app, {
         db,
         connect: opts.auth.connect,
+        tokenKey: opts.auth.tokenKey,
+        insecureCookies: opts.auth.insecureCookies,
+        rateLimit: rateLimits.auth,
+        publicBaseUrl: opts.publicBaseUrl,
+      })
+    }
+
+    // GitHub sign-in (#8) doubles as the connect app (same OAuth client) —
+    // only registered with BOTH `githubLogin` on and `connect.github` set,
+    // works without `opts.auth.oidc` configured (GitHub-only instances).
+    if (githubLoginEnabled && opts.auth.connect?.github) {
+      registerGithubLoginRoutes(app, {
+        db,
+        github: opts.auth.connect.github,
         tokenKey: opts.auth.tokenKey,
         insecureCookies: opts.auth.insecureCookies,
         rateLimit: rateLimits.auth,

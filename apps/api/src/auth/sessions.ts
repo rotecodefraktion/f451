@@ -315,6 +315,8 @@ export interface OidcAuthOptions {
   clientSecret: string
   /** Öffentliche Callback-URL (`redirect_uri`), am IdP vorregistriert. */
   redirectUrl: string
+  /** Name on the sign-in button (`F451_OIDC_PROVIDER_NAME`), see `OidcConfig`. */
+  providerName?: string
 }
 
 export interface AuthOptions {
@@ -330,4 +332,10 @@ export interface AuthOptions {
   oidc?: OidcAuthOptions
   /** Task 4 (Provider-Verknüpfung): ohne diese Angabe bleiben die Connect-Routen unregistriert. */
   connect?: ConnectOptions
+  /** GitHub sign-in (#8, `F451_GITHUB_LOGIN`): registers `/auth/github/login` +
+   *  `/auth/github/callback` when `true` AND `connect.github` is configured — the
+   *  connect app doubles as the sign-in app (same OAuth client), so signing in with
+   *  GitHub links the account in the same step, no separate Settings → Connections
+   *  step needed. Works without `oidc` configured (GitHub-only instances). */
+  githubLogin?: boolean
 }
