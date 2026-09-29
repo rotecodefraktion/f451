@@ -301,6 +301,12 @@ describe.sequential('Workflow-Routen: Fehlerpfade (gestubbt, Phase 2d Task 3 Fix
         createBranch: unexpected('createBranch'),
         deleteBranch: unexpected('deleteBranch'),
         listCommits: unexpected('listCommits'),
+        // Fix #11: die Route prüft dies jetzt VOR dem Approve/Merge — der gestubbte
+        // Branch hat im Testszenario echten Inhalt, `1` genügt, um den `no_changes`-
+        // Kurzschluss nicht auszulösen.
+        async countCommitsAhead() {
+          return 1
+        },
         createPullRequest: unexpected('createPullRequest'),
         getPullRequest: unexpected('getPullRequest'),
         async listPullRequests() {

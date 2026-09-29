@@ -28,12 +28,17 @@
  * ERWARTETE Vertragsfälle (diskriminiertes Ergebnis), nur ein wirklich
  * unerwarteter Status (502/Netzwerk/…) wirft {@link ClientApiError}:
  * - `POST /api/pages/:id/review` `{reviewers?}` → `200 {number, url,
- *   state:'review', mergeable}` | `409 {error}` (kein Draft) — s.
- *   {@link requestReview}.
+ *   state:'review', mergeable}` | `409 {error}` (kein Draft) | `422 {error,
+ *   reason:'no_changes'}` (Draft hat gegenüber main keinen einzigen Commit —
+ *   Fix #11: Forgejo ließ einen solchen PR zwar anlegen, der Merge scheiterte
+ *   dann dauerhaft mit transientem 405) — s. {@link requestReview}.
  * - `POST /api/pages/:id/release` `{comment?}` → `200 {mergeSha,
  *   approveWarning?}` | `403 {error}` (kein Freigabe-Recht) | `409 {error,
- *   reason?:'conflict'}` — s. {@link releasePage}. NUR client-api-Typen in
- *   Phase 2d Task 6 — die UI (Freigeben-Button) folgt in Task 7.
+ *   reason?:'conflict'}` | `422 {error, reason:'no_changes'}` (dieselbe
+ *   Leer-Prüfung wie bei `POST .../review`, hier für Drafts, deren PR vor
+ *   diesem Fix oder unabhängig von der API eröffnet wurde) — s.
+ *   {@link releasePage}. NUR client-api-Typen in Phase 2d Task 6 — die UI
+ *   (Freigeben-Button) folgt in Task 7.
  * - `POST /api/pages/:id/review/request-changes` `{comment}` → `204` |
  *   `409|422 {error}` — s. {@link requestChanges}. Ebenfalls nur Typen, Task 7.
  * - `POST /api/pages/:id/draft/update` `{strategy}` → `200 {baseSha, content,
@@ -633,8 +638,14 @@ export interface ReviewInfo {
  *  Praxis sollte er im Editor nie auftreten (der Draft existiert bereits,
  *  bevor der „Review anfordern"-Button überhaupt sichtbar ist), bleibt aber
  *  Teil des Vertrags — ein zwischenzeitlich verworfener Draft (z. B. zweiter
- *  Tab) darf nicht als generischer Fehler erscheinen. */
-export type RequestReviewResult = { ok: true; review: ReviewInfo } | { ok: false; reason: 'no-draft' }
+ *  Tab) darf nicht als generischer Fehler erscheinen. `reason:'no-changes'`
+ *  (Fix #11) ist der HÄUFIGERE Fall: der Draft existiert, hat aber noch
+ *  keinen einzigen Commit gegenüber main — ein „Review anfordern" auf einer
+ *  unbearbeiteten Seite. */
+export type RequestReviewResult =
+  | { ok: true; review: ReviewInfo }
+  | { ok: false; reason: 'no-draft' }
+  | { ok: false; reason: 'no-changes' }
 
 /** `POST /api/pages/:id/review` — eröffnet (oder liefert idempotent) den
  *  Review-PR. `mergeable:false` in der Antwort ist KEIN Fehlerfall hier —
@@ -654,6 +665,12 @@ export async function requestReview(pageId: string, reviewers?: string[]): Promi
   }
 
   if (res.status === 409) return { ok: false, reason: 'no-draft' }
+
+  if (res.status === 422) {
+    const body = (await readJsonBody(res)) as { error?: string; reason?: string } | undefined
+    if (body?.reason === 'no_changes') return { ok: false, reason: 'no-changes' }
+    throw new ClientApiError(res.status, `API antwortete mit ${res.status} für ${path}`, body)
+  }
 
   if (!res.ok) {
     const body = await readJsonBody(res)
@@ -693,13 +710,16 @@ export interface ReleaseOptions {
 
 /** Diskriminiertes Ergebnis von {@link releasePage} — 403 (kein
  *  Freigabe-Recht auf dem Merge selbst, ANDERS als das generische
- *  Schreibrecht-403 der Gate-Kette) und 409 (kein offener PR ODER
- *  Merge-Konflikt, unterschieden über `reason:'conflict'`) sind beides
- *  dokumentierte Vertragsfälle (`apps/api/README.md`), kein Wurf. */
+ *  Schreibrecht-403 der Gate-Kette), 409 (kein offener PR ODER
+ *  Merge-Konflikt, unterschieden über `reason:'conflict'`) und 422 (Fix #11:
+ *  der offene PR hat gegenüber main keinen einzigen Commit — nichts zu
+ *  veröffentlichen) sind dokumentierte Vertragsfälle (`apps/api/README.md`),
+ *  kein Wurf. */
 export type ReleasePageResult =
   | { ok: true; result: ReleaseInfo }
   | { ok: false; status: 403; error: string }
   | { ok: false; status: 409; error: string; reason?: 'conflict' }
+  | { ok: false; status: 422; reason: 'no_changes' }
 
 /** `POST /api/pages/:id/release` — Freigeben & mergen. NUR client-api-Typ in
  *  Phase 2d Task 6, die UI (Freigeben-Button auf der Review-Seite) folgt in
@@ -745,6 +765,12 @@ export async function releasePage(pageId: string, options: ReleaseOptions = {}):
       error: body?.error ?? 'Kein offener Pull Request vorhanden.',
       reason: body?.reason,
     }
+  }
+
+  if (res.status === 422) {
+    const body = (await readJsonBody(res)) as { error?: string; reason?: string } | undefined
+    if (body?.reason === 'no_changes') return { ok: false, status: 422, reason: 'no_changes' }
+    throw new ClientApiError(res.status, `API antwortete mit ${res.status} für ${path}`, body)
   }
 
   if (!res.ok) {

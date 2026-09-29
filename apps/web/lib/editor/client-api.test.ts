@@ -400,6 +400,25 @@ describe('requestReview', () => {
     expect(result).toEqual({ ok: false, reason: 'no-draft' })
   })
 
+  it('liefert bei 422 (Fix #11: Draft ohne Commits gegenüber main) ein ok:false-Ergebnis statt zu werfen', async () => {
+    const fetchMock = mockFetch(async () => jsonResponse(422, { error: 'Draft has no changes', reason: 'no_changes' }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await requestReview('home')
+
+    expect(result).toEqual({ ok: false, reason: 'no-changes' })
+  })
+
+  it('wirft ClientApiError bei 422 OHNE reason:"no_changes" (anderer Provider-Fehler)', async () => {
+    const fetchMock = mockFetch(async () => jsonResponse(422, { error: 'irgendein anderer Fehler' }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const err = await requestReview('home').catch((e) => e)
+
+    expect(err).toBeInstanceOf(ClientApiError)
+    expect((err as ClientApiError).status).toBe(422)
+  })
+
   it('wirft ClientApiError bei einem anderen Fehlerstatus (z. B. 502)', async () => {
     const fetchMock = mockFetch(async () => jsonResponse(502, { status: 'error', reason: 'Provider-Fehler: timeout' }))
     vi.stubGlobal('fetch', fetchMock)
@@ -487,6 +506,25 @@ describe('releasePage', () => {
     const result = await releasePage('home')
 
     expect(result).toEqual({ ok: false, status: 409, error: 'kein offener Pull Request vorhanden', reason: undefined })
+  })
+
+  it('liefert bei 422 (Fix #11: offener PR ohne Commits gegenüber main) ein ok:false-Ergebnis statt zu werfen', async () => {
+    const fetchMock = mockFetch(async () => jsonResponse(422, { error: 'Draft has no changes', reason: 'no_changes' }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await releasePage('home')
+
+    expect(result).toEqual({ ok: false, status: 422, reason: 'no_changes' })
+  })
+
+  it('wirft ClientApiError bei 422 OHNE reason:"no_changes" (anderer Fehler)', async () => {
+    const fetchMock = mockFetch(async () => jsonResponse(422, { error: 'irgendein anderer Fehler' }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const err = await releasePage('home').catch((e) => e)
+
+    expect(err).toBeInstanceOf(ClientApiError)
+    expect((err as ClientApiError).status).toBe(422)
   })
 })
 

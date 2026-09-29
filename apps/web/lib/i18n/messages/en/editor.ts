@@ -19,6 +19,7 @@ export const editor: Messages['editor'] = {
     discardFailed: 'The draft could not be discarded — please try again.',
     deletePageFailed: 'The page could not be deleted — please try again.',
     reviewNoDraft: 'There is currently no draft for this page — a review cannot be requested.',
+    reviewNoChanges: 'This draft has no changes yet — edit the page first, or discard the draft.',
     reviewFailed: 'The review could not be requested — please try again.',
     resetFailed: 'The draft could not be reset to the last released state — please try again.',
     contentUnreadable: 'The editor content could not be read.',

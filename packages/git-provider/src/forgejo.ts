@@ -278,6 +278,19 @@ export class ForgejoProvider implements GitProvider {
     }))
   }
 
+  /** Siehe `GitProvider#countCommitsAhead`. Forgejos Compare-Endpunkt nimmt
+   *  `base`/`head` als EIN Pfadsegment mit literalem `...`-Trenner — Branch-
+   *  Namen einzeln `encodeURIComponent`-kodiert, wie bei `getHeadSha`/
+   *  `deleteBranch` (Slashes in Branch-Namen wie `draft/8f3ka2` müssen als EIN
+   *  Segment behandelt werden). */
+  async countCommitsAhead(repo: RepoRef, base: string, head: string): Promise<number> {
+    const data = (await this.#request(
+      'GET',
+      `/repos/${repo.owner}/${repo.repo}/compare/${encodeURIComponent(base)}...${encodeURIComponent(head)}`,
+    )) as { total_commits: number }
+    return data.total_commits
+  }
+
   async createPullRequest(
     repo: RepoRef,
     opts: { head: string; base: string; title: string; body?: string },

@@ -78,6 +78,7 @@ export const review: Messages['review'] = {
   },
   errors: {
     conflictOnMerge: 'main has changed since this review started — please update the draft first.',
+    reviewNoChanges: 'This review contains no changes — there is nothing to approve. Discard the draft to close it.',
     mergeFailedRetry: 'Approving failed — please try again.',
     mergeFailedOffline: 'Approving failed — the server is currently unreachable.',
     requestChangesFailed: 'Requesting changes failed — please try again.',
