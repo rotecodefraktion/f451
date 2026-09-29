@@ -8,15 +8,17 @@ import { mergeAttributes, Node } from '@tiptap/core'
 // entscheiden, wie ein mdast-'blockquote'-Knoten mit [!TYP]-Marker (siehe
 // packages/markdown/src/alerts.ts) auf diesen Node abgebildet wird.
 //
-// Titel-Text ("Hinweis", "Tipp", …) ist bewusst NICHT Teil von `content` — er wird aus
-// alertType hergeleitet (wie in alerts.ts), aber NICHT im Editor-DOM gerendert (s.
-// renderHTML/Issue-#22-Kommentar unten): rein visuell per CSS `::before` auf
-// `.alert-<typ>` eingeblendet (apps/web/app/globals.css). Die Leseansicht (Server,
-// packages/markdown/src/render.ts) rendert den Titel weiterhin als echtes
-// `<p class="alert-title">`; dessen deutsche Strings ("Hinweis", "Tipp", "Wichtig",
-// "Warnung", "Achtung") sind die kanonische Quelle, die globals.css spiegeln muss —
-// hier nicht dupliziert, weil renderHTML sie seit dem Fix nicht mehr braucht. content
-// bildet nur den eigentlichen Alert-Body ab (block+, wie im Auftrag gefordert).
+// Titel-Text ("Note"/"Hinweis", "Tip"/"Tipp", …) ist bewusst NICHT Teil von `content`
+// — er wird aus alertType hergeleitet (wie in alerts.ts), aber NICHT im Editor-DOM
+// gerendert (s. renderHTML/Issue-#22-Kommentar unten): rein visuell per CSS
+// `::before` auf `.alert-<typ>` eingeblendet (apps/web/app/styles/62-editor.css).
+// Die Leseansicht (Server, packages/markdown/src/render.ts) rendert den Titel
+// ebenfalls als leeres `<p class="alert-title">` — seit Issue #9 ist KEINE der
+// beiden Stellen mehr die kanonische Quelle des Titeltexts: der folgt der
+// UI-Sprache (de/en-Umschalter), nicht der Seitensprache, und kommt aus
+// `apps/web/lib/i18n/messages/{de,en}/read.ts` (`read.alerts.*`) über CSS Custom
+// Properties, die `apps/web/app/layout.tsx` setzt. content bildet nur den
+// eigentlichen Alert-Body ab (block+, wie im Auftrag gefordert).
 
 export type AlertType = 'note' | 'tip' | 'important' | 'warning' | 'caution'
 

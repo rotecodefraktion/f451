@@ -90,7 +90,10 @@ describe('renderHtml', () => {
     expect(html).toContain('data-video-id="dQw4w9WgXcQ"')
     expect(html).toContain('href="https://www.youtube.com/watch?v=dQw4w9WgXcQ"')
     expect(html).toContain('i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg')
-    expect(html).toContain('Video abspielen (YouTube)')
+    // Play-Beschriftung ist bewusst NICHT im HTML (Issue #9): der Text folgt der
+    // UI-Sprache und kommt erst clientseitig über eine CSS-Variable herein (s.
+    // apps/web/app/styles/61-lese.css, `.yt-play::before`).
+    expect(html).toContain('<span class="yt-play"></span>')
     expect(html).not.toContain('<iframe')
     // Fix-Runde 1: die className-Attribute müssen die Sanitisierung überstehen.
     // defaultSchema.attributes.a enthält bereits einen ['className', ...]-Eintrag

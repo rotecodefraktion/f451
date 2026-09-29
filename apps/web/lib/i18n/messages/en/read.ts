@@ -77,6 +77,18 @@ export const read: Messages['read'] = {
     references: 'References',
   },
   youtubeTitle: 'YouTube video',
+  // Labels for server-rendered page HTML (issue #9): see de/read.ts for why
+  // these follow the UI language instead of the page language.
+  alerts: {
+    note: 'Note',
+    tip: 'Tip',
+    important: 'Important',
+    warning: 'Warning',
+    caution: 'Caution',
+  },
+  youtube: {
+    play: 'Play video (YouTube)',
+  },
   lightbox: {
     ariaLabel: 'Image in full screen',
     close: 'Close',

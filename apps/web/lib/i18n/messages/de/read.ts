@@ -89,6 +89,22 @@ export const read = {
     references: 'Verweist auf',
   },
   youtubeTitle: 'YouTube-Video',
+  // Beschriftungen für serverseitig gerendertes Seiten-HTML (Issue #9): Markdown
+  // speichert diese Callout-/Embed-Titel sprachneutral (leeres <p>/<span> in
+  // packages/markdown/src/alerts.ts bzw. render.ts) — der Text folgt der
+  // UI-Sprache, nicht der Seitensprache, und wird per CSS Custom Property
+  // eingeblendet (s. `apps/web/app/layout.tsx`, `app/styles/61-lese.css`/
+  // `62-editor.css`, `::before { content: var(--label-…) }`).
+  alerts: {
+    note: 'Hinweis',
+    tip: 'Tipp',
+    important: 'Wichtig',
+    warning: 'Warnung',
+    caution: 'Achtung',
+  },
+  youtube: {
+    play: 'Video abspielen (YouTube)',
+  },
   // Vollbild für Bilder und Diagramme bei Fingerbedienung (#67).
   lightbox: {
     ariaLabel: 'Bild im Vollbild',

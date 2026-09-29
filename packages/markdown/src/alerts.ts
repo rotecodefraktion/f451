@@ -3,22 +3,23 @@ import { visit } from 'unist-util-visit'
 // --- mdast-Transform: GFM-Alerts (Blockquotes mit [!TYP]-Marker) -------------------
 //
 // `> [!NOTE]\n> Text` wird zu `<div class="alert alert-note"><p class="alert-title">
-// Hinweis</p>Text</div>`. Läuft vor remark-rehype, analog zu remarkResolveLinks in
+// </p>Text</div>`. Läuft vor remark-rehype, analog zu remarkResolveLinks in
 // render.ts — nutzt data.hName/hProperties, um den blockquote-Knoten in ein div
 // umzubiegen, ohne den mdast-Typ selbst zu ändern (das Kind bleibt ein gültiger
 // paragraph-Baum für die restliche Transform-Kette).
+//
+// Der Titel selbst bleibt hier bewusst LEER (Issue #9): Markdown/HTML sind
+// sprachneutral gespeicherte Daten, der Titeltext ("Note"/"Hinweis" usw.) folgt der
+// UI-Sprache, nicht der Seitensprache, und wird daher erst clientseitig über CSS
+// Custom Properties eingeblendet, die `apps/web/app/layout.tsx` aus `lib/i18n`
+// setzt (siehe `.alert-<typ>::before { content: var(--label-alert-<typ>) }` in
+// `apps/web/app/styles/61-lese.css`/`62-editor.css`). Das `<p class="alert-title">`
+// bleibt als Struktur erhalten, damit bestehende Sanitizer-/Editor-Verträge
+// (packages/editor/src/nodes/alert.ts) unverändert greifen.
 
 /** Die fünf GFM-Alert-Typen (lowercase — deckt sich mit dem `alertType`-Attribut des
  *  Editor-Schemas, packages/editor/src/nodes/alert.ts). */
 export type AlertKind = 'note' | 'tip' | 'important' | 'warning' | 'caution'
-
-const ALERT_TITLES: Record<AlertKind, string> = {
-  note: 'Hinweis',
-  tip: 'Tipp',
-  important: 'Wichtig',
-  warning: 'Warnung',
-  caution: 'Achtung',
-}
 
 const MARKER_PATTERN = /^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/
 
@@ -122,9 +123,12 @@ export function remarkAlerts() {
         hProperties: { className: ['alert', `alert-${alertType}`] },
       }
 
+      // Kein Text-Kind: der Titel ist reine Struktur, der Inhalt kommt aus der
+      // UI-Sprache (s. Kopfkommentar). Ein leerer Absatz ohne Kinder ist ein
+      // gültiger hast-Baum (rendert zu `<p class="alert-title"></p>`).
       const titleNode: MutableNode = {
         type: 'paragraph',
-        children: [{ type: 'text', value: ALERT_TITLES[alertType] }],
+        children: [],
         data: { hName: 'p', hProperties: { className: ['alert-title'] } },
       }
       node.children = [titleNode, ...bodyChildren]

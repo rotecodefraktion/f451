@@ -244,7 +244,10 @@ test('Flow 8: YouTube-Embed — Thumbnail zuerst, iframe erst per Klick, Editor 
   await expect(embed).toHaveCount(1) // die Satz-URL wird NICHT eingebettet
   await expect(embed).toHaveAttribute('data-video-id', 'dQw4w9WgXcQ')
   await expect(embed.locator('iframe')).toHaveCount(0) // kein iframe vor dem Klick
-  await expect(embed.getByText('Video abspielen (YouTube)')).toBeVisible()
+  // Beschriftung kommt seit Issue #9 aus einer CSS-Variable (folgt der
+  // UI-Sprache, nicht der Seitensprache) statt aus dem HTML-Text — `getByText`
+  // fände sie nicht mehr (CSS-`::before`-Inhalt ist kein DOM-Textknoten).
+  await expect(embed.locator('.yt-play')).toBeVisible()
 
   await embed.locator('a.yt-link').click()
   const frame = embed.locator('iframe.yt-frame')

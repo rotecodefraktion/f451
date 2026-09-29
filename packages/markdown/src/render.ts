@@ -192,10 +192,15 @@ function remarkYoutubeEmbeds() {
                 children: [],
               },
               {
+                // Kein Text-Kind: der Beschriftungstext folgt der UI-Sprache
+                // (Issue #9), nicht der Seitensprache — er kommt erst clientseitig
+                // über eine CSS Custom Property herein (s. `apps/web/app/layout.tsx`,
+                // `.yt-play::before { content: var(--label-youtube-play) }` in
+                // `apps/web/app/styles/61-lese.css`).
                 type: 'element',
                 tagName: 'span',
                 properties: { className: ['yt-play'] },
-                children: [{ type: 'text', value: 'Video abspielen (YouTube)' }],
+                children: [],
               },
             ],
           },

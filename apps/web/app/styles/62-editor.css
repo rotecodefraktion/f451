@@ -457,10 +457,15 @@
    Editor-Mount mit einer Alert-Node ("Content hole must be the only child of its
    parent node", s. packages/editor/src/nodes/alert.ts). Der Titel ist ohnehin kein
    editierbarer Inhalt (s. Kommentar dort), daher rein visuell per `::before`
-   nachgebildet — Text und Farben exakt wie `.page-body .alert-title`/ALERT_TITLES
-   oben. Die Box selbst (Hintergrund/Rahmen/Abstand) kommt bereits über
-   `.page-body .alert` (Editor-Wurzel trägt beide Klassen `doc page-body`, s.
-   Kopfkommentar), hier nur die fehlende Titel-Darstellung. */
+   nachgebildet — Farben exakt wie `.page-body .alert-title` oben. Die Box selbst
+   (Hintergrund/Rahmen/Abstand) kommt bereits über `.page-body .alert`
+   (Editor-Wurzel trägt beide Klassen `doc page-body`, s. Kopfkommentar), hier nur
+   die fehlende Titel-Darstellung.
+   Beschriftung (Issue #9): der Titeltext ist hier — anders als beim `<p
+   class="alert-title">` der Leseansicht — NIE aus gespeichertem HTML gelesen
+   (renderHTML kennt gar kein Titel-Element, s. packages/editor/src/nodes/alert.ts),
+   daher ohne `:empty`-Gate: `content` kommt unbedingt aus der CSS Custom
+   Property, die `apps/web/app/layout.tsx` aus `lib/i18n` (`read.alerts.*`) setzt. */
 .doc .alert::before {
   display: block;
   font-weight: var(--weight-strong);
@@ -470,23 +475,23 @@
   margin: 0 0 var(--space-1);
 }
 .doc .alert-note::before {
-  content: 'Hinweis';
+  content: var(--label-alert-note);
   color: var(--color-status-working);
 }
 .doc .alert-tip::before {
-  content: 'Tipp';
+  content: var(--label-alert-tip);
   color: var(--color-status-released);
 }
 .doc .alert-important::before {
-  content: 'Wichtig';
+  content: var(--label-alert-important);
   color: var(--color-accent);
 }
 .doc .alert-warning::before {
-  content: 'Warnung';
+  content: var(--label-alert-warning);
   color: var(--color-status-review);
 }
 .doc .alert-caution::before {
-  content: 'Achtung';
+  content: var(--label-alert-caution);
   color: var(--color-danger);
 }
 
