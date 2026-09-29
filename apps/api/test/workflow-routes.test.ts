@@ -1481,7 +1481,8 @@ describe.sequential('Workflow-Routen: review/release/request-changes/draft-updat
         payload: { comment: 'bitte anpassen' },
       })
       expect(res.statusCode).toBe(409)
-    })
+      // Seeding + draft against the Forgejo container can exceed the 5 s default on CI.
+    }, 15_000)
 
     it('eigener PR → Provider-Fehler als 422 durchgereicht', async () => {
       const path = await seedPage('wf-rc-self', 'Eigener PR', 'wf-rc-self')
