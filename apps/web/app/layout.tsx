@@ -116,6 +116,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     '--label-alert-caution': JSON.stringify(t('read.alerts.caution')),
     '--label-youtube-play': JSON.stringify(t('read.youtube.play')),
   } as React.CSSProperties
+  // Operator stylesheet (F451_CUSTOM_STYLESHEET), loaded after f451's own CSS,
+  // e.g. an instance's colours and self-hosted typefaces. Same-origin paths
+  // only — that is what the CSP (`style-src 'self'`, `font-src 'self'`) allows.
+  const customStylesheet = process.env.F451_CUSTOM_STYLESHEET
   return (
     <html
       lang={locale}
@@ -135,6 +139,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     >
       <head>
         <script nonce={nonce} dangerouslySetInnerHTML={{ __html: NO_FLASH_THEME + NO_FLASH_PANES + NO_FLASH_TOKENS }} />
+        {customStylesheet?.startsWith('/') ? <link rel="stylesheet" href={customStylesheet} /> : null}
       </head>
       <body>
         <LocaleProvider locale={locale} messages={messages}>
