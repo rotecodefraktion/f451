@@ -1,0 +1,10 @@
+# TLS certificates come from Let's Encrypt automatically.
+{$F451_DEMO_HOST} {
+	encode zstd gzip
+	reverse_proxy web:3000
+}
+
+{$F451_DEMO_GIT_HOST} {
+	encode zstd gzip
+	reverse_proxy forgejo:3000
+}
