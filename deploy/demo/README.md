@@ -59,7 +59,7 @@ The Git side gets the same colours, typefaces and mark as the app
 (`forgejo/`, see the README there).
 
 While a deploy replaces the containers, Caddy shows a "rebuilding" page
-(`maintenance/index.html`, HTTP 503, reloads itself) — `demo.sh` switches it on
+(`maintenance/index.html`, HTTP 503, reloads itself; config in `caddy/Caddyfile`) — `demo.sh` switches it on
 and off via a flag file in the `maintenance-state` volume. Requests that hit a
 container while it is starting are held for up to 60 s instead of failing.
 

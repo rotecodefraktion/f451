@@ -21,7 +21,9 @@ services:
       F451_DEMO_GIT_HOST: ${F451_DEMO_GIT_HOST:?F451_DEMO_GIT_HOST missing}
     volumes:
       # Relative paths resolve from deploy/git (the first compose file).
-      - ../demo/Caddyfile:/etc/caddy/Caddyfile:ro
+      # A directory, not the single file: git replaces files on update (new
+      # inode), and a single-file bind mount would keep showing the old one.
+      - ../demo/caddy:/etc/caddy:ro
       - ../demo/theme:/srv/theme:ro
       - ../demo/maintenance:/srv/maintenance:ro
       - maintenance-state:/srv/state
@@ -39,6 +41,7 @@ services:
     environment:
       FORGEJO__server__DOMAIN: ${F451_DEMO_GIT_HOST}
       FORGEJO__server__LANDING_PAGE: login
+      FORGEJO__DEFAULT__APP_NAME: f451 Git
       FORGEJO__ui__THEMES: forgejo-auto,forgejo-light,forgejo-dark,f451
       FORGEJO__ui__DEFAULT_THEME: f451
       FORGEJO__server__DISABLE_SSH: "true"

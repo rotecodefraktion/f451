@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/lockup-dark.svg">
+    <img src="docs/brand/lockup.svg" alt="f451 — Documents without handcuffs." width="420">
+  </picture>
+</p>
+
 # f451
 
 **Documents without handcuffs.** A wiki for documentation that lives in Git.
