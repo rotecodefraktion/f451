@@ -235,15 +235,27 @@ for r in json.load(sys.stdin):
         r["space"], rep["pagesIndexed"], rep["pagesWithErrors"], rep["brokenLinks"], len(rep.get("idConflicts", []))))'
 }
 
+# Maintenance page for visitors while containers are replaced (Caddyfile).
+maintenance() {  # on | off
+  if [ "$1" = on ]; then compose exec -T caddy touch /srv/state/maintenance 2>/dev/null || true
+  else compose exec -T caddy rm -f /srv/state/maintenance 2>/dev/null || true; fi
+}
+
 deploy() {
   say "Build, migrate, start"
   compose build web api mcp
   compose up -d postgres forgejo caddy
+  maintenance on
+  trap 'maintenance off' EXIT
   # The API discovers the OIDC issuer over HTTPS at start-up; on a fresh
   # server Caddy first has to obtain the certificate.
   wait_for "https://$GIT_HOST/.well-known/openid-configuration"
   compose run --rm api node dist/db/migrate-cli.js
   compose up -d
+  compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile 2>/dev/null || true
+  wait_for "$(web_local)/"
+  maintenance off
+  trap - EXIT
   git -C "$REPO" rev-parse HEAD > "$(dirname "$DEMO_ENV")/deployed-commit"
 }
 

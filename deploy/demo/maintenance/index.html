@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="5">
+<title>f451 — rebuilding</title>
+<style>
+  :root { color-scheme: light dark; --bg: #faf8f5; --text: #1a1a1a; --muted: #555; --accent: #c8102e; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #141414; --text: #e8e4df; --muted: #a8a8a8; --accent: #ff4d5e; } }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg); color: var(--text); font: 17px/1.5 system-ui, sans-serif; display: grid; place-items: center; padding: 24px; box-sizing: border-box; }
+  main { max-width: 34rem; text-align: center; }
+  .mark { width: 56px; height: 56px; border-radius: 9px; background: var(--accent); color: #fff; display: inline-grid; place-items: center; font: italic 40px/1 Georgia, serif; margin-bottom: 20px; }
+  h1 { font: 400 clamp(28px, 5vw, 40px)/1.1 Georgia, serif; margin: 0 0 12px; }
+  p { color: var(--muted); margin: 0 0 8px; }
+  .bar { height: 3px; background: color-mix(in srgb, var(--accent) 25%, transparent); border-radius: 2px; overflow: hidden; margin: 28px auto 0; max-width: 240px; }
+  .bar i { display: block; height: 100%; width: 40%; background: var(--accent); animation: slide 1.4s ease-in-out infinite alternate; }
+  @keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+  @media (prefers-reduced-motion: reduce) { .bar i { animation: none; width: 100%; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="mark" aria-hidden="true">f</div>
+  <h1>We're burning down the house<br>and rebuilding it from scratch.</h1>
+  <p>A new version of f451 is being deployed. This usually takes about a minute.</p>
+  <p>This page reloads by itself — nothing to do on your side.</p>
+  <div class="bar"><i></i></div>
+</main>
+</body>
+</html>
