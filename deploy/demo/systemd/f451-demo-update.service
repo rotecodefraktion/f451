@@ -1,0 +1,10 @@
+[Unit]
+Description=f451 demo: deploy new commits from main
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=f451
+Environment=DEMO_ENV=/opt/f451-demo/demo.env
+ExecStart=/opt/f451-demo/repo/deploy/demo/demo.sh update

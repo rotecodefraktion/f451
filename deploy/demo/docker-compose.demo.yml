@@ -1,0 +1,43 @@
+# Public demo instance: overlay on deploy/git + deploy/wiki, run as ONE compose
+# project so Caddy, the app and Forgejo share a network. See README.md.
+#
+#   docker compose -p f451demo --env-file <demo.env> \
+#     -f deploy/git/docker-compose.yml -f deploy/wiki/docker-compose.yml \
+#     -f deploy/demo/docker-compose.demo.yml up -d
+#
+# Only Caddy is reachable from outside (80/443). The app containers publish
+# their ports on 127.0.0.1 only (F451_*_PORT in demo.env), for debugging.
+
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      F451_DEMO_HOST: ${F451_DEMO_HOST:?F451_DEMO_HOST missing}
+      F451_DEMO_GIT_HOST: ${F451_DEMO_GIT_HOST:?F451_DEMO_GIT_HOST missing}
+    volumes:
+      # Relative paths resolve from deploy/git (the first compose file).
+      - ../demo/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    # No depends_on: the API discovers the OIDC issuer through Caddy
+    # (https://<git host>), so Caddy must not wait for the app.
+
+  forgejo:
+    restart: unless-stopped
+    environment:
+      FORGEJO__server__DOMAIN: ${F451_DEMO_GIT_HOST}
+      FORGEJO__server__DISABLE_SSH: "true"
+      # Visitors get accounts from the operator, never by self-registration.
+      FORGEJO__service__DISABLE_REGISTRATION: "true"
+      FORGEJO__service__DEFAULT_ALLOW_CREATE_ORGANIZATION: "false"
+      FORGEJO__repository__MAX_CREATION_LIMIT: "0"
+      FORGEJO__admin__DISABLE_REGULAR_ORG_CREATION: "true"
+
+volumes:
+  caddy-data:
+  caddy-config:
