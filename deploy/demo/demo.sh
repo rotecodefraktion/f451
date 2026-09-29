@@ -141,8 +141,12 @@ setup_forgejo() {
 ensure_user() {  # ensure_user NAME ENV_KEY_FOR_PASSWORD
   local name="$1" key="$2"
   [ -n "$(env_get "$key")" ] || env_set "$key" "$(secret 8)"
-  # Ask Forgejo, not demo.env: a failed earlier run may have stored the password only.
-  if ! fapi GET "/users/$name" >/dev/null; then
+  # demo.env is authoritative for the password: create the account, or bring an
+  # existing one (e.g. from an interrupted earlier run) in line with it.
+  if fapi GET "/users/$name" >/dev/null; then
+    compose exec -T -u 1000 forgejo forgejo admin user change-password \
+      --username "$name" --password "$(env_get "$key")" --must-change-password=false >/dev/null
+  else
     compose exec -T -u 1000 forgejo forgejo admin user create \
       --username "$name" --password "$(env_get "$key")" \
       --email "$name@$GIT_HOST" --must-change-password=false >/dev/null
