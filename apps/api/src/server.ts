@@ -90,6 +90,7 @@ function buildAuthOptions(): AuthOptions | undefined {
     oidc,
     connect,
     githubLogin: githubLoginRequested,
+    signInNote: process.env.F451_SIGNIN_NOTE?.replace(/\\n/g, '\n') || undefined,
   }
 }
 

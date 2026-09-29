@@ -338,4 +338,7 @@ export interface AuthOptions {
    *  GitHub links the account in the same step, no separate Settings → Connections
    *  step needed. Works without `oidc` configured (GitHub-only instances). */
   githubLogin?: boolean
+  /** Plain-text note under the sign-in buttons (`F451_SIGNIN_NOTE`), e.g. demo
+   *  credentials. `\n` in the value becomes a line break. */
+  signInNote?: string
 }

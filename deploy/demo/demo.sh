@@ -136,6 +136,8 @@ setup_forgejo() {
 
   ensure_user "$READER_USER" DEMO_READER_PASSWORD
   ensure_user "$WRITER_USER" DEMO_WRITER_PASSWORD
+  # Shown under the sign-in button (F451_SIGNIN_NOTE; \n = line break).
+  env_set F451_SIGNIN_NOTE "Demo accounts — read everything: $READER_USER / $(env_get DEMO_READER_PASSWORD)\\nwrite in the Playground: $WRITER_USER / $(env_get DEMO_WRITER_PASSWORD)\\nThe demo is reset every night."
 }
 
 ensure_user() {  # ensure_user NAME ENV_KEY_FOR_PASSWORD
@@ -264,6 +266,7 @@ case "${1:-}" in
     say "Update ${deployed:0:7} → ${target:0:7}"
     git -C "$REPO" checkout -q main && git -C "$REPO" merge -q --ff-only origin/main
     write_static_config
+    setup_forgejo   # idempotent: keeps accounts, OAuth app and sign-in note in line
     ensure_repos
     deploy
     seed

@@ -78,6 +78,7 @@ später Sessions).
 | `F451_OIDC_CLIENT_SECRET` | ja, wenn `F451_OIDC_ISSUER` gesetzt | Client-Secret der App-Registrierung. |
 | `F451_OIDC_REDIRECT_URL` | ja, wenn `F451_OIDC_ISSUER` gesetzt | Öffentliche Callback-URL, exakt wie bei Entra hinterlegt: `https://<api-host>/auth/callback`. |
 | `F451_OIDC_PROVIDER_NAME` | nein | Name on the sign-in button, e.g. `Microsoft Entra`, `Forgejo`. Unset → neutral `Sign in`. |
+| `F451_SIGNIN_NOTE` | nein | Plain-text note under the sign-in buttons (e.g. demo credentials); `\n` becomes a line break. |
 | `F451_TOKEN_KEY` | ja, wenn `F451_OIDC_ISSUER` ODER `F451_GITHUB_LOGIN=1` gesetzt | 32 Byte, base64-kodiert (`openssl rand -base64 32`). Schlüssel zur AES-256-GCM-Verschlüsselung der Provider-Tokens (`provider_accounts`). Fehlt er, bricht der Start sofort ab (Fail-Fast). |
 | `F451_INSECURE_COOKIES` | nein | `1` deaktiviert `secure` auf Session-/Transaktions-Cookies (nur für lokale HTTP-Entwicklung; in Produktion **nicht** setzen). |
 | `F451_COOKIE_PREFIX` | nein | Prefix of the auth cookie names (default `f451`). Needed when two instances share a host, since browsers do not separate cookies by port. |

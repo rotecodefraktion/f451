@@ -543,7 +543,7 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
         : []),
       ...(githubLoginEnabled ? [{ id: 'github' as const, href: '/auth/github/login', label: 'GitHub' }] : []),
     ]
-    registerAuthMethodsRoute(app, { methods: signInMethods })
+    registerAuthMethodsRoute(app, { methods: signInMethods, note: opts.auth.signInNote })
 
     // Persönliche API-Token-Verwaltung (MCP-Phase 0, `routes/tokens.ts`):
     // unabhängig von OIDC/Connect, analog `registerMeRoute` — die Routen

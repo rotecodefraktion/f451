@@ -118,6 +118,7 @@ services:
       F451_OIDC_CLIENT_SECRET: ${F451_OIDC_CLIENT_SECRET:-}
       F451_OIDC_REDIRECT_URL: ${F451_OIDC_REDIRECT_URL:-}
       F451_OIDC_PROVIDER_NAME: ${F451_OIDC_PROVIDER_NAME:-}
+      F451_SIGNIN_NOTE: ${F451_SIGNIN_NOTE:-}
       F451_TOKEN_KEY: ${F451_TOKEN_KEY:-}
       F451_INSECURE_COOKIES: ${F451_INSECURE_COOKIES:-}
       # Cookie name prefix — set per instance when two stacks share a host.
