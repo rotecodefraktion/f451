@@ -1,5 +1,5 @@
 import { timingSafeEqual } from 'node:crypto'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import type { Db } from '../db/client.js'
 import {
@@ -71,8 +71,10 @@ export interface AuthRoutesDeps {
    *  einen Grant, und jeder Code-Tausch bei der Anmeldung erklärt den
    *  gespeicherten Refresh-Token der Verknüpfung für verbraucht. Der Callback
    *  übernimmt deshalb die frischen Anmelde-Tokens in eine bestehende
-   *  Verknüpfung; eine neue legt er nicht an. */
-  sharedForgejoGrant?: { tokenKey: string }
+   *  Verknüpfung. Gibt es noch keine, legt er sie an (#8): Forgejo ist dann
+   *  Login-Provider und Git-Konto zugleich, ein zweiter Schritt unter
+   *  Settings → Connections wäre überflüssig. */
+  sharedForgejoGrant?: { tokenKey: string; connect: ConnectOptions }
   /** Öffentliche Basis-URL (`F451_PUBLIC_BASE_URL`). Beginnt die Anmeldung auf
    *  einer anderen Adresse (z. B. `localhost` statt der LAN-Adresse), lägen
    *  Login-Cookie und Rücksprung auf verschiedenen Hosts und der Rücksprung
@@ -273,20 +275,24 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
           })
 
         if (deps.sharedForgejoGrant) {
+          const { tokenKey, connect } = deps.sharedForgejoGrant
           try {
-            await updateProviderTokens(
-              deps.db,
-              identity.sub,
-              'forgejo',
-              identity.tokens,
-              deps.sharedForgejoGrant.tokenKey,
-            )
-            invalidateUserPermissions(identity.sub)
+            const [linked] = await deps.db
+              .select({ userId: providerAccounts.userId })
+              .from(providerAccounts)
+              .where(and(eq(providerAccounts.userId, identity.sub), eq(providerAccounts.provider, 'forgejo')))
+            if (linked) {
+              await updateProviderTokens(deps.db, identity.sub, 'forgejo', identity.tokens, tokenKey)
+              invalidateUserPermissions(identity.sub)
+            } else {
+              const login = await fetchConnectLogin('forgejo', connect, identity.tokens.accessToken)
+              await upsertProviderAccount(deps.db, identity.sub, 'forgejo', login, identity.tokens, tokenKey)
+            }
           } catch (err) {
             // Die Anmeldung selbst ist gültig — sie scheitert nicht an der Verknüpfung.
             req.log.warn(
               { err: err instanceof Error ? err.message : 'unbekannt' },
-              'oidc/callback: Auffrischen der Forgejo-Verknüpfung fehlgeschlagen',
+              'oidc/callback: Forgejo-Verknüpfung nicht angelegt/aufgefrischt',
             )
           }
         }
@@ -313,6 +319,46 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
       },
     )
   })
+}
+
+/** One way to sign in, as offered on the sign-in page. `label` null → the UI's
+ *  neutral wording. */
+export interface SignInMethod {
+  id: 'oidc' | 'github'
+  href: string
+  label: string | null
+}
+
+const methodsSchema = {
+  response: {
+    200: {
+      type: 'object',
+      properties: {
+        methods: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              href: { type: 'string' },
+              label: { type: ['string', 'null'] },
+            },
+            required: ['id', 'href', 'label'],
+          },
+        },
+      },
+      required: ['methods'],
+    },
+  },
+} as const
+
+/**
+ * `GET /auth/methods` (#8): which sign-in methods this instance offers. Public —
+ * the sign-in page needs it before anyone is signed in; it reveals only what the
+ * sign-in page shows anyway.
+ */
+export function registerAuthMethodsRoute(app: FastifyInstance, deps: { methods: SignInMethod[] }): void {
+  app.get('/auth/methods', { schema: methodsSchema }, async () => ({ methods: deps.methods }))
 }
 
 /**

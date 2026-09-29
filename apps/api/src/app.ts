@@ -18,7 +18,7 @@ import { getUserProvider, type UserProviderDeps } from './drafts/user-provider.j
 import { createOpsCounters } from './ops/counters.js'
 import { hasValidAdminToken, registerAdminRoutes } from './routes/admin.js'
 import { registerVersionRoutes } from './routes/versions.js'
-import { registerAuthRoutes, registerConnectRoutes, registerMeRoute } from './routes/auth.js'
+import { registerAuthMethodsRoute, registerAuthRoutes, registerConnectRoutes, registerMeRoute } from './routes/auth.js'
 import { registerBrokenLinksRoutes } from './routes/broken-links.js'
 import { registerCreatePageRoute } from './routes/create-page.js'
 import { registerDeletePageRoute } from './routes/delete-page.js'
@@ -524,6 +524,13 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
     // ist — spiegelt nur den aktuellen Session-/Verknüpfungsstand aus der DB.
     registerMeRoute(app, { db })
 
+    // Sign-in methods for the sign-in page (#8).
+    registerAuthMethodsRoute(app, {
+      methods: opts.auth.oidc
+        ? [{ id: 'oidc', href: '/auth/login', label: opts.auth.oidc.providerName ?? null }]
+        : [],
+    })
+
     // Persönliche API-Token-Verwaltung (MCP-Phase 0, `routes/tokens.ts`):
     // unabhängig von OIDC/Connect, analog `registerMeRoute` — die Routen
     // gaten sich selbst zusätzlich per `requireBrowserSession` (kein
@@ -541,7 +548,7 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
         publicBaseUrl: opts.publicBaseUrl,
         sharedForgejoGrant:
           opts.auth.connect?.forgejo?.clientId === opts.auth.oidc.clientId
-            ? { tokenKey: opts.auth.tokenKey }
+            ? { tokenKey: opts.auth.tokenKey, connect: opts.auth.connect }
             : undefined,
       })
     }

@@ -51,7 +51,8 @@ describe.sequential('OIDC-Login (Entra) mit Mock-IdP', () => {
         },
         // Dieselbe Client-ID wie die Anmeldung → geteilter Forgejo-Grant (Issue #70).
         connect: {
-          forgejo: { baseUrl: 'http://forgejo.invalid', clientId: 'test-client', clientSecret: 'test-secret' },
+          // The mock IdP also plays Forgejo's API (`/api/v1/user`, #8).
+          forgejo: { baseUrl: idp.issuer, clientId: 'test-client', clientSecret: 'test-secret' },
         },
       },
       // Task 2 (Rate-Limits, Spec §7): dieser Testfile ruft `/auth/login`
@@ -163,6 +164,14 @@ describe.sequential('OIDC-Login (Entra) mit Mock-IdP', () => {
         cookies: { [SESSION_COOKIE_NAME]: sessionCookie! },
       })
       expect(meRes.statusCode).toBe(401)
+    })
+  })
+
+  describe('GET /auth/methods (#8)', () => {
+    it('lists the OIDC sign-in with a neutral label when no provider name is set', async () => {
+      const res = await app.inject({ method: 'GET', url: '/auth/methods' })
+      expect(res.statusCode).toBe(200)
+      expect(res.json()).toEqual({ methods: [{ id: 'oidc', href: '/auth/login', label: null }] })
     })
   })
 
@@ -301,11 +310,22 @@ describe.sequential('OIDC-Login (Entra) mit Mock-IdP', () => {
       expect(row!.providerLogin).toBe('carol')
     })
 
-    it('legt ohne bestehende Verknüpfung keine an', async () => {
+    it('links the Forgejo account on first sign-in (#8)', async () => {
+      idp.user = { sub: 'sub-erin', email: 'erin@example.org', name: 'Erin', forgejoLogin: 'erin' }
+      const result = await performLogin()
+
+      expect(result.status).toBe(302)
+      const [row] = await db.select().from(providerAccounts).where(eq(providerAccounts.userId, 'sub-erin'))
+      expect(row!.providerLogin).toBe('erin')
+      expect(decryptToken(row!.encryptedAccessToken, TOKEN_KEY)).toMatch(/^mock-access-/)
+    })
+
+    it('still signs in when the Forgejo login cannot be fetched', async () => {
       idp.user = { sub: 'sub-dave', email: 'dave@example.org', name: 'Dave' }
       const result = await performLogin()
 
       expect(result.status).toBe(302)
+      expect(result.sessionCookie).toBeDefined()
       const rows = await db.select().from(providerAccounts).where(eq(providerAccounts.userId, 'sub-dave'))
       expect(rows).toHaveLength(0)
     })

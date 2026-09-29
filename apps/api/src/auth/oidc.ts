@@ -15,6 +15,9 @@ export interface OidcConfig {
   clientId: string
   clientSecret: string
   redirectUrl: string
+  /** Name shown on the sign-in button (`F451_OIDC_PROVIDER_NAME`, e.g.
+   *  "Microsoft Entra", "Forgejo"). Unset → the UI shows a neutral label. */
+  providerName?: string
 }
 
 /** Discovery-Ergebnis + statische Konfiguration, gemeinsam durch die Flows gereicht. */
@@ -104,7 +107,7 @@ export async function completeLogin(
     throw new Error('ID-Token ohne gültigen sub-Claim')
   }
 
-  const email = typeof claims.email === 'string' ? claims.email : ''
+  const email = emailFromClaims(claims)
   const nameClaim = typeof claims.name === 'string' ? claims.name : ''
   const displayName = nameClaim || email || claims.sub
 
@@ -114,6 +117,19 @@ export async function completeLogin(
     displayName,
     tokens: { accessToken: tokens.access_token, refreshToken: tokens.refresh_token },
   }
+}
+
+/**
+ * Email address from the ID token. Entra ID often omits `email` unless the
+ * optional claim is configured; `preferred_username` or `upn` then usually
+ * hold the sign-in address, so they are used when they look like one.
+ */
+export function emailFromClaims(claims: Record<string, unknown>): string {
+  for (const key of ['email', 'preferred_username', 'upn']) {
+    const value = claims[key]
+    if (typeof value === 'string' && (key === 'email' ? value.length > 0 : value.includes('@'))) return value
+  }
+  return ''
 }
 
 /**

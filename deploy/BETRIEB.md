@@ -70,6 +70,7 @@ Web-seitig gibt es genau EINE `NEXT_PUBLIC_*`-Variable (grep über
 | `F451_OIDC_CLIENT_ID` | ja, wenn `F451_OIDC_ISSUER` gesetzt | — | Entra-App-Registrierung, Client-Id. |
 | `F451_OIDC_CLIENT_SECRET` | ja, wenn `F451_OIDC_ISSUER` gesetzt | — | Entra-App-Registrierung, Client-Secret. |
 | `F451_OIDC_REDIRECT_URL` | ja, wenn `F451_OIDC_ISSUER` gesetzt | — | `https://<api-host>/auth/callback`, exakt wie bei Entra hinterlegt. |
+| `F451_OIDC_PROVIDER_NAME` | nein | — | Name on the sign-in button (`Sign in with <name>`), e.g. `Microsoft Entra`, `Forgejo`. Unset → neutral `Sign in`. |
 | `F451_INSECURE_COOKIES` | nein | `0` (aus) | `1` deaktiviert `secure` auf Session-/Transaktions-Cookies. **Nur lokale HTTP-Entwicklung — in Produktion NICHT setzen.** |
 | `F451_COOKIE_PREFIX` | nein | `f451` | Prefix of the auth cookie names (`<prefix>_session`, `_oidc_tx`, `_connect_tx`). Set a different value per instance when two stacks run on the same host — browsers do not separate cookies by port. |
 | `F451_OIDC_ALLOW_INSECURE` | nein | Wert von `F451_INSECURE_COOKIES` | `1` erlaubt http-Issuer bei der OIDC-Discovery, unabhängig vom Cookie-Modus. **In Produktion NICHT setzen** (Entra spricht ohnehin nur HTTPS). |

@@ -35,6 +35,9 @@ export interface MockIdpUser {
   sub: string
   email: string
   name: string
+  /** Set → the mock also answers Forgejo's `GET /api/v1/user` with this login
+   *  (Forgejo as identity provider and Git account at once, #8). */
+  forgejoLogin?: string
 }
 
 export interface MockIdpTamper {
@@ -124,6 +127,11 @@ export async function startMockIdp(initialUser?: Partial<MockIdpUser>): Promise<
     if (body?.email) state.user.email = body.email
     if (body?.name) state.user.name = body.name
     return reply.send({ ok: true, user: state.user })
+  })
+
+  app.get('/api/v1/user', async (_req, reply) => {
+    if (!state.user.forgejoLogin) return reply.code(404).send({ message: 'not found' })
+    return reply.send({ login: state.user.forgejoLogin })
   })
 
   app.get('/authorize', async (req, reply) => {

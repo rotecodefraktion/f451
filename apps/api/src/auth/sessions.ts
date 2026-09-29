@@ -315,6 +315,8 @@ export interface OidcAuthOptions {
   clientSecret: string
   /** Öffentliche Callback-URL (`redirect_uri`), am IdP vorregistriert. */
   redirectUrl: string
+  /** Name on the sign-in button (`F451_OIDC_PROVIDER_NAME`), see `OidcConfig`. */
+  providerName?: string
 }
 
 export interface AuthOptions {

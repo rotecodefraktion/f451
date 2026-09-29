@@ -22,8 +22,10 @@ export const settings = {
   retry: 'Erneut versuchen',
   login: {
     heading: 'Anmelden',
-    lede: 'Melde dich mit deinem Microsoft-Entra-Konto an, um auf die Dokumentationsplattform zuzugreifen.',
-    button: 'Mit Microsoft Entra anmelden',
+    lede: 'Melde dich an, um auf die Dokumentationsplattform zuzugreifen.',
+    // Anmeldeweg ohne eingestellten Namen (`F451_OIDC_PROVIDER_NAME` fehlt).
+    button: 'Anmelden',
+    buttonWith: 'Mit {provider} anmelden',
     foot: 'Interner Zugang · f451 Dokumentationsplattform',
     // Rücksprung der Anmeldung gescheitert (`/auth/callback` leitet mit
     // `?anmeldung=` hierher, statt JSON zu zeigen).

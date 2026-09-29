@@ -68,7 +68,7 @@ function buildAuthOptions(): AuthOptions | undefined {
       process.env.F451_OIDC_ALLOW_INSECURE !== undefined
         ? process.env.F451_OIDC_ALLOW_INSECURE === '1'
         : insecureCookies,
-    oidc: { issuer, clientId, clientSecret, redirectUrl },
+    oidc: { issuer, clientId, clientSecret, redirectUrl, providerName: process.env.F451_OIDC_PROVIDER_NAME || undefined },
     connect: buildConnectOptions(),
   }
 }
