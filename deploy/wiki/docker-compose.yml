@@ -130,6 +130,9 @@ services:
       F451_FORGEJO_OAUTH_CLIENT_SECRET: ${F451_FORGEJO_OAUTH_CLIENT_SECRET:-}
       F451_GITHUB_OAUTH_CLIENT_ID: ${F451_GITHUB_OAUTH_CLIENT_ID:-}
       F451_GITHUB_OAUTH_CLIENT_SECRET: ${F451_GITHUB_OAUTH_CLIENT_SECRET:-}
+      # GitHub sign-in (#8) — reuses the pair above as the sign-in app. Requires
+      # F451_TOKEN_KEY even without F451_OIDC_ISSUER, see .env.example.
+      F451_GITHUB_LOGIN: ${F451_GITHUB_LOGIN:-}
       # Draft-Backend (Phase 2a Task 5) — Default 10 MiB, wenn nicht gesetzt.
       F451_MAX_UPLOAD_MB: ${F451_MAX_UPLOAD_MB:-}
       # Rate-Limits (Phase 4a Task 2, Spec §7) — Defaults 10/min (Auth) bzw.

@@ -27,26 +27,45 @@ const webhookSecrets = spaces
     }
   : undefined
 
-// Auth/OIDC (Plan Task 3) ist opt-in: nur wenn F451_OIDC_ISSUER gesetzt ist,
-// werden Sessions + Login-Routen aktiviert. Ohne diese Variable bleiben alle
-// Routen ungeschützt und die Auth-Routen unregistriert (Bestandsverhalten 1c).
+// Auth (Plan Task 3, extended for GitHub sign-in #8) is opt-in: it activates
+// when EITHER F451_OIDC_ISSUER OR F451_GITHUB_LOGIN=1 is set. Without either,
+// all routes stay unprotected and no auth routes are registered (1c
+// behaviour). With only GitHub sign-in enabled, `oidc` stays `undefined` —
+// sessions, `/api/me`, connect and `/auth/github/*` still get built below
+// (see `AuthOptions.githubLogin`).
 function buildAuthOptions(): AuthOptions | undefined {
   const issuer = process.env.F451_OIDC_ISSUER
-  if (!issuer) return undefined
+  const githubLoginRequested = process.env.F451_GITHUB_LOGIN === '1'
+  if (!issuer && !githubLoginRequested) return undefined
 
   const tokenKey = process.env.F451_TOKEN_KEY
   if (!tokenKey) {
-    // Fail-Fast (Plan Global Constraints): bei konfiguriertem OIDC ist der
-    // Token-Schlüssel Pflicht (Provider-Token-Verschlüsselung, Task 4).
-    throw new Error('F451_TOKEN_KEY ist erforderlich, wenn F451_OIDC_ISSUER gesetzt ist.')
+    // Fail-fast (project global constraint): the token key is required
+    // whenever EITHER OIDC or GitHub sign-in is enabled (provider-token
+    // encryption, Task 4).
+    throw new Error('F451_TOKEN_KEY is required when F451_OIDC_ISSUER or F451_GITHUB_LOGIN=1 is set.')
   }
 
-  const clientId = process.env.F451_OIDC_CLIENT_ID
-  const clientSecret = process.env.F451_OIDC_CLIENT_SECRET
-  const redirectUrl = process.env.F451_OIDC_REDIRECT_URL
-  if (!clientId || !clientSecret || !redirectUrl) {
+  let oidc: AuthOptions['oidc']
+  if (issuer) {
+    const clientId = process.env.F451_OIDC_CLIENT_ID
+    const clientSecret = process.env.F451_OIDC_CLIENT_SECRET
+    const redirectUrl = process.env.F451_OIDC_REDIRECT_URL
+    if (!clientId || !clientSecret || !redirectUrl) {
+      throw new Error(
+        'Bei gesetztem F451_OIDC_ISSUER sind F451_OIDC_CLIENT_ID, F451_OIDC_CLIENT_SECRET und F451_OIDC_REDIRECT_URL erforderlich.',
+      )
+    }
+    oidc = { issuer, clientId, clientSecret, redirectUrl, providerName: process.env.F451_OIDC_PROVIDER_NAME || undefined }
+  }
+
+  const connect = buildConnectOptions()
+  if (githubLoginRequested && !connect?.github) {
+    // Fail-fast, same reasoning as the OIDC half-configuration check above:
+    // `F451_GITHUB_LOGIN=1` without the connect app's client id/secret is a
+    // deployment mistake, not a silently-disabled feature.
     throw new Error(
-      'Bei gesetztem F451_OIDC_ISSUER sind F451_OIDC_CLIENT_ID, F451_OIDC_CLIENT_SECRET und F451_OIDC_REDIRECT_URL erforderlich.',
+      'F451_GITHUB_LOGIN=1 requires F451_GITHUB_OAUTH_CLIENT_ID and F451_GITHUB_OAUTH_CLIENT_SECRET to be set.',
     )
   }
 
@@ -68,8 +87,9 @@ function buildAuthOptions(): AuthOptions | undefined {
       process.env.F451_OIDC_ALLOW_INSECURE !== undefined
         ? process.env.F451_OIDC_ALLOW_INSECURE === '1'
         : insecureCookies,
-    oidc: { issuer, clientId, clientSecret, redirectUrl, providerName: process.env.F451_OIDC_PROVIDER_NAME || undefined },
-    connect: buildConnectOptions(),
+    oidc,
+    connect,
+    githubLogin: githubLoginRequested,
   }
 }
 

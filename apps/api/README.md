@@ -73,17 +73,18 @@ später Sessions).
 | `F451_WEBHOOK_SECRET_FORGEJO` | ja, für Forgejo-Webhooks | HMAC-Secret, muss mit dem im Forgejo-Repo hinterlegten Webhook-Secret übereinstimmen. |
 | `F451_WEBHOOK_SECRET_GITHUB` | ja, für GitHub-Webhooks | HMAC-Secret, muss mit dem im GitHub-Repo hinterlegten Webhook-Secret übereinstimmen. |
 | `F451_ADMIN_TOKEN` | ja, für `/admin/reindex` | Bearer-Token. Fehlt es, lehnt der Endpunkt **jede** Anfrage mit 503 ab (Fail-Closed). Zusätzlich zum Admin-Token verlangt `/admin/*` bei aktiver Auth (s. u.) auch eine gültige Session. |
-| `F451_OIDC_ISSUER` | nein* | Issuer-URL des OpenID-Providers (Entra ID). Gesetzt = Auth aktiv: `/api/*` und `/admin/*` erfordern ab dann eine Session; `F451_TOKEN_KEY` wird Pflicht. Fehlt sie, bleibt die API im 1c-Verhalten (alles offen, keine Auth-Routen). |
+| `F451_OIDC_ISSUER` | nein* | Issuer-URL des OpenID-Providers (Entra ID). Gesetzt ODER `F451_GITHUB_LOGIN=1` = Auth aktiv: `/api/*` und `/admin/*` erfordern ab dann eine Session; `F451_TOKEN_KEY` wird Pflicht. Fehlen beide, bleibt die API im 1c-Verhalten (alles offen, keine Auth-Routen). |
 | `F451_OIDC_CLIENT_ID` | ja, wenn `F451_OIDC_ISSUER` gesetzt | Client-Id der bei Entra registrierten App. |
 | `F451_OIDC_CLIENT_SECRET` | ja, wenn `F451_OIDC_ISSUER` gesetzt | Client-Secret der App-Registrierung. |
 | `F451_OIDC_REDIRECT_URL` | ja, wenn `F451_OIDC_ISSUER` gesetzt | Öffentliche Callback-URL, exakt wie bei Entra hinterlegt: `https://<api-host>/auth/callback`. |
 | `F451_OIDC_PROVIDER_NAME` | nein | Name on the sign-in button, e.g. `Microsoft Entra`, `Forgejo`. Unset → neutral `Sign in`. |
-| `F451_TOKEN_KEY` | ja, wenn `F451_OIDC_ISSUER` gesetzt | 32 Byte, base64-kodiert (`openssl rand -base64 32`). Schlüssel zur AES-256-GCM-Verschlüsselung der Provider-Tokens (`provider_accounts`). Fehlt er bei konfiguriertem OIDC, bricht der Start sofort ab (Fail-Fast). |
+| `F451_TOKEN_KEY` | ja, wenn `F451_OIDC_ISSUER` ODER `F451_GITHUB_LOGIN=1` gesetzt | 32 Byte, base64-kodiert (`openssl rand -base64 32`). Schlüssel zur AES-256-GCM-Verschlüsselung der Provider-Tokens (`provider_accounts`). Fehlt er, bricht der Start sofort ab (Fail-Fast). |
 | `F451_INSECURE_COOKIES` | nein | `1` deaktiviert `secure` auf Session-/Transaktions-Cookies (nur für lokale HTTP-Entwicklung; in Produktion **nicht** setzen). |
 | `F451_COOKIE_PREFIX` | nein | Prefix of the auth cookie names (default `f451`). Needed when two instances share a host, since browsers do not separate cookies by port. |
 | `F451_OIDC_ALLOW_INSECURE` | nein | Phase 4a Task 3 (Auth-Härtung M2): `1` erlaubt http-Issuer bei der OIDC-Discovery, unabhängig von `F451_INSECURE_COOKIES`. Ohne gesetzte Variable gilt der Wert von `F451_INSECURE_COOKIES` als Default (abwärtskompatibel). In Produktion **nicht** setzen. |
 | `F451_FORGEJO_OAUTH_CLIENT_ID` / `F451_FORGEJO_OAUTH_CLIENT_SECRET` | nein* | Aktivieren „Forgejo verbinden" (`GET /auth/connect/forgejo`). Verwenden dieselbe Instanz wie `F451_FORGEJO_URL` (Indexer-Service-Account und Nutzer-Verknüpfung teilen sich eine Forgejo-Instanz). Ohne sie ist die Forgejo-Verknüpfung nicht verfügbar. |
-| `F451_GITHUB_OAUTH_CLIENT_ID` / `F451_GITHUB_OAUTH_CLIENT_SECRET` | nein* | Aktivieren „GitHub verbinden" (`GET /auth/connect/github`). Ohne sie ist die GitHub-Verknüpfung nicht verfügbar. |
+| `F451_GITHUB_OAUTH_CLIENT_ID` / `F451_GITHUB_OAUTH_CLIENT_SECRET` | nein* | Aktivieren „GitHub verbinden" (`GET /auth/connect/github`). Ohne sie ist die GitHub-Verknüpfung nicht verfügbar. Mit `F451_GITHUB_LOGIN=1` doppelt dieselbe App als Sign-in-App. |
+| `F451_GITHUB_LOGIN` | nein | `1` aktiviert „Sign in with GitHub" (#8, `GET /auth/github/login`) — braucht zusätzlich `F451_GITHUB_OAUTH_CLIENT_ID`/`_SECRET` (sonst Fail-Fast beim Start) und `F451_TOKEN_KEY`, auch ganz ohne `F451_OIDC_ISSUER` (GitHub-only-Instanzen: Sessions, `/api/me`, Kontoverknüpfung funktionieren dann trotzdem). Der angemeldete Account wird im selben Schritt als GitHub-Verknüpfung gespeichert (`provider_accounts`) — kein separater „GitHub verbinden"-Schritt danach nötig. |
 | `F451_MAX_UPLOAD_MB` | nein (Default `10`) | Größenlimit in MiB für `POST /api/pages/:id/draft/media` (Phase 2a Task 5). Überschreitungen werden serverseitig als Streaming-Grenze durchgesetzt (kein Puffern übergroßer Uploads), Antwort `413`. |
 | `F451_PUBLIC_BASE_URL` | in Produktion: ja | Öffentliche Basis-URL der f451-Oberfläche (Schema + Host, ohne Pfad — die URL, unter der Nutzer das Wiki im Browser erreichen). Seit Phase 4a Task 3 **sicherheitsrelevant**, nicht mehr nur kosmetisch: (1) Basis der OAuth-`redirect_uri` der Provider-Verknüpfungs-Routen (`/auth/connect/*`) — ohne sie wird die `redirect_uri` aus dem Host-Header gebaut (Angreifer-beeinflussbar, nur als Dev-Fallback gedacht); (2) „eigene Origin" des CSRF-Origin-Checks für mutierende Browser-Requests (POST/PUT/PATCH/DELETE mit fremdem `Origin`-Header → 403) — ohne sie vergleicht der Check gegen den Host-Header des jeweiligen Requests. **Fehlkonfiguration** (Wert ≠ echte Browser-Origin) blockiert alle mutierenden Browser-Requests mit 403 „Ungültige Origin". Zusätzlich (Phase 2d Task 3): `POST /api/pages/:id/review` hängt dem PR-Body einen Link zur Review-Ansicht an (`<F451_PUBLIC_BASE_URL>/wiki/<space>/<pageId>/review`); ohne sie bleibt der PR-Body linklos. |
 | `F451_GLOBAL_TEMPLATES` | nein | JSON-Objekt `{"provider":"forgejo"\|"github","owner":"…","repo":"…"}` (Phase 3c Task 2) — ein providerweites Zusatz-Repo, dessen `_templates/*.md` `GET /api/spaces/:space/templates` zusätzlich zu den Space-eigenen Vorlagen listet. Fail-Fast bei invalidem JSON/fehlenden Feldern, unabhängig von `F451_SPACES`. Fehlt sie, liefert die Route nur Space-Templates (Bestandsverhalten). Ist das globale Repo zur Laufzeit nicht erreichbar, wird NUR diese Quelle übersprungen (warn-Log) — die Space-Templates bleiben unberührt (Lesen darf nie ganz ausfallen). |
@@ -295,6 +296,18 @@ Login:
           → User-Upsert, Session anlegen, Set-Cookie f451_session
           ← 302 auf `/` (oder `?next=`, nur relative Pfade)
 
+GitHub sign-in (#8, F451_GITHUB_LOGIN=1 — braucht keine OIDC-Session, funktioniert
+auch ganz ohne F451_OIDC_ISSUER):
+  Browser → GET /auth/github/login → 302 zum GitHub-Authorize-Endpoint
+          ← GitHub: Nutzer autorisiert die App, Redirect zurück mit ?code&state
+  Browser → GET /auth/github/callback?code&state
+          → Token-Tausch, Profil per API abrufen (id/login/name/email, ggf.
+            /user/emails für die primäre verifizierte Adresse)
+          → User-Upsert (Id `github:<numerische-id>`), Session anlegen
+          → Access-Token AES-256-GCM-verschlüsselt SOFORT als GitHub-Verknüpfung
+            in provider_accounts speichern (kein separater Connect-Schritt)
+          ← 302 auf `/` (oder `?next=`, nur relative Pfade)
+
 Provider-Verknüpfung (pro Provider, erfordert bereits eine Session):
   Browser → GET /auth/connect/forgejo → 302 zum Forgejo-Authorize-Endpoint
           ← Forgejo: Nutzer autorisiert die App, Redirect zurück mit ?code&state
@@ -341,6 +354,11 @@ Logout:
 5. Für GitHub analog: eine OAuth-App unter `https://github.com/settings/developers`
    mit **Authorization callback URL** `https://<api-host>/auth/connect/github/callback`
    anlegen → `F451_GITHUB_OAUTH_CLIENT_ID` / `F451_GITHUB_OAUTH_CLIENT_SECRET`.
+6. Soll dieselbe App zusätzlich als Sign-in-App dienen (`F451_GITHUB_LOGIN=1`,
+   #8), die **Authorization callback URL** stattdessen auf `https://<api-host>/auth/`
+   setzen — GitHub prüft nur den Präfix, das erlaubt sowohl
+   `/auth/github/callback` (Sign-in) als auch `/auth/connect/github/callback`
+   (Verknüpfung eines bereits angemeldeten Accounts).
 
 ## Lese-API — Space-/Pages-Endpunkte
 
