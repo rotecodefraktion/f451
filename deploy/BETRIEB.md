@@ -104,6 +104,12 @@ weiter, `web` wiederum proxyt `/api`/`/auth`/`/admin`/`/media` intern an `api`
   die gefälschte (Hop-Zahl zu hoch — Rate-Limits umgehbar) bzw. immer dieselbe
   Proxy-IP (Hop-Zahl zu niedrig — Rate-Limits treffen alle Nutzer gemeinsam).
 
+### Web (`deploy/wiki/docker-compose.yml`, Service `web`, Laufzeit)
+
+| Variable | Pflicht | Default | Bedeutung |
+|---|---|---|---|
+| `F451_CUSTOM_STYLESHEET` | nein | — | Same-origin path of an extra stylesheet loaded after f451's own CSS (base colour/font tokens, self-hosted `@font-face`). Serve it from the reverse proxy; example `deploy/demo/theme/`. |
+
 ### Web (`deploy/wiki/docker-compose.yml`, Service `web`, BUILD-Zeit)
 
 | Variable | Pflicht | Default | Wirkung |

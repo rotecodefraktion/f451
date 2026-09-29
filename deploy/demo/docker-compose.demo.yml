@@ -22,6 +22,7 @@ services:
     volumes:
       # Relative paths resolve from deploy/git (the first compose file).
       - ../demo/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ../demo/theme:/srv/theme:ro
       - caddy-data:/data
       - caddy-config:/config
     # No depends_on: the API discovers the OIDC issuer through Caddy

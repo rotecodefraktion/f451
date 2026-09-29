@@ -30,6 +30,8 @@ services:
       DRAWIO_INTERNAL_URL: http://drawio:8080
       # LAUFZEIT-Spiegel des Build-Args: das `/mcp`-Rewrite-Ziel.
       MCP_INTERNAL_URL: http://mcp:3002
+      # Optional operator stylesheet (same-origin path), see .env.example.
+      F451_CUSTOM_STYLESHEET: ${F451_CUSTOM_STYLESHEET:-}
     # Host ports are configurable so a second stack (e.g. a demo under its
     # own compose project name) can run next to this one.
     ports:

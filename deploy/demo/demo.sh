@@ -93,6 +93,7 @@ write_static_config() {
   env_set F451_OIDC_ISSUER "https://$GIT_HOST/"
   env_set F451_OIDC_REDIRECT_URL "https://$HOST/auth/callback"
   env_set F451_OIDC_PROVIDER_NAME "Forgejo"
+  env_set F451_CUSTOM_STYLESHEET "/custom/theme.css"
   # App ports only on localhost; Caddy is the only public entry.
   env_set F451_FORGEJO_HTTP_PORT "127.0.0.1:3300"
   env_set F451_FORGEJO_SSH_PORT "127.0.0.1:2222"

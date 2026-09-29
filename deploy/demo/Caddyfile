@@ -1,6 +1,11 @@
 # TLS certificates come from Let's Encrypt automatically.
 {$F451_DEMO_HOST} {
 	encode zstd gzip
+	# Instance theme (colours + typefaces), loaded via F451_CUSTOM_STYLESHEET.
+	handle_path /custom/* {
+		root * /srv/theme
+		file_server
+	}
 	reverse_proxy web:3000
 }
 
