@@ -10,16 +10,18 @@ lang: en
 
 ## Sign in
 
-f451 does not have its own accounts. You sign in through your
-organisation's identity provider (for example Microsoft Entra, or
-whichever OpenID Connect provider your instance uses). There is no
-separate f451 password to remember.
+f451 does not have its own accounts. The sign-in page shows one button
+per sign-in method your instance offers — for example **Sign in with
+Microsoft Entra**, **Sign in with Forgejo** or **Sign in with GitHub**.
+There is no separate f451 password to remember.
 
 ## Connect your Git account
 
-Signing in gets you into f451, but it does not, by itself, connect you
-to any space's content. For that you link your Forgejo or GitHub
-account under **Settings → Connections**:
+What you can see depends on your Git account, so f451 needs it linked.
+If you signed in with Forgejo or GitHub, that account is usually linked
+right away and you can skip this step. Otherwise — for example after
+signing in with Microsoft Entra — link your Forgejo or GitHub account
+under **Settings → Connections**:
 
 > Link your f451 account with Forgejo or GitHub to include spaces from
 > the respective repositories.

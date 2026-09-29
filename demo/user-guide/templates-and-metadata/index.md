@@ -20,6 +20,12 @@ The easiest way to add a template is from a finished draft: use **Save
 as template …** in the editor's status bar to turn its current content
 into a reusable starting point (see [[writing-a-page]]).
 
+This space ships one template, **Process runbook**. The page
+[[example-kernel-update|Example: Kernel update]] was created from it and
+then filled in. Templates may use three placeholders that are filled when
+the page is created: `{{titel}}` (the new page's title), `{{autor}}` (you)
+and `{{datum}}` (today's date).
+
 ## Metadata schema
 
 **Metadata schema** in the sidebar defines which structured extra fields
