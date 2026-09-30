@@ -9,6 +9,7 @@
 #                                open reviews closed, draft branches deleted
 #   deploy/demo/demo.sh apply    deploy the checked-out commit (used by update)
 #   deploy/demo/demo.sh stats    update the visitor statistics at /stats/
+#   deploy/demo/demo.sh guard    recreate a visitor account that no longer signs in
 #   deploy/demo/demo.sh status   containers and the last deployed commit
 #
 # Configuration lives OUTSIDE the repository in $DEMO_ENV (default
@@ -233,6 +234,26 @@ clear_drafts() {
   done
 }
 
+# The visitor accounts are shared: anyone signed in could change their
+# password, turn on 2FA or add keys and lock everyone else out. Forgejo can
+# forbid deletion and keys (USER_DISABLED_FEATURES), not password or 2FA
+# changes — so check that both accounts still sign in with the password from
+# demo.env (2FA also makes this fail) and recreate an account that doesn't.
+# `--force` recreates both (nightly reset: also drops tokens, e-mail, avatar).
+guard() {
+  local force="${1:-}" name key code
+  for pair in "$READER_USER:DEMO_READER_PASSWORD" "$WRITER_USER:DEMO_WRITER_PASSWORD"; do
+    name="${pair%%:*}"; key="${pair#*:}"
+    code=$(curl -s -o /dev/null -w '%{http_code}' -u "$name:$(env_get "$key")" "$(forgejo_local)/api/v1/user")
+    if [ "$code" != 200 ] || [ "$force" = --force ]; then
+      echo "  ↻ $name (sign-in check: $code)"
+      compose exec -T -u 1000 forgejo forgejo admin user delete --username "$name" --purge >/dev/null 2>&1 || true
+      ensure_user "$name" "$key"
+    fi
+  done
+  ensure_repos   # team memberships of recreated accounts
+}
+
 reindex() {
   say "Reindex"
   wait_for "$(web_local)/"
@@ -300,7 +321,12 @@ case "${1:-}" in
     seed
     reindex
     ;;
+  guard)
+    guard "${2:-}"
+    ;;
   reset)
+    say "Visitor accounts: recreate"
+    guard --force
     clear_drafts
     seed
     reindex
@@ -313,7 +339,7 @@ case "${1:-}" in
     echo "deployed: $(cat "$(dirname "$DEMO_ENV")/deployed-commit" 2>/dev/null || echo -)"
     ;;
   *)
-    sed -n '4,13p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '4,14p' "$0" | sed 's/^# \{0,1\}//'
     exit 1
     ;;
 esac

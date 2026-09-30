@@ -41,7 +41,7 @@ sudo -u f451 DEMO_ENV=/opt/f451-demo/demo.env /opt/f451-demo/repo/deploy/demo/de
 
 cp /opt/f451-demo/repo/deploy/demo/systemd/* /etc/systemd/system/
 systemctl daemon-reload
-systemctl enable --now f451-demo-update.timer f451-demo-reset.timer f451-demo-stats.timer
+systemctl enable --now f451-demo-update.timer f451-demo-reset.timer f451-demo-stats.timer f451-demo-guard.timer
 ```
 
 `setup` writes all secrets into `demo.env` (Forgejo admin, service token,
@@ -56,7 +56,8 @@ footer. The privacy policy should cover the access log and statistics below.
 | Command | What it does |
 |---|---|
 | `demo.sh update` | Runs every 5 min (timer). Does nothing unless `origin/main` moved; then pulls, builds, migrates, restarts, pushes `demo/*` into the spaces and reindexes. `--force` redeploys the current commit. |
-| `demo.sh reset` | Runs nightly at 03:30 (timer). Closes open reviews, deletes draft branches, restores all spaces to `demo/*`, reindexes. |
+| `demo.sh reset` | Runs nightly at 03:30 (timer). Recreates the visitor accounts, closes open reviews, deletes draft branches, restores all spaces to `demo/*`, reindexes. |
+| `demo.sh guard` | Runs every 5 min (timer). The visitor accounts are shared; if one no longer signs in with the password from `demo.env` (changed password, 2FA turned on), it is recreated. |
 | `demo.sh status` | Container status and the deployed commit. |
 
 The Git side gets the same colours, typefaces and mark as the app

@@ -58,6 +58,9 @@ services:
       FORGEJO__service__DEFAULT_ALLOW_CREATE_ORGANIZATION: "false"
       FORGEJO__repository__MAX_CREATION_LIMIT: "0"
       FORGEJO__admin__DISABLE_REGULAR_ORG_CREATION: "true"
+      # Shared visitor accounts: no self-deletion, no keys. Password and 2FA
+      # changes can't be forbidden here — demo.sh guard repairs those.
+      FORGEJO__admin__USER_DISABLED_FEATURES: deletion,manage_ssh_keys,manage_gpg_keys
 
   # Visitor statistics from Caddy's access log (`demo.sh stats`, timer every
   # 10 min). --persist/--restore keep the counts in goaccess-db across runs,
