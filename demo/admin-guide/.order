@@ -4,5 +4,6 @@ forgejo-identity-provider
 github-sign-in
 spaces-and-git-providers
 configuration-reference
+production-setup
 backup-and-restore
 operations

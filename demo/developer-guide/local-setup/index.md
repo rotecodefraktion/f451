@@ -82,3 +82,8 @@ Once the stack is up, most development happens outside Docker:
 For what to actually run before opening a pull request, see
 [[testing-and-contributing]] — it is a much shorter list than "everything
 above".
+
+> [!NOTE]
+> This page covers development on your own machine. How a production server
+> looks — HTTPS, identity provider, released images, backups — is described
+> in the Admin Guide, page *Production setup*.
