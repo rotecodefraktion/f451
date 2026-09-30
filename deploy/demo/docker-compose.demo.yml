@@ -31,6 +31,7 @@ services:
       - ../demo/caddy:/etc/caddy:ro
       - ../demo/theme:/srv/theme:ro
       - ../demo/maintenance:/srv/maintenance:ro
+      - ../demo/legal:/srv/legal:ro
       - maintenance-state:/srv/state
       - caddy-logs:/var/log/caddy
       - stats-report:/srv/stats:ro
