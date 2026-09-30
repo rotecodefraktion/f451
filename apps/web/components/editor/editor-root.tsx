@@ -197,6 +197,8 @@ function EditorSession({
   const bumpTick = useCallback(() => setTick((t) => t + 1), [])
 
   const [savedAt, setSavedAt] = useState<string | null>(null)
+  // Error of the last discard attempt, shown above the status bar (#22).
+  const [discardError, setDiscardError] = useState<string | null>(null)
   const [conflict, setConflict] = useState<ConflictState | null>(null)
   // Task 6 (Phase 3c): „Als Vorlage speichern …" — der Dialog selbst trägt
   // seinen Formular-/Ergebnis-State (Muster `SaveTemplateDialog`), hier lebt
@@ -676,10 +678,22 @@ function EditorSession({
   }
 
   function handleDiscard() {
+    setDiscardError(null)
     discardDraft(pageId)
       .then(() => router.push(backHref))
-      .catch(() => {
-        window.alert(t('editor.errors.discardFailed'))
+      .catch(async (err) => {
+        // 404: there is no draft any more (already discarded, released in
+        // another tab, reset, or an interrupted create). Nothing to retry —
+        // leave the editor. A page that was never released has no reading
+        // view, so go to the space instead (#22).
+        if (err instanceof ClientApiError && err.status === 404) {
+          const released = await fetch(`/api/pages/${encodeURIComponent(pageId)}`, { credentials: 'same-origin' })
+            .then((res) => res.ok)
+            .catch(() => false)
+          router.push(released ? backHref : wikiSpaceHref(space))
+          return
+        }
+        setDiscardError(t('editor.errors.discardFailed'))
       })
   }
 
@@ -951,6 +965,11 @@ function EditorSession({
 
   return (
     <div className="editor-root">
+      {discardError ? (
+        <div className="callout error" role="alert">
+          <p>{discardError}</p>
+        </div>
+      ) : null}
       <StatusBar
         space={space}
         title={title}
