@@ -19,6 +19,8 @@ services:
     environment:
       F451_DEMO_HOST: ${F451_DEMO_HOST:?F451_DEMO_HOST missing}
       F451_DEMO_GIT_HOST: ${F451_DEMO_GIT_HOST:?F451_DEMO_GIT_HOST missing}
+      F451_STATS_USER: ${F451_STATS_USER:?F451_STATS_USER missing}
+      F451_STATS_HASH: ${F451_STATS_HASH:?F451_STATS_HASH missing}
     volumes:
       # Relative paths resolve from deploy/git (the first compose file).
       # A directory, not the single file: git replaces files on update (new
@@ -27,6 +29,8 @@ services:
       - ../demo/theme:/srv/theme:ro
       - ../demo/maintenance:/srv/maintenance:ro
       - maintenance-state:/srv/state
+      - caddy-logs:/var/log/caddy
+      - stats-report:/srv/stats:ro
       - caddy-data:/data
       - caddy-config:/config
     # No depends_on: the API discovers the OIDC issuer through Caddy
@@ -52,7 +56,31 @@ services:
       FORGEJO__repository__MAX_CREATION_LIMIT: "0"
       FORGEJO__admin__DISABLE_REGULAR_ORG_CREATION: "true"
 
+  # Visitor statistics from Caddy's access log (`demo.sh stats`, timer every
+  # 10 min). --persist/--restore keep the counts in goaccess-db across runs,
+  # log rotation and the nightly reset.
+  goaccess:
+    image: allinurl/goaccess:1.9.4
+    profiles: [tools]
+    volumes:
+      - caddy-logs:/logs:ro
+      - goaccess-db:/db
+      - stats-report:/report
+    command:
+      - /logs/access.log
+      - --log-format=CADDY
+      - --persist
+      - --restore
+      - --db-path=/db
+      - --ignore-crawlers
+      - --html-report-title=f451 demo — visitors
+      - -o
+      - /report/index.html
+
 volumes:
   maintenance-state:
+  caddy-logs:
+  goaccess-db:
+  stats-report:
   caddy-data:
   caddy-config:

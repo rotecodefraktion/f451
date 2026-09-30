@@ -8,6 +8,7 @@
 #   deploy/demo/demo.sh reset    nightly: guides and playground back to demo/,
 #                                open reviews closed, draft branches deleted
 #   deploy/demo/demo.sh apply    deploy the checked-out commit (used by update)
+#   deploy/demo/demo.sh stats    update the visitor statistics at /stats/
 #   deploy/demo/demo.sh status   containers and the last deployed commit
 #
 # Configuration lives OUTSIDE the repository in $DEMO_ENV (default
@@ -105,6 +106,15 @@ write_static_config() {
   [ -n "$(env_get F451_TOKEN_KEY)" ] || env_set F451_TOKEN_KEY "$(openssl rand -base64 32)"
   [ -n "$(env_get F451_ADMIN_TOKEN)" ] || env_set F451_ADMIN_TOKEN "$(secret)"
   [ -n "$(env_get F451_WEBHOOK_SECRET_FORGEJO)" ] || env_set F451_WEBHOOK_SECRET_FORGEJO "$(secret 16)"
+  # Visitor statistics at /stats/ (basic auth; Caddy wants a bcrypt hash).
+  [ -n "$(env_get F451_STATS_USER)" ] || env_set F451_STATS_USER "stats"
+  if [ -z "$(env_get F451_STATS_PASSWORD)" ]; then
+    env_set F451_STATS_PASSWORD "$(secret 12)"
+    local hash
+    hash=$(docker run --rm caddy:2 caddy hash-password --plaintext "$(env_get F451_STATS_PASSWORD)")
+    # Single quotes: the hash contains '$', which compose would interpolate.
+    env_set F451_STATS_HASH "'$hash'"
+  fi
 }
 
 setup_forgejo() {
@@ -295,12 +305,15 @@ case "${1:-}" in
     seed
     reindex
     ;;
+  stats)
+    compose run --rm goaccess >/dev/null 2>&1 || die "goaccess failed"
+    ;;
   status)
     compose ps --format 'table {{.Service}}\t{{.Status}}'
     echo "deployed: $(cat "$(dirname "$DEMO_ENV")/deployed-commit" 2>/dev/null || echo -)"
     ;;
   *)
-    sed -n '4,12p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '4,13p' "$0" | sed 's/^# \{0,1\}//'
     exit 1
     ;;
 esac
