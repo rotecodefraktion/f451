@@ -8,7 +8,9 @@
 # Verwendung auf dem Server (die Reihenfolge zählt, s. BETRIEB.md §3):
 #
 #   export COMPOSE_FILE=docker-compose.yml:docker-compose.registry.yml
-#   export F451_REGISTRY=<name>.azurecr.io F451_TAG=<sha>
+#   export F451_REGISTRY=ghcr.io/rotecodefraktion F451_TAG=1.0.0
+#   (released images, see .github/workflows/release.yml — or your own
+#   registry, e.g. <name>.azurecr.io with a commit SHA as tag)
 #   docker compose pull
 #   docker compose up -d postgres
 #   docker compose run --rm api node dist/db/migrate-cli.js
