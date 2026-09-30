@@ -108,6 +108,7 @@ weiter, `web` wiederum proxyt `/api`/`/auth`/`/admin`/`/media` intern an `api`
 
 | Variable | Pflicht | Default | Bedeutung |
 |---|---|---|---|
+| `F451_IMPRINT_URL`, `F451_PRIVACY_URL` | nein (für öffentliche Instanzen in DE faktisch ja) | — | Links to the legal notice and privacy policy, shown next to the attribution notice on every page including sign-in. |
 | `F451_CUSTOM_STYLESHEET` | nein | — | Same-origin path of an extra stylesheet loaded after f451's own CSS (base colour/font tokens, self-hosted `@font-face`). Serve it from the reverse proxy; example `deploy/demo/theme/`. |
 
 ### Web (`deploy/wiki/docker-compose.yml`, Service `web`, BUILD-Zeit)

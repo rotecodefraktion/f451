@@ -26,6 +26,8 @@ export const shell: Messages['shell'] = {
   attribution: {
     before: 'Based on ',
     between: ' by ',
+    imprint: 'Legal notice',
+    privacy: 'Privacy',
   },
   phoneBar: {
     ariaLabel: 'Sections',

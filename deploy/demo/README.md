@@ -47,6 +47,10 @@ systemctl enable --now f451-demo-update.timer f451-demo-reset.timer f451-demo-st
 `setup` writes all secrets into `demo.env` (Forgejo admin, service token,
 OAuth app, token key, visitor passwords) and prints both visitor logins.
 
+Set `F451_IMPRINT_URL` and `F451_PRIVACY_URL` in `demo.env` for a public
+instance: the app shows them next to the attribution notice, Forgejo in its
+footer. The privacy policy should cover the access log and statistics below.
+
 ## Operation
 
 | Command | What it does |

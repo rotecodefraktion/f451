@@ -32,6 +32,8 @@ export const shell = {
   attribution: {
     before: 'Basiert auf ',
     between: ' von ',
+    imprint: 'Impressum',
+    privacy: 'Datenschutz',
   },
   phoneBar: {
     ariaLabel: 'Bereiche',

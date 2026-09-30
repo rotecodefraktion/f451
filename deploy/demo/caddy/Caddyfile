@@ -66,6 +66,9 @@
 
 {$F451_DEMO_GIT_HOST} {
 	encode zstd gzip
+	# Legal links in Forgejo's footer (forgejo/templates/custom/footer.tmpl).
+	redir /imprint {$F451_IMPRINT_URL}
+	redir /privacy {$F451_PRIVACY_URL}
 	reverse_proxy forgejo:3000 {
 		lb_try_duration 60s
 		lb_try_interval 250ms
