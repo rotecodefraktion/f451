@@ -1,0 +1,9 @@
+[Unit]
+Description=f451 demo: update the visitor statistics
+After=docker.service
+
+[Service]
+Type=oneshot
+User=f451
+Environment=DEMO_ENV=/opt/f451-demo/demo.env
+ExecStart=/opt/f451-demo/repo/deploy/demo/demo.sh stats

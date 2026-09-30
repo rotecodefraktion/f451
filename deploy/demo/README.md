@@ -41,7 +41,7 @@ sudo -u f451 DEMO_ENV=/opt/f451-demo/demo.env /opt/f451-demo/repo/deploy/demo/de
 
 cp /opt/f451-demo/repo/deploy/demo/systemd/* /etc/systemd/system/
 systemctl daemon-reload
-systemctl enable --now f451-demo-update.timer f451-demo-reset.timer
+systemctl enable --now f451-demo-update.timer f451-demo-reset.timer f451-demo-stats.timer
 ```
 
 `setup` writes all secrets into `demo.env` (Forgejo admin, service token,
@@ -63,7 +63,15 @@ While a deploy replaces the containers, Caddy shows a "rebuilding" page
 and off via a flag file in the `maintenance-state` volume. Requests that hit a
 container while it is starting are held for up to 60 s instead of failing.
 
-Logs: `journalctl -u f451-demo-update -u f451-demo-reset`.
+**Visitor statistics** at `https://<F451_DEMO_HOST>/stats/` (user `stats`,
+password `F451_STATS_PASSWORD` in `demo.env`): GoAccess reads Caddy's access
+log every 10 minutes (`f451-demo-stats.timer`) and keeps its counts in the
+`goaccess-db` volume, so they survive log rotation, deploys and the nightly
+reset. IP addresses are shortened to /24 (IPv4) and /48 (IPv6) before they are
+written, cookies and credentials are dropped — unique visitors are therefore
+an estimate.
+
+Logs: `journalctl -u f451-demo-update -u f451-demo-reset -u f451-demo-stats`.
 
 Nothing here needs a backup: the demo is rebuilt from this repository.
 `demo.env` is the only state worth keeping (it holds the OAuth app and
