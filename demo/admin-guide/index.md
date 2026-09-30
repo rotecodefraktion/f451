@@ -30,6 +30,8 @@ writing pages in it — for that, see the User Guide space.
   webhooks, and the drift job
 - [[configuration-reference]] — every environment variable, grouped by
   concern
+- [[production-setup]] — what a production server looks like: TLS, sign-in,
+  released images, backups, updates, monitoring
 - [[backup-and-restore]] — what actually needs a backup, and what a reindex
   rebuilds for you
 - [[operations]] — health checks, troubleshooting, and running two
