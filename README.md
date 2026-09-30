@@ -151,6 +151,14 @@ Database migrations do not run automatically; after an update run
 This setup is meant for local development only (HTTP, insecure cookies). For
 production, see below.
 
+## Container images
+
+Every release publishes the images `ghcr.io/rotecodefraktion/f451-web`,
+`f451-api` and `f451-mcp` (tags `1.0.0`, `1.0`, `latest`). To run a release
+without building, use `deploy/wiki/docker-compose.registry.yml` with
+`F451_REGISTRY=ghcr.io/rotecodefraktion` and `F451_TAG=1.0.0`. Changes are
+listed in [`CHANGELOG.md`](CHANGELOG.md).
+
 ## Operations
 
 Architecture, all environment variables, backup and restore, incident playbook
