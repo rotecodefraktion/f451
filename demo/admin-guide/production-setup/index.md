@@ -25,9 +25,8 @@ target picture; [[configuration-reference]] lists every variable.
 
 ```
 Internet ──443──▶ reverse proxy (TLS)
-                   ├─ wiki.example.org             → web :3000   (app; proxies /api /auth /admin /media /drawio /mcp)
-                   ├─ wiki.example.org/webhooks/*  → api :3001   (only for webhooks from GitHub or another host)
-                   └─ git.example.org              → Forgejo :3000   (only if Forgejo hosts the spaces)
+                   ├─ wiki.example.org  → web :3000   (app; proxies /api /auth /admin /media /webhooks /drawio /mcp)
+                   └─ git.example.org   → Forgejo :3000   (only if Forgejo hosts the spaces)
 internal network: web · api · mcp · drawio · postgres · forgejo
 ```
 
@@ -68,8 +67,9 @@ elsewhere and this server only runs the app.
 - One name for the app, e.g. `wiki.example.org`; one for Forgejo if it runs
   here, e.g. `git.example.org`.
 - The reverse proxy terminates TLS (Let's Encrypt) and forwards to `web:3000`
-  and `forgejo:3000`. `web` itself proxies `/api`, `/auth`, `/media`, `/drawio`
-  and `/mcp` to the internal services — the proxy needs only these two routes.
+  and `forgejo:3000`. `web` itself proxies `/api`, `/auth`, `/admin`, `/media`,
+  `/webhooks`, `/drawio` and `/mcp` to the internal services — the proxy needs
+  only these two routes.
 - `F451_PUBLIC_BASE_URL=https://wiki.example.org`.
 - **Never** set `F451_INSECURE_COOKIES` or `F451_OIDC_ALLOW_INSECURE` in
   production — they exist for local HTTP only.
@@ -115,14 +115,9 @@ curl -X POST -H "Authorization: Bearer $F451_ADMIN_TOKEN" \
 ```
 
 Then set up webhooks in each space repository, so changes made directly in Git
-show up at once. The API receives them at `/webhooks/forgejo` and
-`/webhooks/github`; `web` does **not** forward these paths.
-
-- **Forgejo on the same Docker network:** target `http://api:3001/webhooks/forgejo`.
-  Forgejo refuses private targets by default — allow it with
-  `FORGEJO__webhook__ALLOWED_HOST_LIST=api` (or `private`).
-- **GitHub or a Forgejo elsewhere:** let the reverse proxy route
-  `https://wiki.example.org/webhooks/*` to `api:3001` and use that URL.
+show up at once: `https://wiki.example.org/webhooks/forgejo` or
+`https://wiki.example.org/webhooks/github` (content type JSON, push and pull
+request events).
 
 Use the secret from `F451_WEBHOOK_SECRET_FORGEJO` / `F451_WEBHOOK_SECRET_GITHUB`
 as the webhook secret. Without webhooks the drift job catches up every five

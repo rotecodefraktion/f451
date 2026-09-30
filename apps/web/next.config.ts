@@ -58,6 +58,9 @@ const config: NextConfig = {
       { source: '/auth/:path*', destination: `${apiUrl}/auth/:path*` },
       { source: '/admin/:path*', destination: `${apiUrl}/admin/:path*` },
       { source: '/media/:path*', destination: `${apiUrl}/media/:path*` },
+      // Git webhooks (Forgejo/GitHub → API) under the public address, so a
+      // repository only needs https://<wiki-host>/webhooks/<provider>.
+      { source: '/webhooks/:path*', destination: `${apiUrl}/webhooks/:path*` },
       { source: '/drawio/:path*', destination: `${drawioUrl}/:path*` },
     ]
   },
