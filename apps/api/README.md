@@ -164,7 +164,7 @@ geänderten Dateien werden gelesen, nicht der ganze Baum). Events auf andere
 Branches oder von unbekannten Repos werden mit `202 ignoriert` quittiert.
 
 **Forgejo** (Repo → Settings → Webhooks → Add Webhook → Forgejo):
-- URL: `https://<api-host>/webhooks/forgejo`
+- URL: `https://<wiki-host>/webhooks/forgejo` (the web app forwards `/webhooks/*` to the API)
 - Content-Type: `application/json`
 - Secret: Wert von `F451_WEBHOOK_SECRET_FORGEJO`
 - Trigger: `Push events` **und** `Pull Request events` (Letzteres für den
@@ -173,7 +173,7 @@ Branches oder von unbekannten Repos werden mit `202 ignoriert` quittiert.
   Forgejo-UI bleibt dann aus).
 
 **GitHub** (Repo → Settings → Webhooks → Add webhook):
-- Payload URL: `https://<api-host>/webhooks/github`
+- Payload URL: `https://<wiki-host>/webhooks/github`
 - Content type: `application/json`
 - Secret: Wert von `F451_WEBHOOK_SECRET_GITHUB`
 - Trigger: „Let me select individual events" → `Pushes` **und** `Pull requests`

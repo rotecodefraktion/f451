@@ -105,7 +105,7 @@ export const config = {
     // `missing`: Prefetch-Requests (RSC-Payloads, kein HTML-Dokument)
     // überspringen die Middleware ebenfalls (offizielles Next-CSP-Muster).
     {
-      source: '/((?!api/|auth/|admin/|media/|drawio/|_next/static|_next/image|favicon\\.ico).*)',
+      source: '/((?!api/|auth/|admin/|media/|webhooks/|drawio/|_next/static|_next/image|favicon\\.ico).*)',
       missing: [
         { type: 'header', key: 'next-router-prefetch' },
         { type: 'header', key: 'purpose', value: 'prefetch' },
