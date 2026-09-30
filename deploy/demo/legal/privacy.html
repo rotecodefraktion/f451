@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Datenschutzerklärung — f451 Demo</title>
+<link rel="stylesheet" href="/custom/theme.css">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<style>
+  :root { --bg: #faf8f5; --text: #1a1a1a; --muted: #555; --accent: #c8102e; --border: #e5e0d8; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #141414; --text: #e8e4df; --muted: #a8a8a8; --accent: #ff4d5e; --border: #2e2e2e; color-scheme: dark; } }
+  body { background: var(--bg); color: var(--text); font: 17px/1.6 'DM Sans', system-ui, sans-serif; margin: 0; padding: 48px 20px 72px; }
+  main { max-width: 42rem; margin: 0 auto; }
+  h1 { font: 400 clamp(32px, 6vw, 48px)/1.1 'Instrument Serif', Georgia, serif; margin: 0 0 8px; }
+  h2 { font: 400 26px/1.2 'Instrument Serif', Georgia, serif; margin: 40px 0 8px; }
+  h3 { font-size: 17px; margin: 24px 0 4px; }
+  p, li { color: var(--text); }
+  .meta { color: var(--muted); margin: 0 0 24px; }
+  a { color: var(--accent); }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; margin: 8px 0; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  code { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 14px; }
+  .lang { border-top: 1px solid var(--border); margin-top: 56px; padding-top: 8px; }
+</style>
+</head>
+<body>
+<main>
+<h1>Datenschutzerklärung</h1>
+<p class="meta">für die Demo von f451 unter f451.rotecodefraktion.de und git.f451.rotecodefraktion.de · Stand: 30. September 2026 · <a href="#en">English version below</a></p>
+
+<h2>1. Verantwortlicher</h2>
+<p>David Krcek, rote code fraktion, Metropolregion München<br>
+E-Mail: <a href="mailto:hello@rotecodefraktion.de">hello@rotecodefraktion.de</a><br>
+Weitere Angaben: <a href="https://www.rotecodefraktion.de/impressum">Impressum</a></p>
+
+<h2>2. Worum es geht</h2>
+<p>Diese Seite ist eine öffentliche Vorführung der Dokumentationsplattform f451. Sie läuft auf einem eigenen Server; es werden keine Analyse-, Werbe- oder Tracking-Dienste Dritter eingebunden, und es werden keine Daten verkauft oder zu Werbezwecken genutzt. Schriften und Grafiken werden vom eigenen Server geladen; einzige Ausnahme sind die Vorschaubilder eingebetteter YouTube-Videos (Abschnitt 7).</p>
+
+<h2>3. Hosting</h2>
+<p>Der Server steht in einem Rechenzentrum der Hetzner Online GmbH, Industriestr. 25, 91710 Gunzenhausen, in Finnland (EU). Hetzner verarbeitet die Daten ausschließlich in unserem Auftrag (Art. 28 DSGVO).</p>
+
+<h2>4. Zugriffsprotokoll und Besucherstatistik</h2>
+<p>Bei jedem Aufruf von f451.rotecodefraktion.de schreibt der Webserver einen Eintrag in ein Zugriffsprotokoll:</p>
+<ul>
+  <li>die IP-Adresse <strong>in gekürzter Form</strong> — bei IPv4 werden die letzten 8 Bit, bei IPv6 die letzten 80 Bit auf Null gesetzt, <em>bevor</em> etwas gespeichert wird,</li>
+  <li>Datum und Uhrzeit, aufgerufene Adresse, Anfragemethode, Statuscode, übertragene Datenmenge,</li>
+  <li>Referrer und Browser-Kennung (User-Agent).</li>
+</ul>
+<p>Cookies und Zugangsdaten werden nicht protokolliert. <strong>Zweck:</strong> Betrieb und Sicherheit des Servers sowie eine Besucherstatistik (Anzahl der Aufrufe und Besucher, meistbesuchte Seiten). <strong>Rechtsgrundlage:</strong> Art. 6 Abs. 1 lit. f DSGVO; unser berechtigtes Interesse ist ein sicherer Betrieb und zu wissen, wie die Demo genutzt wird.</p>
+<p><strong>Speicherdauer:</strong> Die Protokolldateien werden nach 30 Tagen automatisch gelöscht. Die Statistik wird auf dem eigenen Server mit der Software GoAccess daraus zusammengefasst und nur in dieser zusammengefassten Form (Zählwerte, gekürzte Adressen) ohne feste Frist aufbewahrt. Sie ist nicht öffentlich.</p>
+
+<h2>5. Anmeldung und Demo-Konten</h2>
+<p>Zur Anmeldung gibt es zwei gemeinsam genutzte Demo-Konten (<code>demo</code> und <code>writer</code>); ein persönliches Konto wird nicht angelegt, eine Registrierung ist nicht möglich. Die Anmeldung läuft über den zur Demo gehörenden Git-Server git.f451.rotecodefraktion.de auf demselben Rechner.</p>
+<p><strong>Bitte keine personenbezogenen Daten eingeben.</strong> Was im Bereich „Playground“ geschrieben wird, ist für alle Besucher sichtbar und wird jede Nacht vollständig gelöscht; ebenso offene Entwürfe und Reviews. Die Demo-Konten werden dabei neu angelegt.</p>
+
+<h2>6. Cookies und lokale Speicherung</h2>
+<p>Es werden nur technisch notwendige Cookies gesetzt (§ 25 Abs. 2 Nr. 2 TDDDG); eine Einwilligung ist dafür nicht erforderlich.</p>
+<table>
+  <tr><th>Name</th><th>Zweck</th><th>Dauer</th></tr>
+  <tr><td><code>f451demo_session</code></td><td>Anmeldung an f451</td><td>7 Tage oder bis zur Abmeldung</td></tr>
+  <tr><td><code>f451demo_oidc_tx</code></td><td>Schutz des Anmeldevorgangs</td><td>10 Minuten</td></tr>
+  <tr><td><code>f451_lang</code></td><td>gewählte Sprache der Oberfläche</td><td>1 Jahr</td></tr>
+  <tr><td><code>i_like_gitea</code>, <code>_csrf</code>, <code>lang</code></td><td>Sitzung, Schutz von Formularen und Sprache auf dem Git-Server</td><td>Sitzung bzw. bis zu 1 Jahr</td></tr>
+</table>
+<p>Der Editor legt ungespeicherte Änderungen vorübergehend im Speicher Ihres Browsers (localStorage) ab, damit bei einem Verbindungsabbruch nichts verloren geht. Diese Daten verlassen Ihr Gerät nicht und werden nach dem Speichern entfernt. Hell/Dunkel-Modus und Ansichtseinstellungen werden ebenfalls nur im Browser gespeichert.</p>
+
+<h2>7. Eingebettete YouTube-Videos</h2>
+<p>Einige Seiten enthalten Videos von YouTube (Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Irland). Beim Aufruf einer solchen Seite lädt Ihr Browser das <strong>Vorschaubild</strong> von einem Server von YouTube (<code>i.ytimg.com</code>); dabei erhält Google Ihre IP-Adresse und die Information, dass das Bild abgerufen wurde. Der eigentliche Player — mit Cookies von YouTube — wird erst geladen, wenn Sie auf „Video abspielen“ klicken. Eine Übermittlung in die USA ist möglich; Google ist nach dem EU-US Data Privacy Framework zertifiziert. Rechtsgrundlage für das Vorschaubild ist unser berechtigtes Interesse an einer verständlichen Darstellung der Beispielseiten (Art. 6 Abs. 1 lit. f DSGVO), für den Player Ihre Einwilligung durch den Klick (Art. 6 Abs. 1 lit. a DSGVO). Details: <a href="https://policies.google.com/privacy">Datenschutzerklärung von Google</a>.</p>
+
+<h2>8. Ihre Rechte</h2>
+<p>Sie haben das Recht auf Auskunft (Art. 15), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch gegen Verarbeitungen auf Grundlage berechtigter Interessen (Art. 21 DSGVO). Wenden Sie sich dafür an die oben genannte E-Mail-Adresse. Sie können sich außerdem bei einer Datenschutz-Aufsichtsbehörde beschweren, zum Beispiel beim Bayerischen Landesamt für Datenschutzaufsicht (<a href="https://www.lda.bayern.de">lda.bayern.de</a>).</p>
+<p>Da die Protokolle nur gekürzte IP-Adressen enthalten, können wir einzelne Einträge in der Regel keiner Person zuordnen.</p>
+
+<div class="lang" id="en">
+<h1>Privacy policy</h1>
+<p class="meta">for the f451 demo at f451.rotecodefraktion.de and git.f451.rotecodefraktion.de · as of 30 September 2026 · the German version above is authoritative</p>
+<p><strong>Controller:</strong> David Krcek, rote code fraktion, Munich metropolitan area, <a href="mailto:hello@rotecodefraktion.de">hello@rotecodefraktion.de</a> (<a href="https://www.rotecodefraktion.de/impressum">legal notice</a>).</p>
+<p><strong>Hosting:</strong> Hetzner Online GmbH, data centre in Finland (EU), as processor under Art. 28 GDPR. No third-party analytics, advertising or tracking; fonts and graphics are served from our own server, except the preview images of embedded YouTube videos.</p>
+<p><strong>Access log and statistics:</strong> each request to f451.rotecodefraktion.de is logged with a <strong>truncated</strong> IP address (IPv4 /24, IPv6 /48, truncated before storage), time, URL, method, status, size, referrer and user agent; no cookies or credentials. Purpose: operation, security and visitor statistics (Art. 6(1)(f) GDPR). Log files are deleted after 30 days; the aggregated statistics (GoAccess, on our server, not public) are kept without a fixed limit.</p>
+<p><strong>Accounts:</strong> two shared demo accounts, no registration. Please don't enter personal data: everything written in the Playground is visible to all visitors and is deleted every night, together with open drafts and reviews.</p>
+<p><strong>Cookies:</strong> only strictly necessary cookies (session, sign-in protection, language) — see the table above. The editor keeps unsaved changes in your browser's localStorage; they never leave your device.</p>
+<p><strong>YouTube:</strong> on pages with a video, your browser loads the preview image from YouTube (<code>i.ytimg.com</code>, Google Ireland), so Google receives your IP address (Art. 6(1)(f) GDPR). The player itself, with YouTube cookies, loads only after you click "Play video" (consent, Art. 6(1)(a)). Data may be transferred to the USA; Google is certified under the EU-US Data Privacy Framework.</p>
+<p><strong>Your rights:</strong> access, rectification, erasure, restriction, portability and objection (Art. 15–21 GDPR) via the e-mail address above, and a complaint to a supervisory authority.</p>
+</div>
+</main>
+</body>
+</html>

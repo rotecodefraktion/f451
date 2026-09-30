@@ -49,7 +49,9 @@ OAuth app, token key, visitor passwords) and prints both visitor logins.
 
 Set `F451_IMPRINT_URL` and `F451_PRIVACY_URL` in `demo.env` for a public
 instance: the app shows them next to the attribution notice, Forgejo in its
-footer. The privacy policy should cover the access log and statistics below.
+footer. The privacy policy should cover the access log and statistics below —
+`legal/privacy.html` is the one of the public demo, served at `/privacy`
+(replace it with your own when you run a demo).
 
 ## Operation
 

@@ -31,6 +31,8 @@
 		output file /var/log/caddy/access.log {
 			roll_size 50MiB
 			roll_keep 20
+			# Retention stated in the privacy page (legal/privacy.html).
+			roll_keep_for 720h
 		}
 		format filter {
 			wrap json
@@ -40,6 +42,14 @@
 			request>headers>Authorization delete
 		}
 	}
+	# Privacy policy of the demo (legal/privacy.html) — before the maintenance
+	# rule, so it stays reachable during a deploy.
+	handle /privacy {
+		root * /srv/legal
+		rewrite * /privacy.html
+		file_server
+	}
+	redir /datenschutz /privacy
 	import maintenance
 	# Visitor statistics, password-protected (credentials in demo.env).
 	redir /stats /stats/
