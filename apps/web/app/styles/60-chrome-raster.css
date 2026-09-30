@@ -778,3 +778,7 @@
 .attribution a:hover {
   color: var(--color-text);
 }
+/* Legal links (F451_IMPRINT_URL / F451_PRIVACY_URL) directly below. */
+.attribution.legal {
+  margin-top: calc(-1 * var(--space-2));
+}

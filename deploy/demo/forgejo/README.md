@@ -10,5 +10,6 @@ Forgejo reads a custom directory (`GITEA_CUSTOM=/data/gitea` in the image).
   cannot create a mount point inside a read-only bind mount).
 - `public/assets/img/logo.svg`, `favicon.svg` — the f451 mark.
 - `templates/custom/header.tmpl` — loads fonts and favicon.
+- `templates/custom/footer.tmpl` — legal links (`/imprint`, `/privacy`, redirected by Caddy).
 
 Templates are read at start; a change needs a Forgejo restart.

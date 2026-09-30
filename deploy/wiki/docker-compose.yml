@@ -32,6 +32,9 @@ services:
       MCP_INTERNAL_URL: http://mcp:3002
       # Optional operator stylesheet (same-origin path), see .env.example.
       F451_CUSTOM_STYLESHEET: ${F451_CUSTOM_STYLESHEET:-}
+      # Legal notice / privacy policy links next to the attribution notice.
+      F451_IMPRINT_URL: ${F451_IMPRINT_URL:-}
+      F451_PRIVACY_URL: ${F451_PRIVACY_URL:-}
     # Host ports are configurable so a second stack (e.g. a demo under its
     # own compose project name) can run next to this one.
     ports:

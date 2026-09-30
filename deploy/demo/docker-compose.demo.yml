@@ -20,6 +20,9 @@ services:
       F451_DEMO_HOST: ${F451_DEMO_HOST:?F451_DEMO_HOST missing}
       F451_DEMO_GIT_HOST: ${F451_DEMO_GIT_HOST:?F451_DEMO_GIT_HOST missing}
       F451_STATS_USER: ${F451_STATS_USER:?F451_STATS_USER missing}
+      # Legal notice / privacy policy of the operator (demo.env); "/" if unset.
+      F451_IMPRINT_URL: ${F451_IMPRINT_URL:-/}
+      F451_PRIVACY_URL: ${F451_PRIVACY_URL:-/}
       F451_STATS_HASH: ${F451_STATS_HASH:?F451_STATS_HASH missing}
     volumes:
       # Relative paths resolve from deploy/git (the first compose file).
