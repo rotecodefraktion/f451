@@ -43,6 +43,14 @@ repository entirely.
 
 See [[editor-reference]] for formatting, wikilinks, images and diagrams.
 
+### Choose a classification
+
+In a space with classifications, the editor offers a **Classification**
+select next to **Archive**. Pick the class that fits the content; the list
+stops at the strictest class the space allows. **Space default (…)** leaves the
+choice to the space. See [[reading-and-navigating]] for how classes show
+up for readers.
+
 ## 3. Request review
 
 When the draft is ready, click **Request review**. This opens a review
@@ -58,6 +66,12 @@ version bump — **Fix**, **Addition**, or **Major rework** — and a short
 **Change note** describing what changed; for a page's first release,
 the version is set automatically. Once merged, the page is released and
 the reader is redirected to the reading view.
+
+In a space with versioning, the approval dialog also has a **Freeze as
+release** checkbox. Ticked, it stores an unchangeable copy of this version
+with its attachments, which stays readable even after the page has been
+edited many times. Frozen versions are marked in the version list (see
+[[reading-and-navigating]]).
 
 ## Edit conflicts
 

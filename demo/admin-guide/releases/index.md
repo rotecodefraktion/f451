@@ -44,6 +44,11 @@ released.
 - **All versions** marks frozen versions as *Release* with a link to open them.
 - A release opens read-only, with a banner naming the version and a link back
   to the current version.
+- The page shows the release's own [[classifications]] chip, the one the page
+  had when it was frozen.
+- The info rail beside it shows the tags, relations and metadata of the frozen
+  copy, not of the current page. Automatic fields (author, date) resolve to the
+  author and date of the release. There is no mini graph.
 
 ## Can a release be changed?
 
