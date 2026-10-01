@@ -494,7 +494,6 @@ describe.sequential('POST /api/pages/:id/move: Seite verschieben/umbenennen (Pha
       const commitsAfter = await provider.listCommits(repo, { ref: 'main', limit: 200 })
       expect(commitsAfter.length - commitsBefore.length).toBeLessThanOrEqual(3)
     },
-    15_000,
   )
 
   it(
