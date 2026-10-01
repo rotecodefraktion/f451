@@ -5,6 +5,7 @@ import { diffMarkdown, effectiveClassification, parsePage, renderHtml, type Page
 import { exceedsTokenLimit, sendTokenLimit } from '../auth/classification-gate.js'
 import { pageReleases, pages, pageVersions } from '../db/schema.js'
 import { buildResolveImage, buildResolveLink, buildResolveReleaseImage } from '../indexer/resolve-links.js'
+import { applyAutoMetadata } from '../spaces/metadata-auto.js'
 import { loadMetadataSchema } from '../spaces/metadata-schema.js'
 import type { PagesDeps } from './pages.js'
 import { buildSpaceLinkResolver } from './workflow.js'
@@ -86,6 +87,9 @@ const releaseSchema = {
         html: { type: 'string' },
         headings: { type: 'array', items: {} },
         tags: { type: 'array', items: { type: 'string' } },
+        relations: { type: 'object', additionalProperties: { type: 'array', items: { type: 'string' } } },
+        /** Metadata of the frozen copy; auto fields resolve to the release's author and date. */
+        metadata: { type: 'object', additionalProperties: true },
         classification: { type: 'string' },
         release: {
           type: 'object',
@@ -97,7 +101,7 @@ const releaseSchema = {
           required: [...releaseEntrySchema.required],
         },
       },
-      required: ['id', 'space', 'title', 'html', 'headings', 'tags', 'release'],
+      required: ['id', 'space', 'title', 'html', 'headings', 'tags', 'relations', 'metadata', 'release'],
     },
     404: errorSchema,
     502: errorSchema,
@@ -278,6 +282,11 @@ export function registerVersionRoutes(app: FastifyInstance, deps: PagesDeps): vo
           html,
           headings: parsed.headings,
           tags: parsed.frontmatter.tags,
+          relations: parsed.frontmatter.relations,
+          metadata: applyAutoMetadata(schema, parsed.frontmatter.metadata ?? {}, {
+            lastAuthor: rel.author,
+            lastUpdatedIso: rel.releasedAt.toISOString(),
+          }),
           ...(cls ? { classification: cls } : {}),
           release: { ...toRelease(rel), ...(current ? { current } : {}) },
         }

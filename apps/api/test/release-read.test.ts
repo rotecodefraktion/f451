@@ -35,7 +35,7 @@ describe.sequential('release archive read path', () => {
       provider,
       repo,
       copyPath,
-      '---\ntitle: Ops\nversion: 1.0.0\nchangelog:\n  - version: 1.0.0\n    date: 2026-09-01\n    author: Jane\n    note: First\n'
+      '---\ntitle: Ops\nversion: 1.0.0\ntags: [net]\nowner: Jane\nchangelog:\n  - version: 1.0.0\n    date: 2026-09-01\n    author: Jane\n    note: First\n'
         + 'release:\n  version: 1.0.0\n  date: 2026-09-01\n  by: Jane\n  source: ops\n---\n# Ops\n\nBack then\n\n![net](_media/net.png)\n',
     )
     await provider.writeFileBinary(repo, 'ops/_releases/1.0.0/_media/net.png', Buffer.from('frozen-png'), {
@@ -69,6 +69,10 @@ describe.sequential('release archive read path', () => {
     expect(body.html).toContain('Back then')
     expect(body.html).toContain('/media/ops/net.png?release=1.0.0')
     expect(body.release).toMatchObject({ version: '1.0.0', current: '1.1.0', tampered: false })
+    // Tags and metadata of the frozen copy, not of the living page.
+    expect(body.tags).toEqual(['net'])
+    expect(body.metadata).toMatchObject({ owner: 'Jane' })
+    expect(body.relations).toEqual({})
 
     const media = await app.inject({ method: 'GET', url: '/media/ops/net.png?release=1.0.0' })
     expect(media.statusCode).toBe(200)
