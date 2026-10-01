@@ -28,6 +28,18 @@ any time and must come back unchanged.
 - `slug.ts`, `diff.ts`, `version.ts` — heading slugs, and support for page
   version comparison.
 
+## The `classification` field
+
+The frontmatter field `classification` takes `public`, `internal`,
+`confidential` or `strictly-confidential`. The values and their ordering live
+in `packages/markdown/src/classification.ts`, shared by the API, the web app
+and the editor. A page without the field falls back to the space's
+`classification.default` from `_meta/schema.yaml`; the same block's `max`
+caps what may be saved. In the editor, a select next to *Archive* sets the
+field — "Space default" omits it from the file, and the select offers
+nothing above the space maximum. Admin-facing description: in the Admin
+Guide, page *Classifications*.
+
 ## The editor
 
 `packages/editor/src/`:

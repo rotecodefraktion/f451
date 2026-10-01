@@ -28,6 +28,15 @@ An agent needs two things, both tied to your own account:
 Give the agent your MCP server address and the token, and it can start
 working the same way it would through any other MCP client.
 
+### Classification limit
+
+When you create a token, you also choose the highest classification it may
+read (**Up to classification** in the token form). The default is
+**Internal**. Above its limit, an agent sees only that a page exists, with its title and class, not
+its content; it will tell you the token is too narrow, and you decide
+whether to create one with a higher limit. See [[reading-and-navigating]]
+for the classes.
+
 ## What an agent can do
 
 | Purpose | What it covers |
@@ -35,6 +44,9 @@ working the same way it would through any other MCP client.
 | Orient and read | list spaces, browse the page tree, search, read pages, inspect the raw source, read the graph, list broken links |
 | Write, through review | create or edit a page, update a draft, discard it, request a review, request changes |
 | Attachments | generate a diagram from a description (draw.io), attach a file |
+
+An agent can also read a frozen release: `read_page` with a `version`
+returns that release (see [[reading-and-navigating]]).
 
 ## The same review path as people
 
