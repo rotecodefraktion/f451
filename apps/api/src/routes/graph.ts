@@ -14,6 +14,8 @@ import {
   type GraphEdgeType,
 } from '../graph/space-graph.js'
 import type { SpaceConfig } from '../spaces/config.js'
+import { loadMetadataSchema } from '../spaces/metadata-schema.js'
+import { effectiveClassification, type PageFrontmatter } from '@f451/markdown'
 
 export interface GraphDeps {
   db: Db
@@ -141,6 +143,44 @@ async function maybeEnrich(
  * tree/broken-links (`/api/spaces/:space/<feature>`) statt des Spec-Wortlauts
  * `/graph/space/{s}` — projektweit einheitlich.
  */
+/**
+ * Security classifications (#39): strictly confidential pages are not listed
+ * as neighbours of other pages (the rail's "related pages" reads this route).
+ * The page itself (`centerId`) keeps its own graph.
+ */
+async function strictlyConfidentialIds(
+  deps: GraphDeps,
+  space: SpaceConfig,
+  centerId: string,
+  log: { warn: (obj: unknown, msg: string) => void },
+): Promise<Set<string>> {
+  const schema = await loadMetadataSchema({ providerRegistry: deps.providerRegistry }, space, 'main', log)
+  const settings = schema.classification
+  if (!settings) return new Set()
+  const rows = await deps.db
+    .select({ id: pages.id, frontmatter: pages.frontmatter })
+    .from(pages)
+    .where(and(eq(pages.spaceId, space.id), eq(pages.ref, 'main')))
+  return new Set(
+    rows
+      .filter((r) => r.id !== centerId)
+      .filter(
+        (r) =>
+          effectiveClassification((r.frontmatter as PageFrontmatter).classification, settings) ===
+          'strictly-confidential',
+      )
+      .map((r) => r.id),
+  )
+}
+
+function withoutNodes(graph: GraphData, hidden: Set<string>): GraphData {
+  if (hidden.size === 0) return graph
+  return {
+    nodes: graph.nodes.filter((n) => !hidden.has(n.id)),
+    edges: graph.edges.filter((e) => !hidden.has(e.from) && !hidden.has(e.to)),
+  }
+}
+
 export function registerGraphRoutes(app: FastifyInstance, deps: GraphDeps): void {
   // Sub-Plugin wie alle Routen-Module (OpenAPI-Sichtbarkeit, s. pages.ts).
   app.register(async (instance) => {
@@ -232,7 +272,9 @@ export function registerGraphRoutes(app: FastifyInstance, deps: GraphDeps): void
           }
           depth = Number(rawDepth)
         }
-        const graph = neighborhood(await buildSpaceGraph(deps.db, space.id, types ?? DEFAULT_TYPES), id, depth)
+        const spaceGraph = await buildSpaceGraph(deps.db, space.id, types ?? DEFAULT_TYPES)
+        const hidden = await strictlyConfidentialIds(deps, space, id, req.log)
+        const graph = neighborhood(withoutNodes(spaceGraph, hidden), id, depth)
         return maybeEnrich(deps, space, req.user?.id, graph, req.log)
       },
     )

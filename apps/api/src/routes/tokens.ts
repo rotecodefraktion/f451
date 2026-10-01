@@ -4,6 +4,7 @@ import type { Db } from '../db/client.js'
 import { generateApiToken, generateSessionId, hashApiToken } from '../auth/crypto.js'
 import { requireBrowserSession } from '../auth/sessions.js'
 import { apiTokens } from '../db/schema.js'
+import { CLASSIFICATIONS, DEFAULT_CLASSIFICATION, type Classification } from '@f451/markdown'
 
 export interface TokensRoutesDeps {
   db: Db
@@ -25,6 +26,7 @@ const createBodySchema = {
     label: { type: 'string' },
     scope: { type: 'string', enum: ['read', 'write'] },
     expiresInDays: { type: 'number' },
+    maxClassification: { type: 'string', enum: [...CLASSIFICATIONS] },
   },
   required: ['label', 'scope'],
 } as const
@@ -35,12 +37,13 @@ const createResponseSchema = {
     id: { type: 'string' },
     label: { type: 'string' },
     scope: { type: 'string' },
+    maxClassification: { type: 'string' },
     expiresAt: { type: ['string', 'null'] },
     // Klartext-Token — erscheint EXAKT HIER und nie wieder (weder in einer
     // späteren Antwort noch in der DB, die nur `token_hash` speichert).
     token: { type: 'string' },
   },
-  required: ['id', 'label', 'scope', 'expiresAt', 'token'],
+  required: ['id', 'label', 'scope', 'maxClassification', 'expiresAt', 'token'],
 } as const
 
 const listItemSchema = {
@@ -49,12 +52,13 @@ const listItemSchema = {
     id: { type: 'string' },
     label: { type: 'string' },
     scope: { type: 'string' },
+    maxClassification: { type: 'string' },
     createdAt: { type: 'string' },
     lastUsedAt: { type: ['string', 'null'] },
     expiresAt: { type: ['string', 'null'] },
     revoked: { type: 'boolean' },
   },
-  required: ['id', 'label', 'scope', 'createdAt', 'lastUsedAt', 'expiresAt', 'revoked'],
+  required: ['id', 'label', 'scope', 'maxClassification', 'createdAt', 'lastUsedAt', 'expiresAt', 'revoked'],
 } as const
 
 const deleteResponseSchema = {
@@ -100,11 +104,12 @@ const deleteSchema = {
  */
 export function registerTokensRoutes(app: FastifyInstance, deps: TokensRoutesDeps): void {
   app.register(async (instance) => {
-    instance.post<{ Body: { label: string; scope: 'read' | 'write'; expiresInDays?: number } }>(
+    instance.post<{ Body: { label: string; scope: 'read' | 'write'; expiresInDays?: number; maxClassification?: Classification } }>(
       '/api/tokens',
       { schema: createSchema, preHandler: requireBrowserSession },
       async (req, reply) => {
         const { scope, expiresInDays } = req.body
+        const maxClassification = req.body.maxClassification ?? DEFAULT_CLASSIFICATION
         const label = req.body.label.trim()
 
         if (!label) {
@@ -133,6 +138,7 @@ export function registerTokensRoutes(app: FastifyInstance, deps: TokensRoutesDep
           tokenHash: hashApiToken(token),
           label,
           scope,
+          maxClassification,
           expiresAt,
         })
 
@@ -140,6 +146,7 @@ export function registerTokensRoutes(app: FastifyInstance, deps: TokensRoutesDep
           id,
           label,
           scope,
+          maxClassification,
           expiresAt: expiresAt ? expiresAt.toISOString() : null,
           token,
         })
@@ -153,6 +160,7 @@ export function registerTokensRoutes(app: FastifyInstance, deps: TokensRoutesDep
         id: row.id,
         label: row.label,
         scope: row.scope,
+        maxClassification: row.maxClassification,
         createdAt: row.createdAt.toISOString(),
         lastUsedAt: row.lastUsedAt ? row.lastUsedAt.toISOString() : null,
         expiresAt: row.expiresAt ? row.expiresAt.toISOString() : null,

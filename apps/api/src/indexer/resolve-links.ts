@@ -174,7 +174,7 @@ export function isMediaLink(target: string): boolean {
  * `GET /media/:pageId/*` ohne `ref` auf `main` defaultet, media.ts). Das
  * `?ref=draft`-Gate der Media-Route ist Schreibrecht — der Reviewer hat es.
  */
-function buildMediaUrl(pageId: string, src: string, ref: 'main' | 'draft'): string {
+function buildMediaUrl(pageId: string, src: string, ref: 'main' | 'draft', release?: string): string {
   const clean = src.replace(/^\.?\//, '')
   const withoutMediaPrefix = clean.startsWith('_media/') ? clean.slice('_media/'.length) : clean
   const encoded = withoutMediaPrefix
@@ -187,7 +187,16 @@ function buildMediaUrl(pageId: string, src: string, ref: 'main' | 'draft'): stri
   // `pageId`. Gleiche Kodierung wie `mediaHref` im Frontend (`apps/web/lib/
   // urls.ts`), sonst driften Server- und Client-Erzeugung auseinander.
   const base = `/media/${encodeURIComponent(pageId)}/${encoded}`
+  if (release) return `${base}?release=${encodeURIComponent(release)}`
   return ref === 'draft' ? `${base}?ref=draft` : base
+}
+
+/** Images of a frozen release copy (#40) come from its own `_media/` folder. */
+export function buildResolveReleaseImage(pageId: string, version: string): NonNullable<RenderOptions['resolveImage']> {
+  return (src: string): string => {
+    if (src.includes('://') || src.startsWith('/')) return src
+    return buildMediaUrl(pageId, src, 'main', version)
+  }
 }
 
 /**

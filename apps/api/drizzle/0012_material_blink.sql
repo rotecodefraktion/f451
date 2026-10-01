@@ -1,0 +1,1 @@
+ALTER TABLE "page_releases" ADD COLUMN "classification" text;

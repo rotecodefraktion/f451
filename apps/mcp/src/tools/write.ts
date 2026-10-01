@@ -195,13 +195,20 @@ export function registerWriteTools(server: McpServer): void {
           .optional()
           .describe('Änderungsnotiz für den Changelog der Seite — kurz und für spätere Leser verständlich.'),
         comment: z.string().optional().describe('Kommentar zur Freigabe (erscheint am Pull Request).'),
+        archive: z
+          .boolean()
+          .optional()
+          .describe(
+            'Als Release festschreiben: eine unveränderliche Kopie dieser Fassung samt Anhängen bleibt dauerhaft lesbar. '
+              + 'Nur in Spaces mit Versionierung; nur auf ausdrücklichen Wunsch setzen.',
+          ),
       },
     },
-    async ({ id, bump, note, comment }, extra) =>
+    async ({ id, bump, note, comment, archive }, extra) =>
       guard(() =>
         apiRequest(tokenFromExtra(extra), `/api/pages/${encodeURIComponent(id)}/release`, {
           method: 'POST',
-          body: { bump, note, comment },
+          body: { bump, note, comment, archive },
         }),
       ),
   )

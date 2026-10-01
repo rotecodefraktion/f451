@@ -66,6 +66,12 @@ const metadataSchemaResponseSchema = {
         // Datenverlust-Pfad wie beim Body-Schema, nur eine Ebene höher (GET
         // statt PUT-Empfang).
         versioning: { type: 'boolean' },
+        // Listed for the same reason as `versioning`: unlisted fields are
+        // stripped from the response and the schema editor would drop them.
+        classification: {
+          type: 'object',
+          properties: { default: { type: 'string' }, max: { type: 'string' } },
+        },
       },
       // `required`, weil das geparste Schema (`MetadataSchema`) `versioning`
       // IMMER trägt — anders als `fields`s Nachbar-Feld gibt es hier keinen
@@ -118,7 +124,7 @@ const validationErrorSchema = {
 // vorab ablehnt).
 const putMetadataSchemaBodySchema = {
   type: 'object',
-  properties: { fields: {}, versioning: {} },
+  properties: { fields: {}, versioning: {}, classification: {} },
 } as const
 
 const putMetadataSchemaSchema = {
@@ -209,7 +215,7 @@ export function registerMetadataSchemaRoutes(app: FastifyInstance, deps: Metadat
       getUserProvider: deps.getUserProvider,
     }
 
-    instance.put<{ Params: { space: string }; Body: { fields?: unknown; versioning?: unknown } }>(
+    instance.put<{ Params: { space: string }; Body: { fields?: unknown; versioning?: unknown; classification?: unknown } }>(
       '/api/spaces/:space/metadata-schema',
       { schema: putMetadataSchemaSchema },
       async (req, reply) => {
@@ -231,6 +237,7 @@ export function registerMetadataSchemaRoutes(app: FastifyInstance, deps: Metadat
         const { schema, errors } = parseMetadataSchemaFromValue({
           fields: req.body.fields,
           versioning: req.body.versioning,
+          ...(req.body.classification !== undefined ? { classification: req.body.classification } : {}),
         })
         if (errors.length > 0) {
           return reply.code(400).send({

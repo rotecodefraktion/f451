@@ -230,14 +230,15 @@ export function MetadataSchemaEditor({ space, initialSchema }: MetadataSchemaEdi
   // durchgereicht wird, statt beim Bau des PUT-Payloads (Fehlen jeder
   // UI-Steuerung) stillschweigend auf `false` zurückzufallen.
   const [versioning, setVersioning] = useState(initialSchema.versioning)
+  const [classification, setClassification] = useState(initialSchema.classification)
   const [saveState, setSaveState] = useState<SaveState>({ status: 'idle' })
 
   // Live-Vorschau der Validierung (Muster `MetadataPanel`s `missingCount`) —
   // rein informativ, blockiert die Eingabe nicht; erst „Speichern" prüft
   // verbindlich (derselbe Aufruf, s. Funktionskommentar oben).
   const localErrors = useMemo(
-    () => parseMetadataSchemaFromValue(draftFieldsToPayload(fields, versioning)).errors,
-    [fields, versioning],
+    () => parseMetadataSchemaFromValue(draftFieldsToPayload(fields, versioning, classification)).errors,
+    [fields, versioning, classification],
   )
 
   function updateField(index: number, next: DraftMetadataField) {
@@ -252,7 +253,7 @@ export function MetadataSchemaEditor({ space, initialSchema }: MetadataSchemaEdi
 
   async function onSave() {
     setSaveState({ status: 'saving' })
-    const payload = draftFieldsToPayload(fields, versioning)
+    const payload = draftFieldsToPayload(fields, versioning, classification)
     const { schema, errors } = parseMetadataSchemaFromValue(payload)
     if (errors.length > 0) {
       setSaveState({ status: 'error', message: t('schema.invalid'), errors })
@@ -267,6 +268,7 @@ export function MetadataSchemaEditor({ space, initialSchema }: MetadataSchemaEdi
         // direkt darüber) — hält `versioning` synchron, falls sich der
         // Server-Stand je vom lokal gehaltenen Wert unterscheiden sollte.
         setVersioning(result.schema.versioning)
+        setClassification(result.schema.classification)
         setSaveState({ status: 'success' })
         return
       }

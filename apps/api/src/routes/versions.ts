@@ -1,9 +1,10 @@
 import { and, desc, eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { NotFoundError } from '@f451/git-provider'
-import { diffMarkdown, type PageFrontmatter } from '@f451/markdown'
-import { pages, pageVersions } from '../db/schema.js'
-import { buildResolveImage, buildResolveLink } from '../indexer/resolve-links.js'
+import { diffMarkdown, effectiveClassification, parsePage, renderHtml, type PageFrontmatter } from '@f451/markdown'
+import { exceedsTokenLimit, sendTokenLimit } from '../auth/classification-gate.js'
+import { pageReleases, pages, pageVersions } from '../db/schema.js'
+import { buildResolveImage, buildResolveLink, buildResolveReleaseImage } from '../indexer/resolve-links.js'
 import { loadMetadataSchema } from '../spaces/metadata-schema.js'
 import type { PagesDeps } from './pages.js'
 import { buildSpaceLinkResolver } from './workflow.js'
@@ -37,8 +38,70 @@ const versionEntrySchema = {
     releasedAt: { type: 'string' },
     author: { type: 'string' },
     note: { type: 'string' },
+    /** A frozen copy of this version exists (#40). */
+    release: { type: 'boolean' },
   },
   required: ['version', 'releasedAt', 'author', 'note'],
+} as const
+
+const releaseEntrySchema = {
+  type: 'object',
+  properties: {
+    version: { type: 'string' },
+    releasedAt: { type: 'string' },
+    author: { type: 'string' },
+    note: { type: 'string' },
+    tampered: { type: 'boolean' },
+  },
+  required: ['version', 'releasedAt', 'author', 'note', 'tampered'],
+} as const
+
+const releasesSchema = {
+  tags: ['pages'],
+  params: paramsSchema,
+  response: {
+    200: {
+      type: 'object',
+      properties: { releases: { type: 'array', items: releaseEntrySchema } },
+      required: ['releases'],
+    },
+    404: errorSchema,
+  },
+} as const
+
+const releaseSchema = {
+  tags: ['pages'],
+  params: {
+    type: 'object',
+    properties: { id: { type: 'string' }, version: { type: 'string' } },
+    required: ['id', 'version'],
+  },
+  response: {
+    200: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        space: { type: 'string' },
+        title: { type: 'string' },
+        html: { type: 'string' },
+        headings: { type: 'array', items: {} },
+        tags: { type: 'array', items: { type: 'string' } },
+        classification: { type: 'string' },
+        release: {
+          type: 'object',
+          properties: {
+            ...releaseEntrySchema.properties,
+            /** Current version of the living page, if any. */
+            current: { type: 'string' },
+          },
+          required: [...releaseEntrySchema.required],
+        },
+      },
+      required: ['id', 'space', 'title', 'html', 'headings', 'tags', 'release'],
+    },
+    404: errorSchema,
+    502: errorSchema,
+  },
 } as const
 
 const versionsSchema = {
@@ -133,7 +196,91 @@ export function registerVersionRoutes(app: FastifyInstance, deps: PagesDeps): vo
           .where(eq(pageVersions.pageId, found.row.id))
           // Nach den Zahlenspalten, nie nach dem Text: '1.10.0' gehört hinter '1.2.0'.
           .orderBy(desc(pageVersions.major), desc(pageVersions.minor), desc(pageVersions.patch))
-        return { versioning: true, versions: rows.map(toEntry) }
+        const frozen = await deps.db
+          .select({ version: pageReleases.version })
+          .from(pageReleases)
+          .where(eq(pageReleases.pageId, found.row.id))
+        const frozenVersions = new Set(frozen.map((r) => r.version))
+        return {
+          versioning: true,
+          versions: rows.map((v) => ({ ...toEntry(v), ...(frozenVersions.has(v.version) ? { release: true } : {}) })),
+        }
+      },
+    )
+
+    const toRelease = (r: typeof pageReleases.$inferSelect) => ({
+      version: r.version,
+      releasedAt: r.releasedAt.toISOString(),
+      author: r.author,
+      note: r.note,
+      tampered: r.tampered,
+    })
+
+    // Release archive (#40): frozen copies, newest first. Not tied to the
+    // versioning switch — copies stay readable when versioning is turned off.
+    instance.get<{ Params: { id: string } }>(
+      '/api/pages/:id/releases',
+      { schema: releasesSchema },
+      async (req, reply) => {
+        const found = await readablePage(req.user?.id ?? '', req.params.id)
+        if (!found) return reply.code(404).send(notFound(req.params.id))
+        const rows = await deps.db
+          .select()
+          .from(pageReleases)
+          .where(eq(pageReleases.pageId, found.row.id))
+          .orderBy(desc(pageReleases.major), desc(pageReleases.minor), desc(pageReleases.patch))
+        return { releases: rows.map(toRelease) }
+      },
+    )
+
+    // One frozen copy, rendered like a page. Links resolve as if the copy sat
+    // at the page's own path; images come from the copy's `_media/`.
+    instance.get<{ Params: { id: string; version: string } }>(
+      '/api/pages/:id/releases/:version',
+      { schema: releaseSchema },
+      async (req, reply) => {
+        const found = await readablePage(req.user?.id ?? '', req.params.id)
+        if (!found) return reply.code(404).send(notFound(req.params.id))
+        const { row, space } = found
+        const [rel] = await deps.db
+          .select()
+          .from(pageReleases)
+          .where(and(eq(pageReleases.pageId, row.id), eq(pageReleases.version, req.params.version)))
+        if (!rel) {
+          return reply.code(404).send({ status: 'not_found', reason: `Release ${req.params.version} ist nicht bekannt.` })
+        }
+
+        let content: string
+        try {
+          content = (await deps.providerRegistry(space).readFile(space.repoRef, rel.path, 'main')).content
+        } catch (err) {
+          if (err instanceof NotFoundError) {
+            return reply.code(404).send({ status: 'not_found', reason: `Release ${rel.version} ist nicht mehr vorhanden.` })
+          }
+          return reply.code(502).send({ status: 'error', reason: `Provider-Fehler: ${err instanceof Error ? err.message : String(err)}` })
+        }
+
+        const parsed = parsePage(content)
+        const resolver = await buildSpaceLinkResolver(deps.db, space.id)
+        const html = renderHtml(content, {
+          resolveLink: buildResolveLink(resolver, row.path, space.id, row.id, 'main'),
+          resolveImage: buildResolveReleaseImage(row.id, rel.version),
+        })
+        const current = (row.frontmatter as PageFrontmatter | null)?.version
+        const schema = await loadMetadataSchema(deps, space, 'main', req.log)
+        const cls = schema.classification
+          ? (parsed.frontmatter.classification ?? schema.classification.default)
+          : undefined
+        return {
+          id: row.id,
+          space: space.id,
+          title: parsed.title ?? row.title,
+          html,
+          headings: parsed.headings,
+          tags: parsed.frontmatter.tags,
+          ...(cls ? { classification: cls } : {}),
+          release: { ...toRelease(rel), ...(current ? { current } : {}) },
+        }
       },
     )
 
@@ -169,6 +316,14 @@ export function registerVersionRoutes(app: FastifyInstance, deps: PagesDeps): vo
             return reply.code(410).send({ status: 'gone', reason: `Stand von Version ${from.version} nicht mehr verfügbar.` })
           }
           return reply.code(502).send({ status: 'error', reason: `Provider-Fehler: ${err instanceof Error ? err.message : String(err)}` })
+        }
+
+        // Token classification limit (#39): the old version counts with its own
+        // class, so a later downgrade does not open a stricter past.
+        if (req.apiTokenMaxClassification) {
+          const schema = await loadMetadataSchema(deps, space, 'main', req.log)
+          const oldClass = effectiveClassification(parsePage(oldContent).frontmatter.classification, schema.classification)
+          if (exceedsTokenLimit(req, oldClass)) return sendTokenLimit(reply)
         }
 
         let newContent: string

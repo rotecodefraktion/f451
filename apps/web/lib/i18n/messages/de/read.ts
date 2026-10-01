@@ -23,6 +23,17 @@ export const read = {
     archived: 'Archiviert',
     released: 'Released',
   },
+  // Security classifications (`components/page-view.tsx`, editor metadata panel).
+  classification: {
+    label: 'Klassifizierung',
+    public: 'Öffentlich',
+    internal: 'Intern',
+    confidential: 'Vertraulich',
+    'strictly-confidential': 'Streng vertraulich',
+    spaceDefault: 'Space-Vorgabe ({value})',
+    banner: 'Streng vertraulich — nicht weitergeben.',
+    hint: 'Klassifizierung dieser Seite',
+  },
   edit: 'Bearbeiten',
   subbar: {
     updated: 'Aktualisiert',
@@ -38,6 +49,19 @@ export const read = {
   },
   // Seitenversionierung Etappe 2: Versionsliste und Versionsdiff
   // (`app/wiki/[space]/(shell)/[pageId]/versions/page.tsx`).
+  // Release-Archiv (#40): festgeschriebene Fassung, `releases/[version]/page.tsx`.
+  releases: {
+    crumb: 'Release {version}',
+    banner: 'Release {version} vom {date} — festgeschriebene Fassung.',
+    toCurrent: 'Aktuelle Fassung ({version}) →',
+    toPage: 'Zur Seite →',
+    tampered: 'Diese Fassung wurde nach der Festschreibung im Repository verändert.',
+    allVersions: 'Alle Versionen dieser Seite',
+    loadError: 'Das Release konnte nicht geladen werden — der Server ist nicht erreichbar.',
+    marker: 'Release',
+    open: 'Festgeschriebene Fassung öffnen',
+    subbarLink: 'Release {version}',
+  },
   versions: {
     heading: 'Versionen',
     empty: 'Diese Seite hat noch keine freigegebene Version.',

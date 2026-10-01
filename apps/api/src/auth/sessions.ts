@@ -1,4 +1,5 @@
 import { eq, lt } from 'drizzle-orm'
+import { isClassification, type Classification } from '@f451/markdown'
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import type { Db } from '../db/client.js'
 import type { ConnectOptions } from './connect.js'
@@ -75,6 +76,9 @@ declare module 'fastify' {
      * Tokens ausstellen/einsehen/widerrufen).
      */
     apiTokenScope: 'read' | 'write' | null
+    /** Classification limit of the API token (#39); `null` for sessions,
+     *  which have no limit. */
+    apiTokenMaxClassification: Classification | null
   }
 }
 
@@ -170,6 +174,7 @@ const LAST_USED_THROTTLE_MS = 60_000
 export interface ApiTokenLookup {
   user: AuthUser
   scope: 'read' | 'write'
+  maxClassification: Classification
 }
 
 /**
@@ -200,7 +205,9 @@ export async function resolveApiTokenUser(db: Db, token: string): Promise<ApiTok
   }
 
   const scope = record.scope === 'write' ? 'write' : 'read'
-  return { user, scope }
+  // Unknown stored value → lowest limit (fail closed).
+  const maxClassification = isClassification(record.maxClassification) ? record.maxClassification : 'public'
+  return { user, scope, maxClassification }
 }
 
 /**
@@ -233,6 +240,7 @@ export function createSessionAuthHook(db: Db): (req: FastifyRequest) => Promise<
       const session = await getSession(db, cookieValue)
       req.user = session ? await loadUser(db, session.userId) : null
       req.apiTokenScope = null
+      req.apiTokenMaxClassification = null
       return
     }
 
@@ -241,11 +249,13 @@ export function createSessionAuthHook(db: Db): (req: FastifyRequest) => Promise<
       const resolved = await resolveApiTokenUser(db, bearer)
       req.user = resolved ? resolved.user : null
       req.apiTokenScope = resolved ? resolved.scope : null
+      req.apiTokenMaxClassification = resolved ? resolved.maxClassification : null
       return
     }
 
     req.user = null
     req.apiTokenScope = null
+    req.apiTokenMaxClassification = null
   }
 }
 

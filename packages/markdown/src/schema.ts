@@ -1,5 +1,14 @@
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
 import { KNOWN_FRONTMATTER_KEYS } from './frontmatter.js'
+import {
+  CLASSIFICATIONS,
+  compareClassifications,
+  DEFAULT_CLASSIFICATION,
+  isClassification,
+  MAX_CLASSIFICATION,
+  type Classification,
+  type ClassificationSettings,
+} from './classification.js'
 
 /**
  * Metadaten-Schema-Format (`_meta/schema.yaml`, pro Space im Space-Repo neben
@@ -105,6 +114,9 @@ export interface MetadataSchema {
    *  Freigabe). Default `false` — fehlt das Feld, verhält sich der Space
    *  exakt wie vor Einführung der Versionierung. */
   versioning: boolean
+  /** Security classifications enabled for this space (`classification:`
+   *  block). `undefined` = feature off, the space behaves as before. */
+  classification?: ClassificationSettings
 }
 
 /** Leeres Schema — Rückgabewert bei fehlender/kaputter `_meta/schema.yaml`
@@ -371,14 +383,16 @@ export function parseMetadataSchemaFromValue(raw: unknown): { schema: MetadataSc
       earlyErrors.push('versioning: muss true oder false sein')
     }
   }
+  const classification = parseClassificationSettings(raw, earlyErrors)
+  const base = { versioning, ...(classification ? { classification } : {}) }
 
   if (raw.fields === undefined) {
     // Kein "fields"-Schlüssel: gültiges, bewusst leeres Schema (kein Fehler).
-    return { schema: { fields: [], versioning }, errors: earlyErrors }
+    return { schema: { fields: [], ...base }, errors: earlyErrors }
   }
 
   if (!Array.isArray(raw.fields)) {
-    return { schema: { fields: [], versioning }, errors: [...earlyErrors, 'fields: muss eine Liste sein'] }
+    return { schema: { fields: [], ...base }, errors: [...earlyErrors, 'fields: muss eine Liste sein'] }
   }
 
   const errors: string[] = [...earlyErrors]
@@ -400,7 +414,40 @@ export function parseMetadataSchemaFromValue(raw: unknown): { schema: MetadataSc
     return a.index - b.index
   })
 
-  return { schema: { fields: indexed.map((i) => i.field), versioning }, errors }
+  return { schema: { fields: indexed.map((i) => i.field), ...base }, errors }
+}
+
+/**
+ * Reads the `classification:` block. Missing key = feature off. An empty block
+ * (`classification:` or `classification: {}`) enables it with the defaults.
+ * Invalid values or `default` stricter than `max` are reported and disable the
+ * block, so a broken setting never tightens or loosens anything silently.
+ */
+function parseClassificationSettings(
+  raw: Record<string, unknown>,
+  errors: string[],
+): ClassificationSettings | undefined {
+  if (!('classification' in raw) || raw.classification === undefined) return undefined
+  const block = raw.classification ?? {}
+  if (!isPlainObject(block)) {
+    errors.push('classification: must be an object with optional default and max')
+    return undefined
+  }
+  const pick = (key: 'default' | 'max', fallback: Classification): Classification | undefined => {
+    const value = block[key]
+    if (value === undefined || value === null) return fallback
+    if (isClassification(value)) return value
+    errors.push(`classification.${key}: must be one of ${CLASSIFICATIONS.join(', ')}`)
+    return undefined
+  }
+  const def = pick('default', DEFAULT_CLASSIFICATION)
+  const max = pick('max', MAX_CLASSIFICATION)
+  if (!def || !max) return undefined
+  if (compareClassifications(def, max) > 0) {
+    errors.push(`classification: default "${def}" is stricter than max "${max}"`)
+    return undefined
+  }
+  return { default: def, max }
 }
 
 /** `undefined`/`null`/leerer (getrimmter) String/leeres Array gelten als „kein
@@ -511,5 +558,6 @@ export function stringifyMetadataSchema(schema: MetadataSchema): string {
   // über den Schema-Editor unveränderte Dateien mit einer bedeutungslosen
   // Zeile verrauschen (Byte-Gleichheit ginge verloren).
   if (schema.versioning) plain.versioning = schema.versioning
+  if (schema.classification) plain.classification = { ...schema.classification }
   return stringifyYaml(plain)
 }

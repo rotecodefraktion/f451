@@ -100,6 +100,10 @@ export const settings = {
     close: 'Schließen',
     labelFieldLabel: 'Label',
     labelPlaceholder: 'z. B. MCP auf meinem Rechner',
+    classificationFieldLabel: 'Bis Klassifizierung',
+    classificationHint:
+      'Seiten mit strengerer Klassifizierung sieht dieses Token nur mit Titel, ohne Inhalt. Nur so weit öffnen, wie der Agent wirklich braucht.',
+    classificationPill: 'bis {value}',
     scopeFieldLabel: 'Rechte',
     scopeReadOnly: 'Nur Lesen',
     scopeWriteOption: 'Lesen und Schreiben',

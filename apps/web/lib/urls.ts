@@ -132,6 +132,11 @@ export function wikiPageReviewHref(space: string, pageId: string): string {
 
 /** Versionsliste einer Seite (Seitenversionierung Etappe 2); mit `from` der
  *  Vergleich dieser Version gegen den heutigen Stand. */
+/** A frozen release of a page (#40). */
+export function wikiPageReleaseHref(space: string, pageId: string, version: string): string {
+  return `${wikiPageHref(space, pageId)}/releases/${encodeURIComponent(version)}`
+}
+
 export function wikiPageVersionsHref(space: string, pageId: string, from?: string): string {
   const base = `${wikiPageHref(space, pageId)}/versions`
   return from ? `${base}?from=${encodeURIComponent(from)}` : base
