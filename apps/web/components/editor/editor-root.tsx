@@ -23,7 +23,7 @@ import {
 import { createAutosave, type Autosave } from '../../lib/editor/autosave'
 import { clearOfflineDraft, readOfflineDraft, writeOfflineDraft } from '../../lib/editor/offline-buffer'
 import { evaluateOfflineRecovery } from '../../lib/editor/offline-recovery'
-import { archivedFromFrontmatter, titleFromFrontmatter } from '../../lib/editor/frontmatter-fields'
+import { archivedFromFrontmatter, classificationFromFrontmatter, titleFromFrontmatter } from '../../lib/editor/frontmatter-fields'
 import { classifySaveFailure } from '../../lib/editor/save-failure'
 import { frontmatterLineOffset, offsetFindingLines } from '../../lib/editor/frontmatter-offset'
 import { evaluateModeSwitch, type EditorMode } from '../../lib/editor/mode-switch-core'
@@ -247,6 +247,7 @@ function EditorSession({
   // unten deckt beides ab).
   const [titleValue, setTitleValue] = useState(() => titleFromFrontmatter(frontmatterRaw))
   const [archivedValue, setArchivedValue] = useState(() => archivedFromFrontmatter(frontmatterRaw))
+  const [classificationValue, setClassificationValue] = useState(() => classificationFromFrontmatter(frontmatterRaw))
 
   // --- Task 6: Moduswechsel-Schutz + Validierungs-Anzeige --------------------
   const [mode, setMode] = useState<EditorMode>(startMode)
@@ -480,6 +481,7 @@ function EditorSession({
       setMetadataAutoValues(rawMetadataFromFrontmatter(raw))
       setTitleValue(titleFromFrontmatter(raw))
       setArchivedValue(archivedFromFrontmatter(raw))
+      setClassificationValue(classificationFromFrontmatter(raw))
     },
     [metadataSchema],
   )
@@ -515,6 +517,20 @@ function EditorSession({
     autosaveRef.current.onChange(Date.now())
     bumpTick()
   }, [bumpTick])
+
+  /** Classification select — same write path as the title; `''` removes the
+   *  field so the space default applies. */
+  const handleClassificationChange = useCallback(
+    (value: string) => {
+      setClassificationValue(value)
+      frontmatterRawRef.current = setFrontmatterMetadata(frontmatterRawRef.current, {
+        classification: value || undefined,
+      })
+      autosaveRef.current.onChange(Date.now())
+      bumpTick()
+    },
+    [bumpTick],
+  )
 
   // Timer für den nächsten fälligen Save — wird bei jeder Zustandsänderung der
   // Autosave-Instanz (jeder `bumpTick`) neu geplant; ein bereits laufender
@@ -993,6 +1009,15 @@ function EditorSession({
         editable={editable && mode === 'wysiwyg'}
         onTitleChange={handleTitleChange}
         onArchivedToggle={handleArchivedToggle}
+        classification={
+          metadataSchema?.classification
+            ? {
+                settings: metadataSchema.classification,
+                value: classificationValue,
+                onChange: handleClassificationChange,
+              }
+            : undefined
+        }
       />
       <MetadataPanel
         schema={metadataSchema}

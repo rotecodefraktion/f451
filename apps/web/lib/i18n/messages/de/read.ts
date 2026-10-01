@@ -23,6 +23,17 @@ export const read = {
     archived: 'Archiviert',
     released: 'Released',
   },
+  // Security classifications (`components/page-view.tsx`, editor metadata panel).
+  classification: {
+    label: 'Klassifizierung',
+    public: 'Öffentlich',
+    internal: 'Intern',
+    confidential: 'Vertraulich',
+    'strictly-confidential': 'Streng vertraulich',
+    spaceDefault: 'Space-Vorgabe ({value})',
+    banner: 'Streng vertraulich — nicht weitergeben.',
+    hint: 'Klassifizierung dieser Seite',
+  },
   edit: 'Bearbeiten',
   subbar: {
     updated: 'Aktualisiert',

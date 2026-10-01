@@ -1,3 +1,4 @@
+import type { Classification } from '@f451/markdown'
 import { Breadcrumb } from './breadcrumb'
 import { PageBody } from './page-body'
 import { ReadingPosition } from './reading-position'
@@ -56,6 +57,18 @@ export interface PageData {
    *  committet wurde — Blob-SHA-Vergleich (`pages.lastBlobSha` gegen
    *  `page_versions.blobSha`), s. `apps/api/src/routes/pages.ts#resolveVersionFields`. */
   changedSinceRelease?: boolean
+  /** Effective security classification; only present when the space enables
+   *  classifications (`classification:` block in `_meta/schema.yaml`). */
+  classification?: Classification
+  classificationSettings?: { default: Classification; max: Classification }
+}
+
+/** Chip variant per class — existing `.chip` variants, no new tokens. */
+const CLASSIFICATION_CHIP: Record<Classification, string> = {
+  public: 'neutral',
+  internal: 'neutral',
+  confidential: 'warn',
+  'strictly-confidential': 'error',
 }
 
 const CHECK_ICON = (
@@ -142,7 +155,8 @@ export async function PageView({ data }: { data: PageData }) {
   // ein zusätzliches Zustandsfeld.
   const hasDraftNotice = workflow !== null
   const hasLockNotice = !!(workflow?.lock && !workflow.lock.mine)
-  const hasNotices = hasFrontmatterIssue || hasBrokenLinks || hasDraftNotice
+  const isStrictlyConfidential = data.classification === 'strictly-confidential'
+  const hasNotices = hasFrontmatterIssue || hasBrokenLinks || hasDraftNotice || isStrictlyConfidential
 
   return (
     <main className="main">
@@ -162,6 +176,14 @@ export async function PageView({ data }: { data: PageData }) {
 
       <div className="toolbar">
         <span className="grow" />
+        {data.classification ? (
+          <span
+            className={`chip classification ${CLASSIFICATION_CHIP[data.classification]}`}
+            title={t('read.classification.hint')}
+          >
+            {t(`read.classification.${data.classification}`)}
+          </span>
+        ) : null}
         {workflow?.state === 'review' ? (
           <span className="chip review">
             {CLOCK_ICON}
@@ -231,6 +253,14 @@ export async function PageView({ data }: { data: PageData }) {
 
       {hasNotices ? (
         <div className="notices">
+          {isStrictlyConfidential ? (
+            <div className="notice warn classification-banner" role="note">
+              <span className="ic">{WARN_ICON}</span>
+              <div className="txt">
+                <b>{t('read.classification.banner')}</b>
+              </div>
+            </div>
+          ) : null}
           {hasDraftNotice ? (
             <div className="notice draft" role="status">
               <span className="ic">{DRAFT_ICON}</span>

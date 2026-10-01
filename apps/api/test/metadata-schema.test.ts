@@ -419,6 +419,25 @@ describe('PUT /api/spaces/:space/metadata-schema (Route)', () => {
     await app.close()
   })
 
+  it('PUT keeps the classification block, GET returns it', async () => {
+    const { provider, writes } = makeWritableProvider(undefined)
+    const app = buildTestApp({ provider })
+    await app.ready()
+
+    const classification = { default: 'internal', max: 'confidential' }
+    const res = await app.inject({
+      method: 'PUT',
+      url: `/api/spaces/${space.id}/metadata-schema`,
+      headers: { 'x-test-user': 'writer' },
+      payload: { fields: validFields, versioning: false, classification },
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.json().classification).toEqual(classification)
+    expect(parseMetadataSchema(writes[0]!.content).schema.classification).toEqual(classification)
+    await app.close()
+  })
+
   it('versioning mit falschem Typ → 400 (NICHT 500), KEIN Schreibversuch (Regressionstest Etappe 1)', async () => {
     // Vorher listete das Body-Schema `versioning: { type: 'boolean' }` — AJV
     // wies `"ja"` schon VOR dem Handler ab, Fastifys generische Validierungs-

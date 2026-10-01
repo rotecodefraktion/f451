@@ -1,5 +1,6 @@
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
 import { RELATION_TYPES_DEFAULT } from './types.js'
+import { CLASSIFICATIONS, isClassification } from './classification.js'
 import type { ChangelogEntry, PageFrontmatter, ParseOptions } from './types.js'
 
 /** Bekannte Top-Level-Frontmatter-Felder — alles andere landet in
@@ -14,7 +15,7 @@ import type { ChangelogEntry, PageFrontmatter, ParseOptions } from './types.js'
  *  Listen nicht auseinanderlaufen können — s. `schema.ts#RESERVED_METADATA_KEY_ERROR`. */
 export const KNOWN_FRONTMATTER_KEYS = new Set([
   'id', 'title', 'description', 'tags', 'lang', 'relations', 'archived',
-  'version', 'changelog',
+  'version', 'changelog', 'classification',
 ])
 
 /** Parst und validiert einen YAML-Frontmatter-Block. Wirft nie — Fehler werden
@@ -94,6 +95,14 @@ export function parseFrontmatterBlock(
       frontmatter.archived = data.archived
     } else {
       errors.push('archived: muss ein Boolean sein')
+    }
+  }
+
+  if (data.classification !== undefined) {
+    if (isClassification(data.classification)) {
+      frontmatter.classification = data.classification
+    } else {
+      errors.push(`classification: must be one of ${CLASSIFICATIONS.join(', ')}`)
     }
   }
 

@@ -8,6 +8,11 @@ import { edges, pages, pageVersions, tags } from '../db/schema.js'
 import type { SpaceAccess } from '../auth/permissions.js'
 import { getWorkflowState, loadFreshLock } from '../drafts/lifecycle.js'
 import { applyAutoMetadata } from '../spaces/metadata-auto.js'
+import {
+  classificationFields,
+  classificationViolation,
+  classificationViolationMessage,
+} from '../spaces/classification.js'
 import { loadMetadataSchema } from '../spaces/metadata-schema.js'
 import type { SpaceConfig } from '../spaces/config.js'
 
@@ -405,6 +410,12 @@ const pageSchema = {
             versioning: { type: 'boolean' },
             version: { type: 'string' },
             changedSinceRelease: { type: 'boolean' },
+            // Security classifications: only present when the space enables them.
+            classification: { type: 'string' },
+            classificationSettings: {
+              type: 'object',
+              properties: { default: { type: 'string' }, max: { type: 'string' } },
+            },
           },
           required: [
             'id', 'space', 'path', 'title', 'html', 'headings', 'tags', 'relations',
@@ -608,6 +619,7 @@ export function registerPagesRoutes(app: FastifyInstance, deps: PagesDeps): void
       // Review-Ansicht nutzen dieselbe Seitendatenquelle und brauchen den
       // Schalter, um Versionsfelder ein-/auszublenden.
       const { versioning, version, changedSinceRelease } = await resolveVersionFields(deps, row, schema)
+      const violation = classificationViolation(frontmatter.classification, schema)
 
       return {
         id: row.id,
@@ -618,7 +630,9 @@ export function registerPagesRoutes(app: FastifyInstance, deps: PagesDeps): void
         headings: row.headings,
         tags: tagRows.map((t) => t.tag).sort(),
         relations: frontmatter.relations ?? {},
-        frontmatterErrors: row.frontmatterErrors,
+        frontmatterErrors: violation
+          ? [...(row.frontmatterErrors as string[]), classificationViolationMessage(violation)]
+          : row.frontmatterErrors,
         errorStatus: row.errorStatus,
         archived: row.archived,
         updatedAt: row.updatedAt.toISOString(),
@@ -628,6 +642,7 @@ export function registerPagesRoutes(app: FastifyInstance, deps: PagesDeps): void
         versioning,
         ...(version ? { version } : {}),
         changedSinceRelease,
+        ...classificationFields(frontmatter.classification, schema),
       }
     })
 

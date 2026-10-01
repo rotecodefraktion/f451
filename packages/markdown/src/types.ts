@@ -1,3 +1,5 @@
+import type { Classification } from './classification.js'
+
 /** Ein Eintrag der Versionshistorie im Frontmatter (Seitenversionierung).
  *  Wird bei jeder Freigabe vorangestellt; die Liste ist im Dokument auf die
  *  letzten 10 Einträge begrenzt (die vollständige Historie steht in
@@ -24,6 +26,9 @@ export interface PageFrontmatter {
   lang?: string
   relations: Record<string, string[]>
   archived?: boolean
+  /** Security classification of the page (`classification.ts`). `undefined`
+   *  = not set; the space default applies if the space enables classes. */
+  classification?: Classification
   /**
    * Semver-Version der zuletzt FREIGEGEBENEN Fassung (Seitenversionierung).
    * Systemverwaltet: wird ausschließlich vom Release-Pfad gesetzt, eine

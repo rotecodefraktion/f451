@@ -11,6 +11,7 @@ import { pages, pageVersions } from '../db/schema.js'
 import { indexChangedFiles } from '../indexer/incremental.js'
 import { buildResolveImage, buildResolveLink, LinkResolver, type ResolvablePage } from '../indexer/resolve-links.js'
 import { loadMetadataSchema } from '../spaces/metadata-schema.js'
+import { classificationViolationInMarkdown, classificationViolationReply } from '../spaces/classification.js'
 import { resolveWriteContext, type DraftsDeps } from './drafts.js'
 // Befund 3 (Final-Review): dieselbe Versionsfeld-Ermittlung wie `GET
 // /api/pages/:id` — s. Kommentar an `resolveVersionFields` in `pages.ts`.
@@ -708,6 +709,13 @@ export function registerWorkflowRoutes(app: FastifyInstance, deps: WorkflowDeps)
             'main',
             req.log,
           )
+          // Safety net for drafts written past the editor (direct Git commits):
+          // nothing above the space maximum reaches main through a release.
+          if (schema.classification) {
+            const draftFile = await ctx.provider.readFile(repo, ctx.row.path, branch)
+            const violation = classificationViolationInMarkdown(draftFile.content, schema)
+            if (violation) return reply.code(422).send(classificationViolationReply(violation))
+          }
           await fillReleaseMetadataOnDraft(ctx.provider, repo, ctx.row.path, branch, schema, {
             actor: req.user!.displayName,
             date: isoDateOnly((deps.now ?? Date.now)()),

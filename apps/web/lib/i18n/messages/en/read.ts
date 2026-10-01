@@ -14,6 +14,17 @@ export const read: Messages['read'] = {
     archived: 'Archived',
     released: 'Released',
   },
+  // Security classifications (`components/page-view.tsx`, editor metadata panel).
+  classification: {
+    label: 'Classification',
+    public: 'Public',
+    internal: 'Internal',
+    confidential: 'Confidential',
+    'strictly-confidential': 'Strictly confidential',
+    spaceDefault: 'Space default ({value})',
+    banner: 'Strictly confidential — do not distribute.',
+    hint: 'Classification of this page',
+  },
   edit: 'Edit',
   subbar: {
     updated: 'Updated',
