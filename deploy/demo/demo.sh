@@ -253,11 +253,16 @@ clear_drafts() {
 }
 
 # The visitor accounts are shared: anyone signed in could change their
-# password, turn on 2FA or add keys and lock everyone else out. Forgejo can
+# password, turn on 2FA or add tokens and lock everyone else out. Forgejo can
 # forbid deletion and keys (USER_DISABLED_FEATURES), not password or 2FA
 # changes — so check that both accounts still sign in with the password from
-# demo.env (2FA also makes this fail) and recreate an account that doesn't.
-# `--force` recreates both (nightly reset: also drops tokens, e-mail, avatar).
+# demo.env (2FA also makes this fail) and repair an account that doesn't.
+# `--force` repairs both (nightly reset).
+#
+# Repair IN PLACE, never delete and recreate: f451 identifies a person by the
+# Forgejo user id (OIDC `sub`), and Forgejo hands freed ids out again — a
+# recreated "writer" could get the id "demo" had before, and sessions and
+# linked accounts in f451 would point to the wrong person.
 guard() {
   local force="${1:-}" name key code
   for pair in "$READER_USER:DEMO_READER_PASSWORD" "$WRITER_USER:DEMO_WRITER_PASSWORD"; do
@@ -265,11 +270,28 @@ guard() {
     code=$(curl -s -o /dev/null -w '%{http_code}' -u "$name:$(env_get "$key")" "$(forgejo_local)/api/v1/user")
     if [ "$code" != 200 ] || [ "$force" = --force ]; then
       echo "  ↻ $name (sign-in check: $code)"
-      compose exec -T -u 1000 forgejo forgejo admin user delete --username "$name" --purge >/dev/null 2>&1 || true
-      ensure_user "$name" "$key"
+      repair_user "$name"
+      ensure_user "$name" "$key"   # password back to demo.env, grant for f451-demo
     fi
   done
-  ensure_repos   # team memberships of recreated accounts
+  ensure_repos   # team memberships
+}
+
+# Remove what a visitor could have added to a shared account: second factors,
+# access tokens, keys, extra e-mail addresses, grants for other apps. The
+# account itself and its id stay.
+repair_user() {  # repair_user NAME
+  local name="$1"
+  compose exec -T -u 1000 forgejo sqlite3 /data/gitea/gitea.db \
+    "DELETE FROM two_factor WHERE uid = (SELECT id FROM user WHERE lower_name = '$name');
+     DELETE FROM webauthn_credential WHERE user_id = (SELECT id FROM user WHERE lower_name = '$name');
+     DELETE FROM access_token WHERE uid = (SELECT id FROM user WHERE lower_name = '$name');
+     DELETE FROM public_key WHERE owner_id = (SELECT id FROM user WHERE lower_name = '$name');
+     DELETE FROM gpg_key WHERE owner_id = (SELECT id FROM user WHERE lower_name = '$name');
+     DELETE FROM email_address WHERE uid = (SELECT id FROM user WHERE lower_name = '$name') AND is_primary = 0;
+     DELETE FROM oauth2_grant WHERE user_id = (SELECT id FROM user WHERE lower_name = '$name')
+       AND application_id NOT IN (SELECT id FROM oauth2_application WHERE client_id = '$(env_get F451_OIDC_CLIENT_ID)');" \
+    >/dev/null 2>&1 || true
 }
 
 reindex() {
@@ -343,7 +365,7 @@ case "${1:-}" in
     guard "${2:-}"
     ;;
   reset)
-    say "Visitor accounts: recreate"
+    say "Visitor accounts: repair"
     guard --force
     clear_drafts
     seed

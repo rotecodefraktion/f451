@@ -58,8 +58,8 @@ footer. The privacy policy should cover the access log and statistics below —
 | Command | What it does |
 |---|---|
 | `demo.sh update` | Runs every 5 min (timer). Does nothing unless `origin/main` moved; then pulls, builds, migrates, restarts, pushes `demo/*` into the spaces and reindexes. `--force` redeploys the current commit. |
-| `demo.sh reset` | Runs nightly at 03:30 (timer). Recreates the visitor accounts, closes open reviews, deletes draft branches, restores all spaces to `demo/*`, reindexes. |
-| `demo.sh guard` | Runs every 5 min (timer). The visitor accounts are shared; if one no longer signs in with the password from `demo.env` (changed password, 2FA turned on), it is recreated. |
+| `demo.sh reset` | Runs nightly at 03:30 (timer). Repairs the visitor accounts (password, no 2FA/tokens/keys), closes open reviews, deletes draft branches, restores all spaces to `demo/*`, reindexes. |
+| `demo.sh guard` | Runs every 5 min (timer). The visitor accounts are shared; if one no longer signs in with the password from `demo.env` (changed password, 2FA turned on), it is repaired in place — never deleted, because f451 identifies people by the Forgejo user id and Forgejo reuses freed ids. |
 | `demo.sh status` | Container status and the deployed commit. |
 
 The Git side gets the same colours, typefaces and mark as the app
