@@ -1,0 +1,5 @@
+# Playground: versioning and classifications on, so visitors can try
+# classes and frozen releases. The guides stay without a schema.
+versioning: true
+classification:
+  default: internal

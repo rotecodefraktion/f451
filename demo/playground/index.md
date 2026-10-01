@@ -24,3 +24,7 @@ it — the full workflow from the [User Guide](https://github.com/rotecodefrakti
    that appeared in Forgejo.
 4. Create a new page with **+** in the sidebar, from the **Process runbook**
    template if you like.
+5. Pick a **classification** in the editor, next to **Archive**. Try
+   **Strictly confidential** and search for the page afterwards.
+6. Pages here are versioned: tick **Freeze as release** when you approve,
+   change the page again, and open the frozen release from the header line.
