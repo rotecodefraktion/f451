@@ -1,10 +1,10 @@
 import { posix } from 'node:path'
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, desc, eq, isNull } from 'drizzle-orm'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import type { GitProvider } from '@f451/git-provider'
 import { EMPTY_METADATA_SCHEMA, type MetadataSchema, type PageFrontmatter } from '@f451/markdown'
 import type { Db } from '../db/client.js'
-import { edges, pages, pageVersions, tags } from '../db/schema.js'
+import { edges, pageReleases, pages, pageVersions, tags } from '../db/schema.js'
 import type { SpaceAccess } from '../auth/permissions.js'
 import { getWorkflowState, loadFreshLock } from '../drafts/lifecycle.js'
 import { applyAutoMetadata } from '../spaces/metadata-auto.js'
@@ -419,6 +419,8 @@ const pageSchema = {
             },
             // API token below the page's class (#39): content fields are empty.
             restricted: { type: 'boolean' },
+            // Newest frozen release of the page (#40), if any.
+            latestRelease: { type: 'string' },
           },
           required: [
             'id', 'space', 'path', 'title', 'html', 'headings', 'tags', 'relations',
@@ -624,6 +626,12 @@ export function registerPagesRoutes(app: FastifyInstance, deps: PagesDeps): void
       const { versioning, version, changedSinceRelease } = await resolveVersionFields(deps, row, schema)
       const violation = classificationViolation(frontmatter.classification, schema)
       const classFields = classificationFields(frontmatter.classification, schema)
+      const [latest] = await deps.db
+        .select({ version: pageReleases.version })
+        .from(pageReleases)
+        .where(eq(pageReleases.pageId, id))
+        .orderBy(desc(pageReleases.major), desc(pageReleases.minor), desc(pageReleases.patch))
+        .limit(1)
 
       // Token classification limit (#39): the page exists for this user, only
       // the token is too narrow — say so instead of a 404.
@@ -673,6 +681,7 @@ export function registerPagesRoutes(app: FastifyInstance, deps: PagesDeps): void
         ...(version ? { version } : {}),
         changedSinceRelease,
         ...classFields,
+        ...(latest ? { latestRelease: latest.version } : {}),
       }
     })
 

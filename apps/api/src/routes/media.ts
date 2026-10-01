@@ -101,6 +101,8 @@ const mediaSchema = {
       // main — Gate ist Schreibrecht (siehe `MediaDeps.canWrite`). Default
       // bleibt 'main' — unverändertes main-only-Verhalten ohne den Parameter.
       ref: { type: 'string', enum: ['main', 'draft'] },
+      // Release archive (#40): serve from `_releases/<version>/_media/` on main.
+      release: { type: 'string', pattern: '^\\d+\\.\\d+\\.\\d+$' },
     },
   },
   response: {
@@ -129,7 +131,7 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaDeps): void
   // onRoute-Hook von @fastify/swagger hängt erst nach dem asynchronen Boot des
   // Swagger-Plugins, siehe Kommentar in app.ts bei /healthz.
   app.register(async (instance) => {
-    instance.get<{ Params: { pageId: string; '*': string }; Querystring: { ref?: 'main' | 'draft' } }>(
+    instance.get<{ Params: { pageId: string; '*': string }; Querystring: { ref?: 'main' | 'draft'; release?: string } }>(
       '/media/:pageId/*',
       { schema: mediaSchema },
       async (req, reply) => {
@@ -171,7 +173,9 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaDeps): void
         }
 
         const dir = posix.dirname(row.path)
-        const mediaDir = dir === '.' ? '_media' : `${dir}/_media`
+        const base = dir === '.' ? '' : `${dir}/`
+        const release = ref === 'main' ? req.query.release : undefined
+        const mediaDir = release ? `${base}_releases/${release}/_media` : `${base}_media`
         const filePath = `${mediaDir}/${wildcard}`
         const branch = ref === 'draft' ? draftBranchName(pageId) : 'main'
 

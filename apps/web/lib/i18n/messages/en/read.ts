@@ -37,6 +37,19 @@ export const read: Messages['read'] = {
     changedSinceHint: 'This page was edited directly after the last release.',
     versionsLink: 'All versions of this page',
   },
+  // Release archive (#40): a frozen version, `releases/[version]/page.tsx`.
+  releases: {
+    crumb: 'Release {version}',
+    banner: 'Release {version} from {date} — frozen version.',
+    toCurrent: 'Current version ({version}) →',
+    toPage: 'To the page →',
+    tampered: 'This version was changed in the repository after it was frozen.',
+    allVersions: 'All versions of this page',
+    loadError: 'The release could not be loaded — the server is unreachable.',
+    marker: 'Release',
+    open: 'Open frozen version',
+    subbarLink: 'Release {version}',
+  },
   versions: {
     heading: 'Versions',
     empty: 'This page has no released version yet.',

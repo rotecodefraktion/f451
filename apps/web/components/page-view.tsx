@@ -5,7 +5,7 @@ import { ReadingPosition } from './reading-position'
 import { UnarchiveButton } from './unarchive-button'
 import { getT } from '../lib/i18n/server.js'
 import { buildBreadcrumb, formatUpdatedAt, sectionSlugs } from '../lib/page-view'
-import { wikiPageEditHref, wikiPageReviewHref, wikiPageVersionsHref } from '../lib/urls'
+import { wikiPageEditHref, wikiPageReleaseHref, wikiPageReviewHref, wikiPageVersionsHref } from '../lib/urls'
 
 /** Eine Überschrift der Seite (Shape aus `GET /api/pages/:id`, Feld `headings`). */
 export interface PageHeading {
@@ -61,6 +61,8 @@ export interface PageData {
    *  classifications (`classification:` block in `_meta/schema.yaml`). */
   classification?: Classification
   classificationSettings?: { default: Classification; max: Classification }
+  /** Newest frozen release (#40). */
+  latestRelease?: string
 }
 
 /** Chip variant per class — existing `.chip` variants, no new tokens. */
@@ -242,6 +244,11 @@ export async function PageView({ data }: { data: PageData }) {
             >
               {t('read.subbar.version', { version: data.version })}
             </a>
+            {data.latestRelease ? (
+              <a className="subbar-version" href={wikiPageReleaseHref(data.space, data.id, data.latestRelease)}>
+                {t('read.releases.subbarLink', { version: data.latestRelease })}
+              </a>
+            ) : null}
             {data.changedSinceRelease ? (
               <span className="subbar-changed" title={t('read.subbar.changedSinceHint')}>
                 {t('read.subbar.changedSince', { version: data.version })}

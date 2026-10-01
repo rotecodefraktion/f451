@@ -103,10 +103,23 @@ export function registerReadTools(server: McpServer): void {
         'Bearbeitungsstand (workflow) und defekte Links. Zum Bearbeiten stattdessen get_page_source verwenden — ' +
         'das liefert die Markdown-Quelle. `restricted: true` heißt: Seite ist höher klassifiziert, als dieses Token ' +
         'lesen darf — nur Titel und Klassifizierung kommen zurück; der Nutzer braucht ein Token mit höherer Grenze.',
-      inputSchema: { id: z.string().min(1).describe('Seiten-ID, z.B. "p-8wm3oojxko".') },
+      inputSchema: {
+        id: z.string().min(1).describe('Seiten-ID, z.B. "p-8wm3oojxko".'),
+        version: z
+          .string()
+          .optional()
+          .describe('Releases sind festgeschriebene Fassungen; `version` (z.B. "1.2.0") liest eine davon.'),
+      },
     },
-    async ({ id }, extra) =>
-      guard(() => apiRequest(tokenFromExtra(extra), `/api/pages/${encodeURIComponent(id)}`)),
+    async ({ id, version }, extra) =>
+      guard(() =>
+        apiRequest(
+          tokenFromExtra(extra),
+          version
+            ? `/api/pages/${encodeURIComponent(id)}/releases/${encodeURIComponent(version)}`
+            : `/api/pages/${encodeURIComponent(id)}`,
+        ),
+      ),
   )
 
   server.registerTool(
