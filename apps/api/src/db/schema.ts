@@ -381,6 +381,9 @@ export const pageReleases = pgTable(
     note: text('note').notNull().default(''),
     blobSha: text('blob_sha').notNull(),
     tampered: boolean('tampered').notNull().default(false),
+    /** Raw `classification` of the frozen copy (null = space default). A later
+     *  downgrade of the living page must not open an older, stricter copy. */
+    classification: text('classification'),
   },
   (table) => ({
     pk: primaryKey({ columns: [table.pageId, table.version] }),

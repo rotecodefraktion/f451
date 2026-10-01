@@ -7,7 +7,9 @@ import { buildApp } from '../src/app.js'
 import { createClassificationGate } from '../src/auth/classification-gate.js'
 import { createDb, type Db } from '../src/db/client.js'
 import { indexSpace } from '../src/indexer/index-space.js'
+import { registerMediaRoutes } from '../src/routes/media.js'
 import { registerPagesRoutes } from '../src/routes/pages.js'
+import { registerVersionRoutes } from '../src/routes/versions.js'
 import type { SpaceConfig } from '../src/spaces/config.js'
 import { clearMetadataSchemaCache } from '../src/spaces/metadata-schema.js'
 import { startPg, type PgTestInstance } from './helpers/pg-container.js'
@@ -40,6 +42,15 @@ describe.sequential('classification behaviour', () => {
     await write(provider, repo, 'open/index.md', page('open', null, 'Kernel notes. See [[strict]] and [[conf]].'))
     await write(provider, repo, 'conf/index.md', page('conf', 'confidential', 'Kernel secrets for the team.'))
     await write(provider, repo, 'strict/index.md', page('strict', 'strictly-confidential', 'Kernel crown jewels. See [[open]].'))
+    await provider.writeFileBinary(repo, 'conf/_media/plan.png', Buffer.from('conf-png'), { branch: 'main', message: 'm' })
+    // A frozen release of `open` from a time it was still confidential.
+    await write(
+      provider,
+      repo,
+      'open/_releases/1.0.0/page.md',
+      '---\ntitle: open\nclassification: confidential\nrelease:\n  version: 1.0.0\n  date: 2026-09-01\n  by: Jane\n  source: open\n---\n# open\n\nOld secret\n',
+    )
+    await provider.writeFileBinary(repo, 'open/_releases/1.0.0/_media/old.png', Buffer.from('old'), { branch: 'main', message: 'm' })
 
     space = {
       id: 'classified',
@@ -104,6 +115,8 @@ describe.sequential('classification behaviour', () => {
       })
       a.addHook('preHandler', createClassificationGate({ db, spaces: [space], providerRegistry: () => provider }))
       registerPagesRoutes(a, { db, spaces: [space], providerRegistry: () => provider })
+      registerMediaRoutes(a, { db, spaces: [space], providerRegistry: () => provider })
+      registerVersionRoutes(a, { db, spaces: [space], providerRegistry: () => provider })
       a.post('/api/pages/:id/draft', async () => ({ ok: true }))
       return a
     }
@@ -121,6 +134,21 @@ describe.sequential('classification behaviour', () => {
 
       const write = await a.inject({ method: 'POST', url: '/api/pages/conf/draft', headers: { 'x-limit': 'internal' } })
       expect(write.statusCode).toBe(403)
+      await a.close()
+    })
+
+    it('attachments and frozen copies follow the stricter class', async () => {
+      const a = tokenApp()
+      await a.ready()
+      const h = { 'x-limit': 'internal' }
+      expect((await a.inject({ method: 'GET', url: '/media/conf/plan.png', headers: h })).statusCode).toBe(403)
+      expect((await a.inject({ method: 'GET', url: '/media/conf/plan.png' })).statusCode).toBe(200)
+      // `open` is internal today, its frozen 1.0.0 was confidential.
+      expect((await a.inject({ method: 'GET', url: '/api/pages/open/releases/1.0.0', headers: h })).statusCode).toBe(403)
+      expect((await a.inject({ method: 'GET', url: '/media/open/old.png?release=1.0.0', headers: h })).statusCode).toBe(403)
+      const ok = await a.inject({ method: 'GET', url: '/api/pages/open/releases/1.0.0', headers: { 'x-limit': 'confidential' } })
+      expect(ok.statusCode).toBe(200)
+      expect(ok.json().html).toContain('Old secret')
       await a.close()
     })
 

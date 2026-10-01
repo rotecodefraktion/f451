@@ -16,11 +16,18 @@ export async function recordRelease(
     blobSha: string
     releasedAt?: Date
     tampered?: boolean
+    classification?: string | null
   },
 ): Promise<void> {
   const parts = parseVersion(row.version)
   if (!parts) return
-  const values = { ...row, ...parts, releasedAt: row.releasedAt ?? new Date(), tampered: row.tampered ?? false }
+  const values = {
+    ...row,
+    ...parts,
+    releasedAt: row.releasedAt ?? new Date(),
+    tampered: row.tampered ?? false,
+    classification: row.classification ?? null,
+  }
   await db
     .insert(pageReleases)
     .values(values)

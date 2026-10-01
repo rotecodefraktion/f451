@@ -1,7 +1,8 @@
 import { and, desc, eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { NotFoundError } from '@f451/git-provider'
-import { diffMarkdown, parsePage, renderHtml, type PageFrontmatter } from '@f451/markdown'
+import { diffMarkdown, effectiveClassification, parsePage, renderHtml, type PageFrontmatter } from '@f451/markdown'
+import { exceedsTokenLimit, sendTokenLimit } from '../auth/classification-gate.js'
 import { pageReleases, pages, pageVersions } from '../db/schema.js'
 import { buildResolveImage, buildResolveLink, buildResolveReleaseImage } from '../indexer/resolve-links.js'
 import { loadMetadataSchema } from '../spaces/metadata-schema.js'
@@ -315,6 +316,14 @@ export function registerVersionRoutes(app: FastifyInstance, deps: PagesDeps): vo
             return reply.code(410).send({ status: 'gone', reason: `Stand von Version ${from.version} nicht mehr verfügbar.` })
           }
           return reply.code(502).send({ status: 'error', reason: `Provider-Fehler: ${err instanceof Error ? err.message : String(err)}` })
+        }
+
+        // Token classification limit (#39): the old version counts with its own
+        // class, so a later downgrade does not open a stricter past.
+        if (req.apiTokenMaxClassification) {
+          const schema = await loadMetadataSchema(deps, space, 'main', req.log)
+          const oldClass = effectiveClassification(parsePage(oldContent).frontmatter.classification, schema.classification)
+          if (exceedsTokenLimit(req, oldClass)) return sendTokenLimit(reply)
         }
 
         let newContent: string

@@ -76,6 +76,7 @@ export async function syncReleases(
         author: typeof stamp.by === 'string' ? stamp.by : '',
         note,
         blobSha: file.sha,
+        classification: fm.classification ?? null,
         ...(date && !Number.isNaN(date.getTime()) ? { releasedAt: date } : {}),
       })
     } catch (err) {

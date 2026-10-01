@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify'
 import type { GitProvider } from '@f451/git-provider'
 import { NotFoundError } from '@f451/git-provider'
 import type { Db } from '../db/client.js'
+import { exceedsTokenLimit, requestClassification, sendTokenLimit } from '../auth/classification-gate.js'
 import type { SpaceAccess } from '../auth/permissions.js'
 import type { SpaceConfig } from '../spaces/config.js'
 import { draftBranchName } from '../drafts/branch-name.js'
@@ -170,6 +171,14 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaDeps): void
           if (!deps.access || !deps.canWrite || !(await deps.canWrite(req.user!.id, space))) return notFound()
         } else if (deps.access) {
           if (!(await deps.access.canRead(req.user!.id, space))) return notFound()
+        }
+
+        // Token classification limit (#39): attachments follow their page,
+        // and a frozen copy's own class if it is stricter.
+        if (req.apiTokenMaxClassification) {
+          const releaseParam = ref === 'main' ? req.query.release : undefined
+          const cls = await requestClassification(deps, pageId, releaseParam, req.log)
+          if (exceedsTokenLimit(req, cls)) return sendTokenLimit(reply)
         }
 
         const dir = posix.dirname(row.path)

@@ -889,6 +889,7 @@ export function registerWorkflowRoutes(app: FastifyInstance, deps: WorkflowDeps)
                     author: versionValues.author,
                     note: versionValues.note,
                     blobSha: frozen.sha,
+                    classification: parsePage(frozen.content).frontmatter.classification ?? null,
                   })
                 }
               } catch (err) {
