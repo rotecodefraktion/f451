@@ -305,6 +305,9 @@ describe.sequential('MCP-Phase 0: API-Token-Authentifizierung', () => {
       expect(body.label).toBe('Mein MCP-Token')
       expect(body.scope).toBe('write')
       expect(body.expiresAt).not.toBeNull()
+      // #39: without a choice the token is limited to `internal`, and the
+      // response says so (the settings page shows it right away).
+      expect((body as { maxClassification?: string }).maxClassification).toBe('internal')
 
       const rows = await db.select().from(apiTokens).where(eq(apiTokens.id, body.id))
       expect(rows).toHaveLength(1)
@@ -328,7 +331,7 @@ describe.sequential('MCP-Phase 0: API-Token-Authentifizierung', () => {
       const list = res.json() as Array<Record<string, unknown>>
       expect(list.length).toBeGreaterThanOrEqual(1)
       const entry = list.find((t) => t.label === 'Token Eins')!
-      expect(entry).toMatchObject({ label: 'Token Eins', scope: 'read', revoked: false })
+      expect(entry).toMatchObject({ label: 'Token Eins', scope: 'read', revoked: false, maxClassification: 'internal' })
       expect(entry.token).toBeUndefined()
       expect(entry.tokenHash).toBeUndefined()
     })

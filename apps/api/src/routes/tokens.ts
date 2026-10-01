@@ -37,12 +37,13 @@ const createResponseSchema = {
     id: { type: 'string' },
     label: { type: 'string' },
     scope: { type: 'string' },
+    maxClassification: { type: 'string' },
     expiresAt: { type: ['string', 'null'] },
     // Klartext-Token — erscheint EXAKT HIER und nie wieder (weder in einer
     // späteren Antwort noch in der DB, die nur `token_hash` speichert).
     token: { type: 'string' },
   },
-  required: ['id', 'label', 'scope', 'expiresAt', 'token'],
+  required: ['id', 'label', 'scope', 'maxClassification', 'expiresAt', 'token'],
 } as const
 
 const listItemSchema = {
