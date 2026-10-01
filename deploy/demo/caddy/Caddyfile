@@ -65,6 +65,8 @@
 		root * /srv/theme
 		file_server
 	}
+	# No MCP in the demo (decision in #12): agents would act with visitor tokens.
+	respond /mcp* 404
 	reverse_proxy web:3000 {
 		# A deploy replaces the app containers; hold requests until the new
 		# one answers instead of failing with 502. Retries happen only while
