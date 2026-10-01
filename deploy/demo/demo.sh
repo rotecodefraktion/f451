@@ -166,6 +166,24 @@ ensure_user() {  # ensure_user NAME ENV_KEY_FOR_PASSWORD
       --username "$name" --password "$(env_get "$key")" \
       --email "$name@$GIT_HOST" --must-change-password=false >/dev/null
   fi
+  ensure_grant "$name"
+}
+
+# Forgejo asks every user once whether f451-demo may access the account, and
+# the nightly reset recreates the visitor accounts — so visitors would see that
+# consent page every day. This Forgejo version has no "trusted app" switch;
+# storing the grant ourselves (the same row Forgejo writes after "Authorize")
+# skips it. Only for the two visitor accounts and only for our own OAuth app.
+ensure_grant() {  # ensure_grant NAME
+  local name="$1" cid
+  cid="$(env_get F451_OIDC_CLIENT_ID)"
+  [ -n "$cid" ] || return 0
+  compose exec -T -u 1000 forgejo sqlite3 /data/gitea/gitea.db \
+    "INSERT INTO oauth2_grant (user_id, application_id, counter, scope, nonce, created_unix, updated_unix)
+     SELECT u.id, a.id, 1, 'openid email profile', '', strftime('%s','now'), strftime('%s','now')
+     FROM user u, oauth2_application a
+     WHERE u.lower_name = '$name' AND a.client_id = '$cid'
+       AND NOT EXISTS (SELECT 1 FROM oauth2_grant g WHERE g.user_id = u.id AND g.application_id = a.id);"
 }
 
 ensure_repos() {
