@@ -53,7 +53,8 @@ export function registerReadTools(server: McpServer): void {
       description:
         'Durchsucht das f451-Wiki (Volltext) und liefert Treffer mit Seiten-ID, Titel, Space, Pfad und Textausschnitt. ' +
         'Die zurückgegebene `id` ist der Schlüssel für alle weiteren Tools (read_page, get_page_source, …). ' +
-        'Optional auf Space, Tag, Relation (`ref`) oder Pfad-Präfix eingegrenzt.',
+        'Optional auf Space, Tag, Relation (`ref`) oder Pfad-Präfix eingegrenzt. ' +
+        'Vertrauliche Seiten erscheinen ohne Textausschnitt; `restricted: true` heißt, das Token ist für diese Seite zu eng.',
       inputSchema: {
         q: z.string().min(1).describe('Suchbegriff (Volltext).'),
         space: z.string().optional().describe('Nur in diesem Space suchen, z.B. "handbuch".'),
@@ -100,11 +101,25 @@ export function registerReadTools(server: McpServer): void {
       description:
         'Liest eine Seite mit gerendertem HTML und allen Metadaten: Titel, Tags, Relationen, Überschriften, ' +
         'Bearbeitungsstand (workflow) und defekte Links. Zum Bearbeiten stattdessen get_page_source verwenden — ' +
-        'das liefert die Markdown-Quelle.',
-      inputSchema: { id: z.string().min(1).describe('Seiten-ID, z.B. "p-8wm3oojxko".') },
+        'das liefert die Markdown-Quelle. `restricted: true` heißt: Seite ist höher klassifiziert, als dieses Token ' +
+        'lesen darf — nur Titel und Klassifizierung kommen zurück; der Nutzer braucht ein Token mit höherer Grenze.',
+      inputSchema: {
+        id: z.string().min(1).describe('Seiten-ID, z.B. "p-8wm3oojxko".'),
+        version: z
+          .string()
+          .optional()
+          .describe('Releases sind festgeschriebene Fassungen; `version` (z.B. "1.2.0") liest eine davon.'),
+      },
     },
-    async ({ id }, extra) =>
-      guard(() => apiRequest(tokenFromExtra(extra), `/api/pages/${encodeURIComponent(id)}`)),
+    async ({ id, version }, extra) =>
+      guard(() =>
+        apiRequest(
+          tokenFromExtra(extra),
+          version
+            ? `/api/pages/${encodeURIComponent(id)}/releases/${encodeURIComponent(version)}`
+            : `/api/pages/${encodeURIComponent(id)}`,
+        ),
+      ),
   )
 
   server.registerTool(
@@ -113,7 +128,8 @@ export function registerReadTools(server: McpServer): void {
       title: 'Markdown-Quelle einer Seite',
       description:
         'Liefert das rohe Markdown einer Seite (inkl. Frontmatter), frisch aus dem Git-Provider. ' +
-        'Das ist die Grundlage für Änderungen: erst hier lesen, dann bearbeiten.',
+        'Das ist die Grundlage für Änderungen: erst hier lesen, dann bearbeiten. ' +
+        'Antwortet 403 `token_classification_limit`, wenn die Seite über der Klassifizierungsgrenze des Tokens liegt.',
       inputSchema: { id: z.string().min(1).describe('Seiten-ID.') },
     },
     async ({ id }, extra) =>

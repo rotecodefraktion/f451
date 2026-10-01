@@ -71,6 +71,40 @@ the *current* SHA and content instead of silently overwriting it. The
 caller is expected to re-fetch, reconcile, and retry with the new
 `baseSha`.
 
+## Release archive routes
+
+In a versioned space, `release_page` (and the review release) accepts an
+`archive` flag that freezes the released version as a copy in Git — see
+[[architecture]]. Spaces without versioning answer `409
+releases_require_versioning`.
+
+| Route | Returns |
+|---|---|
+| `GET /api/pages/:id/releases` | Frozen copies, newest first: `version`, `releasedAt`, `author`, `note`, `tampered`. The version list (`.../versions`) marks archived entries with `release: true`. |
+| `GET /api/pages/:id/releases/:version` | The frozen copy: `html`, `headings`, `tags`, `relations`, `metadata` (auto fields resolve to the release's author and date), `classification`, and a `release` object with the entry above plus `current`, the living page's version. |
+| `GET /media/<page>/<file>?release=<version>` | An attachment as it was frozen with that release. |
+
+Both `releases` routes need read access only, and `404` stays ambiguous.
+The MCP tool `read_page` takes an optional `version` to read a frozen copy.
+
+## Classification checks
+
+A page's class comes from its frontmatter (see [[markdown-and-editor]]); the
+API enforces it in four places:
+
+- **Space maximum.** A save or release above the space's `classification.max`
+  is refused with `422 classification_exceeds_space_max`. It is deliberately
+  not a `409`: the editor reads `409` as a SHA conflict.
+- **Search and graph.** Strictly confidential pages are filtered out of
+  search before the `LIMIT` is applied and dropped from the graph's
+  neighbours; confidential hits come back without a snippet.
+- **Token limit.** Each API token has a `maxClassification` (default
+  `internal`). Above it, `GET /api/pages/:id` answers `restricted: true`
+  without content. Every other page route, attachments, frozen copies and old
+  versions answer `403 token_classification_limit`. Release reads apply the
+  stricter of the living page and the frozen copy.
+- **Browser sessions** have no limit; repository access decides.
+
 > [!IMPORTANT]
 > This is the same mechanism whether the writer is a human in the browser
 > editor or an AI agent calling `update_page_draft` through MCP — see

@@ -7,10 +7,12 @@ import { branchExists, cleanupMergedDraft } from '../drafts/lifecycle.js'
 import { draftBranchName } from '../drafts/branch-name.js'
 import { DraftUpdateContentLostError, updateDraft, type UpdateStrategy } from '../drafts/update.js'
 import { applyVersionOnDraft, fillReleaseMetadataOnDraft } from '../drafts/release-metadata.js'
+import { recordRelease } from '../drafts/release-records.js'
 import { pages, pageVersions } from '../db/schema.js'
 import { indexChangedFiles } from '../indexer/incremental.js'
 import { buildResolveImage, buildResolveLink, LinkResolver, type ResolvablePage } from '../indexer/resolve-links.js'
 import { loadMetadataSchema } from '../spaces/metadata-schema.js'
+import { classificationViolationInMarkdown, classificationViolationReply } from '../spaces/classification.js'
 import { resolveWriteContext, type DraftsDeps } from './drafts.js'
 // Befund 3 (Final-Review): dieselbe Versionsfeld-Ermittlung wie `GET
 // /api/pages/:id` — s. Kommentar an `resolveVersionFields` in `pages.ts`.
@@ -346,6 +348,8 @@ const releaseBodySchema = {
     // FST_ERR_FAILED_ERROR_SERIALIZATION-Falle), NICHT mit 500 — getestet in
     // `workflow-routes.test.ts`.
     note: { type: 'string', maxLength: 500 },
+    // Release archive (#38): freeze this version as an immutable copy.
+    archive: { type: 'boolean' },
   },
 } as const
 
@@ -363,6 +367,10 @@ const releaseResultSchema = {
      *  Version. Unversionierte Spaces bekommen dieses Feld NIE (Bestands-
      *  verhalten bleibt für sie exakt unverändert). */
     version: { type: 'string' },
+    /** Release archive (#38): path of the frozen copy, when `archive` was set. */
+    archivePath: { type: 'string' },
+    /** Referenced attachments not found in the repository — not copied. */
+    missingAttachments: { type: 'array', items: { type: 'string' } },
   },
   required: ['mergeSha'],
 } as const
@@ -660,7 +668,7 @@ export function registerWorkflowRoutes(app: FastifyInstance, deps: WorkflowDeps)
 
     // POST /release: best-effort-Approve → Merge (Nutzer-Token = Freigabe-
     // Recht-Probe, siehe Spec §7) → synchroner Cleanup + Neu-Indexierung.
-    instance.post<{ Params: { id: string }; Body: { comment?: string; bump?: VersionBump; note?: string } }>(
+    instance.post<{ Params: { id: string }; Body: { comment?: string; bump?: VersionBump; note?: string; archive?: boolean } }>(
       '/api/pages/:id/release',
       { schema: releaseSchema },
       async (req, reply) => {
@@ -708,6 +716,21 @@ export function registerWorkflowRoutes(app: FastifyInstance, deps: WorkflowDeps)
             'main',
             req.log,
           )
+          // Release archive (#38): the version number names the copy.
+          const archive = req.body?.archive === true
+          if (archive && !schema.versioning) {
+            return reply.code(409).send({
+              error: 'Freezing a release needs versioning in this space.',
+              reason: 'releases_require_versioning',
+            })
+          }
+          // Safety net for drafts written past the editor (direct Git commits):
+          // nothing above the space maximum reaches main through a release.
+          if (schema.classification) {
+            const draftFile = await ctx.provider.readFile(repo, ctx.row.path, branch)
+            const violation = classificationViolationInMarkdown(draftFile.content, schema)
+            if (violation) return reply.code(422).send(classificationViolationReply(violation))
+          }
           await fillReleaseMetadataOnDraft(ctx.provider, repo, ctx.row.path, branch, schema, {
             actor: req.user!.displayName,
             date: isoDateOnly((deps.now ?? Date.now)()),
@@ -717,6 +740,7 @@ export function registerWorkflowRoutes(app: FastifyInstance, deps: WorkflowDeps)
           // Berechnungsbasis ist die Version in main — NICHT die im Draft
           // (s. applyVersionOnDraft).
           let releasedVersion: string | undefined
+          let archived: { archivePath?: string; missingAttachments?: string[] } = {}
           if (schema.versioning) {
             // NUR `NotFoundError` heißt hier "Seite existiert noch nicht in main"
             // (erste Freigabe → `nextVersion(undefined, bump)` = 1.0.0, korrekt).
@@ -742,8 +766,15 @@ export function registerWorkflowRoutes(app: FastifyInstance, deps: WorkflowDeps)
               note: (req.body?.note ?? req.body?.comment ?? '').trim(),
               author: req.user!.displayName,
               date: isoDateOnly((deps.now ?? Date.now)()),
+              ...(archive ? { archive: { source: ctx.row.id } } : {}),
             })
             releasedVersion = applied.version
+            if (applied.archivePath) {
+              archived = {
+                archivePath: applied.archivePath,
+                ...(applied.missingAttachments?.length ? { missingAttachments: applied.missingAttachments } : {}),
+              }
+            }
           }
 
           // Best-effort-Approve VOR dem Merge (Plan Task 3): NUR die tolerierte
@@ -848,6 +879,19 @@ export function registerWorkflowRoutes(app: FastifyInstance, deps: WorkflowDeps)
                       releasedAt: new Date(),
                     },
                   })
+                if (archived.archivePath) {
+                  const frozen = await ctx.provider.readFile(repo, archived.archivePath, merged.mergeSha)
+                  await recordRelease(deps.db, {
+                    pageId: ctx.row.id,
+                    spaceId: ctx.space.id,
+                    version: releasedVersion,
+                    path: archived.archivePath,
+                    author: versionValues.author,
+                    note: versionValues.note,
+                    blobSha: frozen.sha,
+                    classification: parsePage(frozen.content).frontmatter.classification ?? null,
+                  })
+                }
               } catch (err) {
                 req.log.error(
                   { err, pageId: ctx.row.id, version: releasedVersion },
@@ -877,6 +921,7 @@ export function registerWorkflowRoutes(app: FastifyInstance, deps: WorkflowDeps)
           return {
             mergeSha: merged.mergeSha,
             ...(releasedVersion ? { version: releasedVersion } : {}),
+            ...archived,
             ...(approveWarning ? { approveWarning } : {}),
           }
         } catch (err) {

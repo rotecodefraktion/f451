@@ -774,3 +774,21 @@ Neu in Etappe 1: `apps/api/drizzle/0008_dapper_vivisector.sql` (Tabelle
 über den regulären Migrationslauf (Abschnitt 3, Schritt 4) —
 `docker compose ... run --rm api node dist/db/migrate-cli.js` vor dem
 Hochfahren der neuen Container, keine gesonderte Aktion nötig.
+
+## 10. Classifications and release archive
+
+Design: `docs/superpowers/specs/2026-10-01-security-klassen-und-release-archiv-design.md`.
+User-facing description: Admin Guide pages *Classifications* and *Releases*.
+
+- **Migrations:** `0010` adds `api_tokens.max_classification` (default
+  `internal`), `0011` the table `page_releases`. Both run with the regular
+  migration step before starting the new containers.
+- **Classifications** are switched on per space with a `classification:` block
+  in `_meta/schema.yaml`; without it nothing changes. The class itself lives in
+  each page's frontmatter, so it needs no backup beyond Git.
+- **Release archive:** frozen copies live in Git under
+  `<page folder>/_releases/<version>/` and are covered by the Forgejo backup
+  like every page. `page_releases` is a derived cache: a full reindex
+  (`POST /admin/reindex`) rebuilds it from the `_releases/` folders, marks
+  copies changed after freezing as `tampered` and drops rows whose copy was
+  deleted.

@@ -6,6 +6,32 @@ All notable changes to f451. The format follows
 to the HTTP API, the MCP tools, the page format or the configuration only come
 with a new major version.
 
+## [1.1.0] — 2026-10-01
+
+No breaking changes. Spaces without a `classification:` block behave as before.
+
+### Added
+
+- **Security classifications** — four classes per page (public, internal,
+  confidential, strictly confidential), shown as a chip and, for strictly
+  confidential pages, a banner. Each space sets a default and a maximum in
+  `_meta/schema.yaml`; the editor select is limited to the space maximum.
+  Search hides strictly confidential pages and drops the snippets of
+  confidential ones; the graph hides strictly confidential neighbours. API
+  tokens carry a classification limit (default: internal). Existing tokens get
+  internal by migration, which only matters in spaces that turn classifications
+  on.
+- **Release archive** — "Freeze as release" in the review and in `release_page`
+  creates an immutable copy of the page with its attachments under
+  `<page>/_releases/<version>/`. Releases open in a read-only view with
+  metadata, are marked in the version list, and the page header links to the
+  newest one. AI agents read a release with `read_page(version)` via MCP.
+  Requires a versioned space.
+
+### Fixed
+
+- Version and release entries in the page header now look like links.
+
 ## [1.0.0] — 2026-09-30
 
 First release. f451 is a wiki for documentation that lives in Git:
@@ -58,4 +84,5 @@ f451 License 1.1 — PolyForm Shield 1.0.0 with additional conditions: free to
 use, change and share, also commercially; a separate license is needed only to
 sell f451 or offer it as a paid hosted service. See `LICENSE.md`.
 
+[1.1.0]: https://github.com/rotecodefraktion/f451/releases/tag/v1.1.0
 [1.0.0]: https://github.com/rotecodefraktion/f451/releases/tag/v1.0.0

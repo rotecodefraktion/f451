@@ -4,7 +4,13 @@ import type { MarkdownDiff } from '@f451/markdown'
 import { DiffView } from '../../../../../../components/review/diff-view'
 import { ApiError, apiFetch } from '../../../../../../lib/api'
 import { getT } from '../../../../../../lib/i18n/server.js'
-import { decodeRouteParam, wikiPageHref, wikiPageVersionsHref, wikiSpaceHref } from '../../../../../../lib/urls'
+import {
+  decodeRouteParam,
+  wikiPageHref,
+  wikiPageReleaseHref,
+  wikiPageVersionsHref,
+  wikiSpaceHref,
+} from '../../../../../../lib/urls'
 
 interface VersionsPageProps {
   params: Promise<{ space: string; pageId: string }>
@@ -16,6 +22,8 @@ interface VersionEntry {
   releasedAt: string
   author: string
   note: string
+  /** A frozen copy exists (#40). */
+  release?: boolean
 }
 
 /** `GET /api/pages/:id/versions` (`apps/api/src/routes/versions.ts`). */
@@ -145,11 +153,15 @@ export default async function VersionsPage({ params, searchParams }: VersionsPag
                       {i === 0 && v.version === page.version ? (
                         <span className="chip released">{t('read.versions.current')}</span>
                       ) : null}
+                      {v.release ? <span className="chip info">{t('read.releases.marker')}</span> : null}
                       <span className="versions-meta">
                         {datum(v.releasedAt)} · {t('read.versions.by', { author: v.author })}
                       </span>
                     </div>
                     {v.note ? <p className="versions-note">{v.note}</p> : null}
+                    {v.release ? (
+                      <a href={wikiPageReleaseHref(spaceId, pageId, v.version)}>{t('read.releases.open')}</a>
+                    ) : null}{' '}
                     {i > 0 || v.version !== page.version ? (
                       <a href={wikiPageVersionsHref(spaceId, pageId, v.version)}>{t('read.versions.compare')}</a>
                     ) : null}

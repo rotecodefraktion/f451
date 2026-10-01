@@ -696,6 +696,8 @@ export interface ReleaseInfo {
  *  bei drei optionalen Werten wäre `releasePage(id, undefined, 'minor',
  *  note)` an der Aufrufstelle nicht mehr lesbar. */
 export interface ReleaseOptions {
+  /** Freeze this release as a permanent copy (#38); versioned spaces only. */
+  archive?: boolean
   /** Kommentar am Pull Request — Kontext für die Review, NICHT dauerhafter
    *  Dokumentinhalt (s. `note`). */
   comment?: string
@@ -730,8 +732,9 @@ export type ReleasePageResult =
  *  bisherigen `comment`-Verhalten. */
 export async function releasePage(pageId: string, options: ReleaseOptions = {}): Promise<ReleasePageResult> {
   const path = `/api/pages/${encodeURIComponent(pageId)}/release`
-  const body: Record<string, string> = {}
+  const body: Record<string, string | boolean> = {}
   if (options.comment?.trim()) body.comment = options.comment.trim()
+  if (options.archive) body.archive = true
   if (options.bump) body.bump = options.bump
   if (options.note?.trim()) body.note = options.note.trim()
 

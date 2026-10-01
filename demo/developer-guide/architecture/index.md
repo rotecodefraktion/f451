@@ -45,5 +45,30 @@ and permissions exclusively through the API's HTTP surface.
 | `packages/design-tokens` | The catalog of design tokens that drives the look and feel — see [[web-frontend]]. |
 | `packages/git-provider` | One interface, two implementations (Forgejo, GitHub): read/write files, commits, branches, pull requests, reviews. |
 
+## Release archive in Git
+
+Releasing a page in a versioned space can freeze it: in the same commit as
+the version bump, the API writes `<page>/_releases/<version>/page.md` plus
+copies of the attachments the page references. The frozen copies live in Git
+like everything else.
+
+Postgres only holds a derived cache, `page_releases`. A full reindex rebuilds
+it from the `_releases/` folders, marks copies that changed since release as
+`tampered` and drops entries whose folder is gone. Losing the table loses
+nothing — the same rule as for the rest of the index.
+
+No write route reaches `_releases/`: page folders are slugs without
+underscores, and attachment paths are fixed to the page's own `_media/`. A
+central guard doesn't exist yet; `isReleasePath` in the API is the helper for
+future routes.
+
+## Classification checks
+
+Classes are plain frontmatter, read from `pages.frontmatter` — there is no
+separate column, so the index stays derivable from Git. The ordering is
+shared in `packages/markdown/src/classification.ts`. The API checks it on
+save and release (space maximum), in search and the graph, and against the
+API token's limit; see [[api]] for the exact responses.
+
 See [[principles]] for why the lines are drawn exactly here, and
 [[repository-layout]] for the directories underneath each of these.

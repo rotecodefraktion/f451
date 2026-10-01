@@ -103,6 +103,8 @@ export function ReviewView({ pageId, space, pr, versioning = false, currentVersi
   // häufigste Freigabe-Art: neuer Inhalt, kein Breaking Change).
   const [bump, setBump] = useState<VersionBump>('minor')
   const [versionNote, setVersionNote] = useState('')
+  // Release archive (#38): freeze this version as a permanent copy.
+  const [archive, setArchive] = useState(false)
   const [mergeSubmitting, setMergeSubmitting] = useState(false)
   const [changesSubmitting, setChangesSubmitting] = useState(false)
   const [changesRequested, setChangesRequested] = useState(false)
@@ -142,7 +144,7 @@ export function ReviewView({ pageId, space, pr, versioning = false, currentVersi
       // `ReleaseOptions`-Kommentar in client-api.ts), aber ein leerer
       // `versionNote`-Rest aus einem vorherigen Space-Wechsel soll dort erst
       // gar nicht im Request auftauchen.
-      ...(versioning ? { bump, note: versionNote.trim() || undefined } : {}),
+      ...(versioning ? { bump, note: versionNote.trim() || undefined, archive } : {}),
     })
       .then((result) => {
         setMergeSubmitting(false)
@@ -365,7 +367,7 @@ export function ReviewView({ pageId, space, pr, versioning = false, currentVersi
                 </label>
               ))
             )}
-            <label>
+            <label className="version-note">
               {t('review.version.noteLabel')}
               <input
                 type="text"
@@ -374,6 +376,10 @@ export function ReviewView({ pageId, space, pr, versioning = false, currentVersi
                 onChange={(event) => setVersionNote(event.target.value)}
                 placeholder={t('review.version.notePlaceholder')}
               />
+            </label>
+            <label className="version-archive">
+              <input type="checkbox" checked={archive} onChange={(event) => setArchive(event.target.checked)} />
+              <span>{t('review.version.archive')}</span>
             </label>
           </fieldset>
         ) : null}

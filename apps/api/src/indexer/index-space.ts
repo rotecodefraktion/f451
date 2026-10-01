@@ -8,6 +8,7 @@ import type { OpsCounters } from '../ops/counters.js'
 import type { SpaceConfig } from '../spaces/config.js'
 import { buildResolveImage, buildResolveLink, isMediaLink, LinkResolver, type ResolvablePage } from './resolve-links.js'
 import { loadOrderKeysForPages } from './order-file.js'
+import { syncReleases } from './release-history.js'
 import { reconstructMissingVersions } from './version-history.js'
 
 /** Minimal-Logger-Vertrag (z. B. Fastifys `app.log` oder Pino), optional für
@@ -731,6 +732,13 @@ export async function indexSpace(
   // Git-Historie nachtragen — nach der Transaktion, weil die Einträge an
   // `spaces` hängen und ein Provider-Aussetzer hier den Index nicht kippen darf.
   if (ref === 'main') {
+    // Release archive (#40): the `_releases/` folders rebuild `page_releases`.
+    await syncReleases(
+      { db, provider, logger },
+      space,
+      tree,
+      new Map(pageInfos.filter((p) => !conflictedIds.has(p.id)).map((p) => [p.path, p.id])),
+    )
     // Issue #7: konfliktbehaftete Seiten ausgenommen — `pageVersions.pageId` hat
     // keinen FK auf `pages` (Kommentar `db/schema.ts`, `pageVersions` ist reiner
     // Ableitungs-Cache), ein Eintrag unter der Id der FREMDEN Zeile mit

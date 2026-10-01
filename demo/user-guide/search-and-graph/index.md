@@ -15,6 +15,10 @@ a space's sidebar, to open the search dialog. Start typing to search
 full text across the spaces you have access to; results update as you
 type.
 
+In spaces with classifications, search respects them: **strictly
+confidential** pages never appear in results, and **confidential** pages
+appear without a text snippet.
+
 ## Graph view
 
 Choose **Graph view** in the sidebar to see a space's pages as a network
@@ -34,6 +38,8 @@ selection are shown. **Reset** returns to the default view.
 > [!TIP]
 > Click a node to see its title, status, links and last update, with an
 > **Open** button to jump straight to that page.
+
+Strictly confidential pages are not shown as neighbours of other pages.
 
 ## Link report
 

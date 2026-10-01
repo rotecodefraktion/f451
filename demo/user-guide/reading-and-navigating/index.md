@@ -53,6 +53,39 @@ A page you are reading can be in one of four states, shown as a badge:
 If a draft exists for a page you are reading, a notice at the top offers
 a **View draft →** link so you can preview the unreleased content.
 
+## Classification
+
+In spaces where your administrator has turned classifications on, a page
+carries one of four classes: **Public**, **Internal**, **Confidential** or
+**Strictly confidential**. The class shows as a chip next to the status in
+the page header. A strictly confidential page also shows a banner,
+*Strictly confidential — do not distribute.*
+
+A class does not change who can open the page; it tells you how to handle
+the content. It also keeps the page out of places where it would travel
+further, see [[search-and-graph]] and [[ai-agents]].
+
+## Versions and releases
+
+In a space with versioning, the header line shows **Version x.y.z**, a link
+to the list of all versions of the page. If a version was frozen as a
+release (see [[writing-a-page]]), the line also shows **Release x.y.z**,
+which opens the newest frozen release.
+
+The version list marks frozen versions with **Release** and an **Open frozen
+version** link. A frozen version opens read-only:
+
+- a banner names the release and its date
+- it has its own classification chip, tags and metadata, as they were when
+  the version was frozen
+- **Current version (x.y.z) →** leads back to the living page (**To the page →**
+  if the release is the current version)
+
+> [!WARNING]
+> If someone changed the frozen copy directly in the repository afterwards,
+> the release shows *This version was changed in the repository after it was
+> frozen.* Treat its content with care.
+
 ## On a phone
 
 On a narrow screen the page tree and info panel move into a bottom bar

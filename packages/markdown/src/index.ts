@@ -10,6 +10,7 @@ export * from './stringify.js'
 export * from './frontmatter-split.js'
 export * from './diff.js'
 export * from './schema.js'
+export * from './classification.js'
 export * from './frontmatter-metadata.js'
 export {
   CHANGELOG_LIMIT,

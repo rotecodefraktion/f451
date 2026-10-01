@@ -12,6 +12,8 @@ import type { SpaceAccess } from '../auth/permissions.js'
 import type { SpaceConfig } from '../spaces/config.js'
 import { createOrGetDraft, discardDraft, getDraft } from '../drafts/lifecycle.js'
 import { DraftConflictError, saveDraft } from '../drafts/save.js'
+import { classificationViolationInMarkdown, classificationViolationReply } from '../spaces/classification.js'
+import { loadMetadataSchema } from '../spaces/metadata-schema.js'
 import {
   InvalidSvgError,
   PayloadTooLargeError,
@@ -129,6 +131,11 @@ const saveDraftSchema = {
     403: forbiddenSchema,
     404: errorSchema,
     409: conflictSchema,
+    422: {
+      type: 'object',
+      properties: { error: { type: 'string' }, reason: { type: 'string' } },
+      required: ['error'],
+    },
     502: errorSchema,
   },
 } as const
@@ -468,6 +475,10 @@ export function registerDraftsRoutes(app: FastifyInstance, deps: DraftsDeps): vo
     }>('/api/pages/:id/draft', { schema: saveDraftSchema }, async (req, reply) => {
       const ctx = await resolveWriteContext(deps, req.user!.id, req.params.id)
       if (!ctx.ok) return reply.code(ctx.status).send(ctx.body)
+
+      const schema = await loadMetadataSchema({ providerRegistry: () => ctx.provider }, ctx.space, 'main', req.log)
+      const violation = classificationViolationInMarkdown(req.body.content, schema)
+      if (violation) return reply.code(422).send(classificationViolationReply(violation))
 
       try {
         return await saveDraft(

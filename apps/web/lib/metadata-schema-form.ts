@@ -21,7 +21,7 @@
  * `packages/markdown/src/schema.ts`).
  */
 
-import type { AutoFieldSource, MetadataField, MetadataFieldType, MetadataSchema } from '@f451/markdown'
+import type { AutoFieldSource, ClassificationSettings, MetadataField, MetadataFieldType, MetadataSchema } from '@f451/markdown'
 
 /**
  * Editierbarer Zustand EINES Feldes im Schema-Editor-Formular — ein
@@ -219,6 +219,9 @@ function draftFieldToRawField(field: DraftMetadataField): Record<string, unknown
 export function draftFieldsToPayload(
   fields: DraftMetadataField[],
   versioning: boolean,
-): { fields: unknown[]; versioning: boolean } {
-  return { fields: fields.map(draftFieldToRawField), versioning }
+  // Like `versioning`: no control in the editor, only passed through so a
+  // save never drops the space's `classification:` block.
+  classification?: ClassificationSettings,
+): { fields: unknown[]; versioning: boolean; classification?: ClassificationSettings } {
+  return { fields: fields.map(draftFieldToRawField), versioning, ...(classification ? { classification } : {}) }
 }

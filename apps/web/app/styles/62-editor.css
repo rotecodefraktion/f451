@@ -905,6 +905,11 @@
   white-space: nowrap;
   cursor: pointer;
 }
+/* Classification select next to the archive switch: as wide as its label. */
+.page-classification {
+  flex: none;
+  width: auto;
+}
 /* =========================================================================
    Metadaten-Erfass-Formular (Metadaten-Feature M3, components/editor/
    metadata-panel.tsx) — auf-/zuklappbares `.card.rp` zwischen Statuszeile/

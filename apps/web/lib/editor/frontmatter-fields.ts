@@ -41,3 +41,10 @@ export function archivedFromFrontmatter(frontmatterRaw: string): boolean {
   const { frontmatter } = parseFrontmatterBlock(extractYamlBody(frontmatterRaw))
   return frontmatter.archived ?? false
 }
+
+/** Raw `classification` value of the page, `''` when unset or invalid. */
+export function classificationFromFrontmatter(frontmatterRaw: string): string {
+  if (!frontmatterRaw.trim()) return ''
+  const { frontmatter } = parseFrontmatterBlock(extractYamlBody(frontmatterRaw))
+  return frontmatter.classification ?? ''
+}

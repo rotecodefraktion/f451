@@ -71,6 +71,27 @@
       "when": 1790494734725,
       "tag": "0009_last_impossible_man",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790843281405,
+      "tag": "0010_sloppy_maginty",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790843851305,
+      "tag": "0011_dusty_earthquake",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1790844910561,
+      "tag": "0012_material_blink",
+      "breakpoints": true
     }
   ]
 }
