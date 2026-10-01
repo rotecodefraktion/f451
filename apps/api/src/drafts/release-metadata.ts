@@ -12,6 +12,7 @@ import {
   type MetadataSchema,
   type VersionBump,
 } from '@f451/markdown'
+import { buildReleaseArchiveChanges } from './release-archive.js'
 
 /**
  * Freigabe-Vorbelegung (Metadaten-Feature M3b Teil B, `POST /api/pages/:id/release`,
@@ -80,8 +81,16 @@ export async function applyVersionOnDraft(
   path: string,
   branch: string,
   mainVersion: string | undefined,
-  params: { bump: VersionBump; note: string; author: string; date: string },
-): Promise<{ version: string; entry: ChangelogEntry }> {
+  params: {
+    bump: VersionBump
+    note: string
+    author: string
+    date: string
+    /** Freeze this release (#38): also write the copy under `_releases/`, in
+     *  the same commit as the version, so the merge is atomic. */
+    archive?: { source: string }
+  },
+): Promise<{ version: string; entry: ChangelogEntry; archivePath?: string; missingAttachments?: string[] }> {
   const version = nextVersion(mainVersion, params.bump)
   const entry: ChangelogEntry = {
     version,
@@ -99,7 +108,24 @@ export async function applyVersionOnDraft(
     version,
     changelog: prependChangelogEntry(existing, entry),
   })
-  await provider.writeFile(repo, path, joinFrontmatter(newFrontmatter, body), {
+  const newContent = joinFrontmatter(newFrontmatter, body)
+
+  if (params.archive) {
+    const archive = await buildReleaseArchiveChanges(provider, repo, path, branch, newContent, {
+      version,
+      date: params.date,
+      by: params.author,
+      source: params.archive.source,
+    })
+    await provider.commitFiles(
+      repo,
+      [{ op: 'write', path, content: Buffer.from(newContent, 'utf8'), sha: file.sha }, ...archive.changes],
+      { branch, message: `Automatisch: Version ${version} (Freigabe, festgeschrieben)` },
+    )
+    return { version, entry, archivePath: archive.archivePath, missingAttachments: archive.missingAttachments }
+  }
+
+  await provider.writeFile(repo, path, newContent, {
     branch,
     message: `Automatisch: Version ${version} (Freigabe)`,
     sha: file.sha,

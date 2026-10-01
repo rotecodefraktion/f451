@@ -78,6 +78,13 @@
       "when": 1790843281405,
       "tag": "0010_sloppy_maginty",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790843851305,
+      "tag": "0011_dusty_earthquake",
+      "breakpoints": true
     }
   ]
 }

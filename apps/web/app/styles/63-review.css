@@ -591,11 +591,11 @@ textarea.commentbox {
 .version-bump label span {
   color: var(--color-text-muted);
 }
-/* Letztes Label = Änderungsnotiz (Text statt Radio, s. JSX) — eigene Zeile
+/* Label der Änderungsnotiz (Text statt Radio, s. JSX) — eigene Zeile
    mit Trenner, damit es sich von den drei Sprunggrößen-Optionen darüber
    absetzt, statt wie ein vierter Radio-Eintrag zu wirken. Das Feld selbst
    trägt im Markup `class="input"`. */
-.version-bump > label:last-of-type {
+.version-bump > label.version-note {
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-1);

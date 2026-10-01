@@ -8,7 +8,7 @@ import { draftBranchName } from '../src/drafts/branch-name.js'
 import { upsertProviderAccount } from '../src/auth/connect.js'
 import { SESSION_COOKIE_NAME, createSession } from '../src/auth/sessions.js'
 import { createDb, type Db } from '../src/db/client.js'
-import { locks, pageVersions, pages, users } from '../src/db/schema.js'
+import { locks, pageReleases, pageVersions, pages, users } from '../src/db/schema.js'
 import { indexSpace } from '../src/indexer/index-space.js'
 import type { SpaceConfig } from '../src/spaces/config.js'
 import { startPg, type PgTestInstance } from './helpers/pg-container.js'
@@ -927,6 +927,95 @@ describe.sequential('Workflow-Routen: review/release/request-changes/draft-updat
           expect(merged.content).toContain('v2 (Fill-On-Release-Test)')
         } finally {
           await fillApp.close()
+        }
+      },
+      30_000,
+    )
+
+    it(
+      'Release archive (#38): archive:true freezes page.md and the referenced attachments in the same merge',
+      async () => {
+        const archiveRepo = await forgejo.createRepo('workflow-routes-archive', { private: false })
+        await forgejo.addCollaborator(archiveRepo, writer.username, 'write')
+        await forgejo.addCollaborator(archiveRepo, releaser.username, 'write')
+        const archiveSpace: SpaceConfig = {
+          id: 'workflow-routes-archive-space', name: 'Archive Space', provider: 'forgejo',
+          owner: archiveRepo.owner, repo: archiveRepo.repo, defaultLang: 'en', repoRef: archiveRepo,
+        }
+        const archiveApp = buildApp({
+          databaseUrl: pg.connectionString,
+          spaces: [archiveSpace],
+          providerRegistry: () => provider,
+          forgejoBaseUrl: forgejo.baseUrl,
+          auth: {
+            tokenKey: TOKEN_KEY,
+            insecureCookies: true,
+            connect: { forgejo: { baseUrl: forgejo.baseUrl, clientId: 'x', clientSecret: 'y' } },
+          },
+        })
+        await archiveApp.ready()
+
+        try {
+          const seed = { branch: 'main', message: 'seed' }
+          await provider.writeFile(archiveRepo, '_meta/schema.yaml', 'versioning: true\n', seed)
+          const pageId = 'wf-archive'
+          const path = `${pageId}/index.md`
+          await provider.writeFile(archiveRepo, path, `---\nid: ${pageId}\ntitle: Archive\nlang: en\n---\n# Archive\n\nv1\n`, seed)
+          await provider.writeFileBinary(archiveRepo, `${pageId}/_media/used.png`, Buffer.from('used-bytes'), seed)
+          await provider.writeFileBinary(archiveRepo, `${pageId}/_media/unused.png`, Buffer.from('unused'), seed)
+          await indexSpace({ db, provider }, archiveSpace)
+
+          const draftRes = await archiveApp.inject({
+            method: 'POST', url: `/api/pages/${pageId}/draft`, cookies: cookiesOf(writerSession),
+          })
+          const { baseSha } = draftRes.json() as { baseSha: string }
+          const saveRes = await archiveApp.inject({
+            method: 'PUT',
+            url: `/api/pages/${pageId}/draft`,
+            cookies: cookiesOf(writerSession),
+            payload: {
+              content: `---\nid: ${pageId}\ntitle: Archive\nlang: en\n---\n# Archive\n\nv2\n\n![a](_media/used.png)\n![b](_media/gone.svg)\n`,
+              baseSha,
+            },
+          })
+          expect(saveRes.statusCode).toBe(200)
+          await archiveApp.inject({
+            method: 'POST', url: `/api/pages/${pageId}/review`, cookies: cookiesOf(writerSession), payload: {},
+          })
+
+          const releaseRes = await archiveApp.inject({
+            method: 'POST',
+            url: `/api/pages/${pageId}/release`,
+            cookies: cookiesOf(releaserSession),
+            payload: { bump: 'major', note: 'Frozen', archive: true },
+          })
+          expect(releaseRes.statusCode).toBe(200)
+          const body = releaseRes.json() as { version: string; archivePath: string; missingAttachments?: string[] }
+          expect(body.version).toBe('1.0.0')
+          expect(body.archivePath).toBe(`${pageId}/_releases/1.0.0/page.md`)
+          expect(body.missingAttachments).toEqual(['gone.svg'])
+
+          const frozen = await provider.readFile(archiveRepo, body.archivePath, 'main')
+          expect(frozen.content).toContain('v2')
+          expect(frozen.content).toContain('version: 1.0.0')
+          expect(frozen.content).toMatch(/release:\n\s+version: 1\.0\.0/)
+          expect(frozen.content).toContain(`source: ${pageId}`)
+          expect(frozen.content).not.toMatch(/^id:/m)
+          const media = await provider.readFileBinary(archiveRepo, `${pageId}/_releases/1.0.0/_media/used.png`, 'main')
+          expect(media.content.toString()).toBe('used-bytes')
+          await expect(
+            provider.readFileBinary(archiveRepo, `${pageId}/_releases/1.0.0/_media/unused.png`, 'main'),
+          ).rejects.toThrow()
+
+          const rows = await db.select().from(pageReleases).where(eq(pageReleases.pageId, pageId))
+          expect(rows).toHaveLength(1)
+          expect(rows[0]).toMatchObject({ version: '1.0.0', path: body.archivePath, blobSha: frozen.sha, note: 'Frozen' })
+
+          // The copy is not a page of its own.
+          const indexed = await db.select().from(pages).where(eq(pages.spaceId, archiveSpace.id))
+          expect(indexed.map((r) => r.path)).not.toContain(body.archivePath)
+        } finally {
+          await archiveApp.close()
         }
       },
       30_000,

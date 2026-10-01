@@ -356,6 +356,37 @@ export const pageVersions = pgTable(
   }),
 )
 
+/**
+ * Frozen releases (#38): one row per `<page folder>/_releases/<version>/page.md`.
+ *
+ * DERIVED CACHE like `page_versions`: the copies live in Git; a reindex lists
+ * the `_releases/` folders and rebuilds this table. `tampered` marks a copy
+ * whose blob changed after it was frozen (a direct Git commit).
+ */
+export const pageReleases = pgTable(
+  'page_releases',
+  {
+    pageId: text('page_id').notNull(),
+    spaceId: text('space_id')
+      .notNull()
+      .references(() => spaces.id, { onDelete: 'cascade' }),
+    version: text('version').notNull(),
+    major: integer('major').notNull(),
+    minor: integer('minor').notNull(),
+    patch: integer('patch').notNull(),
+    /** Path of the frozen `page.md` in the repository. */
+    path: text('path').notNull(),
+    releasedAt: timestamp('released_at', { withTimezone: true }).notNull().defaultNow(),
+    author: text('author').notNull(),
+    note: text('note').notNull().default(''),
+    blobSha: text('blob_sha').notNull(),
+    tampered: boolean('tampered').notNull().default(false),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.pageId, table.version] }),
+  }),
+)
+
 export const schema = {
   spaces,
   pages,
@@ -365,6 +396,7 @@ export const schema = {
   users,
   sessions,
   providerAccounts,
+  pageReleases,
   apiTokens,
   pageVersions,
 }
