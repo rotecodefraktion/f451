@@ -292,10 +292,9 @@
 }
 /* Versionsanzeige (Seitenversionierung Etappe 1, Task 8 Nachtrag/Task 9,
    `components/page-view.tsx`) — bislang ohne eigene Regel, dadurch optisch
-   nicht vom übrigen `.subbar`-Text abgesetzt (Befund aus Task 9). Absicht
-   laut Brief: `.subbar-version` bleibt bewusst UNAUFFÄLLIG (reiner
-   Statustext, keine Handlung nötig) — nur leicht betont wie die übrigen
-   Werte via `.subbar b`-Pendant. `.subbar-changed` MUSS dagegen erkennbar
+   nicht vom übrigen `.subbar`-Text abgesetzt (Befund aus Task 9).
+   `.subbar-version` is a link since the release archive (see below).
+   `.subbar-changed` MUSS dagegen erkennbar
    hervorstechen (ein direkt an der Freigabe vorbei geänderter Stand ist ein
    Hinweis, den man nicht überlesen soll) — dieselbe Warnfarbe wie
    `.notice.warn` (Token `--rev-fg`/`--color-status-review`, s. Root-Variablen
@@ -303,7 +302,13 @@
    Subbar soll wie ein Hinweis wirken, nicht wie eine Fehlermeldung. */
 .subbar-version {
   font-weight: var(--weight-strong);
-  color: var(--color-text);
+  color: var(--link);
+  text-decoration: none;
+}
+/* Version and release are links (version list, frozen copy) — they look
+   like links, same colour and hover as `.page-body a`. */
+.subbar-version:hover {
+  text-decoration: underline;
 }
 .subbar-changed {
   font-weight: var(--weight-strong);

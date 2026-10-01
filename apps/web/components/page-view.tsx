@@ -66,14 +66,14 @@ export interface PageData {
 }
 
 /** Chip variant per class — existing `.chip` variants, no new tokens. */
-const CLASSIFICATION_CHIP: Record<Classification, string> = {
+export const CLASSIFICATION_CHIP: Record<Classification, string> = {
   public: 'neutral',
   internal: 'neutral',
   confidential: 'warn',
   'strictly-confidential': 'error',
 }
 
-const CHECK_ICON = (
+export const CHECK_ICON = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.6} aria-hidden="true">
     <path d="m5 13 4 4 10-11" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
@@ -85,7 +85,7 @@ const ARCHIVE_ICON = (
   </svg>
 )
 
-const WARN_ICON = (
+export const WARN_ICON = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
     <path d="M12 3 2 20h20L12 3Z" strokeLinejoin="round" />
     <path d="M12 10v4M12 17v.01" strokeLinecap="round" />
