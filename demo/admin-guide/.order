@@ -3,6 +3,7 @@ entra-id
 forgejo-identity-provider
 github-sign-in
 spaces-and-git-providers
+classifications
 configuration-reference
 production-setup
 backup-and-restore

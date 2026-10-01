@@ -3,6 +3,10 @@ import type { FastifyInstance } from 'fastify'
 import type { SpaceAccess } from '../auth/permissions.js'
 import type { Db } from '../db/client.js'
 import type { SpaceConfig } from '../spaces/config.js'
+import type { GitProvider } from '@f451/git-provider'
+import { compareClassifications, type Classification } from '@f451/markdown'
+import { exceedsTokenLimit } from '../auth/classification-gate.js'
+import { loadMetadataSchema } from '../spaces/metadata-schema.js'
 
 export interface SearchDeps {
   db: Db
@@ -25,6 +29,9 @@ export interface SearchDeps {
   /** Task 2 (Rate-Limits, Spec §7): Anfragebudget für `GET /api/search`
    *  (`deps.rateLimits.search` aus `app.ts`, Default oder `AppOptions.rateLimits`). */
   rateLimit: { max: number; windowMs: number }
+  /** Service-account provider to read each space's `_meta/schema.yaml`
+   *  (security classifications, #39). Without it no space has classes. */
+  providerRegistry?: (space: SpaceConfig) => GitProvider
 }
 
 interface SearchRow {
@@ -34,7 +41,35 @@ interface SearchRow {
   path: string
   rank: number
   snippet: string
+  classification: Classification | null
   [key: string]: unknown
+}
+
+/**
+ * SQL for the effective class of a hit: page value, else the default of its
+ * space; `null` in spaces without classes. Built from the schemas of the
+ * spaces in scope, so the filter runs before ORDER BY/LIMIT and a hidden page
+ * never takes a slot in the 25-hit window.
+ */
+async function classificationExpression(
+  deps: SearchDeps,
+  spaceIds: readonly string[],
+  log: { warn: (obj: unknown, msg: string) => void },
+): Promise<SQL> {
+  const registry = deps.providerRegistry
+  if (!registry) return sql`null::text`
+  const spaces = (deps.spaces ?? []).filter((s) => spaceIds.includes(s.id))
+  const schemas = await Promise.all(
+    spaces.map((space) => loadMetadataSchema({ providerRegistry: registry }, space, 'main', log)),
+  )
+  const branches = spaces.flatMap((space, i) => {
+    const settings = schemas[i]!.classification
+    return settings
+      ? [sql`when ${space.id} then coalesce(p.frontmatter->>'classification', ${settings.default})`]
+      : []
+  })
+  if (branches.length === 0) return sql`null::text`
+  return sql`(case p.space_id ${sql.join(branches, sql` `)} else null end)`
 }
 
 /** Task 2 (Rate-Limits, Spec §7): projektweites {status,reason}-Format
@@ -78,6 +113,8 @@ const searchSchema = {
           // (`LinkResolver.#resolveWikilink` matcht `<ziel>/index.md`).
           path: { type: 'string' },
           snippet: { type: 'string' },
+          classification: { type: 'string' },
+          restricted: { type: 'boolean' },
           rank: { type: 'number' },
         },
         required: ['id', 'title', 'space', 'path', 'snippet', 'rank'],
@@ -198,6 +235,11 @@ export function registerSearchRoutes(app: FastifyInstance, deps: SearchDeps): vo
         if (req.query.tag) {
           conditions.push(sql`exists (select 1 from tags t where t.page_id = p.id and t.tag = ${req.query.tag})`)
         }
+        // Security classifications (#39): strictly confidential pages never
+        // appear in search; confidential ones appear without a snippet.
+        const scopeIds = allowedSpaceIds ?? (deps.spaces ?? []).map((sp) => sp.id)
+        const cls = await classificationExpression(deps, scopeIds, req.log)
+        conditions.push(sql`${cls} is distinct from 'strictly-confidential'`)
         const where = sql.join(conditions, sql` and `)
 
         const result = await deps.db.execute<SearchRow>(sql`
@@ -207,21 +249,29 @@ export function registerSearchRoutes(app: FastifyInstance, deps: SearchDeps): vo
             p.space_id as space,
             p.path as path,
             ts_rank(p.search_vector, ${tsquery}) as rank,
-            ts_headline('simple', p.plain_text, ${tsquery}) as snippet
+            ts_headline('simple', p.plain_text, ${tsquery}) as snippet,
+            ${cls} as classification
           from pages p
           where ${where}
           order by rank desc
           limit 25
         `)
 
-        return result.rows.map((r) => ({
-          id: r.id,
-          title: r.title,
-          space: r.space,
-          path: r.path,
-          snippet: r.snippet,
-          rank: Number(r.rank),
-        }))
+        return result.rows.map((r) => {
+          const restricted = exceedsTokenLimit(req, r.classification)
+          const hideSnippet =
+            restricted || (r.classification !== null && compareClassifications(r.classification, 'confidential') >= 0)
+          return {
+            id: r.id,
+            title: r.title,
+            space: r.space,
+            path: r.path,
+            snippet: hideSnippet ? '' : r.snippet,
+            rank: Number(r.rank),
+            ...(r.classification ? { classification: r.classification } : {}),
+            ...(restricted ? { restricted: true } : {}),
+          }
+        })
       },
     )
   })

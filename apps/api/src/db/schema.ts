@@ -295,6 +295,9 @@ export const apiTokens = pgTable(
     tokenHash: text('token_hash').notNull(),
     label: text('label').notNull(),
     scope: text('scope').notNull().default('read'),
+    /** Strictest page classification this token may read in full (security
+     *  classifications, #39). Pages above it come back as `restricted`. */
+    maxClassification: text('max_classification').notNull().default('internal'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
     expiresAt: timestamp('expires_at', { withTimezone: true }),

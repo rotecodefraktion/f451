@@ -31,6 +31,7 @@ import { registerBrokenLinksRoutes } from './routes/broken-links.js'
 import { registerCreatePageRoute } from './routes/create-page.js'
 import { registerDeletePageRoute } from './routes/delete-page.js'
 import { registerDraftsRoutes } from './routes/drafts.js'
+import { createClassificationGate } from './auth/classification-gate.js'
 import { registerGraphRoutes } from './routes/graph.js'
 import { registerLocksRoutes } from './routes/locks.js'
 import { registerMediaRoutes } from './routes/media.js'
@@ -440,6 +441,7 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
     // API-Token-Auth (statt Session-Cookie) auf 'read'/'write' gesetzt, siehe
     // `auth/sessions.ts#createSessionAuthHook`.
     app.decorateRequest('apiTokenScope', null)
+    app.decorateRequest('apiTokenMaxClassification', null)
     app.addHook('onRequest', createSessionAuthHook(db))
 
     // Schutz-Matrix (Plan Task 5, erweitert um Zusatz-Task Phase 1e/Media): NUR
@@ -527,6 +529,13 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
         }
       }
     })
+
+    // Token classification limit (#39): page-scoped routes past the token's
+    // limit answer 403; runs after routing so `:id` is known.
+    app.addHook(
+      'preHandler',
+      createClassificationGate({ db, spaces: opts.spaces ?? [], providerRegistry: opts.providerRegistry }),
+    )
 
     // GET /api/me: unabhängig von OIDC/Connect, solange Auth überhaupt aktiv
     // ist — spiegelt nur den aktuellen Session-/Verknüpfungsstand aus der DB.
@@ -663,7 +672,14 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
     })
     // Seitenversionierung Etappe 2: Versionsliste und -diff, nur Leserecht.
     registerVersionRoutes(app, { db, spaces: opts.spaces, providerRegistry: opts.providerRegistry, access })
-    registerSearchRoutes(app, { db, spaces: opts.spaces, access, canWrite, rateLimit: rateLimits.search })
+    registerSearchRoutes(app, {
+      db,
+      spaces: opts.spaces,
+      access,
+      canWrite,
+      rateLimit: rateLimits.search,
+      providerRegistry: opts.providerRegistry,
+    })
     registerBrokenLinksRoutes(app, { db, spaces: opts.spaces, access })
     registerMetadataSchemaRoutes(app, {
       spaces: opts.spaces,

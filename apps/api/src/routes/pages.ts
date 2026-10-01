@@ -13,6 +13,7 @@ import {
   classificationViolation,
   classificationViolationMessage,
 } from '../spaces/classification.js'
+import { exceedsTokenLimit } from '../auth/classification-gate.js'
 import { loadMetadataSchema } from '../spaces/metadata-schema.js'
 import type { SpaceConfig } from '../spaces/config.js'
 
@@ -416,6 +417,8 @@ const pageSchema = {
               type: 'object',
               properties: { default: { type: 'string' }, max: { type: 'string' } },
             },
+            // API token below the page's class (#39): content fields are empty.
+            restricted: { type: 'boolean' },
           },
           required: [
             'id', 'space', 'path', 'title', 'html', 'headings', 'tags', 'relations',
@@ -620,6 +623,33 @@ export function registerPagesRoutes(app: FastifyInstance, deps: PagesDeps): void
       // Schalter, um Versionsfelder ein-/auszublenden.
       const { versioning, version, changedSinceRelease } = await resolveVersionFields(deps, row, schema)
       const violation = classificationViolation(frontmatter.classification, schema)
+      const classFields = classificationFields(frontmatter.classification, schema)
+
+      // Token classification limit (#39): the page exists for this user, only
+      // the token is too narrow — say so instead of a 404.
+      if (exceedsTokenLimit(req, classFields.classification ?? null)) {
+        return {
+          id: row.id,
+          space: row.spaceId,
+          path: row.path,
+          title: row.title,
+          html: '',
+          headings: [],
+          tags: [],
+          relations: {},
+          frontmatterErrors: [],
+          errorStatus: null,
+          archived: row.archived,
+          updatedAt: row.updatedAt.toISOString(),
+          brokenLinks: [],
+          workflow: null,
+          metadata: {},
+          versioning,
+          changedSinceRelease: false,
+          ...classFields,
+          restricted: true,
+        }
+      }
 
       return {
         id: row.id,
@@ -642,7 +672,7 @@ export function registerPagesRoutes(app: FastifyInstance, deps: PagesDeps): void
         versioning,
         ...(version ? { version } : {}),
         changedSinceRelease,
-        ...classificationFields(frontmatter.classification, schema),
+        ...classFields,
       }
     })
 

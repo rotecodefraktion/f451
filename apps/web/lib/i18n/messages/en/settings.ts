@@ -80,6 +80,10 @@ export const settings: Messages['settings'] = {
     close: 'Close',
     labelFieldLabel: 'Label',
     labelPlaceholder: 'e.g. MCP on my machine',
+    classificationFieldLabel: 'Up to classification',
+    classificationHint:
+      'Pages classified above this limit show only their title to this token, no content. Open it only as far as the agent really needs.',
+    classificationPill: 'up to {value}',
     scopeFieldLabel: 'Permissions',
     scopeReadOnly: 'Read only',
     scopeWriteOption: 'Read and write',

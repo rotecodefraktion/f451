@@ -3,11 +3,14 @@
 import { useEffect, useState, useTransition } from 'react'
 import { useT } from '../lib/i18n/provider'
 import type { Locale, T } from '../lib/i18n/types'
+import { CLASSIFICATIONS, DEFAULT_CLASSIFICATION, type Classification } from '@f451/markdown'
 
 export interface ApiTokenSummary {
   id: string
   label: string
   scope: 'read' | 'write'
+  /** Strictest class this token reads in full (#39). Older API versions omit it. */
+  maxClassification?: Classification
   createdAt: string
   lastUsedAt: string | null
   expiresAt: string | null
@@ -18,6 +21,7 @@ interface CreatedToken {
   id: string
   label: string
   scope: 'read' | 'write'
+  maxClassification: Classification
   expiresAt: string | null
   token: string
 }
@@ -50,6 +54,7 @@ export function ApiTokensPanel({ initialTokens }: ApiTokensPanelProps) {
   const [tokens, setTokens] = useState<ApiTokenSummary[]>(initialTokens)
   const [label, setLabel] = useState('')
   const [scope, setScope] = useState<'read' | 'write'>('read')
+  const [maxClassification, setMaxClassification] = useState<Classification>(DEFAULT_CLASSIFICATION)
   const [created, setCreated] = useState<CreatedToken | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copyHint, setCopyHint] = useState(false)
@@ -71,7 +76,7 @@ export function ApiTokensPanel({ initialTokens }: ApiTokensPanelProps) {
           method: 'POST',
           credentials: 'same-origin',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ label: trimmed, scope }),
+          body: JSON.stringify({ label: trimmed, scope, maxClassification }),
         })
         if (!res.ok) {
           setError(t('settings.apiTokens.createError'))
@@ -86,6 +91,7 @@ export function ApiTokensPanel({ initialTokens }: ApiTokensPanelProps) {
             id: body.id,
             label: body.label,
             scope: body.scope,
+            maxClassification: body.maxClassification,
             createdAt: new Date().toISOString(),
             lastUsedAt: null,
             expiresAt: body.expiresAt,
@@ -189,6 +195,23 @@ export function ApiTokensPanel({ initialTokens }: ApiTokensPanelProps) {
             <option value="write">{t('settings.apiTokens.scopeWriteOption')}</option>
           </select>
         </div>
+        <div className="mf-field">
+          <label htmlFor="token-classification">{t('settings.apiTokens.classificationFieldLabel')}</label>
+          <select
+            id="token-classification"
+            className="mf-input"
+            value={maxClassification}
+            onChange={(event) => setMaxClassification(event.target.value as Classification)}
+            disabled={pending}
+          >
+            {CLASSIFICATIONS.map((c) => (
+              <option key={c} value={c}>
+                {t(`read.classification.${c}`)}
+              </option>
+            ))}
+          </select>
+          <p className="hint">{t('settings.apiTokens.classificationHint')}</p>
+        </div>
         <button type="submit" className="btn primary" disabled={pending}>
           {pending ? t('settings.apiTokens.creating') : t('settings.apiTokens.createButton')}
         </button>
@@ -214,6 +237,13 @@ export function ApiTokensPanel({ initialTokens }: ApiTokensPanelProps) {
                 <span className={tok.scope === 'write' ? 'chip ok' : 'chip neutral'}>
                   {tok.scope === 'write' ? t('settings.apiTokens.scopeWritePill') : t('settings.apiTokens.scopeReadOnly')}
                 </span>
+                {tok.maxClassification ? (
+                  <span className="chip neutral" title={t('settings.apiTokens.classificationFieldLabel')}>
+                    {t('settings.apiTokens.classificationPill', {
+                      value: t(`read.classification.${tok.maxClassification}`),
+                    })}
+                  </span>
+                ) : null}
                 {tok.revoked ? <span className="chip neutral">{t('settings.apiTokens.revokedStatus')}</span> : null}
                 <small>
                   {t('settings.apiTokens.metaLine', {

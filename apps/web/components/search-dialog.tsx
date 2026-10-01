@@ -13,6 +13,8 @@ interface SearchResult {
   space: string
   /** `ts_headline`-Markup (`<b>…</b>`) — NIE direkt rendern, siehe lib/snippet.ts. */
   snippet: string
+  /** Effective class (#39); only in spaces with classes. */
+  classification?: string
   rank: number
 }
 
@@ -247,6 +249,9 @@ export function SearchDialog() {
                 >
                   <span className="row">
                     <span className="title">{result.title}</span>
+                    {result.classification === 'confidential' ? (
+                      <span className="chip warn">{t('read.classification.confidential')}</span>
+                    ) : null}
                     <span className="tag">{result.space}</span>
                   </span>
                   <span className="snippet">
