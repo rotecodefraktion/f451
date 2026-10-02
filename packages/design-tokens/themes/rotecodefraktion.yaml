@@ -1,0 +1,26 @@
+# Built-in theme template, generated from deploy/demo/theme/theme.css
+# by scripts/themes-from-mockups.ts — do not edit by hand.
+name: 'Rotecodefraktion'
+base:
+  font-text: "'DM Sans', system-ui, sans-serif"
+  font-display: "'Instrument Serif', Georgia, serif"
+  font-sans: "'DM Sans', system-ui, sans-serif"
+  font-mono: "'IBM Plex Mono', ui-monospace, monospace"
+light:
+  color-bg: '#faf8f5'
+  color-bg-raised: '#ffffff'
+  color-bg-sunken: '#f0eee9'
+  color-text: '#1a1a1a'
+  color-text-muted: '#555555'
+  color-accent: '#c8102e'
+  color-accent-contrast: '#ffffff'
+  color-border: '#e5e0d8'
+dark:
+  color-bg: '#141414'
+  color-bg-raised: '#1e1e1e'
+  color-bg-sunken: '#0e0e0e'
+  color-text: '#e8e4df'
+  color-text-muted: '#a8a8a8'
+  color-accent: '#ff4d5e'
+  color-accent-contrast: '#141414'
+  color-border: '#2e2e2e'
