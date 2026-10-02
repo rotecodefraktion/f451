@@ -10,12 +10,12 @@
  * Unter-Namensraum `apiTokens` — eigenes Feature, aber dieselbe Seite
  * (`app/einstellungen/verbindungen/page.tsx`).
  *
- * Ebenso `appearance` (`app/einstellungen/erscheinungsbild/page.tsx` +
- * `components/erscheinungsbild-editor.tsx`): eine zweite Einstellungsseite,
- * also eine Schwester von `connections` und keine eigene Namespace-Datei. Die
- * Zeilen-Beschriftungen dieser Seite kommen aus dem Token-Katalog
- * (`lib/erscheinungsbild.ts`, Feld `rolle`) und stehen bewusst NICHT hier —
- * sie sind Katalogtext, nur deutsch, und keine Oberflächensprache.
+ * Likewise `appearance` (`app/einstellungen/erscheinungsbild/page.tsx` +
+ * `components/theme-editor/`): a second settings page, a sibling of
+ * `connections`, not a namespace file of its own. Group names, role texts and
+ * contrast pair descriptions come from the token catalog
+ * (`@f451/design-tokens`) and are deliberately NOT here — they are catalog
+ * text, German only, not interface language.
  */
 export const settings = {
   serverUnreachable: 'Der Server ist aktuell nicht erreichbar.',
@@ -64,20 +64,75 @@ export const settings = {
     navItem: 'Erscheinungsbild',
     heading: 'Erscheinungsbild',
     intro:
-      'Alle Gestaltungswerte dieser Oberfläche, nach Rollen gruppiert. Änderungen wirken sofort und gelten nur in diesem Browser.',
-    modeLabel: 'Bearbeiteter Modus',
+      'Das Theme der Instanz oder eines einzelnen Space. Es liegt als _meta/theme.yaml im jeweiligen Repository; gespeichert wird mit deinem verknüpften Konto.',
+    loadError: 'Das Theme dieses Bereichs konnte nicht geladen werden.',
+    noScopes: 'Es gibt keinen Bereich, dessen Theme du ansehen darfst.',
+    // Scope selector
+    scopeLabel: 'Geltungsbereich',
+    scopeInstance: 'Instanz — gilt für alle Spaces',
+    scopeSpace: 'Space: {name}',
+    scopeReadOnly: '{label} (nur lesen)',
+    readOnlyNote: 'Nur lesen: Dein verknüpftes Konto darf das Theme dieses Bereichs nicht ändern. Du siehst, was hier gilt.',
+    // Header bar
+    summaryErrors_one: '{count} Fehler',
+    summaryErrors_other: '{count} Fehler',
+    summaryWarnings_one: '{count} Warnung',
+    summaryWarnings_other: '{count} Warnungen',
+    jumpError: 'Zum ersten Fehler',
+    jumpWarning: 'Zur ersten Warnung',
+    fileProblem: 'Theme-Datei: {message}',
+    // Groups and rows
+    groupSetCount_one: '{count} hier gesetzt',
+    groupSetCount_other: '{count} hier gesetzt',
+    resetGroup: 'Gruppe zurücksetzen',
     modeLight: 'Hell',
     modeDark: 'Dunkel',
-    storageHint:
-      'Die Änderungen liegen in diesem Browser (localStorage). Andere Personen und andere Geräte sehen sie nicht.',
-    resetAll: 'Alles zurücksetzen',
-    resetGroup: 'Gruppe zurücksetzen',
-    colorPickerLabel: 'Farbwähler für {token}',
-    contrast: '{wert}:1 gegen {gegen}',
-    contrastLow: 'Unter 4,5:1',
-    noRootValue: 'Ohne Grundwert — dieses Token wirkt nur dort, wo es gesetzt wird.',
-    notAllowed: 'In einem späteren instanzweiten Theme wäre dieses Token nicht freigegeben: {grund}',
-    notAllowedNoReason: 'In einem späteren instanzweiten Theme wäre dieses Token nicht freigegeben.',
+    originDefault: 'Vorgabe',
+    originInherited: 'geerbt',
+    originSet: 'hier gesetzt',
+    originPerMode: '{mode}: {origin}',
+    resetRow: 'Auf Vorgabe zurücksetzen',
+    resetRowLabel: '{token} auf Vorgabe zurücksetzen',
+    valueLabel: 'Wert von {token}',
+    valueLabelMode: 'Wert von {token} ({mode})',
+    colorPickerLabel: 'Farbwähler für {token} ({mode})',
+    unitLabel: 'Einheit von {token}',
+    formulaLabel: 'Ableitung',
+    override: 'übersteuern',
+    restoreDerivation: 'Ableitung wiederherstellen',
+    lockedReason: 'Gesperrt: {reason}',
+    fieldInvalid: 'Ungültiger Wert: {reason}',
+    ruleViolation: 'Regel {rule}: {message}',
+    // Contrast at the row — the three states of the spec table
+    contrastOk: '{ratio}:1 — {what} ✓',
+    contrastWarning:
+      '{ratio}:1 — {what}: über der eingestellten Schwelle {threshold}:1, unter AA ({aa}:1). Rolle: {role}.',
+    contrastWarningLowered:
+      '{ratio}:1 — {what}: über der eingestellten Schwelle {threshold}:1 (voreingestellt {default}:1), unter AA ({aa}:1). Rolle: {role}.',
+    contrastError: '{ratio}:1 — {what}: {role} braucht hier {threshold}:1.',
+    contrastRole: {
+      readingText: 'Lesetext',
+      shortText: 'kurze Schrift',
+      nonText: 'nicht-textliche Zeichen',
+      incidental: 'beiläufige Beschriftung',
+    },
+    // Actions
+    save: 'Speichern',
+    saving: 'Wird gespeichert …',
+    saved: 'Gespeichert.',
+    saveBlocked: 'Speichern ist gesperrt, solange Fehler offen sind.',
+    removeTheme: 'Theme entfernen',
+    removing: 'Wird entfernt …',
+    removed: 'Theme entfernt.',
+    removeConfirm:
+      'Das Theme dieses Bereichs löschen? Die Datei _meta/theme.yaml wird aus dem Repository entfernt, danach gelten wieder die geerbten Werte.',
+    serverInvalid: 'Der Server hat das Theme abgelehnt:',
+    serverContrast: 'Der Server hat das Theme wegen zu geringen Kontrasts abgelehnt:',
+    serverContrastItem: '{what} ({mode}): {ratio}:1, verlangt {threshold}:1',
+    serverForbidden: 'Dein verknüpftes Konto darf das Theme dieses Bereichs nicht ändern.',
+    serverConflict: 'Die Theme-Datei wurde inzwischen geändert. Lade die Seite neu und versuche es erneut.',
+    serverNotFound: 'Es gibt keine Theme-Datei zum Entfernen.',
+    serverError: 'Der Vorgang ist fehlgeschlagen. Bitte erneut versuchen.',
   },
   report: {
     heading: 'Verweis-Report',
