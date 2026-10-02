@@ -53,8 +53,8 @@ merge. Both fields are system-managed. Postgres holds `page_versions`, the map
 from version to Git state for the version list and the diff; a reindex
 rebuilds it by walking the file's history.
 
-A page that exists on `main` without `version` counts as 0.1.0. Its first
-approval also writes a 0.1.0 changelog entry with `ref: <sha>`, the `main`
+A page without `version` counts as 0.1.0, and its first approval bumps from
+there. If the page already existed on `main`, that approval also writes a 0.1.0 changelog entry with `ref: <sha>`, the `main`
 commit before the merge. Releases are merge commits, so the commit before the
 version commit is the draft, not the old `main`; `ref` lets the reindex find
 the 0.1.0 state from Git alone.

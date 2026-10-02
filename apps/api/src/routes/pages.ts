@@ -209,12 +209,10 @@ export async function resolveVersionFields(
 
   const version = (row.frontmatter as PageFrontmatter | null)?.version
   if (!version) {
-    // An existing page (on `main`) without `version` counts as 0.1.0 — derived,
-    // never written. A draft-only page (`ref: 'draft'`) has no version yet.
-    if (row.ref === 'main') {
-      return { versioning, version: IMPLICIT_VERSION, implicitVersion: true, changedSinceRelease: false }
-    }
-    return { versioning, changedSinceRelease: false }
+    // Every page without `version` counts as 0.1.0 — an existing page as well
+    // as a new draft. Derived, never written; 1.0.0 is a release someone
+    // chooses (spec addendum 2026-10-02).
+    return { versioning, version: IMPLICIT_VERSION, implicitVersion: true, changedSinceRelease: false }
   }
 
   const [latest] = await deps.db
