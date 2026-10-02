@@ -2,7 +2,12 @@ import { posix } from 'node:path'
 import { and, desc, eq, isNull } from 'drizzle-orm'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import type { GitProvider } from '@f451/git-provider'
-import { EMPTY_METADATA_SCHEMA, type MetadataSchema, type PageFrontmatter } from '@f451/markdown'
+import {
+  EMPTY_METADATA_SCHEMA,
+  IMPLICIT_VERSION,
+  type MetadataSchema,
+  type PageFrontmatter,
+} from '@f451/markdown'
 import type { Db } from '../db/client.js'
 import { edges, pageReleases, pages, pageVersions, tags } from '../db/schema.js'
 import type { SpaceAccess } from '../auth/permissions.js'
@@ -156,6 +161,10 @@ async function loadSpaceSchema(
 export interface PageVersionFields {
   versioning: boolean
   version?: string
+  /** `true` when `version` is not in the frontmatter but derived: the page
+   *  exists on `main` without `version` and therefore counts as
+   *  {@link IMPLICIT_VERSION} (spec addendum 2026-10-02). Absent otherwise. */
+  implicitVersion?: true
   changedSinceRelease: boolean
 }
 
@@ -199,7 +208,15 @@ export async function resolveVersionFields(
   if (!versioning) return { versioning, changedSinceRelease: false }
 
   const version = (row.frontmatter as PageFrontmatter | null)?.version
-  if (!version) return { versioning, changedSinceRelease: false }
+  if (!version) {
+    // A page on `main` without `version` counts as 0.1.0 — derived, never
+    // written (spec addendum 2026-10-02). A draft-only page has no version
+    // yet; its first release gives 0.1.0 or, as major, 1.0.0.
+    if (row.ref === 'main') {
+      return { versioning, version: IMPLICIT_VERSION, implicitVersion: true, changedSinceRelease: false }
+    }
+    return { versioning, changedSinceRelease: false }
+  }
 
   const [latest] = await deps.db
     .select({ blobSha: pageVersions.blobSha })
@@ -410,6 +427,9 @@ const pageSchema = {
             // dieser Datei) und ist immer ein Bool (nie `undefined`).
             versioning: { type: 'boolean' },
             version: { type: 'string' },
+            // Only present (true) when `version` is derived: page on `main`
+            // without `version` counts as 0.1.0 (spec addendum 2026-10-02).
+            implicitVersion: { type: 'boolean' },
             changedSinceRelease: { type: 'boolean' },
             // Security classifications: only present when the space enables them.
             classification: { type: 'string' },
@@ -623,7 +643,11 @@ export function registerPagesRoutes(app: FastifyInstance, deps: PagesDeps): void
       // wird IMMER mitgeliefert (auch `false`) — der Freigabe-Dialog und die
       // Review-Ansicht nutzen dieselbe Seitendatenquelle und brauchen den
       // Schalter, um Versionsfelder ein-/auszublenden.
-      const { versioning, version, changedSinceRelease } = await resolveVersionFields(deps, row, schema)
+      const { versioning, version, implicitVersion, changedSinceRelease } = await resolveVersionFields(
+        deps,
+        row,
+        schema,
+      )
       const violation = classificationViolation(frontmatter.classification, schema)
       const classFields = classificationFields(frontmatter.classification, schema)
       const [latest] = await deps.db
@@ -679,6 +703,7 @@ export function registerPagesRoutes(app: FastifyInstance, deps: PagesDeps): void
         metadata,
         versioning,
         ...(version ? { version } : {}),
+        ...(implicitVersion ? { implicitVersion } : {}),
         changedSinceRelease,
         ...classFields,
         ...(latest ? { latestRelease: latest.version } : {}),

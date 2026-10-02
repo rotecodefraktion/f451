@@ -26,6 +26,8 @@ export interface ReviewViewProps {
   /** Version aus main VOR dieser Freigabe — Basis für die Sprung-Vorschau
    *  (`nextVersion`). Fehlt, wenn die Seite noch nie freigegeben wurde. */
   currentVersion?: string
+  /** `currentVersion` is the implicit 0.1.0: the page exists on main but was never released with a version. */
+  implicitVersion?: boolean
 }
 
 const WARN_ICON = (
@@ -93,7 +95,7 @@ type UpdateFailure = { message: string; preservedContent?: string }
  * NIE mit einem stehengebliebenen Client-Override überschreibt: der Effekt
  * unten setzt den Override zurück, sobald neue `pr`-Props hereinkommen.
  */
-export function ReviewView({ pageId, space, pr, versioning = false, currentVersion }: ReviewViewProps) {
+export function ReviewView({ pageId, space, pr, versioning = false, currentVersion, implicitVersion = false }: ReviewViewProps) {
   const router = useRouter()
   const { t } = useT()
   const [comment, setComment] = useState('')
@@ -349,11 +351,10 @@ export function ReviewView({ pageId, space, pr, versioning = false, currentVersi
                 trotzdem mitgeschickt — die API rechnet für die erste Freigabe
                 ohnehin IMMER 1.0.0, unabhängig vom Wert. */}
             {currentVersion === undefined ? (
-              <p className="version-first-release-hint">
-                {t('review.version.firstRelease', { version: nextVersion(currentVersion, 'minor') })}
-              </p>
-            ) : (
-              (['patch', 'minor', 'major'] as const).map((option) => (
+              // First release of a new page: a draft has no version. 0.1.0
+              // (default, sent as `minor`) or the finished page 1.0.0
+              // (`major`) — `nextVersion` computes both (f451#50).
+              (['minor', 'major'] as const).map((option) => (
                 <label key={option}>
                   <input
                     type="radio"
@@ -362,10 +363,27 @@ export function ReviewView({ pageId, space, pr, versioning = false, currentVersi
                     checked={bump === option}
                     onChange={() => setBump(option)}
                   />
-                  <b>{nextVersion(currentVersion, option)}</b>
-                  <span>{t(`review.version.${option}`)}</span>
+                  <b>{nextVersion(undefined, option)}</b>
+                  <span>{t(option === 'minor' ? 'review.version.firstMinor' : 'review.version.firstMajor')}</span>
                 </label>
               ))
+            ) : (
+              <>
+                {(['patch', 'minor', 'major'] as const).map((option) => (
+                  <label key={option}>
+                    <input
+                      type="radio"
+                      name="bump"
+                      value={option}
+                      checked={bump === option}
+                      onChange={() => setBump(option)}
+                    />
+                    <b>{nextVersion(currentVersion, option)}</b>
+                    <span>{t(`review.version.${option}`)}</span>
+                  </label>
+                ))}
+                {implicitVersion ? <p className="version-first-release-hint">{t('review.version.implicitHint')}</p> : null}
+              </>
             )}
             <label className="version-note">
               {t('review.version.noteLabel')}

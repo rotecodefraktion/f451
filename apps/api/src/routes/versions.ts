@@ -1,7 +1,14 @@
 import { and, desc, eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { NotFoundError } from '@f451/git-provider'
-import { diffMarkdown, effectiveClassification, parsePage, renderHtml, type PageFrontmatter } from '@f451/markdown'
+import {
+  diffMarkdown,
+  effectiveClassification,
+  IMPLICIT_VERSION,
+  parsePage,
+  renderHtml,
+  type PageFrontmatter,
+} from '@f451/markdown'
 import { exceedsTokenLimit, sendTokenLimit } from '../auth/classification-gate.js'
 import { pageReleases, pages, pageVersions } from '../db/schema.js'
 import { buildResolveImage, buildResolveLink, buildResolveReleaseImage } from '../indexer/resolve-links.js'
@@ -41,6 +48,8 @@ const versionEntrySchema = {
     note: { type: 'string' },
     /** A frozen copy of this version exists (#40). */
     release: { type: 'boolean' },
+    /** Derived 0.1.0 of a page never released (no `page_versions` row). */
+    implicit: { type: 'boolean' },
   },
   required: ['version', 'releasedAt', 'author', 'note'],
 } as const
@@ -205,6 +214,23 @@ export function registerVersionRoutes(app: FastifyInstance, deps: PagesDeps): vo
           .from(pageReleases)
           .where(eq(pageReleases.pageId, found.row.id))
         const frozenVersions = new Set(frozen.map((r) => r.version))
+        // A page on `main` without `version` is the implicit 0.1.0 (spec
+        // addendum 2026-10-02): one synthetic entry, which is today's state —
+        // so no diff (the web shows no diff link for `implicit`).
+        if (rows.length === 0 && !(found.row.frontmatter as PageFrontmatter | null)?.version) {
+          return {
+            versioning: true,
+            versions: [
+              {
+                version: IMPLICIT_VERSION,
+                implicit: true,
+                releasedAt: found.row.updatedAt.toISOString(),
+                author: found.row.lastAuthor ?? '',
+                note: '',
+              },
+            ],
+          }
+        }
         return {
           versioning: true,
           versions: rows.map((v) => ({ ...toEntry(v), ...(frozenVersions.has(v.version) ? { release: true } : {}) })),

@@ -60,6 +60,9 @@ export const review: Messages['review'] = {
     // three bump sizes — three identical radio buttons looked like a bug.
     // A plain hint replaces the selection instead, see `review-view.tsx`.
     firstRelease: 'This is the first release of this page — the version will be {version}.',
+    implicitHint: 'This page was never released with a version; its current state counts as 0.1.0.',
+    firstMinor: 'First version',
+    firstMajor: 'Finished version',
     archive: 'Freeze as release — a copy of this version with its attachments stays readable permanently',
     noteLabel: 'Change note',
     notePlaceholder: 'Briefly describe what changed',

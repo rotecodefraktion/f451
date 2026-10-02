@@ -45,6 +45,21 @@ and permissions exclusively through the API's HTTP surface.
 | `packages/design-tokens` | The catalog of design tokens that drives the look and feel — see [[web-frontend]]. |
 | `packages/git-provider` | One interface, two implementations (Forgejo, GitHub): read/write files, commits, branches, pull requests, reviews. |
 
+## Page versions in Git
+
+In a versioned space, each approval writes `version` and a `changelog` entry
+into the page's frontmatter, in a commit on the draft branch just before the
+merge. Both fields are system-managed. Postgres holds `page_versions`, the map
+from version to Git state for the version list and the diff; a reindex
+rebuilds it by walking the file's history.
+
+A page on `main` without `version` counts as 0.1.0, and its first approval
+bumps from there; a new page's first approval gives 0.1.0, or 1.0.0 as major.
+For the existing page, that approval also writes a 0.1.0 changelog entry with `ref: <sha>`, the `main`
+commit before the merge. Releases are merge commits, so the commit before the
+version commit is the draft, not the old `main`; `ref` lets the reindex find
+the 0.1.0 state from Git alone.
+
 ## Release archive in Git
 
 Releasing a page in a versioned space can freeze it: in the same commit as

@@ -111,6 +111,26 @@ describe.sequential('Versionsliste, Versionsdiff und Rekonstruktion', () => {
       await a.close()
     })
 
+    it('page without version and without rows → one synthetic implicit 0.1.0 entry', async () => {
+      const updatedAt = new Date('2026-06-01T08:00:00Z')
+      await db.insert(pages).values({
+        id: 'p-implizit', spaceId: space.id, path: 'implizit/index.md', ref: 'main', title: 'Implizit', lang: 'de',
+        frontmatter: { tags: [], relations: {} }, lastAuthor: 'Grace', updatedAt,
+      })
+      const a = app(fakeProvider(versioniert))
+      const res = await a.inject({ method: 'GET', url: '/api/pages/p-implizit/versions' })
+      expect(res.statusCode).toBe(200)
+      expect(res.json()).toEqual({
+        versioning: true,
+        versions: [{ version: '0.1.0', implicit: true, author: 'Grace', releasedAt: updatedAt.toISOString(), note: '' }],
+      })
+
+      // No row behind it → no diff (404 as for any unknown version).
+      const diff = await a.inject({ method: 'GET', url: '/api/pages/p-implizit/diff?from=0.1.0' })
+      expect(diff.statusCode).toBe(404)
+      await a.close()
+    })
+
     it('ohne Leserecht dieselbe 404 wie für eine unbekannte Seite', async () => {
       const a = app(fakeProvider(versioniert), false)
       const ohne = await a.inject({ method: 'GET', url: `/api/pages/${PAGE_ID}/versions` })
