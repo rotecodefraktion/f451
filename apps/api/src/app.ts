@@ -650,7 +650,13 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
 
   // Theme read routes (theming Stage 2): always registered — without an instance
   // config or provider registry they answer with the defaults (fail-soft loader).
-  registerThemeRoutes(app, { providerRegistry: opts.providerRegistry, instanceConfig: opts.instanceConfig })
+  // Stage 3: `spaces`/`access` add the space layer and `GET /api/spaces/:space/theme`.
+  registerThemeRoutes(app, {
+    providerRegistry: opts.providerRegistry,
+    instanceConfig: opts.instanceConfig,
+    spaces: opts.spaces,
+    access,
+  })
 
   // Webhook-, Admin- und Lese-Routen nur registrieren, wenn Space-Konfiguration +
   // Provider-Registry vorhanden sind (alles optional, Plan Task 4/5/6 —
