@@ -308,8 +308,12 @@ type SpaceWriteGateOutcome =
  * (Seitenanlage: noch KEINE `pages`-Zeile, der Space selbst ist bereits
  * aufgelöst) exakt dieselbe Provider-/Schreibrecht-Prüfung teilen, statt sie
  * zu duplizieren.
+ *
+ * Exported for the theme write routes (`routes/theme.ts`): the instance repo is
+ * not a configured space, so its pseudo space skips the read check and only
+ * goes through this part of the chain.
  */
-async function resolveSpaceWriteGate(
+export async function resolveSpaceWriteGate(
   deps: NewPageGateDeps,
   userId: string,
   space: SpaceConfig,

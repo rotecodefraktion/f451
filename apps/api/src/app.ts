@@ -42,6 +42,7 @@ import { registerReorderRoute } from './routes/reorder.js'
 import { registerSearchRoutes } from './routes/search.js'
 import { registerTemplatesRoutes } from './routes/templates.js'
 import { registerThemeRoutes } from './routes/theme.js'
+import { registerThemeContrastRoutes } from './routes/theme-contrast.js'
 import { registerTokensRoutes } from './routes/tokens.js'
 import { registerUnarchivePageRoute } from './routes/unarchive-page.js'
 import {
@@ -480,7 +481,13 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
       if (path === '/api/openapi.json' || path === '/api/docs' || path.startsWith('/api/docs/')) return
       if (path.startsWith('/auth/')) return
       // Theme read routes are public: anonymous readers and the sign-in page keep the look.
-      if (path === '/api/theme' || path === '/api/theme/resolved') return
+      // Reads only — `PUT`/`DELETE /api/theme` go through the session and token-scope gates below.
+      if (
+        (path === '/api/theme' || path === '/api/theme/resolved')
+        && (req.method === 'GET' || req.method === 'HEAD')
+      ) {
+        return
+      }
       const protectedApi = path === '/api' || path.startsWith('/api/')
       const protectedAdmin = path === '/admin' || path.startsWith('/admin/')
       const protectedMedia = path === '/media' || path.startsWith('/media/')
@@ -651,11 +658,22 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
   // Theme read routes (theming Stage 2): always registered — without an instance
   // config or provider registry they answer with the defaults (fail-soft loader).
   // Stage 3: `spaces`/`access` add the space layer and `GET /api/spaces/:space/theme`.
+  // Stage 4: `canWrite`/`userProvider` (auth only) add `PUT`/`DELETE` on both theme paths.
   registerThemeRoutes(app, {
     providerRegistry: opts.providerRegistry,
     instanceConfig: opts.instanceConfig,
     spaces: opts.spaces,
     access,
+    canWrite,
+    getUserProvider: userProvider,
+  })
+  // Contrast thresholds (Stage 4.2): GET always; PUT/DELETE only with auth
+  // (`canWrite`/`userProvider`), committing with the caller's own token.
+  registerThemeContrastRoutes(app, {
+    providerRegistry: opts.providerRegistry,
+    instanceConfig: opts.instanceConfig,
+    canWrite,
+    getUserProvider: userProvider,
   })
 
   // Webhook-, Admin- und Lese-Routen nur registrieren, wenn Space-Konfiguration +
