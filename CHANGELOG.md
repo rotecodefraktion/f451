@@ -15,6 +15,8 @@ No breaking changes. `implicitVersion` and `implicit` are new optional API field
 - Existing pages in a versioned space count as version 0.1.0 and their original
   state appears in the version list as the initial version. Nothing is written
   to Git until the first release, which can make the page 0.1.1, 0.2.0 or 1.0.0.
+- Review page: section titles use one font and style, and the version box's
+  title sits inside the box instead of on its border.
 
 ## [1.1.0] — 2026-10-01
 
