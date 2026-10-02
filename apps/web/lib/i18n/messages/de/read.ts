@@ -67,6 +67,7 @@ export const read = {
     empty: 'Diese Seite hat noch keine freigegebene Version.',
     unversioned: 'Dieser Space führt keine Versionen.',
     current: 'aktuell',
+    initial: 'Ausgangsstand',
     by: 'von {author}',
     compare: 'Mit heute vergleichen',
     diffHeading: 'Änderungen seit Version {from}',

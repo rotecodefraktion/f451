@@ -33,6 +33,8 @@ interface ReviewResponse {
   page: { id: string; space: string; title: string }
   versioning: boolean
   version?: string
+  /** `version` is the implicit 0.1.0 (page on main, never released with a version). */
+  implicitVersion?: boolean
 }
 
 const CLOCK_ICON = (
@@ -188,6 +190,7 @@ export default async function ReviewPage({ params }: ReviewPageProps) {
           pr={pr}
           versioning={data.versioning}
           currentVersion={data.version}
+          implicitVersion={data.implicitVersion}
         />
       </main>
 

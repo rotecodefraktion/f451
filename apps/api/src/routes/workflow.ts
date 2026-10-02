@@ -2,7 +2,14 @@ import type { FastifyInstance, FastifyReply } from 'fastify'
 import { and, eq, inArray } from 'drizzle-orm'
 import type { GitProvider, PullRequestInfo, RepoRef } from '@f451/git-provider'
 import { ConflictError, NotFoundError, ProviderError } from '@f451/git-provider'
-import { diffMarkdown, parsePage, parseVersion, type VersionBump } from '@f451/markdown'
+import {
+  diffMarkdown,
+  IMPLICIT_VERSION,
+  parsePage,
+  parseVersion,
+  type ChangelogEntry,
+  type VersionBump,
+} from '@f451/markdown'
 import { branchExists, cleanupMergedDraft } from '../drafts/lifecycle.js'
 import { draftBranchName } from '../drafts/branch-name.js'
 import { DraftUpdateContentLostError, updateDraft, type UpdateStrategy } from '../drafts/update.js'
@@ -42,6 +49,9 @@ export type WorkflowDeps = DraftsDeps & {
    *  Freigabedatum erwarten können. */
   now?: () => number
 }
+
+/** Changelog note of the implicit 0.1.0, written by the page's first release. */
+const IMPLICIT_VERSION_NOTE = 'Initial version'
 
 /** ISO-Datum OHNE Uhrzeit (`"2026-07-16"`) — Format für `type: date`-Felder
  *  im Metadaten-Erfass-Formular (Metadaten-Feature M3, `apps/web/lib/metadata-form.ts`),
@@ -491,6 +501,9 @@ const reviewGetSchema = {
         // mitzuschicken, daher NICHT in `required`.
         versioning: { type: 'boolean' },
         version: { type: 'string' },
+        // Present (true) only when `version` is the derived 0.1.0 of a page on
+        // `main` without `version` (spec addendum 2026-10-02).
+        implicitVersion: { type: 'boolean' },
       },
       required: ['pr', 'authorName', 'diff', 'page', 'versioning'],
     },
@@ -637,7 +650,7 @@ export function registerWorkflowRoutes(app: FastifyInstance, deps: WorkflowDeps)
             'main',
             req.log,
           )
-          const { versioning, version } = await resolveVersionFields(deps, ctx.row, schema)
+          const { versioning, version, implicitVersion } = await resolveVersionFields(deps, ctx.row, schema)
 
           const diff = diffMarkdown(mainFile.content, draftFile.content, {
             // Diagramm-/Bild-/Anhang-Referenzen der VORGESCHLAGENEN Fassung
@@ -659,6 +672,7 @@ export function registerWorkflowRoutes(app: FastifyInstance, deps: WorkflowDeps)
             page: { id: ctx.row.id, space: ctx.space.id, title: ctx.row.title },
             versioning,
             ...(version ? { version } : {}),
+            ...(implicitVersion ? { implicitVersion } : {}),
           }
         } catch (err) {
           return providerErrorReply(reply, err)
@@ -741,9 +755,11 @@ export function registerWorkflowRoutes(app: FastifyInstance, deps: WorkflowDeps)
           // (s. applyVersionOnDraft).
           let releasedVersion: string | undefined
           let archived: { archivePath?: string; missingAttachments?: string[] } = {}
+          // Set on the first release of a page that was the implicit 0.1.0.
+          let implicitRelease: { entry: ChangelogEntry; mergeSha?: string; blobSha?: string } | undefined
           if (schema.versioning) {
             // NUR `NotFoundError` heißt hier "Seite existiert noch nicht in main"
-            // (erste Freigabe → `nextVersion(undefined, bump)` = 1.0.0, korrekt).
+            // (first release of a new page → `nextVersion(undefined, bump)` = 1.0.0).
             // JEDER andere Fehler (Netzwerk-Timeout, Rate-Limit, transienter
             // Provider-Ausfall) MUSS durchgeworfen werden, damit ihn der äußere
             // try/catch als 502 meldet — ein pauschal geschlucktes `.catch(() =>
@@ -761,13 +777,49 @@ export function registerWorkflowRoutes(app: FastifyInstance, deps: WorkflowDeps)
               throw err
             })
             const mainVersion = mainFile ? parsePage(mainFile.content).frontmatter.version : undefined
-            const applied = await applyVersionOnDraft(ctx.provider, repo, ctx.row.path, branch, mainVersion, {
-              bump: req.body?.bump ?? 'patch',
-              note: (req.body?.note ?? req.body?.comment ?? '').trim(),
-              author: req.user!.displayName,
-              date: isoDateOnly((deps.now ?? Date.now)()),
-              ...(archive ? { archive: { source: ctx.row.id } } : {}),
-            })
+            // A page on `main` without `version` is the implicit 0.1.0 (spec
+            // addendum 2026-10-02): its first release bumps from there and also
+            // records 0.1.0 itself. Pages not on `main` stay at 1.0.0.
+            if (mainFile && mainVersion === undefined) {
+              // Author and date of the 0.1.0 state: the last `main` commit of
+              // the file. `pages.lastAuthor` is null after a full reindex, and
+              // the frontmatter parser drops changelog entries without author.
+              const [lastCommit] = await ctx.provider
+                .listCommits(repo, { ref: 'main', path: ctx.row.path, limit: 1 })
+                .catch(() => [])
+              const initialEntry: ChangelogEntry = {
+                version: IMPLICIT_VERSION,
+                date: lastCommit ? lastCommit.date.slice(0, 10) : isoDateOnly(ctx.row.updatedAt.getTime()),
+                author: lastCommit?.authorName || ctx.row.lastAuthor || 'unknown',
+                note: IMPLICIT_VERSION_NOTE,
+              }
+              // HEAD of `main` BEFORE the merge is the commit that holds the
+              // 0.1.0 state. Best effort like the row itself (a cache): without
+              // it the row is skipped, the release goes on.
+              const mergeSha = await ctx.provider.getHeadSha(repo, 'main').catch((err) => {
+                req.log.warn({ err, pageId: ctx.row.id }, 'release: main HEAD for 0.1.0 not readable')
+                return undefined
+              })
+              implicitRelease = {
+                entry: initialEntry,
+                ...(mergeSha ? { mergeSha, blobSha: mainFile.sha } : {}),
+              }
+            }
+            const applied = await applyVersionOnDraft(
+              ctx.provider,
+              repo,
+              ctx.row.path,
+              branch,
+              implicitRelease ? IMPLICIT_VERSION : mainVersion,
+              {
+                bump: req.body?.bump ?? 'patch',
+                note: (req.body?.note ?? req.body?.comment ?? '').trim(),
+                author: req.user!.displayName,
+                date: isoDateOnly((deps.now ?? Date.now)()),
+                ...(archive ? { archive: { source: ctx.row.id } } : {}),
+                ...(implicitRelease ? { initialEntry: implicitRelease.entry } : {}),
+              },
+            )
             releasedVersion = applied.version
             if (applied.archivePath) {
               archived = {
@@ -899,6 +951,49 @@ export function registerWorkflowRoutes(app: FastifyInstance, deps: WorkflowDeps)
                     + 'Eintrag ist per Reindex rekonstruierbar',
                 )
               }
+            }
+          }
+
+          // First release of an implicit 0.1.0 page: record the starting state
+          // too, so it can be diffed against. A cache like the row above —
+          // a failure is logged, the reindex recovers it from the changelog.
+          if (releasedVersion && implicitRelease?.mergeSha && implicitRelease.blobSha) {
+            const parts = parseVersion(IMPLICIT_VERSION)!
+            const initialValues = {
+              pageId: ctx.row.id,
+              spaceId: ctx.space.id,
+              version: IMPLICIT_VERSION,
+              major: parts.major,
+              minor: parts.minor,
+              patch: parts.patch,
+              mergeSha: implicitRelease.mergeSha,
+              blobSha: implicitRelease.blobSha,
+              author: implicitRelease.entry.author,
+              note: implicitRelease.entry.note,
+              releasedAt: new Date(implicitRelease.entry.date),
+            }
+            try {
+              await deps.db
+                .insert(pageVersions)
+                .values(initialValues)
+                // Same reasoning as above (reused page ids): this merge is the truth.
+                .onConflictDoUpdate({
+                  target: [pageVersions.pageId, pageVersions.version],
+                  set: {
+                    spaceId: initialValues.spaceId,
+                    mergeSha: initialValues.mergeSha,
+                    blobSha: initialValues.blobSha,
+                    author: initialValues.author,
+                    note: initialValues.note,
+                    releasedAt: initialValues.releasedAt,
+                  },
+                })
+            } catch (err) {
+              req.log.error(
+                { err, pageId: ctx.row.id, version: IMPLICIT_VERSION },
+                'release: page_versions row for 0.1.0 failed — merge succeeded, '
+                  + 'row is recoverable by reindex',
+              )
             }
           }
 

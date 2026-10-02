@@ -71,6 +71,7 @@ export const review = {
     // (1.0.0) — drei identische Radiobuttons sahen wie ein Fehler aus. Statt
     // der Auswahl steht hier ein klarer Hinweis, s. `review-view.tsx`.
     firstRelease: 'Dies ist die erste Freigabe dieser Seite — die Version wird {version}.',
+    implicitHint: 'Diese Seite hat noch keine Version; sie zählt als 0.1.0.',
     archive: 'Als Release festschreiben — eine Kopie dieser Fassung mit Anhängen bleibt dauerhaft lesbar',
     noteLabel: 'Änderungsnotiz',
     notePlaceholder: 'Kurz beschreiben, was sich geändert hat',

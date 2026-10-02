@@ -55,6 +55,7 @@ export const read: Messages['read'] = {
     empty: 'This page has no released version yet.',
     unversioned: 'This space does not keep versions.',
     current: 'current',
+    initial: 'Initial version',
     by: 'by {author}',
     compare: 'Compare with today',
     diffHeading: 'Changes since version {from}',

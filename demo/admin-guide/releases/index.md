@@ -21,6 +21,12 @@ same with the `archive` parameter of `release_page`, but only when asked to.
 Releases need versioning in the space (`versioning: true` in
 `_meta/schema.yaml`), because the version number names the copy.
 
+## Turning versioning on later
+
+If a space turns versioning on after pages already exist, those pages count as
+version 0.1.0. Nothing is written to Git for that; the first approval writes the
+version into the page, and the reviewer can make it 0.1.1, 0.2.0 or 1.0.0.
+
 ## Where the copy lives
 
 ```

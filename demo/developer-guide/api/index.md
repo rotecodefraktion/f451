@@ -84,6 +84,13 @@ releases_require_versioning`.
 | `GET /api/pages/:id/releases/:version` | The frozen copy: `html`, `headings`, `tags`, `relations`, `metadata` (auto fields resolve to the release's author and date), `classification`, and a `release` object with the entry above plus `current`, the living page's version. |
 | `GET /media/<page>/<file>?release=<version>` | An attachment as it was frozen with that release. |
 
+A page that exists on `main` without a `version` in a versioned space counts as
+`0.1.0`. `GET /api/pages/:id` and `GET /api/pages/:id/review` then return
+`version: "0.1.0"` with `implicitVersion: true`. `GET /api/pages/:id/versions`
+lists a synthetic entry with `implicit: true` (no diff — it is today's state).
+The page's first release records 0.1.0 as a real entry pointing at `main`
+before the merge, so the original state can be compared from then on.
+
 Both `releases` routes need read access only, and `404` stays ambiguous.
 The MCP tool `read_page` takes an optional `version` to read a frozen copy.
 

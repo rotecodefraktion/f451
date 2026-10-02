@@ -72,6 +72,10 @@ to the list of all versions of the page. If a version was frozen as a
 release (see [[writing-a-page]]), the line also shows **Release x.y.z**,
 which opens the newest frozen release.
 
+Pages that already existed when a space turned versioning on show **Version
+0.1.0**, and the version list shows their original state as *Initial version*.
+Their first release can make them 0.1.1, 0.2.0 or 1.0.0.
+
 The version list marks frozen versions with **Release** and an **Open frozen
 version** link. A frozen version opens read-only:
 
