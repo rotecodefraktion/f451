@@ -787,12 +787,6 @@ export function registerWorkflowRoutes(app: FastifyInstance, deps: WorkflowDeps)
               const [lastCommit] = await ctx.provider
                 .listCommits(repo, { ref: 'main', path: ctx.row.path, limit: 1 })
                 .catch(() => [])
-              const initialEntry: ChangelogEntry = {
-                version: IMPLICIT_VERSION,
-                date: lastCommit ? lastCommit.date.slice(0, 10) : isoDateOnly(ctx.row.updatedAt.getTime()),
-                author: lastCommit?.authorName || ctx.row.lastAuthor || 'unknown',
-                note: IMPLICIT_VERSION_NOTE,
-              }
               // HEAD of `main` BEFORE the merge is the commit that holds the
               // 0.1.0 state. Best effort like the row itself (a cache): without
               // it the row is skipped, the release goes on.
@@ -800,6 +794,16 @@ export function registerWorkflowRoutes(app: FastifyInstance, deps: WorkflowDeps)
                 req.log.warn({ err, pageId: ctx.row.id }, 'release: main HEAD for 0.1.0 not readable')
                 return undefined
               })
+              const initialEntry: ChangelogEntry = {
+                version: IMPLICIT_VERSION,
+                date: lastCommit ? lastCommit.date.slice(0, 10) : isoDateOnly(ctx.row.updatedAt.getTime()),
+                author: lastCommit?.authorName || ctx.row.lastAuthor || 'unknown',
+                note: IMPLICIT_VERSION_NOTE,
+                // In Git, so the reconstruction finds the 0.1.0 state after a
+                // database loss: releases are merge commits, the commit before
+                // the version commit is the draft, not the old `main`.
+                ...(mergeSha ? { ref: mergeSha } : {}),
+              }
               implicitRelease = {
                 entry: initialEntry,
                 ...(mergeSha ? { mergeSha, blobSha: mainFile.sha } : {}),

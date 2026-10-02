@@ -13,6 +13,10 @@ export interface ChangelogEntry {
   author: string
   /** Änderungsnotiz, vom Freigebenden verfasst. */
   note: string
+  /** Git commit that holds this version, when no release commit wrote it —
+   *  the implicit 0.1.0 of an existing page points at `main` before its first
+   *  release (f451#50). Lets the reconstruction recover the version from Git. */
+  ref?: string
 }
 
 /** Validiertes Frontmatter einer Seite. Fehlende/ungültige Felder sind undefined

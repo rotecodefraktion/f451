@@ -10,6 +10,7 @@ import { upsertProviderAccount } from '../src/auth/connect.js'
 import { SESSION_COOKIE_NAME, createSession } from '../src/auth/sessions.js'
 import { createDb, type Db } from '../src/db/client.js'
 import { locks, pageReleases, pageVersions, pages, users } from '../src/db/schema.js'
+import { reconstructPageVersions } from '../src/indexer/version-history.js'
 import { indexSpace } from '../src/indexer/index-space.js'
 import type { SpaceConfig } from '../src/spaces/config.js'
 import { startPg, type PgTestInstance } from './helpers/pg-container.js'
@@ -1251,6 +1252,7 @@ describe.sequential('Workflow-Routen: review/release/request-changes/draft-updat
           const changelog = parsePage(mergedMajor.content).frontmatter.changelog
           expect(changelog?.map((e) => e.version)).toEqual(['1.0.0', '0.1.0'])
           expect(changelog?.[1]?.note).toBe('Initial version')
+          expect(changelog?.[1]?.ref).toBe(headBefore)
 
           const majorRows = await db
             .select()
@@ -1270,6 +1272,16 @@ describe.sequential('Workflow-Routen: review/release/request-changes/draft-updat
           expect(diffRes.statusCode).toBe(200)
           expect(diffRes.json().to).toBe('1.0.0')
           expect(JSON.stringify(diffRes.json().diff)).toContain('v2 (implicit)')
+
+          // After a database loss the reconstruction finds 0.1.0 through `ref`.
+          await db.delete(pageVersions).where(eq(pageVersions.pageId, 'wf-implicit-major'))
+          await reconstructPageVersions({ db, provider }, implicitSpace, { id: 'wf-implicit-major', path: majorPath })
+          const rebuilt = await db
+            .select()
+            .from(pageVersions)
+            .where(and(eq(pageVersions.pageId, 'wf-implicit-major'), eq(pageVersions.version, '0.1.0')))
+          expect(rebuilt[0]?.mergeSha).toBe(headBefore)
+          expect(rebuilt[0]?.blobSha).toBe(mainBefore.sha)
 
           // ---- Existing page, minor → 0.2.0 ----
           const minorBody = await releaseWith('wf-implicit-minor', minorPath, 'minor', 'Small step')
