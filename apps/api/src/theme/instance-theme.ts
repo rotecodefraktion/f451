@@ -3,6 +3,7 @@ import { parseThemeFile, type ParsedTheme } from '@f451/design-tokens'
 import { NotFoundError } from '@f451/git-provider'
 import { parse as parseYaml } from 'yaml'
 import type { InstanceConfig, SpaceConfig } from '../spaces/config.js'
+import { INSTANCE_BRAND_KEY, invalidateBrand } from './brand-cache.js'
 import { INSTANCE_LIBRARY_KEY, invalidateLibrary } from './library-cache.js'
 
 /** Path of the theme file in the instance repo (same place as `_meta/schema.yaml` in a space repo). */
@@ -108,9 +109,10 @@ export async function loadInstanceTheme(
   return theme
 }
 
-/** Drops the cached instance theme and the instance library (`_meta/themes/*`);
- *  the next `loadInstanceTheme` / `loadLibrary` reads the repo again. */
+/** Drops the cached instance theme, the instance library (`_meta/themes/*`) and the
+ *  instance brand files; the next read goes to the repo again. */
 export function invalidateInstanceTheme(): void {
   cache = undefined
   invalidateLibrary(INSTANCE_LIBRARY_KEY)
+  invalidateBrand(INSTANCE_BRAND_KEY)
 }

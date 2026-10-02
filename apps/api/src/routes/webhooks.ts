@@ -416,7 +416,7 @@ async function cleanupAfterMerge(
   }
 }
 
-/** `_meta/theme.yaml` and the template library `_meta/themes/*`. */
+/** `_meta/theme.yaml`, the template library `_meta/themes/*` and the brand files `_meta/brand/*`. */
 function isThemePath(path: string): boolean {
-  return path === SPACE_THEME_PATH || path.startsWith('_meta/themes/')
+  return path === SPACE_THEME_PATH || path.startsWith('_meta/themes/') || path.startsWith('_meta/brand/')
 }

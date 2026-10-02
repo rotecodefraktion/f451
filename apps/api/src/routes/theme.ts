@@ -18,6 +18,7 @@ import { stringify as stringifyYaml } from 'yaml'
 import type { SpaceAccess } from '../auth/permissions.js'
 import type { Db } from '../db/client.js'
 import type { SpaceConfig } from '../spaces/config.js'
+import { resolveBrand } from '../theme/brand.js'
 import { loadContrastThresholds } from '../theme/contrast-config.js'
 import {
   INSTANCE_THEME_PATH,
@@ -63,6 +64,9 @@ import {
  * User layer (Stage 6): `resolved` appends the session user's personal theme
  * (`user_settings`) last, so it wins over instance and space. Its own routes
  * live in `me-theme.ts`.
+ *
+ * Brand (Stage 8): `resolved` carries `brand` (name and file URLs) so the layout
+ * needs no second call; the files themselves are served by `brand.ts`.
  */
 
 export interface ThemeDeps extends InstanceThemeDeps {
@@ -183,7 +187,16 @@ const resolvedSchema = {
           properties: { base: originMapSchema, light: originMapSchema, dark: originMapSchema },
           required: ['base', 'light', 'dark'],
         },
-        brand: { type: 'null' },
+        // `null` = no brand anywhere in the chain, the f451 mark applies (addendum §5).
+        brand: {
+          type: ['object', 'null'],
+          properties: {
+            name: { type: ['string', 'null'] },
+            logoUrl: { type: ['string', 'null'] },
+            faviconUrl: { type: ['string', 'null'] },
+          },
+          required: ['name', 'logoUrl', 'faviconUrl'],
+        },
         layers: { type: 'array', items: { type: 'string' } },
       },
       required: ['css', 'origin', 'brand', 'layers'],
@@ -588,6 +601,24 @@ export function registerThemeRoutes(app: FastifyInstance, deps: ThemeDeps): void
     }
   }
 
+  /**
+   * The brand for the layout (addendum §5), with URLs as the browser reaches them
+   * through the web proxy. An inherited instance logo is named by the instance URL,
+   * so every space shares one cached file. `null` when nothing is set.
+   */
+  async function brandBody(space: SpaceConfig | null, log: FastifyRequest['log']) {
+    const brand = await resolveBrand(deps, space ?? undefined, log)
+    const logoUrl =
+      brand.logoScope === 'space' && space
+        ? `/api/spaces/${encodeURIComponent(space.id)}/brand/logo`
+        : brand.logoScope === 'instance'
+          ? '/api/brand/logo'
+          : null
+    const faviconUrl = brand.favicon ? '/api/brand/favicon' : null
+    if (brand.name === null && logoUrl === null && faviconUrl === null) return null
+    return { name: brand.name, logoUrl, faviconUrl }
+  }
+
   app.register(async (instance) => {
     instance.get('/api/theme', { schema: themeSchema }, async (req) => {
       return themeBody(await loadInstanceTheme(deps, req.log), 'instance' as const)
@@ -626,7 +657,7 @@ export function registerThemeRoutes(app: FastifyInstance, deps: ThemeDeps): void
         return {
           css: toCssDeclarations(resolved),
           origin: resolved.origin,
-          brand: null,
+          brand: await brandBody(space, req.log),
           // One entry per level, also when a template doubled it.
           layers: [...new Set(layers.map((l): LayerSource => l.source))],
         }

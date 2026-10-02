@@ -42,6 +42,7 @@ import { registerReorderRoute } from './routes/reorder.js'
 import { registerSearchRoutes } from './routes/search.js'
 import { registerTemplatesRoutes } from './routes/templates.js'
 import { registerThemeRoutes } from './routes/theme.js'
+import { registerBrandRoutes } from './routes/brand.js'
 import { registerMeThemeRoutes } from './routes/me-theme.js'
 import { registerThemeEditorRoutes } from './routes/theme-editor.js'
 import { registerThemeContrastRoutes } from './routes/theme-contrast.js'
@@ -485,8 +486,14 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
       if (path.startsWith('/auth/')) return
       // Theme read routes are public: anonymous readers and the sign-in page keep the look.
       // Reads only — `PUT`/`DELETE /api/theme` go through the session and token-scope gates below.
+      // The brand files (Stage 8) likewise: the sign-in page shows the logo; the space logo
+      // route checks read access itself (anonymous = `''`, like `resolved?space=`).
       if (
-        (path === '/api/theme' || path === '/api/theme/resolved')
+        (path === '/api/theme'
+          || path === '/api/theme/resolved'
+          || path === '/api/brand/logo'
+          || path === '/api/brand/favicon'
+          || /^\/api\/spaces\/[^/]+\/brand\/logo$/.test(path))
         && (req.method === 'GET' || req.method === 'HEAD')
       ) {
         return
@@ -671,6 +678,15 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
     getUserProvider: userProvider,
     // Stage 6: the session user's personal theme as the last layer of `resolved`.
     db,
+  })
+  // Brand files (Stage 8): GETs public like the theme reads; PUT/DELETE only with auth.
+  registerBrandRoutes(app, {
+    providerRegistry: opts.providerRegistry,
+    instanceConfig: opts.instanceConfig,
+    spaces: opts.spaces,
+    access,
+    canWrite,
+    getUserProvider: userProvider,
   })
   // Personal theme (Stage 6): session only, so registered only with auth (which implies `db`).
   if (opts.auth && db) {
