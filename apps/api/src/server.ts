@@ -3,7 +3,9 @@ import { deleteExpiredSessions, type AuthOptions } from './auth/sessions.js'
 import { createDb } from './db/client.js'
 import { checkDrift } from './indexer/drift.js'
 import type { IndexerLogger } from './indexer/index-space.js'
-import { createProviderRegistry, getForgejoBaseUrl, loadGlobalTemplatesConfig, loadSpacesConfig } from './spaces/config.js'
+import {
+  createProviderRegistry, getForgejoBaseUrl, loadGlobalTemplatesConfig, loadInstanceConfig, loadSpacesConfig,
+} from './spaces/config.js'
 
 const databaseUrl = process.env.DATABASE_URL
 
@@ -19,6 +21,10 @@ const providerRegistry = spaces ? createProviderRegistry(process.env) : undefine
 // konfigurierbar (fail-fast bei Fehlkonfiguration, siehe
 // `loadGlobalTemplatesConfig`) — `undefined`, wenn nicht gesetzt.
 const globalTemplates = loadGlobalTemplatesConfig(process.env)
+// Instance repo for the instance theme (theming Stage 2) — independent of
+// F451_GLOBAL_TEMPLATES (may name the same repo), fail-fast on misconfiguration,
+// `undefined` when unset.
+const instanceConfig = loadInstanceConfig(process.env)
 
 const webhookSecrets = spaces
   ? {
@@ -193,6 +199,7 @@ const app = buildApp({
   // Templates-API (Phase 3c Task 2) — ohne F451_GLOBAL_TEMPLATES bleibt sie
   // `undefined`, die Route liefert dann nur Space-Templates.
   globalTemplates,
+  instanceConfig,
   // Rate-Limits (Task 2, Spec §7) — ohne gesetzte Env-Variablen bleibt es
   // `undefined`, `app.ts#buildApp` greift dann auf `DEFAULT_RATE_LIMITS` zurück.
   rateLimits,

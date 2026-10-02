@@ -160,6 +160,65 @@ export function loadGlobalTemplatesConfig(
   return { provider, owner, repo, repoRef: { provider, owner, repo } }
 }
 
+export interface InstanceConfig {
+  provider: Provider
+  owner: string
+  repo: string
+  repoRef: RepoRef
+}
+
+/** Requires `value` to be a non-empty string (counterpart of
+ *  `requireGlobalTemplatesString`, for `F451_INSTANCE_CONFIG`). */
+function requireInstanceConfigString(value: unknown, field: string): string {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    throw new Error(
+      `F451_INSTANCE_CONFIG: missing or invalid required field "${field}" (string expected).`,
+    )
+  }
+  return value
+}
+
+/**
+ * Reads and validates the optional instance repo from `F451_INSTANCE_CONFIG`
+ * (JSON object `{"provider","owner","repo"}`, same shape as
+ * `F451_GLOBAL_TEMPLATES`; both may name the same repo, neither requires the
+ * other). The instance repo holds `_meta/theme.yaml`. `undefined` when unset —
+ * then there is no instance theme. Fail-fast on invalid JSON/fields: a
+ * misconfiguration is a deployment error, not a runtime case.
+ */
+export function loadInstanceConfig(
+  env: Record<string, string | undefined>,
+): InstanceConfig | undefined {
+  const raw = env.F451_INSTANCE_CONFIG
+  if (raw === undefined || raw.trim().length === 0) return undefined
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch (cause) {
+    throw new Error(
+      `F451_INSTANCE_CONFIG is not valid JSON: ${cause instanceof Error ? cause.message : String(cause)}`,
+    )
+  }
+
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new Error('F451_INSTANCE_CONFIG must be a JSON object.')
+  }
+  const obj = parsed as Record<string, unknown>
+
+  if (typeof obj.provider !== 'string' || !KNOWN_PROVIDERS.includes(obj.provider as Provider)) {
+    throw new Error(
+      `F451_INSTANCE_CONFIG has an unknown provider "${String(obj.provider)}" `
+        + `(allowed: ${KNOWN_PROVIDERS.join(', ')}).`,
+    )
+  }
+  const provider = obj.provider as Provider
+  const owner = requireInstanceConfigString(obj.owner, 'owner')
+  const repo = requireInstanceConfigString(obj.repo, 'repo')
+
+  return { provider, owner, repo, repoRef: { provider, owner, repo } }
+}
+
 /**
  * Liefert die Forgejo-Basis-URL aus derselben Umgebungsvariable wie die
  * Service-Account-Registry (`F451_FORGEJO_URL`, siehe `createProviderRegistry`

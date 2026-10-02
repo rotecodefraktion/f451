@@ -41,6 +41,7 @@ import { registerPagesRoutes } from './routes/pages.js'
 import { registerReorderRoute } from './routes/reorder.js'
 import { registerSearchRoutes } from './routes/search.js'
 import { registerTemplatesRoutes } from './routes/templates.js'
+import { registerThemeRoutes } from './routes/theme.js'
 import { registerTokensRoutes } from './routes/tokens.js'
 import { registerUnarchivePageRoute } from './routes/unarchive-page.js'
 import {
@@ -50,7 +51,7 @@ import {
   type WebhookSecrets,
 } from './routes/webhooks.js'
 import { registerWorkflowRoutes } from './routes/workflow.js'
-import type { GlobalTemplatesConfig, SpaceConfig } from './spaces/config.js'
+import type { GlobalTemplatesConfig, InstanceConfig, SpaceConfig } from './spaces/config.js'
 
 export interface AppOptions {
   databaseUrl?: string
@@ -110,6 +111,11 @@ export interface AppOptions {
    *  den Space-eigenen `_templates/*.md`. Ohne sie liefert die Route nur
    *  Space-Templates (Bestandsverhalten). */
   globalTemplates?: GlobalTemplatesConfig
+  /** Theming Stage 2: optional instance repo (`F451_INSTANCE_CONFIG`,
+   *  `spaces/config.ts#loadInstanceConfig`) holding `_meta/theme.yaml`; read by
+   *  `theme/instance-theme.ts#loadInstanceTheme` as `deps.instanceConfig`.
+   *  Without it there is no instance theme. */
+  instanceConfig?: InstanceConfig
   /** Task 2 (Rate-Limits, Spec §7): Anfragebudget pro Zeitfenster für die
    *  6 Auth-Routen (`auth.ts`, OIDC- + Connect-Flows) und `GET /api/search`.
    *  WICHTIG (Fix-Runde 1, Review-Finding 2): das Limit gilt PRO Route und
@@ -447,7 +453,7 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
     // Schutz-Matrix (Plan Task 5, erweitert um Zusatz-Task Phase 1e/Media): NUR
     // wenn opts.auth gesetzt ist. Läuft nach dem Session-Hook (Registrierungs-
     // reihenfolge), sodass req.user gesetzt ist.
-    //   - /api/* → Session erforderlich, außer /api/openapi.json und /api/docs
+    //   - /api/* → Session erforderlich, außer /api/openapi.json, /api/docs und den Lese-Routen des Themes (/api/theme, /api/theme/resolved — anonymes Lesen behält sein Aussehen)
     //     (Spec/Swagger sind offen; ein Login-Redirect vor der Doku wäre absurd).
     //   - /admin/* → Session ODER gültiges Admin-Token (Issue #24, Ops-
     //     Automatisierung: `POST /admin/reindex`/`/admin/backfill-ids` sollen
@@ -473,6 +479,8 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
       const path = req.url.split('?', 1)[0]!
       if (path === '/api/openapi.json' || path === '/api/docs' || path.startsWith('/api/docs/')) return
       if (path.startsWith('/auth/')) return
+      // Theme read routes are public: anonymous readers and the sign-in page keep the look.
+      if (path === '/api/theme' || path === '/api/theme/resolved') return
       const protectedApi = path === '/api' || path.startsWith('/api/')
       const protectedAdmin = path === '/admin' || path.startsWith('/admin/')
       const protectedMedia = path === '/media' || path.startsWith('/media/')
@@ -639,6 +647,10 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
     }
     userProvider = (userId, space) => getUserProvider(userProviderDeps, userId, space)
   }
+
+  // Theme read routes (theming Stage 2): always registered — without an instance
+  // config or provider registry they answer with the defaults (fail-soft loader).
+  registerThemeRoutes(app, { providerRegistry: opts.providerRegistry, instanceConfig: opts.instanceConfig })
 
   // Webhook-, Admin- und Lese-Routen nur registrieren, wenn Space-Konfiguration +
   // Provider-Registry vorhanden sind (alles optional, Plan Task 4/5/6 —

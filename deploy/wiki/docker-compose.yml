@@ -116,6 +116,8 @@ services:
       F451_ADMIN_TOKEN: ${F451_ADMIN_TOKEN:-}
       # Vorlagen (Phase 3c) — global, unabhängig von F451_SPACES.
       F451_GLOBAL_TEMPLATES: ${F451_GLOBAL_TEMPLATES:-}
+      # Instance repo: _meta/theme.yaml, _meta/themes/, brand/ (theming, #3)
+      F451_INSTANCE_CONFIG: ${F451_INSTANCE_CONFIG:-}
       # Auth/OIDC (Phase 1d) — ohne F451_OIDC_ISSUER bleibt Auth deaktiviert
       # (Bestandsverhalten, alles offen).
       F451_OIDC_ISSUER: ${F451_OIDC_ISSUER:-}

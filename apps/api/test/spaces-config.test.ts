@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { ForgejoProvider, GitHubProvider } from '@f451/git-provider'
-import { createProviderRegistry, loadGlobalTemplatesConfig, loadSpacesConfig } from '../src/spaces/config.js'
+import {
+  createProviderRegistry, loadGlobalTemplatesConfig, loadInstanceConfig, loadSpacesConfig,
+} from '../src/spaces/config.js'
 
 const validSpacesJson = JSON.stringify([
   {
@@ -214,6 +216,51 @@ describe('loadGlobalTemplatesConfig', () => {
       loadGlobalTemplatesConfig({
         F451_GLOBAL_TEMPLATES: JSON.stringify({ provider: 'forgejo', owner: 'f451' }),
       }),
+    ).toThrow(/repo/)
+  })
+})
+
+describe('loadInstanceConfig', () => {
+  it('returns undefined when F451_INSTANCE_CONFIG is unset or blank', () => {
+    expect(loadInstanceConfig({})).toBeUndefined()
+    expect(loadInstanceConfig({ F451_INSTANCE_CONFIG: '   ' })).toBeUndefined()
+  })
+
+  it('loads a valid configuration, independent of F451_GLOBAL_TEMPLATES', () => {
+    const cfg = loadInstanceConfig({
+      F451_INSTANCE_CONFIG: JSON.stringify({ provider: 'forgejo', owner: 'f451', repo: 'instance' }),
+    })
+    expect(cfg).toEqual({
+      provider: 'forgejo',
+      owner: 'f451',
+      repo: 'instance',
+      repoRef: { provider: 'forgejo', owner: 'f451', repo: 'instance' },
+    })
+  })
+
+  it('throws on invalid JSON', () => {
+    expect(() => loadInstanceConfig({ F451_INSTANCE_CONFIG: '{not valid json' }))
+      .toThrow(/F451_INSTANCE_CONFIG.*JSON/)
+  })
+
+  it('throws when not a JSON object (array)', () => {
+    expect(() => loadInstanceConfig({ F451_INSTANCE_CONFIG: '[]' })).toThrow(/object/)
+  })
+
+  it('throws on an unknown provider', () => {
+    expect(() =>
+      loadInstanceConfig({
+        F451_INSTANCE_CONFIG: JSON.stringify({ provider: 'gitlab', owner: 'f451', repo: 'instance' }),
+      }),
+    ).toThrow(/provider/)
+  })
+
+  it('throws on a missing required field', () => {
+    expect(() =>
+      loadInstanceConfig({ F451_INSTANCE_CONFIG: JSON.stringify({ provider: 'forgejo', repo: 'instance' }) }),
+    ).toThrow(/owner/)
+    expect(() =>
+      loadInstanceConfig({ F451_INSTANCE_CONFIG: JSON.stringify({ provider: 'forgejo', owner: 'f451' }) }),
     ).toThrow(/repo/)
   })
 })
