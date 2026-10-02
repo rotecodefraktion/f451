@@ -4,6 +4,12 @@ title: Playground
 description: The one space in this demo where you may write — try the editor, reviews and diagrams here.
 tags: [playground]
 lang: en
+version: 1.0.0
+changelog:
+  - version: 1.0.0
+    date: 2026-10-02
+    author: f451
+    note: Initial version
 ---
 
 # Playground
