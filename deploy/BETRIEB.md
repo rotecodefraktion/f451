@@ -65,6 +65,7 @@ Web-seitig gibt es genau EINE `NEXT_PUBLIC_*`-Variable (grep über
 | `F451_WEBHOOK_SECRET_GITHUB` | nein, analog | — | HMAC-Secret für GitHub-Webhooks. |
 | `F451_ADMIN_TOKEN` | nein, aber ohne sie sind `POST /admin/reindex` UND `GET /admin/status` fail-closed (503) deaktiviert | — | Bearer-Token für beide Admin-Endpunkte (dasselbe Gate). In Produktion praktisch Pflicht (Restore-Prozedur Abschnitt 3 braucht ihn). |
 | `F451_GLOBAL_TEMPLATES` | nein | — | JSON-Objekt `{"provider","owner","repo"}` — providerweites Zusatz-Vorlagen-Repo. |
+| `F451_INSTANCE_CONFIG` | no | — (no instance theme, the built-in default applies) | JSON object `{"provider","owner","repo"}` — instance repo holding `_meta/theme.yaml`; may name the same repo as `F451_GLOBAL_TEMPLATES`. Its provider must also be used by a space in `F451_SPACES` (service-account registry). |
 | `F451_OIDC_ISSUER` | nein | — (Auth deaktiviert, außer `F451_GITHUB_LOGIN=1` ist gesetzt) | Gesetzt = Auth aktiv (`/api/*`, `/admin/*`, `/media/*` erfordern Session). **Ohne sie UND ohne `F451_GITHUB_LOGIN=1` ist die gesamte API ungeschützt** — in Produktion praktisch Pflicht (mindestens eine der beiden). |
 | `F451_TOKEN_KEY` | ja, wenn `F451_OIDC_ISSUER` ODER `F451_GITHUB_LOGIN=1` gesetzt (sonst Fail-Fast beim Start) | — | 32 Byte base64 (`openssl rand -base64 32`), AES-256-GCM-Schlüssel für Provider-Tokens. |
 | `F451_OIDC_CLIENT_ID` | ja, wenn `F451_OIDC_ISSUER` gesetzt | — | Entra-App-Registrierung, Client-Id. |
