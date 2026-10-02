@@ -739,6 +739,9 @@
   background: transparent;
 }
 .rp h4 {
+  /* A UI label, not a content heading: the UI font like every other label,
+     not the display face `h4` gets from `20-basis.css` (#52). */
+  font-family: var(--font-sans);
   font-size: var(--text-2xs);
   letter-spacing: 0.04em;
   text-transform: uppercase;
