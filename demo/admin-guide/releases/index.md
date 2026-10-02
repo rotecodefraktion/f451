@@ -24,9 +24,9 @@ Releases need versioning in the space (`versioning: true` in
 ## Turning versioning on later
 
 If a space turns versioning on after pages already exist, those pages count as
-version 0.1.0, like every new page. Nothing is written to Git for that; the
-first approval writes the version into the page, and the reviewer can make it
-0.1.1, 0.2.0 or 1.0.0.
+version 0.1.0. Nothing is written to Git for that; the first approval writes
+the version into the page, and the reviewer can make it 0.1.1, 0.2.0 or 1.0.0.
+A new page's first approval gives 0.1.0 or, chosen deliberately, 1.0.0.
 
 ## Where the copy lives
 

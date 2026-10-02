@@ -1173,7 +1173,7 @@ describe.sequential('Workflow-Routen: review/release/request-changes/draft-updat
 
     it(
       'Implicit 0.1.0 (f451#50): first release of an existing page bumps from 0.1.0 (major → 1.0.0, '
-        + 'minor → 0.2.0), writes [new, 0.1.0] and two page_versions rows; a new page bumps from 0.1.0 without a 0.1.0 entry',
+        + 'minor → 0.2.0), writes [new, 0.1.0] and two page_versions rows; a new page starts at 0.1.0',
       async () => {
         const implicitRepo = await forgejo.createRepo('workflow-routes-versioning-implicit', { private: false })
         await forgejo.addCollaborator(implicitRepo, writer.username, 'write')
@@ -1317,13 +1317,14 @@ describe.sequential('Workflow-Routen: review/release/request-changes/draft-updat
             payload: {},
           })
           expect(newReview.statusCode).toBe(200)
-          // A new draft counts as 0.1.0 too, so the dialog offers the bumps.
+          // A draft has no version until its first release.
           const newReviewGet = await implicitApp.inject({
             method: 'GET',
             url: `/api/pages/${encodeURIComponent(created.id)}/review`,
             cookies: cookiesOf(releaserSession),
           })
-          expect(newReviewGet.json()).toMatchObject({ version: '0.1.0', implicitVersion: true })
+          expect(newReviewGet.json().version).toBeUndefined()
+          expect(newReviewGet.json().implicitVersion).toBeUndefined()
           const newRelease = await implicitApp.inject({
             method: 'POST',
             url: `/api/pages/${encodeURIComponent(created.id)}/release`,
@@ -1331,13 +1332,13 @@ describe.sequential('Workflow-Routen: review/release/request-changes/draft-updat
             payload: { bump: 'minor', note: 'Brand new' },
           })
           expect(newRelease.statusCode).toBe(200)
-          // Bumps from 0.1.0 like an existing page; no 0.1.0 entry, because
-          // there was no earlier state on `main`.
-          expect((newRelease.json() as { version?: string }).version).toBe('0.2.0')
+          // First release of a new page: 0.1.0 (major would give 1.0.0); a
+          // single entry, there was no earlier state on `main`.
+          expect((newRelease.json() as { version?: string }).version).toBe('0.1.0')
           const mergedNew = await provider.readFile(implicitRepo, newPath, 'main')
-          expect(parsePage(mergedNew.content).frontmatter.changelog?.map((e) => e.version)).toEqual(['0.2.0'])
+          expect(parsePage(mergedNew.content).frontmatter.changelog?.map((e) => e.version)).toEqual(['0.1.0'])
           const newRows = await db.select().from(pageVersions).where(eq(pageVersions.pageId, created.id))
-          expect(newRows.map((r) => r.version)).toEqual(['0.2.0'])
+          expect(newRows.map((r) => r.version)).toEqual(['0.1.0'])
         } finally {
           await implicitApp.close()
         }

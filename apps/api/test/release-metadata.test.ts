@@ -131,7 +131,7 @@ describe('applyVersionOnDraft', () => {
     }
   }
 
-  it('setzt bei der ersten Freigabe 1.0.0 und legt den Changelog an', async () => {
+  it('first release of a new page: 0.1.0 (1.0.0 only as major), creates the changelog', async () => {
     const provider = fakeProvider('---\ntitle: Handbuch\n---\n\n# Handbuch\n')
 
     const result = await applyVersionOnDraft(provider, repo, 'index.md', 'draft/p-1', undefined, {
@@ -141,9 +141,9 @@ describe('applyVersionOnDraft', () => {
       date: '2026-07-19',
     })
 
-    expect(result.version).toBe('1.0.0')
+    expect(result.version).toBe('0.1.0')
     const written = provider.lastWrite()
-    expect(written).toContain('version: 1.0.0')
+    expect(written).toContain('version: 0.1.0')
     expect(written).toContain('note: Erstfassung')
   })
 

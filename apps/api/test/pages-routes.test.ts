@@ -526,11 +526,11 @@ describe.sequential('GET /api/pages/:id: Versionsanzeige (Seitenversionierung Et
     await app.close()
   })
 
-  it('reports the implicit 0.1.0 for a draft-only page too (resolveVersionFields)', async () => {
-    // The review route passes the draft row for pages not yet on `main`; a new
-    // draft counts as 0.1.0 like an existing page.
+  it('reports no version for a draft-only page (resolveVersionFields)', async () => {
+    // The review route passes the draft row for pages not yet on `main`; a
+    // draft has no version until its first release.
     const [row] = await db.select().from(pages).where(eq(pages.id, 'p-7'))
     const fields = await resolveVersionFields({ db }, row!, { ...EMPTY_METADATA_SCHEMA, versioning: true })
-    expect(fields).toEqual({ versioning: true, version: '0.1.0', implicitVersion: true, changedSinceRelease: false })
+    expect(fields).toEqual({ versioning: true, changedSinceRelease: false })
   })
 })

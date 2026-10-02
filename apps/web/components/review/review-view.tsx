@@ -351,9 +351,22 @@ export function ReviewView({ pageId, space, pr, versioning = false, currentVersi
                 trotzdem mitgeschickt — die API rechnet für die erste Freigabe
                 ohnehin IMMER 1.0.0, unabhängig vom Wert. */}
             {currentVersion === undefined ? (
-              <p className="version-first-release-hint">
-                {t('review.version.firstRelease', { version: nextVersion(currentVersion, 'minor') })}
-              </p>
+              // First release of a new page: a draft has no version. 0.1.0
+              // (default, sent as `minor`) or the finished page 1.0.0
+              // (`major`) — `nextVersion` computes both (f451#50).
+              (['minor', 'major'] as const).map((option) => (
+                <label key={option}>
+                  <input
+                    type="radio"
+                    name="bump"
+                    value={option}
+                    checked={bump === option}
+                    onChange={() => setBump(option)}
+                  />
+                  <b>{nextVersion(undefined, option)}</b>
+                  <span>{t(option === 'minor' ? 'review.version.firstMinor' : 'review.version.firstMajor')}</span>
+                </label>
+              ))
             ) : (
               <>
                 {(['patch', 'minor', 'major'] as const).map((option) => (

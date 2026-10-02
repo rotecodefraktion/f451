@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   CHANGELOG_LIMIT,
   compareVersions,
+  IMPLICIT_VERSION,
   INITIAL_VERSION,
   nextVersion,
   prependChangelogEntry,
@@ -27,16 +28,17 @@ describe('nextVersion', () => {
     expect(nextVersion('1.9.9', 'major')).toBe('2.0.0')
   })
 
-  it('startet ohne vorhandene Version bei 1.0.0 — unabhängig vom Sprung', () => {
-    // Die erste Freigabe IST die Veröffentlichung; ein Sprung darüber hinaus
-    // (etwa 1.0.0 -> 1.0.1) wäre hier irreführend.
-    expect(nextVersion(undefined, 'patch')).toBe(INITIAL_VERSION)
+  it('without a version: major gives 1.0.0, everything else 0.1.0 (f451#50)', () => {
+    // A draft has no version; its first release is a first version (0.1.0)
+    // or, chosen deliberately, the finished page (1.0.0).
+    expect(nextVersion(undefined, 'patch')).toBe(IMPLICIT_VERSION)
+    expect(nextVersion(undefined, 'minor')).toBe(IMPLICIT_VERSION)
     expect(nextVersion(undefined, 'major')).toBe(INITIAL_VERSION)
   })
 
   it('behandelt eine unlesbare Bestandsversion wie eine fehlende', () => {
-    expect(nextVersion('kaputt', 'patch')).toBe(INITIAL_VERSION)
-    expect(nextVersion('1.2', 'patch')).toBe(INITIAL_VERSION)
+    expect(nextVersion('kaputt', 'patch')).toBe(IMPLICIT_VERSION)
+    expect(nextVersion('1.2', 'patch')).toBe(IMPLICIT_VERSION)
   })
 })
 

@@ -759,7 +759,7 @@ export function registerWorkflowRoutes(app: FastifyInstance, deps: WorkflowDeps)
           let implicitRelease: { entry: ChangelogEntry; mergeSha?: string; blobSha?: string } | undefined
           if (schema.versioning) {
             // NUR `NotFoundError` heißt hier "Seite existiert noch nicht in main"
-            // (first release of a new page → bump from 0.1.0).
+            // (first release of a new page → 0.1.0, or 1.0.0 as major).
             // JEDER andere Fehler (Netzwerk-Timeout, Rate-Limit, transienter
             // Provider-Ausfall) MUSS durchgeworfen werden, damit ihn der äußere
             // try/catch als 502 meldet — ein pauschal geschlucktes `.catch(() =>
@@ -779,8 +779,8 @@ export function registerWorkflowRoutes(app: FastifyInstance, deps: WorkflowDeps)
             const mainVersion = mainFile ? parsePage(mainFile.content).frontmatter.version : undefined
             // A page on `main` without `version` is the implicit 0.1.0 (spec
             // addendum 2026-10-02): its first release bumps from there and also
-            // records 0.1.0 itself. A new page (not on `main`) also bumps from 0.1.0,
-            // but has no earlier state to record.
+            // records 0.1.0 itself. A new page (not on `main`) has no version: its
+            // first release is 0.1.0, or 1.0.0 as major (`nextVersion`).
             if (mainFile && mainVersion === undefined) {
               // Author and date of the 0.1.0 state: the last `main` commit of
               // the file. `pages.lastAuthor` is null after a full reindex, and
@@ -815,7 +815,7 @@ export function registerWorkflowRoutes(app: FastifyInstance, deps: WorkflowDeps)
               repo,
               ctx.row.path,
               branch,
-              mainVersion ?? IMPLICIT_VERSION,
+              implicitRelease ? IMPLICIT_VERSION : mainVersion,
               {
                 bump: req.body?.bump ?? 'patch',
                 note: (req.body?.note ?? req.body?.comment ?? '').trim(),

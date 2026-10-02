@@ -12,11 +12,12 @@ No breaking changes. `implicitVersion` and `implicit` are new optional API field
 
 ### Fixed
 
-- In a versioned space, a page without a version — an existing page or a new
-  draft — counts as 0.1.0, and 1.0.0 is a release the reviewer chooses: the
-  first release offers 0.1.1, 0.2.0 or 1.0.0 (until now a new page became 1.0.0
-  automatically). An existing page's original state appears in the version list
-  as the initial version. Nothing is written to Git until the first release.
+- Versions in a versioned space: 1.0.0 is a release the reviewer chooses, not
+  automatic. A new page's first release offers 0.1.0 (default) or 1.0.0; until
+  now it always became 1.0.0. A page that already existed when versioning was
+  turned on counts as 0.1.0, its first release offers 0.1.1, 0.2.0 or 1.0.0,
+  and its original state appears in the version list as the initial version.
+  Drafts have no version; nothing is written to Git until a release.
 - Review page: section titles use one font and style, and the version box's
   title sits inside the box instead of on its border.
 
