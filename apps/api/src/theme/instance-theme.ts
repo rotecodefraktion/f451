@@ -38,8 +38,9 @@ const CACHE_TTL_MS = 5 * 60 * 1000
 let cache: CacheEntry | undefined
 
 /** The registry is keyed by space; the instance repo gets a pseudo space
- *  (pattern `templates/registry.ts#globalPseudoSpace`). */
-function instancePseudoSpace(cfg: InstanceConfig): SpaceConfig {
+ *  (pattern `templates/registry.ts#globalPseudoSpace`). Exported for the write
+ *  routes, which hand it to `canWrite`/`getUserProvider` like a real space. */
+export function instancePseudoSpace(cfg: InstanceConfig): SpaceConfig {
   return {
     id: '__instance__',
     name: 'Instance',
