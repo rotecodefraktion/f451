@@ -45,6 +45,14 @@ der Proxy selbst ist NICHT Teil dieser Compose-Stacks.
    Kontoverknüpfung „Forgejo/GitHub verbinden" müssten sonst neu verknüpft
    werden), aber NICHT die einzige Quelle für irgendetwas.
 
+   **The one exception is `user_settings`** (migration 0013, personal themes):
+   a user has no Git repository, so this table is the only copy of their
+   personal theme. Losing `pg-data` loses every personal theme, like the
+   sessions. The backup is the user's own export,
+   `GET /api/me/theme?format=yaml` (the settings page's download button); the
+   same file goes back in with `PUT /api/me/theme` (`Content-Type:
+   application/yaml`).
+
 ## 2. Env-Referenz
 
 Vollständig, gegen `apps/api/src/server.ts` (+ `spaces/config.ts`, dorthin

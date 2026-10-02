@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyReply } from 'fastify'
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import {
   checkContrast,
   checkRules,
@@ -16,6 +16,7 @@ import type { GitProvider } from '@f451/git-provider'
 import { ConflictError, NotFoundError, ProviderError } from '@f451/git-provider'
 import { stringify as stringifyYaml } from 'yaml'
 import type { SpaceAccess } from '../auth/permissions.js'
+import type { Db } from '../db/client.js'
 import type { SpaceConfig } from '../spaces/config.js'
 import { loadContrastThresholds } from '../theme/contrast-config.js'
 import {
@@ -26,6 +27,7 @@ import {
   type InstanceThemeDeps,
 } from '../theme/instance-theme.js'
 import { invalidateSpaceTheme, loadSpaceTheme, SPACE_THEME_PATH } from '../theme/space-theme.js'
+import { loadUserTheme } from '../theme/user-theme.js'
 import {
   resolveNewPageWriteContext,
   resolveSpaceWriteGate,
@@ -56,6 +58,10 @@ import {
  * push-right check — never through the service registry, which stays the read
  * path. Validation is strict: parse errors, cross-token rules and contrast
  * below threshold are each a 422 and nothing is committed.
+ *
+ * User layer (Stage 6): `resolved` appends the session user's personal theme
+ * (`user_settings`) last, so it wins over instance and space. Its own routes
+ * live in `me-theme.ts`.
  */
 
 export interface ThemeDeps extends InstanceThemeDeps {
@@ -69,11 +75,13 @@ export interface ThemeDeps extends InstanceThemeDeps {
   canWrite?: NewPageGateDeps['canWrite']
   /** Provider bound to the caller's linked account (`drafts/user-provider.ts`). */
   getUserProvider?: NewPageGateDeps['getUserProvider']
+  /** Database for the user layer (Stage 6, `user_settings`); unset → `resolved` has no user layer. */
+  db?: Db
 }
 
 const tokenMapSchema = { type: 'object', additionalProperties: { type: 'string' } } as const
 
-const problemSchema = {
+export const problemSchema = {
   type: 'object',
   properties: {
     code: { type: 'string' },
@@ -84,7 +92,7 @@ const problemSchema = {
   required: ['code', 'path', 'message'],
 } as const
 
-const themeFileSchema = {
+export const themeFileSchema = {
   type: ['object', 'null'],
   properties: {
     name: { type: 'string' },
@@ -189,7 +197,7 @@ function themeBody<O extends 'instance' | 'space'>(theme: ParsedTheme | null, or
 
 // --- Write path (Stage 4) -------------------------------------------------
 
-const forbiddenSchema = {
+export const forbiddenSchema = {
   type: 'object',
   properties: { error: { type: 'string' }, action: { type: 'string' } },
   required: ['error'],
@@ -217,7 +225,7 @@ const ruleViolationSchema = {
   required: ['rule', 'message', 'tokens'],
 } as const
 
-const contrastFindingSchema = {
+export const contrastFindingSchema = {
   type: 'object',
   properties: {
     mode: { type: 'string' },
@@ -240,7 +248,7 @@ const contrastFindingSchema = {
 } as const
 
 /** 422: exactly one of `errors` (file), `rules` (resolved chain) or `contrast` is set. */
-const invalidSchema = {
+export const invalidSchema = {
   type: 'object',
   properties: {
     status: { type: 'string', enum: ['invalid', 'contrast'] },
@@ -286,7 +294,7 @@ const deleteThemeSchema = { tags: ['theme'], response: deleteResponses } as cons
 const deleteSpaceThemeSchema = { tags: ['theme'], params: spaceThemeSchema.params, response: deleteResponses } as const
 
 /** Upper bound of a theme file (July spec "Validierung und Sicherheit": file ≤ 32 KiB). */
-const THEME_BODY_LIMIT = 32 * 1024
+export const THEME_BODY_LIMIT = 32 * 1024
 
 /** Theme files are read from and written to the published state. */
 const THEME_BRANCH = 'main'
@@ -300,7 +308,7 @@ type InvalidBody =
   | { status: 'contrast'; contrast: ReturnType<typeof checkContrast> }
 
 /** A violation with each token's resolved value and layer, so an inherited token is named as such. */
-function describeViolation(resolved: ResolvedTheme, violation: RuleViolation) {
+export function describeViolation(resolved: ResolvedTheme, violation: RuleViolation) {
   const values = resolved.base as Record<string, string>
   const origins = resolved.origin.base as Record<string, Origin>
   return {
@@ -491,6 +499,21 @@ export function registerThemeRoutes(app: FastifyInstance, deps: ThemeDeps): void
     return loadSpaceTheme({ providerRegistry: deps.providerRegistry, now: deps.now }, space, log)
   }
 
+  /**
+   * The user layer (Stage 6): only for a session user — an API token
+   * (`apiTokenScope` set) never gets it, the personal theme concerns browsers
+   * only. Fail-soft: a database error drops the layer, reading never breaks.
+   */
+  async function sessionUserTheme(req: Pick<FastifyRequest, 'user' | 'apiTokenScope' | 'log'>) {
+    if (!deps.db || !req.user || req.apiTokenScope != null) return null
+    try {
+      return await loadUserTheme(deps.db, req.user.id)
+    } catch (err) {
+      req.log.warn({ err }, 'user theme: unreadable — layer skipped (fail-soft)')
+      return null
+    }
+  }
+
   app.register(async (instance) => {
     instance.get('/api/theme', { schema: themeSchema }, async (req) => {
       return themeBody(await loadInstanceTheme(deps, req.log), 'instance' as const)
@@ -513,11 +536,12 @@ export function registerThemeRoutes(app: FastifyInstance, deps: ThemeDeps): void
       { schema: resolvedSchema },
       async (req) => {
         // An unknown or unreadable `space` is ignored rather than answered with 404: the layout
-        // asks for every page, and a wrong id must not break rendering. Stage 6 adds the user layer.
+        // asks for every page, and a wrong id must not break rendering.
         const instanceTheme = await loadInstanceTheme(deps, req.log)
         const space = req.query.space ? await readableSpace(req.query.space, req.user?.id ?? '') : null
         const spaceThemeParsed = space ? await spaceTheme(space, req.log) : null
-        const layers: ThemeLayer[] = [instanceTheme?.layer, spaceThemeParsed?.layer].filter(
+        const userTheme = await sessionUserTheme(req)
+        const layers: ThemeLayer[] = [instanceTheme?.layer, spaceThemeParsed?.layer, userTheme?.layer].filter(
           (l): l is ThemeLayer => Boolean(l),
         )
         const resolved = resolveTheme(layers)

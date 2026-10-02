@@ -42,6 +42,7 @@ import { registerReorderRoute } from './routes/reorder.js'
 import { registerSearchRoutes } from './routes/search.js'
 import { registerTemplatesRoutes } from './routes/templates.js'
 import { registerThemeRoutes } from './routes/theme.js'
+import { registerMeThemeRoutes } from './routes/me-theme.js'
 import { registerThemeEditorRoutes } from './routes/theme-editor.js'
 import { registerThemeContrastRoutes } from './routes/theme-contrast.js'
 import { registerTokensRoutes } from './routes/tokens.js'
@@ -667,7 +668,17 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
     access,
     canWrite,
     getUserProvider: userProvider,
+    // Stage 6: the session user's personal theme as the last layer of `resolved`.
+    db,
   })
+  // Personal theme (Stage 6): session only, so registered only with auth (which implies `db`).
+  if (opts.auth && db) {
+    registerMeThemeRoutes(app, {
+      db,
+      providerRegistry: opts.providerRegistry,
+      instanceConfig: opts.instanceConfig,
+    })
+  }
   // Settings page reads (Stage 5): scopes and one-scope editor state, behind the session gate.
   registerThemeEditorRoutes(app, {
     providerRegistry: opts.providerRegistry,
