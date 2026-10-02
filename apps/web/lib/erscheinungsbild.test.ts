@@ -67,9 +67,11 @@ describe('baueGruppen', () => {
   })
 
   it('zeigt ein gesperrtes Token mitsamt seinem Grund — und lässt es stehen', () => {
-    const gesperrt = zeile('light', '--measure')
+    // `--measure-full` stays locked (100% IS the full-width promise); `--measure`
+    // itself got a corridor with the theming extensions (f451#3).
+    const gesperrt = zeile('light', '--measure-full')
     expect(gesperrt.freigegeben).toBe(false)
-    expect(gesperrt.sperrgrund).toBe(catalog['--measure'].lockReason)
+    expect(gesperrt.sperrgrund).toBe(catalog['--measure-full'].lockReason)
 
     const frei = zeile('light', '--color-bg')
     expect(frei.freigegeben).toBe(true)

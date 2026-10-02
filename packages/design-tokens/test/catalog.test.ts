@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { catalog, namesOfLevel, tokenNames, type TokenGroup } from '../src/catalog.js'
+import { catalog, namesOfLevel, tokenNames, type TokenGroup, type TokenMeta } from '../src/catalog.js'
 import { design, tokens } from '../src/tokens.js'
 
 const MOCKUP = fileURLToPath(new URL('../../../docs/design/mockups-2026/editorial.html', import.meta.url))
@@ -114,15 +114,27 @@ describe('Katalog gegen den Referenzentwurf', () => {
 })
 
 describe('Positivliste der Themefähigkeit', () => {
-  it('hält die Bilanz 115 setzbar / 19 gesperrt', () => {
+  it('hält die Bilanz 124 setzbar / 10 gesperrt', () => {
     // 84 aus dem Entwurf, dazu die beiden Nachträge der
     // Gliederungsnummerierung und der Diagrammrahmen — alle drei setzbar,
     // denn genau das ist ihr Zweck. Ebenso die 26 Diagramm-Tokens: Der Sinn
     // des Hausstils als Token ist, dass ein Betreiber ihn ändern kann, ohne
-    // dass jemand Code anfasst (Nutzergeschichte 17).
+    // dass jemand Code anfasst (Nutzergeschichte 17). Dazu die neun
+    // Korridor-Tokens (Zeilenlänge, Rasterbreiten, Bedienelementhöhe): setzbar
+    // nur innerhalb ihrer `range`.
     const setzbar = tokenNames.filter((n) => catalog[n].settable)
-    expect(setzbar).toHaveLength(115)
-    expect(tokenNames.length - setzbar.length).toBe(19)
+    expect(setzbar).toHaveLength(124)
+    expect(tokenNames.length - setzbar.length).toBe(10)
+  })
+
+  it('every settable token carries a range', () => {
+    const without = tokenNames.filter((n) => catalog[n].settable && !(catalog[n] as TokenMeta).range)
+    expect(without).toEqual([])
+  })
+
+  it('locked tokens carry no range', () => {
+    const wrong = tokenNames.filter((n) => !catalog[n].settable && (catalog[n] as TokenMeta).range)
+    expect(wrong).toEqual([])
   })
 
   it('sperrt genau die Tokens, die eine Zusage tragen', () => {
@@ -130,22 +142,13 @@ describe('Positivliste der Themefähigkeit', () => {
     expect(gesperrt.sort()).toEqual(
       [
         '--color-scrim',
-        '--control-h',
         '--crumbs-mid',
         '--crumbs-more',
         '--layout-app-w',
         '--layout-edge-w',
-        '--layout-gutter',
         '--layout-hang',
-        '--layout-nav-w',
-        '--layout-note-gap',
-        '--layout-note-w',
         '--layout-note-x',
-        '--layout-rail-w',
-        '--layout-sheet-max',
-        '--measure',
         '--measure-full',
-        '--measure-wide',
         '--space-0',
         '--text-hang',
       ].sort(),
