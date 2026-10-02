@@ -26,6 +26,8 @@ import {
   type SaveFailure,
   type ThemeScopes,
 } from '../../lib/theme-editor-view'
+import { ComponentPreview } from './component-preview'
+import { endProgramPreview, ProgramPreview } from './program-preview'
 import { ScopeSelector } from './scope-selector'
 import { StatusBar, type ActionStatus } from './status-bar'
 import { GroupSection } from './token-group'
@@ -39,8 +41,6 @@ export interface ThemeEditorProps {
   data: EditorData
   /** slot for the "Prüfschärfe" strip — between scope selector and the first group */
   thresholdStrip?: ReactNode
-  /** slot for the component preview — a right column */
-  preview?: ReactNode
 }
 
 /**
@@ -50,7 +50,9 @@ export interface ThemeEditorProps {
  * same checks the server runs on save. The page itself keeps the saved theme —
  * the draft never touches the document's style.
  */
-export function ThemeEditor({ scopes, data, thresholdStrip, preview }: ThemeEditorProps) {
+export function ThemeEditor({ scopes, data, thresholdStrip }: ThemeEditorProps) {
+  // Program preview (whole app, localStorage) — ends on save or remove (July spec, "Vorschau").
+  const [previewActive, setPreviewActive] = useState(false)
   const { t, locale } = useT()
   const router = useRouter()
 
@@ -236,6 +238,10 @@ export function ThemeEditor({ scopes, data, thresholdStrip, preview }: ThemeEdit
         ...(kind === 'save' ? { headers: { 'content-type': 'application/json' }, body: JSON.stringify(draft) } : {}),
       })
       if (res.ok) {
+        if (previewActive) {
+          endProgramPreview()
+          setPreviewActive(false)
+        }
         setStatus({ kind: 'ok', text: t(kind === 'save' ? 'settings.appearance.saved' : 'settings.appearance.removed') })
         // Refetch the editor data so origins and the "file exists" state follow the commit.
         router.refresh()
@@ -261,7 +267,7 @@ export function ThemeEditor({ scopes, data, thresholdStrip, preview }: ThemeEdit
   }
 
   return (
-    <div className={preview ? 'theme-editor has-preview' : 'theme-editor'}>
+    <div className="theme-editor has-preview">
       <div className="theme-editor-main">
         <ScopeSelector scopes={scopes} current={data.scope} />
         {data.canWrite ? null : <p className="callout info te-readonly">{t('settings.appearance.readOnlyNote')}</p>}
@@ -301,7 +307,10 @@ export function ThemeEditor({ scopes, data, thresholdStrip, preview }: ThemeEdit
           />
         ))}
       </div>
-      {preview ? <aside className="theme-editor-preview">{preview}</aside> : null}
+      <aside className="theme-editor-preview">
+        <ComponentPreview resolved={assessment.resolved} />
+        <ProgramPreview resolved={assessment.resolved} active={previewActive} onChange={setPreviewActive} />
+      </aside>
     </div>
   )
 }

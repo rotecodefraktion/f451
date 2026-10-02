@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { cookies, headers } from 'next/headers'
 import localFont from 'next/font/local'
 import { apiFetch } from '../lib/api.js'
+import { PreviewBanner } from '../components/theme-editor/preview-banner'
 import { LocaleProvider } from '../lib/i18n/provider.js'
 import { getT } from '../lib/i18n/server.js'
 import { themeStyleText, type ThemeCssDeclarations } from '../lib/theme-style.js'
@@ -176,6 +177,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body>
         <LocaleProvider locale={locale} messages={messages}>
           {children}
+          {/* "Vorschau aktiv — beenden": only renders while a program preview is stored. */}
+          <PreviewBanner />
         </LocaleProvider>
       </body>
     </html>

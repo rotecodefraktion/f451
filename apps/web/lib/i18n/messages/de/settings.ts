@@ -133,6 +133,166 @@ export const settings = {
     serverConflict: 'Die Theme-Datei wurde inzwischen geändert. Lade die Seite neu und versuche es erneut.',
     serverNotFound: 'Es gibt keine Theme-Datei zum Entfernen.',
     serverError: 'Der Vorgang ist fehlgeschlagen. Bitte erneut versuchen.',
+    // "Prüfschärfe" strip (components/theme-editor/threshold-strip.tsx)
+    threshold: {
+      heading: 'Prüfschärfe',
+      roleBelowAA: '{role} {value}:1 statt {aa}:1',
+      roleAtAA: '{role} {value}:1 (AA {aa}:1)',
+      belowAACount_one: '{count} Wert unter AA',
+      belowAACount_other: '{count} Werte unter AA',
+      lowered: 'Mindestens eine Schwelle liegt unter der Voreinstellung.',
+      noteLabel: 'Begründung:',
+      fieldLabel: '{role} (Voreinstellung {default}:1, AA {aa}:1)',
+      noteFieldLabel: 'Begründung (höchstens 500 Zeichen)',
+      save: 'Schwellen speichern',
+      saving: 'Wird gespeichert …',
+      saved: 'Schwellen gespeichert.',
+      reset: 'Auf Voreinstellung zurücksetzen',
+      resetting: 'Wird zurückgesetzt …',
+      resetDone: 'Schwellen auf die Voreinstellung zurückgesetzt.',
+      resetConfirm:
+        'Die Schwellen auf die Voreinstellung zurücksetzen? Die Datei _meta/contrast.yaml wird aus dem Instanz-Repository entfernt.',
+      readOnlyInstance:
+        'Die Schwellen gelten für die ganze Instanz und stehen in _meta/contrast.yaml im Instanz-Repository. Ändern kann sie, wer dort Push-Recht hat.',
+      readOnlySpace:
+        'Die Schwellen gelten für die ganze Instanz; einstellen lassen sie sich nur im Geltungsbereich „Instanz", nicht je Space.',
+      errorOff:
+        'Die Prüfung lässt sich nicht abschalten. Der kleinste zulässige Wert ist 1,5:1 — darunter sind zwei Farben nicht mehr verlässlich als Schrift und Grund zu unterscheiden.',
+      errorRange: '{role}: zulässig sind {min}:1 bis {max}:1.',
+      errorPrecision: '{role}: höchstens eine Nachkommastelle.',
+      errorNumber: '{role}: bitte eine Zahl eintragen.',
+      errorOrder: 'Die Schriftrollen bleiben geordnet: Lesetext ≥ kurze Schrift ≥ beiläufige Beschriftung.',
+      errorNote: 'Die Begründung darf höchstens 500 Zeichen lang sein.',
+      errorInvalid: 'Der Server hat die Schwellen abgelehnt: {message}',
+      errorConnect: 'Verknüpfe zuerst dein Konto, um die Schwellen zu ändern.',
+      errorForbidden: 'Dein verknüpftes Konto darf das Instanz-Repository nicht ändern.',
+      errorNotConfigured:
+        'Für diese Installation ist kein Instanz-Repository eingerichtet (F451_INSTANCE_CONFIG). Es gelten unveränderlich die Voreinstellungen.',
+      errorConflict: 'Die Datei _meta/contrast.yaml wurde inzwischen geändert. Lade die Seite neu und versuche es erneut.',
+      errorGeneric: 'Der Vorgang ist fehlgeschlagen. Bitte erneut versuchen.',
+      infoToggle: 'Warum es Kontrastschwellen gibt',
+      reportToggle: 'Bericht „Werte unter AA"',
+      reportEmpty: 'Kein Wert liegt unter AA.',
+      colMode: 'Modus',
+      colRatio: 'Gemessen',
+      colAA: 'AA-Bezug',
+      colThreshold: 'Schwelle',
+      colRole: 'Rolle',
+      colPair: 'Paar',
+      colOrigin: 'Herkunft',
+      originInstance: 'Instanz',
+      originPair: '{fg}: {fgOrigin} · {bg}: {bgOrigin}',
+      copyTable: 'Als Tabelle kopieren',
+      copied: 'Kopiert.',
+      copyFailed: 'Kopieren ist nicht möglich — die Zwischenablage ist gesperrt.',
+    },
+    // Text behind the info button (spec "Wortlaut des Info-Knopfes"). Bodies are
+    // rendered by threshold-strip.tsx: blank line = paragraph, lines starting with
+    // "- " or "1. " = list, **bold**, `code`.
+    thresholdInfo: {
+      why: {
+        heading: 'Warum es Kontrastschwellen gibt',
+        body: `Kontrast ist das Verhältnis der Helligkeit zweier Farben. 1:1 heißt: nicht zu unterscheiden. 21:1 ist Schwarz auf Weiß. Zwei Erfolgskriterien der WCAG 2.2 legen fest, was genügt:
+
+- **1.4.3 Kontrast (Minimum)** — Text braucht 4,5:1. Große Schrift (ab 24 px, fett ab 18,7 px) genügt 3:1.
+- **1.4.11 Kontrast ohne Text** — Bedienelemente und bedeutungstragende Grafik brauchen 3:1: Fokusring, Zustandszeichen, der Umriss eines Eingabefelds.
+
+Zusammen ergeben sie die Stufe AA, auf die sich Normen und Gesetze beziehen.
+
+f451 rechnet diese Werte bei jedem gespeicherten Farbwert nach, getrennt für Hell und Dunkel, am fertig aufgelösten Satz. Die Schwellen auf dieser Seite bestimmen nur, **ab wann die Prüfung das Speichern verweigert**. Der AA-Bezug selbst lässt sich nicht verstellen: Was ihn verfehlt, wird weiterhin gemeldet und steht im Bericht „Werte unter AA". Eine gesenkte Schwelle macht aus einem Fehler eine Warnung. Sie macht ihn nicht unsichtbar.`,
+      },
+      who: {
+        heading: 'Wen eine Absenkung trifft',
+        body: `Nicht eine Norm — Leser:
+
+- **Menschen mit Sehschwäche.** Getrübte Linse, Grauer Star, diabetische Netzhautveränderung, die Wochen nach einer Augenoperation: Die Farbe ist noch da, aber die Kante zwischen Schrift und Papier ist weg.
+- **Ältere Nutzer.** Die Kontrastempfindlichkeit des Auges lässt ab etwa fünfzig deutlich nach. Was mit fünfundzwanzig bei 4,5:1 bequem zu lesen war, verlangt dreißig Jahre später merklich mehr. Wer dieses Wiki zehn Jahre lang pflegt, liest es am Ende mit anderen Augen.
+- **Bildschirme in hellen Räumen.** Sonne im Besprechungsraum, ein Terminal in der Werkstatt, ein Laptop am Empfang. Streulicht hebt die dunklen Töne an und frisst zuerst die schwachen Kontraste.
+- **Beamer.** Ein Projektor in einem nicht abgedunkelten Raum bringt oft nur einen Bruchteil des Bildschirmkontrasts auf die Wand. Eine Zeilennummer mit 2:1 ist dort nicht schwer zu lesen, sondern nicht vorhanden — auch für die, die vorne sitzen.
+- **Alle übrigen unter schlechten Bedingungen.** Billiges Panel, Energiesparmodus, schräger Blickwinkel, später Freitagnachmittag.
+
+Sie selbst beurteilen die Farbe gerade unter den günstigsten Umständen: guter Bildschirm, gutes Licht, Ihre Augen — und Sie wissen bereits, was dort steht.`,
+      },
+      legal: {
+        heading: 'Rechtliche Einordnung',
+        body: `In Deutschland gilt seit dem 28. Juni 2025 das **Barrierefreiheitsstärkungsgesetz (BFSG)**. Es verpflichtet Anbieter bestimmter Produkte und Dienstleistungen für Verbraucher zur Barrierefreiheit und stützt sich dabei auf die europäische Norm **EN 301 549**, die für Web-Inhalte die WCAG in der Stufe **AA** verlangt. Für **öffentliche Stellen** gilt unabhängig davon die **BITV 2.0**, ebenfalls auf AA-Niveau.
+
+Ob eine dieser Regeln für diese Installation gilt, entscheidet der Einsatzzweck, nicht die Software. Ein internes Firmenwiki hinter der Anmeldung fällt in aller Regel nicht darunter. Eine öffentlich erreichbare Produktdokumentation, eine Wissensbasis als Teil einer Dienstleistung für Verbraucher oder der Betrieb in einer Behörde können sehr wohl darunterfallen. Diese Seite kann Ihnen die Einordnung nicht abnehmen und ist keine Rechtsberatung; im Zweifel ist das eine Frage an Ihre Rechtsabteilung oder an die Barrierefreiheits-Beauftragung Ihres Hauses. Was diese Seite beisteuern kann, ist der Bericht „Werte unter AA": eine vollständige, belegbare Liste dessen, was in dieser Installation unter der Stufe AA liegt.`,
+      },
+      defaults: {
+        heading: 'Warum die Voreinstellungen unter AA liegen',
+        body: `Offen gesagt: Das mitgelieferte Erscheinungsbild von f451 hält AA nicht überall ein. Vier Stellen verfehlen es — im Hellmodus, die Zeilennummern auch im Dunkelmodus —, und alle aus demselben Grund: Die farbigen Tönungen mischen mit 10 bis 12 Prozent gegen weißes Papier, und dieselbe Farbe als Schrift darauf kommt nicht über gut 4:1 hinaus:
+
+- Kommentare im Codeblock: 3,63:1
+- Zeilennummern im Codeblock: 2,08:1 hell, 2,29:1 dunkel
+- die vier Signalfarben als Schrift auf ihrer Tönung: 3,84:1 bis 4,33:1
+- die vier Zustandschips: 3,85:1 bis 4,32:1
+
+Die Voreinstellungen — 3,5:1 für kurze Schrift auf einer Fläche, 2,0:1 für Zeilennummern — sind genau so gesetzt, dass diese Werte das Speichern nicht blockieren. Eine Prüfung, die das ausgelieferte Erscheinungsbild ablehnt, wäre nicht streng, sondern unbrauchbar. Praktisch heißt das: **Wenn Sie hier nichts ändern, arbeiten Sie mit einer Prüfung, die an zwei von vier Rollen unter AA liegt.** Für Lesetext (4,5:1) und für nicht-textliche Zeichen (3:1) entspricht die Voreinstellung der Norm; ein Theme, das dort danebengreift, wird weiterhin abgelehnt.`,
+      },
+      meetAA: {
+        heading: 'Wenn Sie AA einhalten wollen',
+        body: `Die Schwellen anzuheben genügt nicht — dann lässt sich das mitgelieferte Erscheinungsbild nicht mehr speichern. Der Weg führt über die Farben. Drei Hebel, die ersten beiden auf dieser Seite:
+
+1. **Die Signal- und Zustandsfarben dunkler wählen.** Das wirkt doppelt: gegen das Papier und gegen die eigene Tönung.
+2. **Die Tönungen heller mischen.** Je weniger Farbe im Waschton steckt, desto weißer bleibt der Grund und desto besser liest sich die Farbe darauf. Der umgekehrte Griff — die Tönung kräftiger mischen — verschlechtert diesen Wert, weil Schrift und Fläche einander näherkommen.
+3. **Kräftige Tönung und trotzdem AA:** Dann trägt die Fläche die normale Textfarbe (13:1 und mehr), und die Signalfarbe bleibt Rand und Zeichen vorbehalten. Das ist keine Theme-Einstellung, sondern eine Änderung am Baustein.
+
+Für den Codeblock genügen zwei Farbwerte, die Sie hier setzen können: Ein Kommentarton von \`#746e61\` statt \`#857e70\` erreicht 4,57:1. Bei den Zeilennummern kostet AA die Staffelung — ein Ton, der 4,5:1 erreicht, ist so kräftig wie der Kommentar daneben; wer den Abstand behalten will, muss die Codefläche heller setzen oder die Zeilennummern bewusst unter AA lassen.
+
+Sind die Farben umgestellt, setzen Sie die Schwellen auf 4,5:1 für Lesetext, kurze Schrift und beiläufige Beschriftung sowie 3,0:1 für nicht-textliche Zeichen. Der Bericht ist dann leer, und jede spätere Änderung, die das bricht, lässt sich nicht mehr speichern.`,
+      },
+    },
+    // Component preview (components/theme-editor/component-preview.tsx). The
+    // sample content is interface language: it shows the building blocks, not
+    // a real page.
+    preview: {
+      heading: 'Bausteinvorschau',
+      intro: 'Echte Bausteine mit den Werten des Entwurfs. Die Bedienoberfläche selbst behält das gespeicherte Theme.',
+      modeGroup: 'Modus der Vorschau',
+      stateRest: 'Ruhe',
+      stateHover: 'Überfahren',
+      stateFocus: 'Fokus',
+      stateDisabled: 'Deaktiviert',
+      stateActive: 'Aktiv',
+      sampleHeading: 'Betrieb und Wartung',
+      sampleParagraph:
+        'Jede Seite ist eine Markdown-Datei in einem Git-Repository. Wer schreibt, legt einen Entwurf an, eröffnet ein Review und wartet auf die Freigabe — erst dann erscheint die Änderung in der veröffentlichten Fassung.',
+      noticeTitle: 'Hinweis',
+      noticeBody: 'Diese Seite wird gerade überarbeitet. Die veröffentlichte Fassung bleibt bis zur Freigabe gültig.',
+      chipWorking: 'Entwurf',
+      chipReview: 'In Review',
+      chipReleased: 'Freigegeben',
+      chipArchived: 'Archiviert',
+      buttonPrimary: 'Freigeben',
+      buttonQuiet: 'Abbrechen',
+      buttonDanger: 'Löschen',
+      tableField: 'Feld',
+      tableValue: 'Wert',
+      tableRow1Field: 'Verantwortlich',
+      tableRow1Value: 'Betrieb',
+      tableRow2Field: 'Gültig ab',
+      tableRow2Value: '1. Oktober',
+      marginalNote: 'Randnotiz: Die Freigabe ist ein Merge im Git-Provider.',
+      treeRest: 'Einleitung',
+      treeHover: 'Installation',
+      treeActive: 'Betrieb',
+      dialogTitle: 'Seite löschen?',
+      dialogBody: 'Die Seite verschwindet erst mit der Freigabe des Reviews.',
+      dialogCancel: 'Abbrechen',
+      dialogConfirm: 'Löschen',
+    },
+    // Whole-program preview (components/theme-editor/program-preview.tsx,
+    // preview-banner.tsx).
+    programPreview: {
+      start: 'Im ganzen Programm ausprobieren',
+      refresh: 'Aktuellen Entwurf übernehmen',
+      end: 'Vorschau beenden',
+      hint: 'Nur in diesem Browser und ohne Speichern — sonst sieht es niemand.',
+      active: 'Die Vorschau ist aktiv.',
+      banner: 'Vorschau aktiv — dieses Erscheinungsbild ist nicht gespeichert und nur in diesem Browser zu sehen.',
+      bannerEnd: 'Beenden',
+    },
   },
   report: {
     heading: 'Verweis-Report',

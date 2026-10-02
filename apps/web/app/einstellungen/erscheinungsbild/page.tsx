@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import { AccountMenu } from '../../../components/account-menu'
 import { ScopeSelector } from '../../../components/theme-editor/scope-selector'
 import { ThemeEditor } from '../../../components/theme-editor/theme-editor'
+import { ThresholdStrip } from '../../../components/theme-editor/threshold-strip'
 import { apiFetch } from '../../../lib/api'
 import { getT } from '../../../lib/i18n/server'
 import { getMe } from '../../../lib/session'
@@ -97,7 +98,15 @@ export default async function ErscheinungsbildPage({
       </>
     )
   } else {
-    content = <ThemeEditor scopes={scopes} data={data} />
+    content = (
+      <ThemeEditor
+        scopes={scopes}
+        data={data}
+        thresholdStrip={
+          <ThresholdStrip data={data} canWriteInstance={scopes.instance.canWrite} scopeKind={data.scope.kind} />
+        }
+      />
+    )
   }
 
   const sidebar = (

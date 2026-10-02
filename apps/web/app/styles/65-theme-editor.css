@@ -340,3 +340,351 @@
   content: '×';
   font-weight: var(--weight-strong);
 }
+
+/* ---- Component preview (`component-preview.tsx`) ------------------------ */
+.te-pv {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.te-pv-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.te-pv-title {
+  margin: var(--space-0);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-display);
+  letter-spacing: var(--tracking-tight);
+}
+.te-pv-modes {
+  display: flex;
+  gap: var(--space-1);
+}
+.te-pv-intro {
+  margin: var(--space-0);
+  font-size: var(--text-xs);
+  line-height: var(--leading-ui);
+  color: var(--color-text-muted);
+}
+
+/* The stage carries the draft as inline custom properties and `data-theme`
+   (tokens.css recomputes the derived colours there). What it cannot get that
+   way is listed here:
+   - surface and text colour, because `color`/`background` are computed where
+     they are set (body) and inherited as values, not as `var()`;
+   - the app's own mixes of `10-ableitungen.css` that the blocks below read
+     (`--panel-2`, `--link`, `--code-line`). They sit on `:root` only and would
+     arrive already computed from the document's colours. Same formulas as
+     there — when one changes there, it changes here;
+   - the panel/page flip of the dark mode (`--color-bg` is the raised surface
+     there). `lib/theme-preview.ts` leaves dark `--color-bg` out of the inline
+     style for that reason. */
+.te-pv-stage {
+  --panel-2: color-mix(in srgb, var(--color-text) 4%, var(--color-bg));
+  --link: color-mix(in srgb, var(--color-accent) 82%, var(--color-text));
+  --code-line: color-mix(in srgb, var(--color-text) 78%, var(--color-bg));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-4);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+  border: var(--rule-hair) solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.te-pv-stage[data-theme='dark'] {
+  --color-bg: var(--color-bg-raised);
+  --code-line: color-mix(in srgb, var(--color-text) 22%, var(--color-bg-sunken));
+}
+/* The reading block keeps its own margins out of the stage's gap. */
+.te-pv-stage .page-body > :last-child {
+  margin-bottom: var(--space-0);
+}
+
+.te-pv-cells {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+.te-pv-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+}
+.te-pv-caption {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  line-height: var(--leading-ui);
+  color: var(--color-text-muted);
+}
+
+/* Forced states — the same declarations as the real `:hover` and
+   `:focus-visible` rules of `40-schaltflaeche.css` and the tree row of
+   `60-chrome-raster.css`, so the preview shows them without a pointer. */
+.te-pv .btn.is-hover {
+  background: var(--color-surface-hover);
+}
+.te-pv .btn.primary.is-hover {
+  background: color-mix(in srgb, var(--color-text) 88%, var(--color-accent));
+  border-color: color-mix(in srgb, var(--color-text) 88%, var(--color-accent));
+}
+.te-pv .btn.quiet.is-hover {
+  color: var(--color-text);
+  background: var(--color-surface-hover);
+}
+.te-pv .btn.danger.is-hover {
+  background: color-mix(in srgb, var(--color-danger) 16%, var(--color-bg));
+}
+.te-pv .btn.is-focus {
+  outline: var(--focus-w) solid var(--color-focus);
+  outline-offset: var(--focus-offset);
+}
+.te-pv .nav a.is-hover {
+  background: var(--color-surface-hover);
+}
+
+/* Margin note: no block of its own exists yet; drawn at the note column's
+   width from the catalog (`--layout-note-w`). */
+.te-pv-note {
+  max-width: var(--layout-note-w);
+  margin: var(--space-0) var(--space-0) var(--rhythm);
+  padding-left: var(--space-3);
+  border-left: var(--rule-hair) solid var(--color-border-strong);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  line-height: var(--leading-ui);
+  color: var(--color-text-muted);
+}
+
+/* Code lines with numbers in the gutter colour. */
+.te-pv-line {
+  display: block;
+}
+.te-pv-ln {
+  display: inline-block;
+  min-width: 2ch;
+  margin-right: var(--space-3);
+  padding-right: var(--space-2);
+  border-right: var(--rule-hair) solid var(--code-line);
+  text-align: right;
+  color: var(--color-code-gutter);
+}
+.te-pv-comment {
+  font-style: italic;
+  color: var(--color-code-comment);
+}
+
+.te-pv-tree .node-row {
+  gap: var(--space-2);
+}
+
+/* Dialog over its veil, inline: the declarations of the `dialog` base and
+   `dialog::backdrop` in `44-dialog.css`, on plain elements. */
+.te-pv-veil {
+  padding: var(--space-5) var(--space-3);
+  background: var(--color-scrim);
+  border-radius: var(--radius-md);
+}
+.te-pv-dialog {
+  background: var(--color-bg);
+  color: var(--color-text);
+  border: var(--rule-hair) solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+/* ---- Whole-program preview (`program-preview.tsx`, `preview-banner.tsx`) - */
+.te-try {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.te-try-hint {
+  margin: var(--space-0);
+  font-size: var(--text-xs);
+  line-height: var(--leading-ui);
+  color: var(--color-text-muted);
+}
+/* Fixed at the bottom on every page while a preview is stored; signal colour
+   of a warning, because a trial must not pass for the saved theme. */
+.te-preview-banner {
+  position: fixed;
+  right: var(--space-0);
+  bottom: var(--space-0);
+  left: var(--space-0);
+  z-index: 50;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-status-review-wash);
+  color: var(--color-text);
+  border-top: var(--rule-marker) solid var(--color-status-review);
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+}
+.te-preview-banner-text {
+  font-weight: var(--weight-strong);
+}
+
+/* ---- Strip "Prüfschärfe" (components/theme-editor/threshold-strip.tsx) --- */
+/* Two tones (spec "Damit die Absenkung nicht in Vergessenheit gerät"): quiet
+   side text at the defaults; once a threshold is below its default, the warn
+   wash with the marker line of `.callout.warn`. The text stays in the text
+   colour — review on its own wash measures below AA. */
+.te-threshold {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+  color: var(--color-text-muted);
+}
+.te-threshold-lowered {
+  padding: var(--space-3);
+  color: var(--color-text);
+  background: var(--color-status-review-wash);
+  border-left: var(--rule-marker) solid var(--color-status-review);
+  border-radius: var(--radius-sm);
+}
+.te-threshold-line,
+.te-threshold-note,
+.te-threshold-readonly,
+.te-threshold-empty {
+  margin: var(--space-0);
+}
+.te-threshold-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.te-threshold-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}
+.te-threshold-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: 1 1 var(--layout-note-w);
+  min-width: 0;
+}
+.te-threshold-label {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+.te-threshold-notefield {
+  min-width: 0;
+  resize: vertical;
+}
+.te-threshold-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.te-threshold-status {
+  margin: var(--space-0);
+  font-size: var(--text-xs);
+}
+.te-threshold-status-error {
+  color: var(--color-danger);
+}
+
+/* Info text and report: native disclosure, summary as the toggle. */
+.te-threshold-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-h);
+  font-weight: var(--weight-medium);
+  color: var(--color-text);
+  cursor: pointer;
+  list-style: none;
+}
+.te-threshold-summary::-webkit-details-marker {
+  display: none;
+}
+.te-threshold-summary::before {
+  content: '▸';
+  color: var(--color-text-muted);
+}
+.te-threshold-info[open] > .te-threshold-summary::before,
+.te-threshold-report[open] > .te-threshold-summary::before {
+  content: '▾';
+}
+.te-threshold-summary:focus-visible {
+  outline: var(--focus-w) solid var(--color-focus);
+  outline-offset: var(--focus-offset);
+}
+.te-threshold-i {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-5);
+  height: var(--space-5);
+  font-family: var(--font-mono);
+  font-weight: var(--weight-strong);
+  border: var(--rule-hair) solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+}
+.te-threshold-info-body {
+  max-width: var(--measure);
+  padding: var(--space-3) var(--space-0);
+  font-size: var(--text-sm);
+  color: var(--color-text);
+}
+.te-threshold-info-body h3 {
+  margin: var(--space-4) var(--space-0) var(--space-2);
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: var(--weight-display);
+  letter-spacing: var(--tracking-tight);
+}
+.te-threshold-info-body p,
+.te-threshold-info-body ul,
+.te-threshold-info-body ol {
+  margin: var(--space-0) var(--space-0) var(--space-2);
+}
+.te-threshold-info-body code {
+  font-family: var(--font-mono);
+}
+
+.te-threshold-table-wrap {
+  overflow-x: auto;
+  margin-bottom: var(--space-2);
+}
+.te-threshold-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-xs);
+  color: var(--color-text);
+}
+.te-threshold-table th,
+.te-threshold-table td {
+  padding: var(--space-1) var(--space-2);
+  text-align: left;
+  vertical-align: top;
+  border-bottom: var(--rule-hair) solid var(--color-border-hair);
+}
+.te-threshold-table th {
+  font-weight: var(--weight-medium);
+  color: var(--color-text-muted);
+  border-bottom-color: var(--color-border-strong);
+}
