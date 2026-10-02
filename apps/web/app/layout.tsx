@@ -83,21 +83,24 @@ const NO_FLASH_THEME = `(function(){try{var t=localStorage.getItem('theme');if(t
 // Der Schlüssel `panes` steht zugleich dort (PANE_STORAGE_KEY).
 const NO_FLASH_PANES = `(function(){try{var r=document.documentElement,s=null;try{s=JSON.parse(localStorage.getItem('panes')||'null');}catch(e){}var nav,rail;if(s&&typeof s.nav==='boolean'&&typeof s.rail==='boolean'){nav=s.nav;rail=s.rail;}else{nav=matchMedia('(min-width: 900px)').matches;rail=matchMedia('(min-width: 1180px)').matches;}r.setAttribute('data-nav',nav?'on':'off');r.setAttribute('data-rail',rail?'on':'off');}catch(e){}})();`
 
-// Die auf der Seite „Erscheinungsbild" eingestellten Token-Überschreibungen,
-// ebenfalls VOR dem ersten Paint. Ohne dieses Script erschiene bei jedem
-// Seitenaufruf kurz das ausgelieferte Farbschema, bevor die Client-Insel
-// (`components/erscheinungsbild-editor.tsx`) ihre Werte anlegt.
+// The token overrides of the program preview ("Im ganzen Programm
+// ausprobieren" on the appearance page), also applied BEFORE the first paint.
+// Without this script every page load would briefly show the saved theme
+// before the preview's values arrive.
 //
-// Es MUSS nach NO_FLASH_THEME laufen: welcher Wertesatz gilt, hängt am dort
-// gesetzten `data-theme` (fehlt es, entscheidet prefers-color-scheme — dieselbe
-// Regel wie in `tokens.css`).
+// The key `erscheinungsbild` (`PREVIEW_STORAGE_KEY` in `lib/theme-preview.ts`)
+// is written by the program preview (`components/theme-editor/program-preview.tsx`)
+// and read by the preview banner (`components/theme-editor/preview-banner.tsx`),
+// which also re-applies the values when the mode changes after load.
 //
-// Gespeichert liegt `{ light: {…}, dark: {…} }` unter dem Schlüssel
-// `erscheinungsbild` (SPEICHER_SCHLUESSEL in der Insel). Das Script prüft jeden
-// Schritt einzeln und wirft nie: ein von Hand verbogener oder veralteter
-// Eintrag darf die Anwendung nicht anhalten, sondern nur wirkungslos bleiben.
-// Übernommen werden ausschließlich Zeichenketten unter `--`-Namen — nichts
-// anderes gehört an ein Wurzelelement.
+// It MUST run after NO_FLASH_THEME: which value set applies depends on the
+// `data-theme` set there (if absent, prefers-color-scheme decides — the same
+// rule as in `tokens.css`).
+//
+// Stored is `{ light: {…}, dark: {…} }`. The script checks every step on its
+// own and never throws: a hand-bent or stale entry must not stop the app, only
+// stay without effect. Only strings under `--` names are taken over — nothing
+// else belongs on the root element.
 const NO_FLASH_TOKENS = `(function(){try{var r=document.documentElement,m=r.getAttribute('data-theme');if(m!=='dark'&&m!=='light'){m=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}var s=null;try{s=JSON.parse(localStorage.getItem('erscheinungsbild')||'null');}catch(e){}if(!s||typeof s!=='object')return;var w=s[m];if(!w||typeof w!=='object')return;for(var k in w){if(Object.prototype.hasOwnProperty.call(w,k)&&typeof w[k]==='string'&&k.slice(0,2)==='--'){r.style.setProperty(k,w[k]);}}}catch(e){}})();`
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

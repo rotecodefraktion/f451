@@ -9,11 +9,8 @@ export interface ComponentPreviewProps {
   resolved: ResolvedTheme
 }
 
-const CODE_LINES: readonly { text: string; comment?: boolean }[] = [
-  { text: '# rebuild and restart', comment: true },
-  { text: 'docker compose build web api' },
-  { text: 'docker compose up -d web api' },
-]
+/** Commands of the sample code block — code, not interface language. The comment line above them is (`preview.codeComment`). */
+const CODE_COMMANDS: readonly string[] = ['docker compose build web api', 'docker compose up -d web api']
 
 const INFO_ICON = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -63,6 +60,10 @@ export function ComponentPreview({ resolved }: ComponentPreviewProps) {
   const primary = t('settings.appearance.preview.buttonPrimary')
   const quiet = t('settings.appearance.preview.buttonQuiet')
   const danger = t('settings.appearance.preview.buttonDanger')
+  const codeLines: { text: string; comment?: boolean }[] = [
+    { text: t('settings.appearance.preview.codeComment'), comment: true },
+    ...CODE_COMMANDS.map((text) => ({ text })),
+  ]
 
   return (
     <section className="te-pv" aria-labelledby="te-pv-title">
@@ -117,7 +118,7 @@ export function ComponentPreview({ resolved }: ComponentPreviewProps) {
           </table>
           <pre>
             <code>
-              {CODE_LINES.map((line, i) => (
+              {codeLines.map((line, i) => (
                 <span key={i} className="te-pv-line">
                   <span className="te-pv-ln" aria-hidden="true">
                     {i + 1}

@@ -274,6 +274,8 @@ Sind die Farben umgestellt, setzen Sie die Schwellen auf 4,5:1 für Lesetext, ku
       tableRow2Field: 'Gültig ab',
       tableRow2Value: '1. Oktober',
       marginalNote: 'Randnotiz: Die Freigabe ist ein Merge im Git-Provider.',
+      // Comment line of the sample code block; the commands below it stay code.
+      codeComment: '# neu bauen und starten',
       treeRest: 'Einleitung',
       treeHover: 'Installation',
       treeActive: 'Betrieb',

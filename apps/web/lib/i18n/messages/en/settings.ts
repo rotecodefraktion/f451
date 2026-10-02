@@ -246,6 +246,7 @@ Once the colours are changed, set the thresholds to 4.5:1 for reading text, shor
       tableRow2Field: 'Valid from',
       tableRow2Value: '1 October',
       marginalNote: 'Margin note: approval is a merge in the Git provider.',
+      codeComment: '# rebuild and restart',
       treeRest: 'Introduction',
       treeHover: 'Installation',
       treeActive: 'Operations',
