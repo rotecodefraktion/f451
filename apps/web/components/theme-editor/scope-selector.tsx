@@ -12,7 +12,8 @@ export interface ScopeSelectorProps {
 }
 
 /**
- * Which theme file the page edits — the instance or one readable space. A
+ * Which theme file the page edits — the personal theme ("Meine Einstellungen"),
+ * the instance or one readable space. A
  * change navigates (`?scope=`), so the server component loads that scope's
  * data. Scopes without write right stay selectable: one may look at what
  * applies.
@@ -22,6 +23,10 @@ export function ScopeSelector({ scopes, current }: ScopeSelectorProps) {
   const router = useRouter()
 
   const entries: { value: string; label: string }[] = []
+  // "Meine Einstellungen" comes first (addendum §7); always writable for its owner.
+  if (scopes.user.available) {
+    entries.push({ value: scopeParam({ kind: 'user' }), label: t('settings.appearance.scopeUser') })
+  }
   if (scopes.instance.available) {
     const label = t('settings.appearance.scopeInstance')
     entries.push({

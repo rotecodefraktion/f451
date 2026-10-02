@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify'
+import type { FastifyInstance, FastifyRequest } from 'fastify'
 import {
   AA_THRESHOLDS,
   checkContrast,
@@ -12,6 +12,7 @@ import type { SpaceConfig } from '../spaces/config.js'
 import { loadContrastConfig } from '../theme/contrast-config.js'
 import { instancePseudoSpace, loadInstanceTheme } from '../theme/instance-theme.js'
 import { loadSpaceTheme } from '../theme/space-theme.js'
+import { loadUserTheme } from '../theme/user-theme.js'
 import type { ThemeDeps } from './theme.js'
 
 /**
@@ -28,6 +29,11 @@ import type { ThemeDeps } from './theme.js'
  * `canWrite` uses the same checks as the write routes (linked account + push
  * right, `routes/drafts.ts#resolveSpaceWriteGate`) but is a boolean here, never
  * a 403. An unknown and an unreadable space answer the same 404.
+ *
+ * Stage 6 adds the scope `user` ("Meine Einstellungen", addendum §7): the
+ * caller's personal theme from `user_settings`, on top of the instance (no
+ * space layer — it applies in every space). Available with `db` and a session
+ * user; an API token caller does not get it (`/api/me/theme` is session only).
  */
 
 const objectSchema = { type: 'object', additionalProperties: true } as const
@@ -44,6 +50,11 @@ const scopesSchema = {
     200: {
       type: 'object',
       properties: {
+        user: {
+          type: 'object',
+          properties: { available: { type: 'boolean' } },
+          required: ['available'],
+        },
         instance: {
           type: 'object',
           properties: { available: { type: 'boolean' }, canWrite: { type: 'boolean' } },
@@ -58,7 +69,7 @@ const scopesSchema = {
           },
         },
       },
-      required: ['instance', 'spaces'],
+      required: ['user', 'instance', 'spaces'],
     },
   },
 } as const
@@ -116,9 +127,14 @@ const editorSchema = {
   },
 } as const
 
-type EditorScope = { kind: 'instance' } | { kind: 'space'; id: string; name: string }
+type EditorScope = { kind: 'user' } | { kind: 'instance' } | { kind: 'space'; id: string; name: string }
 
 export function registerThemeEditorRoutes(app: FastifyInstance, deps: ThemeDeps): void {
+  /** The personal theme scope needs the database and a session user (not an API token). */
+  function userScopeAvailable(req: FastifyRequest): boolean {
+    return Boolean(deps.db && req.user?.id && req.apiTokenScope == null)
+  }
+
   /** The configured space if `userId` may read it, else `null` (same check as `theme.ts#readableSpace`). */
   async function readableSpace(spaceId: string, userId: string): Promise<SpaceConfig | null> {
     const space = deps.spaces?.find((s) => s.id === spaceId)
@@ -160,6 +176,7 @@ export function registerThemeEditorRoutes(app: FastifyInstance, deps: ThemeDeps)
         Promise.all(spaces.map((s) => mayWrite(userId, s))),
       ])
       return {
+        user: { available: userScopeAvailable(req) },
         instance: { available: Boolean(cfg), canWrite: instanceWrite },
         spaces: spaces.map((s, i) => ({ id: s.id, name: s.name, canWrite: spaceWrites[i]! })),
       }
@@ -171,8 +188,8 @@ export function registerThemeEditorRoutes(app: FastifyInstance, deps: ThemeDeps)
       async (req, reply) => {
         const userId = req.user?.id ?? ''
         const { scope: kind, space: spaceId } = req.query
-        if (kind !== 'instance' && kind !== 'space') {
-          return reply.code(400).send({ status: 'invalid', reason: 'scope must be "instance" or "space".' })
+        if (kind !== 'user' && kind !== 'instance' && kind !== 'space') {
+          return reply.code(400).send({ status: 'invalid', reason: 'scope must be "user", "instance" or "space".' })
         }
 
         const instanceTheme = await loadInstanceTheme(deps, req.log)
@@ -181,7 +198,15 @@ export function registerThemeEditorRoutes(app: FastifyInstance, deps: ThemeDeps)
         let belowLayers: ThemeLayer[]
         let canWrite: boolean
 
-        if (kind === 'instance') {
+        if (kind === 'user') {
+          if (!deps.db || !userScopeAvailable(req)) {
+            return reply.code(404).send({ status: 'not_found', reason: 'No personal theme is available here.' })
+          }
+          scope = { kind: 'user' }
+          own = await loadUserTheme(deps.db, userId)
+          belowLayers = instanceTheme ? [instanceTheme.layer] : []
+          canWrite = true
+        } else if (kind === 'instance') {
           const cfg = deps.instanceConfig
           if (!cfg) {
             return reply.code(404).send({ status: 'not_found', reason: 'No instance repository is configured.' })

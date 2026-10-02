@@ -5,36 +5,50 @@
  * paths belong to it, how a field splits a value, which rows carry a finding,
  * and how a rejected save reads. No React, no fetch.
  */
-import type { ContrastThresholds, KontrastRolle, Mode, TokenGroup, TokenName } from '@f451/design-tokens'
-import type { Assessment, EditorGroup, EditorScope } from './theme-editor.js'
+import {
+  catalog,
+  type ContrastThresholds,
+  type KontrastRolle,
+  type Mode,
+  type ThemeFile,
+  type TokenGroup,
+  type TokenMeta,
+  type TokenName,
+} from '@f451/design-tokens'
+import { fieldCheck, type Assessment, type EditorGroup, type EditorScope } from './theme-editor.js'
 
 // ---- Scope ------------------------------------------------------------------
 
 /** Answer of `GET /api/theme/scopes`. */
 export interface ThemeScopes {
+  /** "Meine Einstellungen" — the personal theme, for every session user */
+  user: { available: boolean }
   instance: { available: boolean; canWrite: boolean }
   spaces: { id: string; name: string; canWrite: boolean }[]
 }
 
-export type ScopeKey = { kind: 'instance' } | { kind: 'space'; id: string }
+export type ScopeKey = { kind: 'user' } | { kind: 'instance' } | { kind: 'space'; id: string }
 
-/** The `?scope=` value of a scope: `instance` or `space:<id>`. */
+/** The `?scope=` value of a scope: `user`, `instance` or `space:<id>`. */
 export function scopeParam(scope: ScopeKey | EditorScope): string {
-  return scope.kind === 'instance' ? 'instance' : `space:${scope.id}`
+  return scope.kind === 'space' ? `space:${scope.id}` : scope.kind
 }
 
 /**
  * The scope the page opens: the one `?scope=` names if the caller may see it,
- * else the instance when one is configured, else the first readable space.
- * `null` when there is nothing to open at all.
+ * else the user scope ("Meine Einstellungen"), else the instance when one is
+ * configured, else the first readable space. `null` when there is nothing to
+ * open at all.
  */
 export function pickScope(param: string | string[] | undefined, scopes: ThemeScopes): ScopeKey | null {
   const raw = Array.isArray(param) ? param[0] : param
+  if (raw === 'user' && scopes.user.available) return { kind: 'user' }
   if (raw === 'instance' && scopes.instance.available) return { kind: 'instance' }
   if (raw?.startsWith('space:')) {
     const id = raw.slice('space:'.length)
     if (scopes.spaces.some((s) => s.id === id)) return { kind: 'space', id }
   }
+  if (scopes.user.available) return { kind: 'user' }
   if (scopes.instance.available) return { kind: 'instance' }
   const first = scopes.spaces[0]
   return first ? { kind: 'space', id: first.id } : null
@@ -42,14 +56,24 @@ export function pickScope(param: string | string[] | undefined, scopes: ThemeSco
 
 /** `GET` path of the editor data for a scope. */
 export function editorApiPath(scope: ScopeKey | EditorScope): string {
-  return scope.kind === 'instance'
-    ? '/api/theme/editor?scope=instance'
-    : `/api/theme/editor?scope=space&space=${encodeURIComponent(scope.id)}`
+  return scope.kind === 'space'
+    ? `/api/theme/editor?scope=space&space=${encodeURIComponent(scope.id)}`
+    : `/api/theme/editor?scope=${scope.kind}`
 }
+
+/** The personal theme's own route (`PUT`/`DELETE`, and `GET ?format=yaml` for the download). */
+export const USER_THEME_PATH = '/api/me/theme'
 
 /** `PUT`/`DELETE` path of a scope's theme file. */
 export function themeApiPath(scope: ScopeKey | EditorScope): string {
-  return scope.kind === 'instance' ? '/api/theme' : `/api/spaces/${encodeURIComponent(scope.id)}/theme`
+  switch (scope.kind) {
+    case 'user':
+      return USER_THEME_PATH
+    case 'instance':
+      return '/api/theme'
+    case 'space':
+      return `/api/spaces/${encodeURIComponent(scope.id)}/theme`
+  }
 }
 
 // ---- Fields -----------------------------------------------------------------
@@ -180,4 +204,42 @@ export function describeSaveFailure(status: number, body: unknown): SaveFailure 
     }
   }
   return { kind: 'error' }
+}
+
+/**
+ * Number of contrast warnings in a successful `PUT /api/me/theme` answer
+ * (`{ file, problems, warnings }`); 0 for any other shape.
+ */
+export function serverWarningCount(body: unknown): number {
+  return isRecord(body) && Array.isArray(body.warnings) ? body.warnings.length : 0
+}
+
+// ---- Personal theme ---------------------------------------------------------
+
+/**
+ * The old browser overrides (`lib/erscheinungsbild.ts#leseUeberschreibungen`:
+ * names with dashes, per mode) as a personal theme file (keys without dashes).
+ * Structure tokens go to `base` (the program preview writes them into both
+ * modes; light wins). Unknown and locked tokens and values the catalog range
+ * rejects are dropped — the server would refuse the whole file for one of them.
+ */
+export function overridesToThemeFile(overrides: Record<Mode, Record<string, string>>): ThemeFile {
+  const sections: Record<'base' | Mode, Record<string, string>> = { base: {}, light: {}, dark: {} }
+  for (const mode of ['light', 'dark'] as const) {
+    for (const [name, value] of Object.entries(overrides[mode] ?? {})) {
+      if (!fieldCheck(name, value).ok) continue
+      const key = name.replace(/^--/, '')
+      const meta = catalog[`--${key}` as TokenName] as TokenMeta
+      if (meta.level === 'structure') {
+        if (!(key in sections.base)) sections.base[key] = value
+      } else if (meta.level === 'theme' || meta.level === 'derived') {
+        sections[mode][key] = value
+      }
+    }
+  }
+  const file: ThemeFile = {}
+  for (const section of ['base', 'light', 'dark'] as const) {
+    if (Object.keys(sections[section]).length > 0) file[section] = sections[section]
+  }
+  return file
 }

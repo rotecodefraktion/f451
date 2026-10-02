@@ -687,6 +687,8 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
     access,
     canWrite,
     getUserProvider: userProvider,
+    // Stage 6: the "user" scope — only where `/api/me/theme` exists (auth and db).
+    db: opts.auth ? db : undefined,
   })
   // Contrast thresholds (Stage 4.2): GET always; PUT/DELETE only with auth
   // (`canWrite`/`userProvider`), committing with the caller's own token.

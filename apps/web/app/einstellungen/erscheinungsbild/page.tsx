@@ -19,8 +19,9 @@ import { Shell } from '../../shell'
  * `app/einstellungen/verbindungen/page.tsx` (session gate via `getMe`,
  * `<Shell>` with the settings navigation, `<main className="main">`).
  *
- * The scope comes from `?scope=instance|space:<id>`; without one (or with one
- * the caller cannot see) the instance opens, else the first readable space.
+ * The scope comes from `?scope=user|instance|space:<id>`; without one (or with
+ * one the caller cannot see) "Meine Einstellungen" (`user`) opens, else the
+ * instance, else the first readable space.
  * Both requests carry the session cookie; the editor island gets the answer
  * of `GET /api/theme/editor` as is.
  */
@@ -98,12 +99,16 @@ export default async function ErscheinungsbildPage({
       </>
     )
   } else {
+    const kind = data.scope.kind
     content = (
       <ThemeEditor
         scopes={scopes}
         data={data}
         thresholdStrip={
-          <ThresholdStrip data={data} canWriteInstance={scopes.instance.canWrite} scopeKind={data.scope.kind} />
+          // "Meine Einstellungen" has no "Prüfschärfe" strip (addendum §7): contrast never blocks there.
+          kind === 'user' ? undefined : (
+            <ThresholdStrip data={data} canWriteInstance={scopes.instance.canWrite} scopeKind={kind} />
+          )
         }
       />
     )

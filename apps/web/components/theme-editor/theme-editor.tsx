@@ -2,8 +2,10 @@
 
 import type { ThemeFile, TokenGroup } from '@f451/design-tokens'
 import { useRouter } from 'next/navigation'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react'
+import { istVorschau, leseUeberschreibungen } from '../../lib/erscheinungsbild'
 import { useT } from '../../lib/i18n/provider'
+import { overrideNames, PREVIEW_STORAGE_KEY, type PreviewOverrides } from '../../lib/theme-preview'
 import {
   assess,
   buildGroups,
@@ -19,9 +21,12 @@ import {
 import {
   describeSaveFailure,
   firstRows,
+  overridesToThemeFile,
   rowId,
+  serverWarningCount,
   themeApiPath,
   tokenStates,
+  USER_THEME_PATH,
   type JumpTarget,
   type SaveFailure,
   type ThemeScopes,
@@ -39,7 +44,7 @@ const OPEN_KEY = 'theme-editor-groups'
 export interface ThemeEditorProps {
   scopes: ThemeScopes
   data: EditorData
-  /** slot for the "Prüfschärfe" strip — between scope selector and the first group */
+  /** slot for the "Prüfschärfe" strip — between scope selector and the first group; the page leaves it out for the user scope */
   thresholdStrip?: ReactNode
 }
 
@@ -62,8 +67,13 @@ export function ThemeEditor({ scopes, data, thresholdStrip }: ThemeEditorProps) 
   const [overriding, setOverriding] = useState<ReadonlySet<string>>(new Set())
   const [open, setOpen] = useState<Record<TokenGroup, boolean>>(groupOpenDefaults)
   const [jump, setJump] = useState<string | null>(null)
-  const [busy, setBusy] = useState<'save' | 'remove' | null>(null)
+  const [busy, setBusy] = useState<'save' | 'remove' | 'import' | null>(null)
   const [status, setStatus] = useState<ActionStatus | null>(null)
+  const isUser = data.scope.kind === 'user'
+  const fileInput = useRef<HTMLInputElement>(null)
+  // Old browser overrides offered for takeover (addendum §2); checked once per page load.
+  const [takeover, setTakeover] = useState<PreviewOverrides | null>(null)
+  const takeoverChecked = useRef(false)
 
   // New data (another scope, or the refetch after a save): start over from its file.
   if (source !== data) {
@@ -125,6 +135,60 @@ export function ThemeEditor({ scopes, data, thresholdStrip }: ThemeEditorProps) 
       /* unreadable or blocked storage — keep the defaults */
     }
   }, [])
+
+  // Takeover from localStorage: an unmarked value (not a running program preview)
+  // with at least one token is an old override set — ask once whether to keep it.
+  useEffect(() => {
+    if (!isUser || takeoverChecked.current) return
+    takeoverChecked.current = true
+    try {
+      const raw = localStorage.getItem(PREVIEW_STORAGE_KEY)
+      if (raw === null || istVorschau(raw)) return
+      const overrides = leseUeberschreibungen(raw)
+      if (overrideNames(overrides).some((name) => name.startsWith('--'))) setTakeover(overrides)
+    } catch {
+      /* blocked storage — nothing to take over */
+    }
+  }, [isUser])
+
+  /** Yes: the old overrides become the personal theme; No: they are dropped. Either way the key goes. */
+  async function answerTakeover(accept: boolean) {
+    if (!takeover) return
+    if (!accept) {
+      endProgramPreview()
+      setTakeover(null)
+      return
+    }
+    setBusy('save')
+    setStatus(null)
+    try {
+      const res = await fetch(USER_THEME_PATH, {
+        method: 'PUT',
+        credentials: 'same-origin',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(overridesToThemeFile(takeover)),
+      })
+      if (res.ok) {
+        // Removes the key and the values the no-flash script put on <html>.
+        endProgramPreview()
+        setTakeover(null)
+        setStatus({ kind: 'ok', text: t('settings.appearance.user.takeover.done') })
+        router.refresh()
+        return
+      }
+      let failure: unknown = null
+      try {
+        failure = await res.json()
+      } catch {
+        failure = null
+      }
+      setStatus(failureStatus(describeSaveFailure(res.status, failure)))
+    } catch {
+      setStatus(failureStatus({ kind: 'error' }))
+    } finally {
+      setBusy(null)
+    }
+  }
 
   function toggleGroup(group: TokenGroup, isOpen: boolean) {
     setOpen((prev) => {
@@ -228,32 +292,42 @@ export function ThemeEditor({ scopes, data, thresholdStrip }: ThemeEditorProps) 
     }
   }
 
-  async function send(kind: 'save' | 'remove') {
+  /**
+   * One write of the scope's theme: the draft as JSON (`save`), an uploaded
+   * YAML file (`import`, user scope only) or `DELETE` (`remove`).
+   */
+  async function send(kind: 'save' | 'remove' | 'import', yaml?: string) {
     setBusy(kind)
     setStatus(null)
     try {
+      const body =
+        kind === 'save'
+          ? { headers: { 'content-type': 'application/json' }, body: JSON.stringify(draft) }
+          : kind === 'import'
+            ? { headers: { 'content-type': 'application/yaml' }, body: yaml ?? '' }
+            : {}
       const res = await fetch(themeApiPath(data.scope), {
-        method: kind === 'save' ? 'PUT' : 'DELETE',
+        method: kind === 'remove' ? 'DELETE' : 'PUT',
         credentials: 'same-origin',
-        ...(kind === 'save' ? { headers: { 'content-type': 'application/json' }, body: JSON.stringify(draft) } : {}),
+        ...body,
       })
       if (res.ok) {
         if (previewActive) {
           endProgramPreview()
           setPreviewActive(false)
         }
-        setStatus({ kind: 'ok', text: t(kind === 'save' ? 'settings.appearance.saved' : 'settings.appearance.removed') })
+        setStatus({ kind: 'ok', text: await successText(kind, res) })
         // Refetch the editor data so origins and the "file exists" state follow the commit.
         router.refresh()
         return
       }
-      let body: unknown = null
+      let failure: unknown = null
       try {
-        body = await res.json()
+        failure = await res.json()
       } catch {
-        body = null
+        failure = null
       }
-      setStatus(failureStatus(describeSaveFailure(res.status, body)))
+      setStatus(failureStatus(describeSaveFailure(res.status, failure)))
     } catch {
       setStatus(failureStatus({ kind: 'error' }))
     } finally {
@@ -261,9 +335,62 @@ export function ThemeEditor({ scopes, data, thresholdStrip }: ThemeEditorProps) 
     }
   }
 
+  /** The ok text; a personal theme saved below the thresholds names the count as a quiet note. */
+  async function successText(kind: 'save' | 'remove' | 'import', res: Response): Promise<string> {
+    if (kind === 'remove') return t(isUser ? 'settings.appearance.user.removed' : 'settings.appearance.removed')
+    const saved = t(kind === 'import' ? 'settings.appearance.user.imported' : 'settings.appearance.saved')
+    if (!isUser) return saved
+    let count = 0
+    try {
+      count = serverWarningCount(await res.json())
+    } catch {
+      count = 0
+    }
+    return count > 0 ? `${saved} ${t('settings.appearance.user.savedWarnings', { count })}` : saved
+  }
+
   function remove() {
-    if (!window.confirm(t('settings.appearance.removeConfirm'))) return
+    if (!window.confirm(t(isUser ? 'settings.appearance.user.removeConfirm' : 'settings.appearance.removeConfirm'))) return
     void send('remove')
+  }
+
+  /** "Herunterladen": the stored personal theme as `theme.yaml`. */
+  async function download() {
+    setStatus(null)
+    try {
+      const res = await fetch(`${USER_THEME_PATH}?format=yaml`, { credentials: 'same-origin' })
+      if (!res.ok) {
+        setStatus(failureStatus({ kind: 'error' }))
+        return
+      }
+      const url = URL.createObjectURL(await res.blob())
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'theme.yaml'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch {
+      setStatus(failureStatus({ kind: 'error' }))
+    }
+  }
+
+  /** "Datei einlesen": the chosen YAML file replaces the personal theme (server validates). */
+  async function importFile(event: ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget
+    const file = input.files?.[0]
+    // Clear the input so choosing the same file again fires `change` again.
+    input.value = ''
+    if (!file) return
+    let text: string
+    try {
+      text = await file.text()
+    } catch {
+      setStatus(failureStatus({ kind: 'error' }))
+      return
+    }
+    await send('import', text)
   }
 
   return (
@@ -271,6 +398,24 @@ export function ThemeEditor({ scopes, data, thresholdStrip }: ThemeEditorProps) 
       <div className="theme-editor-main">
         <ScopeSelector scopes={scopes} current={data.scope} />
         {data.canWrite ? null : <p className="callout info te-readonly">{t('settings.appearance.readOnlyNote')}</p>}
+        {isUser && takeover ? (
+          <div className="callout info" role="status">
+            <span>{t('settings.appearance.user.takeover.question')}</span>
+            <div className="btn-row">
+              <button
+                type="button"
+                className="btn small primary"
+                disabled={busy !== null}
+                onClick={() => void answerTakeover(true)}
+              >
+                {t('settings.appearance.user.takeover.yes')}
+              </button>
+              <button type="button" className="btn small quiet" disabled={busy !== null} onClick={() => void answerTakeover(false)}>
+                {t('settings.appearance.user.takeover.no')}
+              </button>
+            </div>
+          </div>
+        ) : null}
         {thresholdStrip ?? null}
         <StatusBar
           errors={assessment.errors}
@@ -284,8 +429,28 @@ export function ThemeEditor({ scopes, data, thresholdStrip }: ThemeEditorProps) 
           busy={busy}
           onSave={() => void send('save')}
           onRemove={remove}
+          removeLabel={isUser ? t('settings.appearance.user.remove') : undefined}
           status={status}
         />
+        {isUser ? (
+          <div className="btn-row">
+            <button type="button" className="btn" disabled={busy !== null} onClick={() => void download()}>
+              {t('settings.appearance.user.download')}
+            </button>
+            <button type="button" className="btn" disabled={busy !== null} onClick={() => fileInput.current?.click()}>
+              {busy === 'import' ? t('settings.appearance.user.importing') : t('settings.appearance.user.import')}
+            </button>
+            <input
+              ref={fileInput}
+              type="file"
+              accept=".yaml,.yml"
+              hidden
+              aria-hidden="true"
+              tabIndex={-1}
+              onChange={(event) => void importFile(event)}
+            />
+          </div>
+        ) : null}
         {groups.map((group) => (
           <GroupSection
             key={group.group}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { leseUeberschreibungen, schreibeUeberschreibungen } from './erscheinungsbild.js'
+import { istVorschau, leseUeberschreibungen, schreibeUeberschreibungen } from './erscheinungsbild.js'
 
 describe('leseUeberschreibungen / schreibeUeberschreibungen', () => {
   it('gibt zurück, was hineingeschrieben wurde', () => {
@@ -24,5 +24,17 @@ describe('leseUeberschreibungen / schreibeUeberschreibungen', () => {
       light: { '--color-bg': '#fff' },
       dark: {},
     })
+  })
+
+  it('marks a preview value and ignores the marker when reading', () => {
+    const werte = { light: { '--color-accent': '#aa3300' }, dark: {} }
+    const vorschau = schreibeUeberschreibungen(werte, { preview: true })
+    expect(JSON.parse(vorschau)).toEqual({ ...werte, preview: true })
+    expect(leseUeberschreibungen(vorschau)).toEqual(werte)
+    expect(istVorschau(vorschau)).toBe(true)
+    expect(istVorschau(schreibeUeberschreibungen(werte))).toBe(false)
+    for (const roh of [null, '', 'kein JSON', 'null', '{"preview":"true"}']) {
+      expect(istVorschau(roh), String(roh)).toBe(false)
+    }
   })
 })

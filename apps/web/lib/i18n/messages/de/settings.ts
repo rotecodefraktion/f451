@@ -64,7 +64,7 @@ export const settings = {
     navItem: 'Erscheinungsbild',
     heading: 'Erscheinungsbild',
     intro:
-      'Das Theme der Instanz oder eines einzelnen Space. Es liegt als _meta/theme.yaml im jeweiligen Repository; gespeichert wird mit deinem verknüpften Konto.',
+      'Meine Einstellungen gelten nur für dich, in jedem Space, und werden bei deinem Konto gespeichert. Das Theme der Instanz oder eines einzelnen Space liegt als _meta/theme.yaml im jeweiligen Repository; gespeichert wird mit deinem verknüpften Konto.',
     loadError: 'Das Theme dieses Bereichs konnte nicht geladen werden.',
     noScopes: 'Es gibt keinen Bereich, dessen Theme du ansehen darfst.',
     // Scope selector
@@ -72,6 +72,7 @@ export const settings = {
     scopeInstance: 'Instanz — gilt für alle Spaces',
     scopeSpace: 'Space: {name}',
     scopeReadOnly: '{label} (nur lesen)',
+    scopeUser: 'Meine Einstellungen',
     readOnlyNote: 'Nur lesen: Dein verknüpftes Konto darf das Theme dieses Bereichs nicht ändern. Du siehst, was hier gilt.',
     // Header bar
     summaryErrors_one: '{count} Fehler',
@@ -110,6 +111,8 @@ export const settings = {
     contrastWarningLowered:
       '{ratio}:1 — {what}: über der eingestellten Schwelle {threshold}:1 (voreingestellt {default}:1), unter AA ({aa}:1). Rolle: {role}.',
     contrastError: '{ratio}:1 — {what}: {role} braucht hier {threshold}:1.',
+    contrastWarningPersonal:
+      '{ratio}:1 — {what}: unter der Schwelle der Instanz ({threshold}:1). In deinen Einstellungen nur ein Hinweis. Rolle: {role}.',
     contrastRole: {
       readingText: 'Lesetext',
       shortText: 'kurze Schrift',
@@ -129,10 +132,30 @@ export const settings = {
     serverInvalid: 'Der Server hat das Theme abgelehnt:',
     serverContrast: 'Der Server hat das Theme wegen zu geringen Kontrasts abgelehnt:',
     serverContrastItem: '{what} ({mode}): {ratio}:1, verlangt {threshold}:1',
-    serverForbidden: 'Dein verknüpftes Konto darf das Theme dieses Bereichs nicht ändern.',
+    serverForbidden: 'Du darfst das Theme dieses Bereichs nicht ändern — bei Instanz und Space fehlt deinem verknüpften Konto das Schreibrecht, Meine Einstellungen gehen nur mit einer Anmeldung im Browser.',
     serverConflict: 'Die Theme-Datei wurde inzwischen geändert. Lade die Seite neu und versuche es erneut.',
     serverNotFound: 'Es gibt keine Theme-Datei zum Entfernen.',
     serverError: 'Der Vorgang ist fehlgeschlagen. Bitte erneut versuchen.',
+    // "Meine Einstellungen" — the personal theme (scope `user`)
+    user: {
+      remove: 'Meine Einstellungen zurücksetzen',
+      removeConfirm:
+        'Meine Einstellungen zurücksetzen? Dein persönliches Theme wird gelöscht, danach gilt wieder das Theme der Instanz und des jeweiligen Space.',
+      removed: 'Meine Einstellungen zurückgesetzt.',
+      download: 'Herunterladen',
+      import: 'Datei einlesen',
+      importing: 'Wird eingelesen …',
+      imported: 'Datei eingelesen und gespeichert.',
+      savedWarnings_one: '{count} Kontrastwert liegt unter den Schwellen der Instanz — erlaubt, nur ein Hinweis.',
+      savedWarnings_other: '{count} Kontrastwerte liegen unter den Schwellen der Instanz — erlaubt, nur ein Hinweis.',
+      takeover: {
+        question:
+          'In diesem Browser sind noch Darstellungs-Anpassungen aus einer früheren Version gespeichert. In Meine Einstellungen übernehmen?',
+        yes: 'Ja, übernehmen',
+        no: 'Nein, verwerfen',
+        done: 'Die Anpassungen wurden in Meine Einstellungen übernommen.',
+      },
+    },
     // "Prüfschärfe" strip (components/theme-editor/threshold-strip.tsx)
     threshold: {
       heading: 'Prüfschärfe',

@@ -15,9 +15,12 @@ export interface StatusBarProps {
   canWrite: boolean
   saveBlocked: boolean
   hasFile: boolean
-  busy: 'save' | 'remove' | null
+  /** `import`: a file upload of the user scope is running — every action waits */
+  busy: 'save' | 'remove' | 'import' | null
   onSave: () => void
   onRemove: () => void
+  /** label of the remove button; default "Theme entfernen" */
+  removeLabel?: string
   status: ActionStatus | null
 }
 
@@ -67,7 +70,7 @@ export function StatusBar(props: StatusBarProps) {
         </button>
         {props.hasFile && props.canWrite ? (
           <button type="button" className="btn danger" disabled={busy !== null} onClick={props.onRemove}>
-            {busy === 'remove' ? t('settings.appearance.removing') : t('settings.appearance.removeTheme')}
+            {busy === 'remove' ? t('settings.appearance.removing') : (props.removeLabel ?? t('settings.appearance.removeTheme'))}
           </button>
         ) : null}
         {props.saveBlocked && props.canWrite ? <span className="te-bar-note">{t('settings.appearance.saveBlocked')}</span> : null}

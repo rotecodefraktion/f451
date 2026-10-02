@@ -1,15 +1,18 @@
 import { AA_THRESHOLDS, DEFAULT_THRESHOLDS, checkContrast, resolveTheme } from '@f451/design-tokens'
 import { describe, expect, it } from 'vitest'
+import { leseUeberschreibungen } from './erscheinungsbild.js'
 import { assess, buildGroups, setValue, type EditorData } from './theme-editor.js'
 import {
   describeSaveFailure,
   editorApiPath,
   firstRows,
   joinLength,
+  overridesToThemeFile,
   pickScope,
   pickerValue,
   rowId,
   scopeParam,
+  serverWarningCount,
   splitLength,
   themeApiPath,
   thresholdField,
@@ -18,6 +21,7 @@ import {
 } from './theme-editor-view.js'
 
 const scopes: ThemeScopes = {
+  user: { available: false },
   instance: { available: true, canWrite: false },
   spaces: [
     { id: 'betrieb', name: 'Betrieb', canWrite: true },
@@ -25,8 +29,21 @@ const scopes: ThemeScopes = {
   ],
 }
 const noInstance: ThemeScopes = { ...scopes, instance: { available: false, canWrite: false } }
+const withUser: ThemeScopes = { ...scopes, user: { available: true } }
 
 describe('pickScope', () => {
+  it('opens the user scope by default when it is available', () => {
+    expect(pickScope(undefined, withUser)).toEqual({ kind: 'user' })
+    expect(pickScope('user', withUser)).toEqual({ kind: 'user' })
+    expect(pickScope('nonsense', withUser)).toEqual({ kind: 'user' })
+    expect(pickScope('instance', withUser)).toEqual({ kind: 'instance' })
+    expect(pickScope('space:betrieb', withUser)).toEqual({ kind: 'space', id: 'betrieb' })
+  })
+
+  it('ignores ?scope=user when the user scope is not available', () => {
+    expect(pickScope('user', scopes)).toEqual({ kind: 'instance' })
+  })
+
   it('takes a known scope from the query', () => {
     expect(pickScope('instance', scopes)).toEqual({ kind: 'instance' })
     expect(pickScope('space:betrieb', scopes)).toEqual({ kind: 'space', id: 'betrieb' })
@@ -41,7 +58,9 @@ describe('pickScope', () => {
   })
 
   it('is null when nothing is readable', () => {
-    expect(pickScope(undefined, { instance: { available: false, canWrite: false }, spaces: [] })).toBeNull()
+    expect(
+      pickScope(undefined, { user: { available: false }, instance: { available: false, canWrite: false }, spaces: [] }),
+    ).toBeNull()
   })
 })
 
@@ -54,6 +73,46 @@ describe('scope paths', () => {
     expect(editorApiPath({ kind: 'space', id: 'a b' })).toBe('/api/theme/editor?scope=space&space=a%20b')
     expect(themeApiPath({ kind: 'instance' })).toBe('/api/theme')
     expect(themeApiPath({ kind: 'space', id: 'a b' })).toBe('/api/spaces/a%20b/theme')
+  })
+
+  it('knows the user scope', () => {
+    expect(scopeParam({ kind: 'user' })).toBe('user')
+    expect(pickScope(scopeParam({ kind: 'user' }), withUser)).toEqual({ kind: 'user' })
+    expect(editorApiPath({ kind: 'user' })).toBe('/api/theme/editor?scope=user')
+    expect(themeApiPath({ kind: 'user' })).toBe('/api/me/theme')
+  })
+})
+
+describe('serverWarningCount', () => {
+  it('counts the warnings of a PUT /api/me/theme answer', () => {
+    expect(serverWarningCount({ file: {}, problems: [], warnings: [{}, {}] })).toBe(2)
+    expect(serverWarningCount({ file: {} })).toBe(0)
+    expect(serverWarningCount(null)).toBe(0)
+  })
+})
+
+describe('overridesToThemeFile', () => {
+  it('strips the dashes, keeps the mode and moves structure tokens to base', () => {
+    const file = overridesToThemeFile({
+      light: { '--color-accent': '#aa3300', '--measure': '70ch' },
+      dark: { '--color-accent': '#ff8855', '--measure': '70ch' },
+    })
+    expect(file).toEqual({
+      base: { measure: '70ch' },
+      light: { 'color-accent': '#aa3300' },
+      dark: { 'color-accent': '#ff8855' },
+    })
+  })
+
+  it('drops unknown tokens and invalid values, and leaves empty sections out', () => {
+    expect(
+      overridesToThemeFile({ light: { '--no-such-token': '#000000', '--color-accent': 'red' }, dark: {} }),
+    ).toEqual({})
+  })
+
+  it('reads what leseUeberschreibungen yields from an old stored value', () => {
+    const raw = JSON.stringify({ light: { '--color-accent': '#0b5fa5' }, dark: {} })
+    expect(overridesToThemeFile(leseUeberschreibungen(raw))).toEqual({ light: { 'color-accent': '#0b5fa5' } })
   })
 })
 

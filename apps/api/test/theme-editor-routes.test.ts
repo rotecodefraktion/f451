@@ -1,14 +1,17 @@
 import Fastify, { type FastifyInstance } from 'fastify'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { AA_THRESHOLDS, DEFAULT_THRESHOLDS, resolveTheme } from '@f451/design-tokens'
 import type { GitProvider } from '@f451/git-provider'
 import { NotFoundError } from '@f451/git-provider'
+import { createDb, type Db } from '../src/db/client.js'
+import { users, userSettings } from '../src/db/schema.js'
 import { registerThemeEditorRoutes } from '../src/routes/theme-editor.js'
 import type { ThemeDeps } from '../src/routes/theme.js'
 import { invalidateContrastThresholds } from '../src/theme/contrast-config.js'
 import { INSTANCE_THEME_PATH, invalidateInstanceTheme } from '../src/theme/instance-theme.js'
 import { invalidateAllSpaceThemes, SPACE_THEME_PATH } from '../src/theme/space-theme.js'
 import type { InstanceConfig, SpaceConfig } from '../src/spaces/config.js'
+import { startPg, type PgTestInstance } from './helpers/pg-container.js'
 
 /**
  * Theming Stage 5 (settings page reads). Plain Fastify with a stubbed session and
@@ -113,6 +116,7 @@ describe('theme editor routes', () => {
     const res = await app.inject({ method: 'GET', url: '/api/theme/scopes', headers: alice })
     expect(res.statusCode).toBe(200)
     expect(res.json()).toEqual({
+      user: { available: false },
       instance: { available: true, canWrite: true },
       spaces: [{ id: 'docs', name: 'Docs', canWrite: true }],
     })
@@ -123,7 +127,7 @@ describe('theme editor routes', () => {
     const app = buildEditorApp({})
     const res = await app.inject({ method: 'GET', url: '/api/theme/scopes', headers: bob })
     expect(res.statusCode).toBe(200)
-    expect(res.json()).toEqual({ instance: { available: true, canWrite: false }, spaces: [] })
+    expect(res.json()).toEqual({ user: { available: false }, instance: { available: true, canWrite: false }, spaces: [] })
     await app.close()
   })
 
@@ -147,6 +151,7 @@ describe('theme editor routes', () => {
     const res = await app.inject({ method: 'GET', url: '/api/theme/scopes' })
     expect(res.statusCode).toBe(200)
     expect(res.json()).toEqual({
+      user: { available: false },
       instance: { available: true, canWrite: false },
       spaces: [{ id: 'docs', name: 'Docs', canWrite: false }],
     })
@@ -238,10 +243,118 @@ describe('theme editor routes', () => {
 
   it('editor with a missing or unknown scope → 400', async () => {
     const app = buildEditorApp({})
-    for (const url of ['/api/theme/editor', '/api/theme/editor?scope=user', '/api/theme/editor?scope=space']) {
+    for (const url of ['/api/theme/editor', '/api/theme/editor?scope=users', '/api/theme/editor?scope=space']) {
       const res = await app.inject({ method: 'GET', url, headers: alice })
       expect(res.statusCode, url).toBe(400)
     }
+    await app.close()
+  })
+
+  it('editor, user scope without a database → 404', async () => {
+    const app = buildEditorApp({})
+    const res = await app.inject({ method: 'GET', url: '/api/theme/editor?scope=user', headers: alice })
+    expect(res.statusCode).toBe(404)
+    await app.close()
+  })
+})
+
+/**
+ * Stage 6, scope `user` ("Meine Einstellungen"): the personal theme from
+ * `user_settings` on top of the instance, against the Postgres test database
+ * (pattern `me-theme.test.ts`), with the same stubbed session as above.
+ */
+describe.sequential('theme editor routes, user scope', () => {
+  let pg: PgTestInstance
+  let handle: Awaited<ReturnType<typeof createDb>>
+  let db: Db
+
+  beforeAll(async () => {
+    pg = await startPg()
+    handle = createDb(pg.connectionString)
+    db = handle.db
+    await handle.migrate()
+    await db.insert(users).values([
+      { id: 'alice', email: 'alice@example.org', displayName: 'alice' },
+      { id: 'bob', email: 'bob@example.org', displayName: 'bob' },
+    ])
+  }, 120_000)
+
+  afterAll(async () => {
+    await handle?.close()
+    await pg?.stop()
+  })
+
+  afterEach(() => {
+    invalidateInstanceTheme()
+    invalidateAllSpaceThemes()
+    invalidateContrastThresholds()
+  })
+
+  function buildUserApp(files: { instance?: string }): FastifyInstance {
+    const repo = provider(files)
+    const app = Fastify()
+    app.decorateRequest('user', null)
+    app.addHook('onRequest', async (req) => {
+      const userId = req.headers['x-test-user']
+      req.user = typeof userId === 'string' ? { id: userId, email: `${userId}@test.local`, displayName: userId } : null
+    })
+    registerThemeEditorRoutes(app, {
+      providerRegistry: () => repo,
+      instanceConfig,
+      spaces: [docs],
+      access: { canRead: async () => true },
+      canWrite: async () => false,
+      getUserProvider: async () => repo,
+      db,
+    })
+    return app
+  }
+
+  it('scopes lists the user scope as available for a session user', async () => {
+    const app = buildUserApp({})
+    const res = await app.inject({ method: 'GET', url: '/api/theme/scopes', headers: bob })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().user).toEqual({ available: true })
+    await app.close()
+  })
+
+  it('without a row → file null, below = resolved = instance chain, canWrite true', async () => {
+    const app = buildUserApp({ instance: INSTANCE_FILE })
+    const res = await app.inject({ method: 'GET', url: '/api/theme/editor?scope=user', headers: bob })
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expect(body.scope).toEqual({ kind: 'user' })
+    expect(body.canWrite).toBe(true)
+    expect(body.file).toBeNull()
+    expect(body.problems).toEqual([])
+    expect(body.belowLayers.map((l: { source: string }) => l.source)).toEqual(['instance'])
+    expect(body.below.light['--color-accent']).toBe('#0b5fa5')
+    expect(body.resolved).toEqual(body.below)
+    expect(body.thresholds).toEqual(DEFAULT_THRESHOLDS)
+    expect(body.rules).toEqual([])
+    await app.close()
+  })
+
+  it('with a row → resolved carries the user value, low contrast is reported', async () => {
+    await db.insert(userSettings).values({ userId: 'alice', theme: { name: 'Mine', light: { 'color-accent': '#dddddd' } } })
+    const app = buildUserApp({ instance: INSTANCE_FILE })
+    const res = await app.inject({ method: 'GET', url: '/api/theme/editor?scope=user', headers: alice })
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expect(body.file.name).toBe('Mine')
+    expect(body.below.light['--color-accent']).toBe('#0b5fa5')
+    expect(body.resolved.light['--color-accent']).toBe('#dddddd')
+    expect(body.resolved.origin.light['--color-accent'].source).toBe('user')
+    expect(body.findings.some((f: { belowThreshold: boolean }) => f.belowThreshold)).toBe(true)
+    await app.close()
+  })
+
+  it('without an instance file → belowLayers is empty', async () => {
+    const app = buildUserApp({})
+    const res = await app.inject({ method: 'GET', url: '/api/theme/editor?scope=user', headers: bob })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().belowLayers).toEqual([])
+    expect(res.json().below).toEqual(resolveTheme([]))
     await app.close()
   })
 })

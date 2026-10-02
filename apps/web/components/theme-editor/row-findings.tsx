@@ -41,7 +41,10 @@ export function RowFindings({ findings, defaults }: RowFindingsProps) {
             ? t('settings.appearance.contrastOk', params)
             : f.state === 'error'
               ? t('settings.appearance.contrastError', params)
-              : f.threshold < defaults[field]
+              : f.ratio < f.threshold
+                ? // below the threshold yet only a warning: the user scope (`assess`)
+                  t('settings.appearance.contrastWarningPersonal', params)
+                : f.threshold < defaults[field]
                 ? t('settings.appearance.contrastWarningLowered', params)
                 : t('settings.appearance.contrastWarning', params)
         return (

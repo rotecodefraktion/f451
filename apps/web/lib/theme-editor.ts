@@ -43,7 +43,8 @@ import {
 
 // ---- Data from the API ------------------------------------------------------
 
-export type EditorScope = { kind: 'instance' } | { kind: 'space'; id: string; name: string }
+/** `user` is "Meine Einstellungen" — the caller's personal theme (addendum §2/§7). */
+export type EditorScope = { kind: 'user' } | { kind: 'instance' } | { kind: 'space'; id: string; name: string }
 
 /** The API's answer for one scope (built by the theme route). */
 export interface EditorData {
@@ -52,7 +53,7 @@ export interface EditorData {
   /** the scope's own file, keys without dashes */
   file: ThemeFile | null
   problems: ThemeProblem[]
-  /** layers under this scope: [] for the instance, [instance] for a space */
+  /** layers under this scope: [] for the instance, [instance] for a space and for the user scope */
   belowLayers: ThemeLayer[]
   /** what the "Vorgabe" column measures against */
   below: ResolvedTheme
@@ -121,7 +122,7 @@ function catalogName(name: string): TokenName | undefined {
 }
 
 function layerSource(scope: EditorScope): LayerSource {
-  return scope.kind === 'instance' ? 'instance' : 'space'
+  return scope.kind
 }
 
 function kindOf(name: TokenName): RowKind {
@@ -333,11 +334,16 @@ const THRESHOLD_FIELD: Record<KontrastRolle, keyof ContrastThresholds> = {
 
 const plain = (ref: Bezug): string => ref.replace('~', '')
 
-function toRowFinding(f: ContrastFinding, aa: ContrastThresholds): RowFinding {
+/**
+ * `contrastBlocks` is false for the user scope: a personal theme below the
+ * thresholds is saved anyway (addendum §2, the user only harms themselves), so
+ * such a finding is a warning, never an error.
+ */
+function toRowFinding(f: ContrastFinding, aa: ContrastThresholds, contrastBlocks: boolean): RowFinding {
   return {
     token: plain(f.pair.vorn),
     mode: f.mode,
-    state: f.belowThreshold ? 'error' : f.belowAA ? 'warning' : 'ok',
+    state: f.belowThreshold && contrastBlocks ? 'error' : f.belowThreshold || f.belowAA ? 'warning' : 'ok',
     ratio: f.ratio,
     threshold: f.threshold,
     aa: aa[THRESHOLD_FIELD[f.role]],
@@ -350,11 +356,14 @@ function toRowFinding(f: ContrastFinding, aa: ContrastThresholds): RowFinding {
 /**
  * Live check of the draft — the same steps as the server's save check:
  * parse, resolve on top of the layers below, contrast against the scope's
- * thresholds, cross-token rules. Errors block saving, warnings never do.
+ * thresholds, cross-token rules. Errors block saving, warnings never do. In
+ * the user scope contrast is only ever a warning (rules and parse errors still
+ * block, as on the server).
  */
 export function assess(data: EditorData, draft: ThemeFile): Assessment {
   const { parsed, resolved } = resolveDraft(data, draft)
-  const findings = checkContrast(resolved, data.thresholds).map((f) => toRowFinding(f, data.aa))
+  const contrastBlocks = data.scope.kind !== 'user'
+  const findings = checkContrast(resolved, data.thresholds).map((f) => toRowFinding(f, data.aa, contrastBlocks))
   const rules = checkRules(resolved)
   const errors = findings.filter((f) => f.state === 'error').length + rules.length + parsed.errors.length
   const warnings = findings.filter((f) => f.state === 'warning').length

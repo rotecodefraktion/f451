@@ -45,13 +45,14 @@ export const settings: Messages['settings'] = {
     navItem: 'Appearance',
     heading: 'Appearance',
     intro:
-      'The theme of the instance or of a single space. It lives as _meta/theme.yaml in the respective repository; saving writes with your linked account.',
+      'My settings apply only to you, in every space, and are stored with your account. The theme of the instance or of a single space lives as _meta/theme.yaml in the respective repository; saving writes with your linked account.',
     loadError: 'The theme of this scope could not be loaded.',
     noScopes: 'There is no scope whose theme you may view.',
     scopeLabel: 'Scope',
     scopeInstance: 'Instance — applies to all spaces',
     scopeSpace: 'Space: {name}',
     scopeReadOnly: '{label} (read only)',
+    scopeUser: 'My settings',
     readOnlyNote: 'Read only: your linked account may not change the theme of this scope. You see what applies here.',
     summaryErrors_one: '{count} error',
     summaryErrors_other: '{count} errors',
@@ -87,6 +88,8 @@ export const settings: Messages['settings'] = {
     contrastWarningLowered:
       '{ratio}:1 — {what}: above the configured threshold {threshold}:1 (default {default}:1), below AA ({aa}:1). Role: {role}.',
     contrastError: '{ratio}:1 — {what}: {role} needs {threshold}:1 here.',
+    contrastWarningPersonal:
+      '{ratio}:1 — {what}: below the instance threshold ({threshold}:1). In your settings this is only a note. Role: {role}.',
     contrastRole: {
       readingText: 'reading text',
       shortText: 'short text',
@@ -105,10 +108,28 @@ export const settings: Messages['settings'] = {
     serverInvalid: 'The server rejected the theme:',
     serverContrast: 'The server rejected the theme for insufficient contrast:',
     serverContrastItem: '{what} ({mode}): {ratio}:1, required {threshold}:1',
-    serverForbidden: 'Your linked account may not change the theme of this scope.',
+    serverForbidden: 'You may not change the theme of this scope — for the instance or a space your linked account lacks write access; My settings need a browser sign-in.',
     serverConflict: 'The theme file changed in the meantime. Reload the page and try again.',
     serverNotFound: 'There is no theme file to remove.',
     serverError: 'The action failed. Please try again.',
+    user: {
+      remove: 'Reset my settings',
+      removeConfirm:
+        'Reset your settings? Your personal theme is deleted; the theme of the instance and of each space applies again.',
+      removed: 'Your settings were reset.',
+      download: 'Download',
+      import: 'Read file',
+      importing: 'Reading …',
+      imported: 'File read and saved.',
+      savedWarnings_one: '{count} contrast value is below the instance thresholds — allowed, just a note.',
+      savedWarnings_other: '{count} contrast values are below the instance thresholds — allowed, just a note.',
+      takeover: {
+        question: 'This browser still holds appearance adjustments from an earlier version. Take them over into My settings?',
+        yes: 'Yes, take over',
+        no: 'No, discard',
+        done: 'The adjustments were taken over into My settings.',
+      },
+    },
     threshold: {
       heading: 'Check strictness',
       roleBelowAA: '{role} {value}:1 instead of {aa}:1',

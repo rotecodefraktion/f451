@@ -189,6 +189,31 @@ describe('assess', () => {
     expect(a.problems).toHaveLength(1)
     expect(a.saveBlocked).toBe(true)
   })
+
+  describe('user scope', () => {
+    const userData = (): EditorData => ({ ...editorData(), scope: { kind: 'user' } })
+
+    it('never blocks on contrast: a pale accent is a warning only', () => {
+      const a = assess(userData(), setValue({}, 'color-accent', 'light', '#dddddd'))
+      const accent = a.findings.filter((f) => f.token === '--color-accent' && f.mode === 'light' && f.state !== 'ok')
+      expect(accent.length).toBeGreaterThan(0)
+      expect(accent.every((f) => f.state === 'warning')).toBe(true)
+      expect(a.findings.some((f) => f.state === 'error')).toBe(false)
+      expect(a.errors).toBe(0)
+      expect(a.warnings).toBeGreaterThan(3)
+      expect(a.saveBlocked).toBe(false)
+    })
+
+    it('still blocks on a rule violation and on a parse error', () => {
+      expect(assess(userData(), setValue({}, 'weight-strong', 'base', '450')).saveBlocked).toBe(true)
+      expect(assess(userData(), setValue({}, 'color-accent', 'light', 'red')).saveBlocked).toBe(true)
+    })
+
+    it('resolves the draft as the user layer', () => {
+      const a = assess(userData(), setValue({}, 'color-accent', 'light', '#aa3300'))
+      expect(a.resolved.origin.light['--color-accent']?.source).toBe('user')
+    })
+  })
 })
 
 describe('helpers', () => {

@@ -2,7 +2,7 @@
 
 import type { ResolvedTheme } from '@f451/design-tokens'
 import { useEffect, useRef } from 'react'
-import { leseUeberschreibungen, schreibeUeberschreibungen } from '../../lib/erscheinungsbild'
+import { istVorschau, leseUeberschreibungen, schreibeUeberschreibungen } from '../../lib/erscheinungsbild'
 import { useT } from '../../lib/i18n/provider'
 import {
   PREVIEW_EVENT,
@@ -36,9 +36,17 @@ function readStored(): PreviewOverrides | null {
   }
 }
 
-/** True when a program preview is stored in this browser. */
+/**
+ * True when a program preview is stored in this browser — a value carrying the
+ * preview marker. An unmarked value is an old override set (the appearance page
+ * offers to take it over into "Meine Einstellungen"), not a running preview.
+ */
 export function isProgramPreviewActive(): boolean {
-  return readStored() !== null
+  try {
+    return istVorschau(localStorage.getItem(PREVIEW_STORAGE_KEY))
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -65,7 +73,7 @@ export function startProgramPreview(resolved: ResolvedTheme): void {
   const overrides = programOverrides(resolved)
   const before = readStored()
   try {
-    localStorage.setItem(PREVIEW_STORAGE_KEY, schreibeUeberschreibungen(overrides))
+    localStorage.setItem(PREVIEW_STORAGE_KEY, schreibeUeberschreibungen(overrides, { preview: true }))
   } catch {
     return
   }

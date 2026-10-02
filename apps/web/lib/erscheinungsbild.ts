@@ -41,7 +41,26 @@ export function leseUeberschreibungen(roh: string | null): Record<Modus, Record<
   return werte
 }
 
-/** Overrides -> raw localStorage value. */
-export function schreibeUeberschreibungen(werte: Record<Modus, Record<string, string>>): string {
-  return JSON.stringify(werte)
+/**
+ * Overrides -> raw localStorage value. `preview` marks a value written by the
+ * program preview (top-level `preview: true`); the no-flash script reads only
+ * `light`/`dark` and ignores the marker. A value without it is an old override
+ * set from before the personal theme — the appearance page offers to take it over.
+ */
+export function schreibeUeberschreibungen(
+  werte: Record<Modus, Record<string, string>>,
+  opts: { preview?: boolean } = {},
+): string {
+  return JSON.stringify(opts.preview ? { ...werte, preview: true } : werte)
+}
+
+/** True when the raw value was written by the program preview (`preview: true`). Never throws. */
+export function istVorschau(roh: string | null): boolean {
+  if (!roh) return false
+  try {
+    const geparst: unknown = JSON.parse(roh)
+    return typeof geparst === 'object' && geparst !== null && (geparst as Record<string, unknown>).preview === true
+  } catch {
+    return false
+  }
 }

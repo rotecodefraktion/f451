@@ -97,7 +97,8 @@ const NO_FLASH_PANES = `(function(){try{var r=document.documentElement,s=null;tr
 // `data-theme` set there (if absent, prefers-color-scheme decides — the same
 // rule as in `tokens.css`).
 //
-// Stored is `{ light: {…}, dark: {…} }`. The script checks every step on its
+// Stored is `{ light: {…}, dark: {…} }`, from the preview with a top-level
+// `preview: true` marker this script ignores (`lib/erscheinungsbild.ts`). The script checks every step on its
 // own and never throws: a hand-bent or stale entry must not stop the app, only
 // stay without effect. Only strings under `--` names are taken over — nothing
 // else belongs on the root element.
