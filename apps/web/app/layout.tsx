@@ -106,7 +106,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // Inline-Theme-Script durch. `headers()` macht das Layout dynamisch — die
   // Routen sind es (bis auf not-found) ohnehin, und eine per-Request-CSP
   // schließt statisches Prerendering des Dokuments prinzipbedingt aus.
-  const nonce = (await headers()).get('x-nonce') ?? undefined
+  const requestHeaders = await headers()
+  const nonce = requestHeaders.get('x-nonce') ?? undefined
   // Sprache serverseitig ermitteln (Cookie `lang` > Accept-Language > `de`,
   // s. `lib/i18n/server.ts#getLocale`) und den Client-`<LocaleProvider>`
   // damit seeden — der Client leitet die Sprache NIE selbst ab, das hält
@@ -132,12 +133,20 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // e.g. an instance's colours and self-hosted typefaces. Same-origin paths
   // only — that is what the CSP (`style-src 'self'`, `font-src 'self'`) allows.
   const customStylesheet = process.env.F451_CUSTOM_STYLESHEET
-  // Resolved theme (instance layer; space and user layers follow in later
-  // stages). The session cookie is passed through like in the page components.
-  // Any failure — API down, unexpected status — falls back to the built-in
-  // tokens: a theme must never break rendering.
+  // Resolved theme (instance and space layer; the user layer follows in a later
+  // stage). The space comes from the middleware (`x-f451-space`, already
+  // URI-encoded — the root layout has no route params); the pattern check keeps
+  // a client-supplied value on an unmatched request (prefetch) from adding
+  // query parameters. The session cookie is passed through like in the page
+  // components. Any failure — API down, unexpected status — falls back to the
+  // built-in tokens: a theme must never break rendering.
+  const spaceParam = requestHeaders.get('x-f451-space')
+  const resolvedPath =
+    spaceParam && /^[A-Za-z0-9\-_.!~*'()%]+$/.test(spaceParam)
+      ? `/api/theme/resolved?space=${spaceParam}`
+      : '/api/theme/resolved'
   const cookieHeader = (await cookies()).toString() || undefined
-  const resolvedTheme = await apiFetch<{ css: ThemeCssDeclarations }>('/api/theme/resolved', {
+  const resolvedTheme = await apiFetch<{ css: ThemeCssDeclarations }>(resolvedPath, {
     cookie: cookieHeader,
   }).catch(() => null)
   const themeCss = themeStyleText(resolvedTheme?.css)
