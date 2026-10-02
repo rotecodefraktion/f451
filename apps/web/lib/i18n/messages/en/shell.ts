@@ -5,6 +5,7 @@ import type { Messages } from '../../types.js'
 export const shell: Messages['shell'] = {
   meta: {
     title: 'f451 — Documentation platform',
+    brandTitle: '{name} — Documentation platform',
   },
   topbar: {
     homeAriaLabel: 'Go to homepage',

@@ -3,6 +3,10 @@ import { describe, expect, it } from 'vitest'
 import { leseUeberschreibungen } from './erscheinungsbild.js'
 import { assess, buildGroups, setValue, type EditorData } from './theme-editor.js'
 import {
+  brandAllowed,
+  brandApiPath,
+  brandImageUrl,
+  describeBrandFailure,
   describeSaveFailure,
   editorApiPath,
   firstRows,
@@ -135,6 +139,61 @@ describe('scope paths', () => {
     expect(pickScope(scopeParam({ kind: 'user' }), withUser)).toEqual({ kind: 'user' })
     expect(editorApiPath({ kind: 'user' })).toBe('/api/theme/editor?scope=user')
     expect(themeApiPath({ kind: 'user' })).toBe('/api/me/theme')
+  })
+})
+
+describe('brand helpers', () => {
+  const instance = { kind: 'instance' } as const
+  const space = { kind: 'space', id: 'a b' } as const
+  const user = { kind: 'user' } as const
+
+  it('allows the logo in instance and space, the favicon only in the instance, nothing for the user', () => {
+    expect(brandAllowed(instance, 'logo')).toBe(true)
+    expect(brandAllowed(instance, 'favicon')).toBe(true)
+    expect(brandAllowed(space, 'logo')).toBe(true)
+    expect(brandAllowed(space, 'favicon')).toBe(false)
+    expect(brandAllowed(user, 'logo')).toBe(false)
+  })
+
+  it('builds the write paths', () => {
+    expect(brandApiPath(instance, 'logo')).toBe('/api/theme/brand/logo')
+    expect(brandApiPath(instance, 'favicon')).toBe('/api/theme/brand/favicon')
+    expect(brandApiPath(space, 'logo')).toBe('/api/spaces/a%20b/brand/logo')
+    expect(brandApiPath(space, 'favicon')).toBeNull()
+    expect(brandApiPath(user, 'logo')).toBeNull()
+  })
+
+  it('derives the image URL from the saved pointer only', () => {
+    const file = { brand: { logo: 'brand/logo.svg', favicon: 'brand/favicon.svg' } }
+    expect(brandImageUrl(instance, file, 'logo')).toBe('/api/brand/logo')
+    expect(brandImageUrl(instance, file, 'favicon')).toBe('/api/brand/favicon')
+    expect(brandImageUrl(space, file, 'logo')).toBe('/api/spaces/a%20b/brand/logo')
+    expect(brandImageUrl(space, file, 'favicon')).toBeNull()
+    expect(brandImageUrl(instance, { brand: { name: 'X' } }, 'logo')).toBeNull()
+    expect(brandImageUrl(instance, null, 'logo')).toBeNull()
+    expect(brandImageUrl(user, file, 'logo')).toBeNull()
+  })
+})
+
+describe('describeBrandFailure', () => {
+  const invalid = (code: string) => ({ status: 'invalid', errors: [{ code, path: 'body', message: `m ${code}` }] })
+
+  it('reads the upload codes', () => {
+    expect(describeBrandFailure(422, invalid('brand_not_svg'))).toEqual({ kind: 'notSvg' })
+    expect(describeBrandFailure(422, invalid('brand_too_large'))).toEqual({ kind: 'tooLarge' })
+    expect(describeBrandFailure(413, null)).toEqual({ kind: 'tooLarge' })
+    expect(describeBrandFailure(422, invalid('theme_file_invalid'))).toEqual({
+      kind: 'invalid',
+      messages: ['m theme_file_invalid'],
+    })
+  })
+
+  it('reads the status codes and falls back to a plain error', () => {
+    expect(describeBrandFailure(403, {})).toEqual({ kind: 'forbidden' })
+    expect(describeBrandFailure(404, {})).toEqual({ kind: 'notFound' })
+    expect(describeBrandFailure(409, {})).toEqual({ kind: 'conflict' })
+    expect(describeBrandFailure(422, 'nonsense')).toEqual({ kind: 'error' })
+    expect(describeBrandFailure(502, null)).toEqual({ kind: 'error' })
   })
 })
 

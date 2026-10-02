@@ -1,11 +1,11 @@
 import type { Metadata } from 'next'
-import { cookies, headers } from 'next/headers'
+import { headers } from 'next/headers'
 import localFont from 'next/font/local'
-import { apiFetch } from '../lib/api.js'
 import { PreviewBanner } from '../components/theme-editor/preview-banner'
 import { LocaleProvider } from '../lib/i18n/provider.js'
 import { getT } from '../lib/i18n/server.js'
-import { themeStyleText, type ThemeCssDeclarations } from '../lib/theme-style.js'
+import { getBrand, getResolvedTheme } from '../lib/resolved-theme.js'
+import { themeStyleText } from '../lib/theme-style.js'
 // Ein einziger Stil-Einstieg: `globals.css` ist nur noch die @import-Liste
 // (s. Kopfkommentar dort). Die Graph-Ansicht stand bis Teilschritt H5 des
 // Bausteinsystem-Umbaus als zweiter Import daneben und damit hinter allem in
@@ -61,7 +61,9 @@ const jetbrainsMono = localFont({
  */
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getT()
-  return { title: t('shell.meta.title') }
+  // A brand name replaces "f451" in the title (addendum §5).
+  const name = (await getBrand())?.name
+  return { title: name ? t('shell.meta.brandTitle', { name }) : t('shell.meta.title') }
 }
 
 // Flash-frei: setzt data-theme aus localStorage VOR dem ersten Paint. Ohne
@@ -138,23 +140,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // e.g. an instance's colours and self-hosted typefaces. Same-origin paths
   // only — that is what the CSP (`style-src 'self'`, `font-src 'self'`) allows.
   const customStylesheet = process.env.F451_CUSTOM_STYLESHEET
-  // Resolved theme (instance and space layer; the user layer follows in a later
-  // stage). The space comes from the middleware (`x-f451-space`, already
-  // URI-encoded — the root layout has no route params); the pattern check keeps
-  // a client-supplied value on an unmatched request (prefetch) from adding
-  // query parameters. The session cookie is passed through like in the page
-  // components. Any failure — API down, unexpected status — falls back to the
-  // built-in tokens: a theme must never break rendering.
-  const spaceParam = requestHeaders.get('x-f451-space')
-  const resolvedPath =
-    spaceParam && /^[A-Za-z0-9\-_.!~*'()%]+$/.test(spaceParam)
-      ? `/api/theme/resolved?space=${spaceParam}`
-      : '/api/theme/resolved'
-  const cookieHeader = (await cookies()).toString() || undefined
-  const resolvedTheme = await apiFetch<{ css: ThemeCssDeclarations }>(resolvedPath, {
-    cookie: cookieHeader,
-  }).catch(() => null)
+  // Resolved theme (instance, space and user layer) and the brand; `null` on any
+  // failure — then the built-in tokens and the f451 icon apply. Shared per
+  // request with `generateMetadata` and the `<Shell>` (`lib/resolved-theme.ts`).
+  const resolvedTheme = await getResolvedTheme()
   const themeCss = themeStyleText(resolvedTheme?.css)
+  // Brand favicon (instance only, addendum §5). Without one, `app/icon.svg`
+  // (Next's file convention) stays the icon.
+  const faviconUrl = resolvedTheme?.brand?.faviconUrl ?? null
   return (
     <html
       lang={locale}
@@ -177,6 +170,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         {/* After the built-in tokens (globals.css), before the operator stylesheet. */}
         {themeCss ? <style id="f451-theme" dangerouslySetInnerHTML={{ __html: themeCss }} /> : null}
         {customStylesheet?.startsWith('/') ? <link rel="stylesheet" href={customStylesheet} /> : null}
+        {faviconUrl ? <link rel="icon" type="image/svg+xml" href={faviconUrl} /> : null}
       </head>
       <body>
         <LocaleProvider locale={locale} messages={messages}>

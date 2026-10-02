@@ -4,6 +4,7 @@ import { SearchDialog } from '../components/search-dialog'
 import { ShortcutsDialog } from '../components/shortcuts-dialog'
 import { SpaceSwitcher, type SpaceSwitcherSpace } from '../components/space-switcher'
 import { getT } from '../lib/i18n/server.js'
+import { getBrand } from '../lib/resolved-theme.js'
 import { LangSwitcher } from './lang-switcher.js'
 import { PaneEdges } from './pane-edges'
 import { PhoneBar } from './phone-bar'
@@ -65,15 +66,22 @@ export interface ShellProps {
  */
 export async function Shell({ space, spaces, currentSpaceId, avatar, sidebar, children, variant = 'default' }: ShellProps) {
   const { locale, t } = await getT()
+  // Brand of the instance/space (addendum §5): the logo replaces the f451 mark,
+  // the name the word. Same per-request call as the root layout.
+  const brand = await getBrand()
   return (
     <>
       <header className="topbar">
         <div className="brand">
           <a className="brand-home" href="/wiki" aria-label={t('shell.topbar.homeAriaLabel')}>
-            <span className="mark">
-              <BrandMark />
-            </span>
-            <span className="brand-wort">f451</span>
+            {brand?.logoUrl ? (
+              <img src={brand.logoUrl} alt={brand.name ?? 'f451'} className="brand-logo" />
+            ) : (
+              <span className="mark">
+                <BrandMark />
+              </span>
+            )}
+            <span className="brand-wort">{brand?.name ?? 'f451'}</span>
           </a>
         </div>
         {/* Bewusst AUSSERHALB von `.brand` (das per `overflow: hidden` seinen

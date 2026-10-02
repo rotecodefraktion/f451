@@ -354,6 +354,20 @@ export function setUse(draft: ThemeFile, use: string | null): ThemeFile {
 }
 
 /**
+ * Sets (or with `null`/`''` removes) the brand name `brand.name` (addendum §5).
+ * Logo and favicon pointers stay; an emptied `brand` block goes. Never mutates `draft`.
+ */
+export function setBrandName(draft: ThemeFile, name: string | null): ThemeFile {
+  const brand: NonNullable<ThemeFile['brand']> = { ...(draft.brand ?? {}) }
+  if (name === null || name === '') delete brand.name
+  else brand.name = name
+  const next: ThemeFile = { ...draft }
+  if (Object.keys(brand).length > 0) next.brand = brand
+  else delete next.brand
+  return next
+}
+
+/**
  * The body of "Als Vorlage speichern": the draft's values under the given
  * name, without `use` (a template must not use another, `template_no_nesting`)
  * and without `brand` (a template carries tokens only).

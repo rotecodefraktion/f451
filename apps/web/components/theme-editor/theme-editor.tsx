@@ -12,6 +12,7 @@ import {
   fieldCheck,
   groupOpenDefaults,
   resetGroup,
+  setBrandName,
   setUse,
   setValue,
   type EditorData,
@@ -35,6 +36,7 @@ import {
   type SaveFailure,
   type ThemeScopes,
 } from '../../lib/theme-editor-view'
+import { BrandStrip } from './brand-strip'
 import { ComponentPreview } from './component-preview'
 import { endProgramPreview, ProgramPreview } from './program-preview'
 import { ScopeSelector } from './scope-selector'
@@ -118,6 +120,8 @@ export function ThemeEditor({ scopes, data, thresholdStrip, templates }: ThemeEd
   const assessment = useMemo(() => assess(data, draft, libraryEntries), [data, draft, libraryEntries])
   const states = useMemo(() => tokenStates(assessment), [assessment])
   const jumpTargets = useMemo(() => firstRows(groups, states), [groups, states])
+  // Unsaved edits — a brand upload refreshes the page and would drop them, so it asks first.
+  const dirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(data.file ?? {}), [draft, data.file])
 
   const findings = useMemo(() => {
     const map = new Map<string, RowFinding[]>()
@@ -479,6 +483,22 @@ export function ThemeEditor({ scopes, data, thresholdStrip, templates }: ThemeEd
             />
           </div>
         ) : null}
+        {/* "Marke" (addendum §7): instance and space only. Rendered here, not
+            passed in as a slot like the threshold strip, because the name is
+            part of the draft this component holds. */}
+        {isUser ? null : (
+          <BrandStrip
+            key={`brand-${scopeParam(data.scope)}`}
+            scope={data.scope}
+            file={data.file}
+            name={draft.brand?.name ?? ''}
+            canWrite={data.canWrite}
+            busy={busy !== null}
+            dirty={dirty}
+            resolved={assessment.resolved}
+            onName={(name) => setDraft((d) => setBrandName(d, name))}
+          />
+        )}
         <TemplateSelect
           key={scopeParam(data.scope)}
           scope={data.scope}

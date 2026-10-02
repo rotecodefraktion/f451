@@ -278,6 +278,68 @@ export function serverWarningCount(body: unknown): number {
   return isRecord(body) && Array.isArray(body.warnings) ? body.warnings.length : 0
 }
 
+// ---- Brand (addendum §5) ----------------------------------------------------
+
+export type BrandKind = 'logo' | 'favicon'
+
+/** Upload limit of a brand file, as the API checks it (`brand_too_large`). */
+export const BRAND_MAX_BYTES = 256 * 1024
+
+/**
+ * Whether a scope has this brand file at all: the logo in the instance and in
+ * a space, the favicon only in the instance; the user scope has no brand.
+ */
+export function brandAllowed(scope: ScopeKey | EditorScope, kind: BrandKind): boolean {
+  if (scope.kind === 'user') return false
+  return kind === 'logo' || scope.kind === 'instance'
+}
+
+/** `PUT`/`DELETE` path of a brand file; `null` where the scope has none (see `brandAllowed`). */
+export function brandApiPath(scope: ScopeKey | EditorScope, kind: BrandKind): string | null {
+  if (!brandAllowed(scope, kind)) return null
+  return scope.kind === 'space' ? `/api/spaces/${encodeURIComponent(scope.id)}/brand/logo` : `/api/theme/brand/${kind}`
+}
+
+/**
+ * `GET` URL of the scope's OWN brand file, derived from the saved file's
+ * pointer (the editor API returns no URLs); `null` without a pointer. A space
+ * without its own logo shows none here, although the top bar inherits the
+ * instance logo there.
+ */
+export function brandImageUrl(scope: ScopeKey | EditorScope, file: ThemeFile | null, kind: BrandKind): string | null {
+  if (!brandAllowed(scope, kind) || !file?.brand?.[kind]) return null
+  return scope.kind === 'space' ? `/api/spaces/${encodeURIComponent(scope.id)}/brand/logo` : `/api/brand/${kind}`
+}
+
+export type BrandFailure =
+  | { kind: 'notSvg' }
+  | { kind: 'tooLarge' }
+  | { kind: 'invalid'; messages: string[] }
+  | { kind: 'forbidden' }
+  | { kind: 'conflict' }
+  | { kind: 'notFound' }
+  | { kind: 'error' }
+
+/**
+ * Reads a failed brand `PUT`/`DELETE`: `422 { status: 'invalid', errors }`
+ * with `brand_not_svg` / `brand_too_large` (or another code, e.g. an unreadable
+ * `theme.yaml`), 413 from the body limit, 403, 404, 409; anything else is a
+ * plain error.
+ */
+export function describeBrandFailure(status: number, body: unknown): BrandFailure {
+  if (status === 403) return { kind: 'forbidden' }
+  if (status === 404) return { kind: 'notFound' }
+  if (status === 409) return { kind: 'conflict' }
+  if (status === 413) return { kind: 'tooLarge' }
+  if (status === 422 && isRecord(body) && body.status === 'invalid') {
+    const codes = Array.isArray(body.errors) ? body.errors.map((e) => (isRecord(e) ? e.code : undefined)) : []
+    if (codes.includes('brand_too_large')) return { kind: 'tooLarge' }
+    if (codes.includes('brand_not_svg')) return { kind: 'notSvg' }
+    return { kind: 'invalid', messages: messagesOf(body.errors) }
+  }
+  return { kind: 'error' }
+}
+
 // ---- Personal theme ---------------------------------------------------------
 
 /**

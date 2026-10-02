@@ -19,6 +19,7 @@ import {
   groupOpenDefaults,
   isEmpty,
   resetGroup,
+  setBrandName,
   setUse,
   setValue,
   templateFile,
@@ -315,6 +316,28 @@ describe('templates (use)', () => {
     const draft: ThemeFile = { name: 'Alt', use: 'fokus', brand: { name: 'X' }, light: { 'color-accent': '#123456' } }
     expect(templateFile(draft, 'Neu')).toEqual({ name: 'Neu', light: { 'color-accent': '#123456' } })
     expect(draft.use).toBe('fokus')
+  })
+})
+
+describe('setBrandName', () => {
+  it('sets the name and keeps the logo pointer, without mutating', () => {
+    const draft: ThemeFile = { brand: { logo: 'brand/logo.svg' }, light: { 'color-accent': '#123456' } }
+    const named = setBrandName(draft, 'Mein Wiki')
+    expect(named).toEqual({ brand: { logo: 'brand/logo.svg', name: 'Mein Wiki' }, light: { 'color-accent': '#123456' } })
+    expect(draft.brand).toEqual({ logo: 'brand/logo.svg' })
+  })
+
+  it('creates the brand block when there is none', () => {
+    expect(setBrandName({}, 'Mein Wiki')).toEqual({ brand: { name: 'Mein Wiki' } })
+  })
+
+  it('removes the name with null or an empty string; an emptied block goes', () => {
+    const draft: ThemeFile = { brand: { name: 'Mein Wiki' } }
+    expect(setBrandName(draft, null)).toEqual({})
+    expect(setBrandName(draft, '')).toEqual({})
+    expect(setBrandName({ brand: { name: 'X', favicon: 'brand/favicon.svg' } }, null)).toEqual({
+      brand: { favicon: 'brand/favicon.svg' },
+    })
   })
 })
 
