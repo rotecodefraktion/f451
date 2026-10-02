@@ -74,7 +74,7 @@ export interface ContrastThresholds {
 export const DEFAULT_THRESHOLDS: ContrastThresholds = { readingText: 4.5, shortText: 3.5, nonText: 3.0, incidental: 2.0 }
 
 /** The fixed AA reference per role (SC 1.4.3 for text, SC 1.4.11 for non-text). Not adjustable. */
-export const AA_THRESHOLDS: ContrastThresholds = { readingText: 4.5, shortText: 4.5, nonText: 3.0, incidental: 3.0 }
+export const AA_THRESHOLDS: ContrastThresholds = { readingText: 4.5, shortText: 4.5, nonText: 3.0, incidental: 4.5 }
 
 const THRESHOLD_FIELD: Record<KontrastRolle, keyof ContrastThresholds> = {
   Lesetext: 'readingText',
