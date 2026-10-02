@@ -1,4 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { spaceFromPath } from './lib/space-from-path'
+
+const SPACE_HEADER = 'x-f451-space'
 
 /**
  * Task 4 (Security & Betrieb, Spec §7), Fix-Runde 1: Per-Request-Nonce-CSP
@@ -83,6 +86,14 @@ export function middleware(request: NextRequest): NextResponse {
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-nonce', nonce)
   requestHeaders.set('Content-Security-Policy', csp)
+  // Current space for the root layout's theme lookup (`app/layout.tsx`), which
+  // has no route params. Carried URI-encoded: header values must be ByteStrings,
+  // and space ids are free text (`Headers.set` throws beyond U+00FF). Always
+  // overwritten or removed, so a client cannot inject its own value on a
+  // matched request.
+  const space = spaceFromPath(request.nextUrl.pathname)
+  if (space !== null) requestHeaders.set(SPACE_HEADER, encodeURIComponent(space))
+  else requestHeaders.delete(SPACE_HEADER)
 
   const response = NextResponse.next({ request: { headers: requestHeaders } })
   // RESPONSE-Header: die CSP, die der Browser tatsächlich durchsetzt.
