@@ -11,6 +11,7 @@ import {
 import type { SpaceConfig } from '../spaces/config.js'
 import { loadContrastConfig } from '../theme/contrast-config.js'
 import { instancePseudoSpace, loadInstanceTheme } from '../theme/instance-theme.js'
+import { layersOf, type LibraryScope } from '../theme/library.js'
 import { loadSpaceTheme } from '../theme/space-theme.js'
 import { loadUserTheme } from '../theme/user-theme.js'
 import type { ThemeDeps } from './theme.js'
@@ -193,8 +194,11 @@ export function registerThemeEditorRoutes(app: FastifyInstance, deps: ThemeDeps)
         }
 
         const instanceTheme = await loadInstanceTheme(deps, req.log)
+        // `use` resolved before mixing (addendum §3): the instance layer with its template.
+        const instanceLayers = await layersOf(deps, instanceTheme, { kind: 'instance' }, req.log)
         let scope: EditorScope
         let own: ParsedTheme | null
+        let ownScope: LibraryScope
         let belowLayers: ThemeLayer[]
         let canWrite: boolean
 
@@ -204,7 +208,8 @@ export function registerThemeEditorRoutes(app: FastifyInstance, deps: ThemeDeps)
           }
           scope = { kind: 'user' }
           own = await loadUserTheme(deps.db, userId)
-          belowLayers = instanceTheme ? [instanceTheme.layer] : []
+          ownScope = { kind: 'instance' }
+          belowLayers = instanceLayers
           canWrite = true
         } else if (kind === 'instance') {
           const cfg = deps.instanceConfig
@@ -213,6 +218,7 @@ export function registerThemeEditorRoutes(app: FastifyInstance, deps: ThemeDeps)
           }
           scope = { kind: 'instance' }
           own = instanceTheme
+          ownScope = { kind: 'instance' }
           belowLayers = []
           canWrite = await mayWrite(userId, instancePseudoSpace(cfg))
         } else {
@@ -227,12 +233,15 @@ export function registerThemeEditorRoutes(app: FastifyInstance, deps: ThemeDeps)
           own = deps.providerRegistry
             ? await loadSpaceTheme({ providerRegistry: deps.providerRegistry, now: deps.now }, space, req.log)
             : null
-          belowLayers = instanceTheme ? [instanceTheme.layer] : []
+          ownScope = { kind: 'space', space }
+          belowLayers = instanceLayers
           canWrite = await mayWrite(userId, space)
         }
 
         const below = resolveTheme(belowLayers)
-        const resolved = own ? resolveTheme([...belowLayers, own.layer]) : below
+        const resolved = own
+          ? resolveTheme([...belowLayers, ...(await layersOf(deps, own, ownScope, req.log))])
+          : below
         const contrast = await loadContrastConfig(deps, req.log)
 
         return {

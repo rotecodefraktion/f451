@@ -14,6 +14,7 @@ import type { Db } from '../db/client.js'
 import { userSettings } from '../db/schema.js'
 import { loadContrastThresholds } from '../theme/contrast-config.js'
 import { loadInstanceTheme, type InstanceThemeDeps } from '../theme/instance-theme.js'
+import { findTemplate, layersOf, loadLibrary } from '../theme/library.js'
 import { loadUserTheme, parseUserTheme } from '../theme/user-theme.js'
 import {
   contrastFindingSchema,
@@ -23,6 +24,7 @@ import {
   problemSchema,
   THEME_BODY_LIMIT,
   themeFileSchema,
+  useUnknown,
 } from './theme.js'
 
 /**
@@ -104,10 +106,17 @@ function dropBrand(body: unknown): { input: unknown; problems: ThemeProblem[] } 
 }
 
 export function registerMeThemeRoutes(app: FastifyInstance, deps: MeThemeDeps): void {
-  /** Instance ← user, the chain a personal theme is checked against (no space layer). */
+  /**
+   * Instance ← user, the chain a personal theme is checked against (no space layer).
+   * Both layers with `use` expanded; the user layer looks templates up in the instance
+   * library. An unknown `use` only warns here — the write rejects it before.
+   */
   async function chainWith(user: ParsedTheme | null, log: FastifyRequest['log']) {
-    const instanceLayer = (await loadInstanceTheme(deps, log))?.layer
-    const layers = [instanceLayer, user?.layer].filter((l): l is ThemeLayer => Boolean(l))
+    const instance = await loadInstanceTheme(deps, log)
+    const layers: ThemeLayer[] = [
+      ...(await layersOf(deps, instance, { kind: 'instance' }, log)),
+      ...(await layersOf(deps, user, { kind: 'instance' }, log)),
+    ]
     return resolveTheme(layers)
   }
 
@@ -169,6 +178,12 @@ export function registerMeThemeRoutes(app: FastifyInstance, deps: MeThemeDeps): 
       // Writing rejects an unknown top-level key, like the instance and space writes.
       const errors = [...parsed.errors, ...parsed.warnings.filter((w) => w.code === 'key_unknown')]
       if (errors.length > 0) return reply.code(422).send({ status: 'invalid', errors })
+
+      // Unknown template: an error when saving, a warning when reading (addendum §3).
+      const use = parsed.file.use
+      if (use && !findTemplate(use, 'user', await loadLibrary(deps, { kind: 'instance' }, req.log))) {
+        return reply.code(422).send(useUnknown(use))
+      }
 
       const resolved = await chainWith(parsed, req.log)
       const violations = checkRules(resolved)

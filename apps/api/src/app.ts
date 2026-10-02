@@ -45,6 +45,7 @@ import { registerThemeRoutes } from './routes/theme.js'
 import { registerMeThemeRoutes } from './routes/me-theme.js'
 import { registerThemeEditorRoutes } from './routes/theme-editor.js'
 import { registerThemeContrastRoutes } from './routes/theme-contrast.js'
+import { registerThemeLibraryRoutes } from './routes/theme-library.js'
 import { registerTokensRoutes } from './routes/tokens.js'
 import { registerUnarchivePageRoute } from './routes/unarchive-page.js'
 import {
@@ -689,6 +690,16 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
     getUserProvider: userProvider,
     // Stage 6: the "user" scope — only where `/api/me/theme` exists (auth and db).
     db: opts.auth ? db : undefined,
+  })
+  // Theme library (Stage 7): list behind the session gate; PUT/DELETE only with auth
+  // (`access`/`canWrite`/`userProvider`), committing with the caller's own token.
+  registerThemeLibraryRoutes(app, {
+    providerRegistry: opts.providerRegistry,
+    instanceConfig: opts.instanceConfig,
+    spaces: opts.spaces,
+    access,
+    canWrite,
+    getUserProvider: userProvider,
   })
   // Contrast thresholds (Stage 4.2): GET always; PUT/DELETE only with auth
   // (`canWrite`/`userProvider`), committing with the caller's own token.
