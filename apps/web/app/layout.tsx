@@ -1,8 +1,10 @@
 import type { Metadata } from 'next'
-import { headers } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import localFont from 'next/font/local'
+import { apiFetch } from '../lib/api.js'
 import { LocaleProvider } from '../lib/i18n/provider.js'
 import { getT } from '../lib/i18n/server.js'
+import { themeStyleText, type ThemeCssDeclarations } from '../lib/theme-style.js'
 // Ein einziger Stil-Einstieg: `globals.css` ist nur noch die @import-Liste
 // (s. Kopfkommentar dort). Die Graph-Ansicht stand bis Teilschritt H5 des
 // Bausteinsystem-Umbaus als zweiter Import daneben und damit hinter allem in
@@ -130,6 +132,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // e.g. an instance's colours and self-hosted typefaces. Same-origin paths
   // only — that is what the CSP (`style-src 'self'`, `font-src 'self'`) allows.
   const customStylesheet = process.env.F451_CUSTOM_STYLESHEET
+  // Resolved theme (instance layer; space and user layers follow in later
+  // stages). The session cookie is passed through like in the page components.
+  // Any failure — API down, unexpected status — falls back to the built-in
+  // tokens: a theme must never break rendering.
+  const cookieHeader = (await cookies()).toString() || undefined
+  const resolvedTheme = await apiFetch<{ css: ThemeCssDeclarations }>('/api/theme/resolved', {
+    cookie: cookieHeader,
+  }).catch(() => null)
+  const themeCss = themeStyleText(resolvedTheme?.css)
   return (
     <html
       lang={locale}
@@ -149,6 +160,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     >
       <head>
         <script nonce={nonce} dangerouslySetInnerHTML={{ __html: NO_FLASH_THEME + NO_FLASH_PANES + NO_FLASH_TOKENS }} />
+        {/* After the built-in tokens (globals.css), before the operator stylesheet. */}
+        {themeCss ? <style id="f451-theme" dangerouslySetInnerHTML={{ __html: themeCss }} /> : null}
         {customStylesheet?.startsWith('/') ? <link rel="stylesheet" href={customStylesheet} /> : null}
       </head>
       <body>
