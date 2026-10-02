@@ -42,6 +42,7 @@ import { registerReorderRoute } from './routes/reorder.js'
 import { registerSearchRoutes } from './routes/search.js'
 import { registerTemplatesRoutes } from './routes/templates.js'
 import { registerThemeRoutes } from './routes/theme.js'
+import { registerThemeEditorRoutes } from './routes/theme-editor.js'
 import { registerThemeContrastRoutes } from './routes/theme-contrast.js'
 import { registerTokensRoutes } from './routes/tokens.js'
 import { registerUnarchivePageRoute } from './routes/unarchive-page.js'
@@ -660,6 +661,15 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
   // Stage 3: `spaces`/`access` add the space layer and `GET /api/spaces/:space/theme`.
   // Stage 4: `canWrite`/`userProvider` (auth only) add `PUT`/`DELETE` on both theme paths.
   registerThemeRoutes(app, {
+    providerRegistry: opts.providerRegistry,
+    instanceConfig: opts.instanceConfig,
+    spaces: opts.spaces,
+    access,
+    canWrite,
+    getUserProvider: userProvider,
+  })
+  // Settings page reads (Stage 5): scopes and one-scope editor state, behind the session gate.
+  registerThemeEditorRoutes(app, {
     providerRegistry: opts.providerRegistry,
     instanceConfig: opts.instanceConfig,
     spaces: opts.spaces,
