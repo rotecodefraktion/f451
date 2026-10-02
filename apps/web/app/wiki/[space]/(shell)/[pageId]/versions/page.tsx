@@ -24,6 +24,8 @@ interface VersionEntry {
   note: string
   /** A frozen copy exists (#40). */
   release?: boolean
+  /** Synthetic 0.1.0 entry of a page never released with a version; no diff possible. */
+  implicit?: boolean
 }
 
 /** `GET /api/pages/:id/versions` (`apps/api/src/routes/versions.ts`). */
@@ -153,6 +155,7 @@ export default async function VersionsPage({ params, searchParams }: VersionsPag
                       {i === 0 && v.version === page.version ? (
                         <span className="chip released">{t('read.versions.current')}</span>
                       ) : null}
+                      {v.implicit ? <span className="chip info">{t('read.versions.initial')}</span> : null}
                       {v.release ? <span className="chip info">{t('read.releases.marker')}</span> : null}
                       <span className="versions-meta">
                         {datum(v.releasedAt)} · {t('read.versions.by', { author: v.author })}
@@ -162,7 +165,7 @@ export default async function VersionsPage({ params, searchParams }: VersionsPag
                     {v.release ? (
                       <a href={wikiPageReleaseHref(spaceId, pageId, v.version)}>{t('read.releases.open')}</a>
                     ) : null}{' '}
-                    {i > 0 || v.version !== page.version ? (
+                    {!v.implicit && (i > 0 || v.version !== page.version) ? (
                       <a href={wikiPageVersionsHref(spaceId, pageId, v.version)}>{t('read.versions.compare')}</a>
                     ) : null}
                   </li>
@@ -181,14 +184,20 @@ export default async function VersionsPage({ params, searchParams }: VersionsPag
             <ul className="changes">
               {list.versions.map((v) => (
                 <li key={v.version}>
-                  <a
-                    href={wikiPageVersionsHref(spaceId, pageId, v.version)}
-                    aria-current={v.version === from ? 'page' : undefined}
-                  >
+                  {v.implicit ? (
                     <span className="cl">
                       <b>{v.version}</b> {datum(v.releasedAt)}
                     </span>
-                  </a>
+                  ) : (
+                    <a
+                      href={wikiPageVersionsHref(spaceId, pageId, v.version)}
+                      aria-current={v.version === from ? 'page' : undefined}
+                    >
+                      <span className="cl">
+                        <b>{v.version}</b> {datum(v.releasedAt)}
+                      </span>
+                    </a>
+                  )}
                 </li>
               ))}
             </ul>

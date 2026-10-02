@@ -74,6 +74,13 @@ export async function fillReleaseMetadataOnDraft(
  *
  * `version`/`changelog` im Draft werden dabei überschrieben: Beide Felder sind
  * systemverwaltet, sonst könnte sich jeder eine Wunschversion eintragen.
+ *
+ * `initialEntry` (first release of a page that exists on `main` without
+ * `version`, i.e. the implicit 0.1.0 — spec addendum 2026-10-02): written
+ * below the new entry in the same commit, so the changelog reads
+ * [new, 0.1.0, ...]. Entries of either version already in the draft (left
+ * over from a failed attempt) are dropped first, so a retry does not list
+ * them twice.
  */
 export async function applyVersionOnDraft(
   provider: GitProvider,
@@ -89,6 +96,8 @@ export async function applyVersionOnDraft(
     /** Freeze this release (#38): also write the copy under `_releases/`, in
      *  the same commit as the version, so the merge is atomic. */
     archive?: { source: string }
+    /** Changelog entry of the implicit starting version, see above. */
+    initialEntry?: ChangelogEntry
   },
 ): Promise<{ version: string; entry: ChangelogEntry; archivePath?: string; missingAttachments?: string[] }> {
   const version = nextVersion(mainVersion, params.bump)
@@ -100,7 +109,14 @@ export async function applyVersionOnDraft(
   }
 
   const file = await provider.readFile(repo, path, branch)
-  const existing = parsePage(file.content).frontmatter.changelog
+  const draftChangelog = parsePage(file.content).frontmatter.changelog
+  const initialEntry = params.initialEntry
+  const existing = initialEntry
+    ? prependChangelogEntry(
+        draftChangelog?.filter((e) => e.version !== initialEntry.version && e.version !== version),
+        initialEntry,
+      )
+    : draftChangelog
   const { frontmatterRaw, body } = splitFrontmatter(file.content)
   // setFrontmatterMetadata ist bewusst generisch (s. dortiger Modulkommentar)
   // und setzt beliebige Top-Level-Schlüssel — auch die Kernfelder.

@@ -7,6 +7,11 @@ export type VersionBump = 'patch' | 'minor' | 'major'
  *  1.0.0 und nicht 0.1.0. */
 export const INITIAL_VERSION = '1.0.0'
 
+/** Version of a page that exists on `main` in a versioned space but carries
+ *  no `version` yet: present, but never versioned through a release. Derived,
+ *  never written — its first release bumps from here (0.1.1, 0.2.0, 1.0.0). */
+export const IMPLICIT_VERSION = '0.1.0'
+
 /** Höchstzahl der Changelog-Einträge IM DOKUMENT. Die vollständige Historie
  *  steht in `page_versions` und ist aus der Git-Historie rekonstruierbar;
  *  ohne Deckel stünde bei gepflegten Seiten mehr Changelog als Inhalt im
@@ -39,10 +44,13 @@ export function formatVersion(parts: SemverParts): string {
  * `current` MUSS die Version aus `main` sein, nicht die aus dem Draft: Nach
  * einem fehlgeschlagenen Merge steht die erhöhte Version bereits im Draft —
  * würde von dort gerechnet, spränge jede Wiederholung eine Version weiter.
+ *
+ * Without a version (the first release of a new page): `major` gives 1.0.0,
+ * the finished page; every other bump gives 0.1.0, a first version (f451#50).
  */
 export function nextVersion(current: string | undefined, bump: VersionBump): string {
   const parts = parseVersion(current)
-  if (!parts) return INITIAL_VERSION
+  if (!parts) return bump === 'major' ? INITIAL_VERSION : IMPLICIT_VERSION
 
   switch (bump) {
     case 'major':

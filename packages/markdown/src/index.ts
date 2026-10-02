@@ -16,6 +16,7 @@ export {
   CHANGELOG_LIMIT,
   compareVersions,
   formatVersion,
+  IMPLICIT_VERSION,
   INITIAL_VERSION,
   nextVersion,
   parseVersion,

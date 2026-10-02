@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { GitProvider, RepoRef } from '@f451/git-provider'
-import type { MetadataSchema } from '@f451/markdown'
+import { parsePage, type MetadataSchema } from '@f451/markdown'
 import { applyVersionOnDraft, fillReleaseMetadataOnDraft } from '../src/drafts/release-metadata.js'
 
 /**
@@ -131,7 +131,7 @@ describe('applyVersionOnDraft', () => {
     }
   }
 
-  it('setzt bei der ersten Freigabe 1.0.0 und legt den Changelog an', async () => {
+  it('first release of a new page: 0.1.0 (1.0.0 only as major), creates the changelog', async () => {
     const provider = fakeProvider('---\ntitle: Handbuch\n---\n\n# Handbuch\n')
 
     const result = await applyVersionOnDraft(provider, repo, 'index.md', 'draft/p-1', undefined, {
@@ -141,9 +141,9 @@ describe('applyVersionOnDraft', () => {
       date: '2026-07-19',
     })
 
-    expect(result.version).toBe('1.0.0')
+    expect(result.version).toBe('0.1.0')
     const written = provider.lastWrite()
-    expect(written).toContain('version: 1.0.0')
+    expect(written).toContain('version: 0.1.0')
     expect(written).toContain('note: Erstfassung')
   })
 
@@ -190,5 +190,41 @@ describe('applyVersionOnDraft', () => {
     const written = provider.lastWrite()
     expect(written.match(/- version:/g)).toHaveLength(10)
     expect(written).toContain('1.0.10')
+  })
+
+  const initialEntry = { version: '0.1.0', date: '2026-06-01', author: 'Grace', note: 'Initial version' }
+
+  it('initialEntry: bumps from 0.1.0 and writes [new, 0.1.0] in one write', async () => {
+    const provider = fakeProvider('---\ntitle: X\n---\n\n# X\n')
+
+    const result = await applyVersionOnDraft(provider, repo, 'index.md', 'draft/p-1', '0.1.0', {
+      bump: 'major', note: 'First release', author: 'A', date: '2026-10-02', initialEntry,
+    })
+
+    expect(result.version).toBe('1.0.0')
+    const changelog = parsePage(provider.lastWrite()).frontmatter.changelog
+    expect(changelog).toEqual([
+      { version: '1.0.0', date: '2026-10-02', author: 'A', note: 'First release' },
+      initialEntry,
+    ])
+  })
+
+  it('initialEntry: a retry does not duplicate entries left in the draft', async () => {
+    // Draft from a failed first attempt already carries both entries.
+    const provider = fakeProvider(
+      '---\ntitle: X\nversion: 0.2.0\nchangelog:\n'
+        + '  - version: 0.2.0\n    date: 2026-10-01\n    author: A\n    note: Old try\n'
+        + '  - version: 0.1.0\n    date: 2026-06-01\n    author: Grace\n    note: Initial version\n'
+        + '---\n\n# X\n',
+    )
+
+    const result = await applyVersionOnDraft(provider, repo, 'index.md', 'draft/p-1', '0.1.0', {
+      bump: 'minor', note: 'Second try', author: 'A', date: '2026-10-02', initialEntry,
+    })
+
+    expect(result.version).toBe('0.2.0')
+    const changelog = parsePage(provider.lastWrite()).frontmatter.changelog
+    expect(changelog?.map((e) => e.version)).toEqual(['0.2.0', '0.1.0'])
+    expect(changelog?.[0]?.note).toBe('Second try')
   })
 })

@@ -3,12 +3,14 @@ import { and, eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { ForgejoProvider, ProviderError, type RepoRef } from '@f451/git-provider'
 import { startForgejo, type ForgejoTestInstance, type ForgejoTestUser } from '@f451/git-provider/testing'
+import { parsePage } from '@f451/markdown'
 import { buildApp } from '../src/app.js'
 import { draftBranchName } from '../src/drafts/branch-name.js'
 import { upsertProviderAccount } from '../src/auth/connect.js'
 import { SESSION_COOKIE_NAME, createSession } from '../src/auth/sessions.js'
 import { createDb, type Db } from '../src/db/client.js'
 import { locks, pageReleases, pageVersions, pages, users } from '../src/db/schema.js'
+import { reconstructPageVersions } from '../src/indexer/version-history.js'
 import { indexSpace } from '../src/indexer/index-space.js'
 import type { SpaceConfig } from '../src/spaces/config.js'
 import { startPg, type PgTestInstance } from './helpers/pg-container.js'
@@ -295,6 +297,7 @@ describe.sequential('Workflow-Routen: review/release/request-changes/draft-updat
     // zweiten, fehler-toleranten Fetch nachlädt.
     versioning: boolean
     version?: string
+    implicitVersion?: boolean
   }
 
   /** Pollt `GET /review`, bis `pr.mergeable !== null` oder das Budget ausgeschöpft ist —
@@ -1064,7 +1067,7 @@ describe.sequential('Workflow-Routen: review/release/request-changes/draft-updat
           )
           await indexSpace({ db, provider }, versionSpace)
 
-          // ---- Erste Freigabe: main hat noch keine Version → 1.0.0. ----
+          // ---- First release: main has no version (implicit 0.1.0), major → 1.0.0. ----
           const draftRes = await versionApp.inject({
             method: 'POST', url: `/api/pages/${pageId}/draft`, cookies: cookiesOf(writerSession),
           })
@@ -1088,7 +1091,7 @@ describe.sequential('Workflow-Routen: review/release/request-changes/draft-updat
             method: 'POST',
             url: `/api/pages/${pageId}/release`,
             cookies: cookiesOf(releaserSession),
-            payload: { bump: 'minor', note: 'Erste Freigabe' },
+            payload: { bump: 'major', note: 'Erste Freigabe' },
           })
           expect(releaseRes.statusCode).toBe(200)
           const releaseBody = releaseRes.json() as { mergeSha: string; version?: string }
@@ -1159,7 +1162,8 @@ describe.sequential('Workflow-Routen: review/release/request-changes/draft-updat
             .select()
             .from(pageVersions)
             .where(eq(pageVersions.pageId, pageId))
-          expect(versionRows2).toHaveLength(2)
+          // 0.1.0 (implicit starting state), 1.0.0, 1.1.0.
+          expect(versionRows2.map((r) => r.version).sort()).toEqual(['0.1.0', '1.0.0', '1.1.0'])
         } finally {
           await versionApp.close()
         }
@@ -1168,8 +1172,183 @@ describe.sequential('Workflow-Routen: review/release/request-changes/draft-updat
     )
 
     it(
+      'Implicit 0.1.0 (f451#50): first release of an existing page bumps from 0.1.0 (major → 1.0.0, '
+        + 'minor → 0.2.0), writes [new, 0.1.0] and two page_versions rows; a new page starts at 0.1.0',
+      async () => {
+        const implicitRepo = await forgejo.createRepo('workflow-routes-versioning-implicit', { private: false })
+        await forgejo.addCollaborator(implicitRepo, writer.username, 'write')
+        await forgejo.addCollaborator(implicitRepo, releaser.username, 'write')
+        const implicitSpace: SpaceConfig = {
+          id: 'workflow-routes-versioning-implicit-space', name: 'Versioning Implicit Space', provider: 'forgejo',
+          owner: implicitRepo.owner, repo: implicitRepo.repo, defaultLang: 'de', repoRef: implicitRepo,
+        }
+        const implicitApp = buildApp({
+          databaseUrl: pg.connectionString,
+          spaces: [implicitSpace],
+          providerRegistry: () => provider,
+          forgejoBaseUrl: forgejo.baseUrl,
+          auth: {
+            tokenKey: TOKEN_KEY,
+            insecureCookies: true,
+            connect: { forgejo: { baseUrl: forgejo.baseUrl, clientId: 'x', clientSecret: 'y' } },
+          },
+        })
+        await implicitApp.ready()
+
+        /** Draft → edit → review → release; returns the release response body. */
+        async function releaseWith(pageId: string, path: string, bump: string, note: string) {
+          const draftRes = await implicitApp.inject({
+            method: 'POST', url: `/api/pages/${pageId}/draft`, cookies: cookiesOf(writerSession),
+          })
+          expect(draftRes.statusCode).toBe(200)
+          const { baseSha } = draftRes.json() as { baseSha: string }
+          const before = await provider.readFile(implicitRepo, path, draftBranchName(pageId))
+          const saveRes = await implicitApp.inject({
+            method: 'PUT',
+            url: `/api/pages/${pageId}/draft`,
+            cookies: cookiesOf(writerSession),
+            payload: { content: before.content.replace('v1', 'v2 (implicit)'), baseSha },
+          })
+          expect(saveRes.statusCode).toBe(200)
+          const reviewRes = await implicitApp.inject({
+            method: 'POST', url: `/api/pages/${pageId}/review`, cookies: cookiesOf(writerSession), payload: {},
+          })
+          expect(reviewRes.statusCode).toBe(200)
+          const releaseRes = await implicitApp.inject({
+            method: 'POST',
+            url: `/api/pages/${pageId}/release`,
+            cookies: cookiesOf(releaserSession),
+            payload: { bump, note },
+          })
+          expect(releaseRes.statusCode).toBe(200)
+          return releaseRes.json() as { mergeSha: string; version?: string }
+        }
+
+        try {
+          await provider.writeFile(
+            implicitRepo, '_meta/schema.yaml', 'versioning: true\n',
+            { branch: 'main', message: 'seed: _meta/schema.yaml' },
+          )
+          const seedExisting = async (pageId: string) => {
+            const path = `${pageId}/index.md`
+            await provider.writeFile(
+              implicitRepo, path,
+              `---\nid: ${pageId}\ntitle: ${pageId}\nlang: de\n---\n# ${pageId}\n\nv1\n`,
+              { branch: 'main', message: `seed: ${pageId}` },
+            )
+            return path
+          }
+          const majorPath = await seedExisting('wf-implicit-major')
+          const minorPath = await seedExisting('wf-implicit-minor')
+          await indexSpace({ db, provider }, implicitSpace)
+
+          // ---- Existing page, major → 1.0.0 ----
+          const headBefore = await provider.getHeadSha(implicitRepo, 'main')
+          const mainBefore = await provider.readFile(implicitRepo, majorPath, 'main')
+          const majorBody = await releaseWith('wf-implicit-major', majorPath, 'major', 'First release')
+          expect(majorBody.version).toBe('1.0.0')
+
+          const mergedMajor = await provider.readFile(implicitRepo, majorPath, 'main')
+          const changelog = parsePage(mergedMajor.content).frontmatter.changelog
+          expect(changelog?.map((e) => e.version)).toEqual(['1.0.0', '0.1.0'])
+          expect(changelog?.[1]?.note).toBe('Initial version')
+          expect(changelog?.[1]?.ref).toBe(headBefore)
+
+          const majorRows = await db
+            .select()
+            .from(pageVersions)
+            .where(eq(pageVersions.pageId, 'wf-implicit-major'))
+          const byVersion = Object.fromEntries(majorRows.map((r) => [r.version, r]))
+          expect(Object.keys(byVersion).sort()).toEqual(['0.1.0', '1.0.0'])
+          expect(byVersion['0.1.0']!.mergeSha).toBe(headBefore)
+          expect(byVersion['0.1.0']!.blobSha).toBe(mainBefore.sha)
+          expect(byVersion['0.1.0']!.note).toBe('Initial version')
+          expect(byVersion['1.0.0']!.mergeSha).toBe(majorBody.mergeSha)
+
+          // The starting state can be diffed against.
+          const diffRes = await implicitApp.inject({
+            method: 'GET', url: '/api/pages/wf-implicit-major/diff?from=0.1.0', cookies: cookiesOf(writerSession),
+          })
+          expect(diffRes.statusCode).toBe(200)
+          expect(diffRes.json().to).toBe('1.0.0')
+          expect(JSON.stringify(diffRes.json().diff)).toContain('v2 (implicit)')
+
+          // After a database loss the reconstruction finds 0.1.0 through `ref`.
+          await db.delete(pageVersions).where(eq(pageVersions.pageId, 'wf-implicit-major'))
+          await reconstructPageVersions({ db, provider }, implicitSpace, { id: 'wf-implicit-major', path: majorPath })
+          const rebuilt = await db
+            .select()
+            .from(pageVersions)
+            .where(and(eq(pageVersions.pageId, 'wf-implicit-major'), eq(pageVersions.version, '0.1.0')))
+          expect(rebuilt[0]?.mergeSha).toBe(headBefore)
+          expect(rebuilt[0]?.blobSha).toBe(mainBefore.sha)
+
+          // ---- Existing page, minor → 0.2.0 ----
+          const minorBody = await releaseWith('wf-implicit-minor', minorPath, 'minor', 'Small step')
+          expect(minorBody.version).toBe('0.2.0')
+          const minorRows = await db
+            .select()
+            .from(pageVersions)
+            .where(eq(pageVersions.pageId, 'wf-implicit-minor'))
+          expect(minorRows.map((r) => r.version).sort()).toEqual(['0.1.0', '0.2.0'])
+
+          // ---- New page (not on main): first release stays 1.0.0, one entry ----
+          const createRes = await implicitApp.inject({
+            method: 'POST',
+            url: '/api/pages',
+            cookies: cookiesOf(writerSession),
+            payload: { space: implicitSpace.id, title: 'Implicit New Page' },
+          })
+          expect(createRes.statusCode).toBe(201)
+          const created = createRes.json() as { id: string; content: string; baseSha: string }
+          const [draftRow] = await db.select().from(pages).where(eq(pages.id, created.id))
+          const newPath = draftRow!.path
+          const putRes = await implicitApp.inject({
+            method: 'PUT',
+            url: `/api/pages/${encodeURIComponent(created.id)}/draft`,
+            cookies: cookiesOf(writerSession),
+            payload: { content: `${created.content}\nNew page body\n`, baseSha: created.baseSha },
+          })
+          expect(putRes.statusCode).toBe(200)
+          const newReview = await implicitApp.inject({
+            method: 'POST',
+            url: `/api/pages/${encodeURIComponent(created.id)}/review`,
+            cookies: cookiesOf(writerSession),
+            payload: {},
+          })
+          expect(newReview.statusCode).toBe(200)
+          // A draft has no version until its first release.
+          const newReviewGet = await implicitApp.inject({
+            method: 'GET',
+            url: `/api/pages/${encodeURIComponent(created.id)}/review`,
+            cookies: cookiesOf(releaserSession),
+          })
+          expect(newReviewGet.json().version).toBeUndefined()
+          expect(newReviewGet.json().implicitVersion).toBeUndefined()
+          const newRelease = await implicitApp.inject({
+            method: 'POST',
+            url: `/api/pages/${encodeURIComponent(created.id)}/release`,
+            cookies: cookiesOf(releaserSession),
+            payload: { bump: 'minor', note: 'Brand new' },
+          })
+          expect(newRelease.statusCode).toBe(200)
+          // First release of a new page: 0.1.0 (major would give 1.0.0); a
+          // single entry, there was no earlier state on `main`.
+          expect((newRelease.json() as { version?: string }).version).toBe('0.1.0')
+          const mergedNew = await provider.readFile(implicitRepo, newPath, 'main')
+          expect(parsePage(mergedNew.content).frontmatter.changelog?.map((e) => e.version)).toEqual(['0.1.0'])
+          const newRows = await db.select().from(pageVersions).where(eq(pageVersions.pageId, created.id))
+          expect(newRows.map((r) => r.version)).toEqual(['0.1.0'])
+        } finally {
+          await implicitApp.close()
+        }
+      },
+      60_000,
+    )
+
+    it(
       'Befund 3 (Final-Review): `GET .../review` liefert `versioning`/`version` direkt mit — vor der '
-        + 'ersten Freigabe fehlt `version` (versioning bleibt true), nach einer Freigabe zeigt es GENAU '
+        + 'ersten Freigabe die implizite 0.1.0 (implicitVersion), nach einer Freigabe zeigt es GENAU '
         + 'den main-Stand (kein zweiter Fetch auf `GET /api/pages/:id` mehr nötig, s. `review/page.tsx`)',
       async () => {
         // Eigenes Repo — wie bei den Szenarien oben, damit `versioning: true`
@@ -1209,7 +1388,7 @@ describe.sequential('Workflow-Routen: review/release/request-changes/draft-updat
           )
           await indexSpace({ db, provider }, b3Space)
 
-          // ---- Vor der ersten Freigabe: versioning=true, version fehlt. ----
+          // ---- Before the first release: existing page → implicit 0.1.0. ----
           const draftRes = await b3App.inject({
             method: 'POST', url: `/api/pages/${pageId}/draft`, cookies: cookiesOf(writerSession),
           })
@@ -1239,13 +1418,14 @@ describe.sequential('Workflow-Routen: review/release/request-changes/draft-updat
           expect(getReviewResBefore.statusCode).toBe(200)
           const bodyBefore = getReviewResBefore.json() as ReviewGetResult
           expect(bodyBefore.versioning).toBe(true)
-          expect(bodyBefore.version).toBeUndefined()
+          expect(bodyBefore.version).toBe('0.1.0')
+          expect(bodyBefore.implicitVersion).toBe(true)
 
           const releaseRes = await b3App.inject({
             method: 'POST',
             url: `/api/pages/${pageId}/release`,
             cookies: cookiesOf(releaserSession),
-            payload: { bump: 'minor', note: 'Erste Freigabe B3' },
+            payload: { bump: 'major', note: 'Erste Freigabe B3' },
           })
           expect(releaseRes.statusCode).toBe(200)
           expect((releaseRes.json() as { version?: string }).version).toBe('1.0.0')
@@ -1278,6 +1458,7 @@ describe.sequential('Workflow-Routen: review/release/request-changes/draft-updat
           const bodyAfter = getReviewResAfter.json() as ReviewGetResult
           expect(bodyAfter.versioning).toBe(true)
           expect(bodyAfter.version).toBe('1.0.0')
+          expect(bodyAfter.implicitVersion).toBeUndefined()
         } finally {
           await b3App.close()
         }
@@ -1349,8 +1530,8 @@ describe.sequential('Workflow-Routen: review/release/request-changes/draft-updat
           })
 
           // Jetzt wird eine NEUE Seite mit GENAU DERSELBEN Id zum ersten Mal
-          // freigegeben — main kennt noch keine Version, die Berechnung ergibt
-          // daher ebenfalls '1.0.0' und kollidiert mit der verwaisten Zeile oben.
+          // freigegeben — main kennt noch keine Version (implicit 0.1.0), `major`
+          // ergibt daher ebenfalls '1.0.0' und kollidiert mit der verwaisten Zeile oben.
 
           const draftRes = await orphanApp.inject({
             method: 'POST', url: `/api/pages/${pageId}/draft`, cookies: cookiesOf(writerSession),
@@ -1375,7 +1556,7 @@ describe.sequential('Workflow-Routen: review/release/request-changes/draft-updat
             method: 'POST',
             url: `/api/pages/${pageId}/release`,
             cookies: cookiesOf(releaserSession),
-            payload: { bump: 'minor', note: 'Erstfreigabe der neuen Seite' },
+            payload: { bump: 'major', note: 'Erstfreigabe der neuen Seite' },
           })
           expect(releaseRes.statusCode).toBe(200)
           const releaseBody = releaseRes.json() as { mergeSha: string; version?: string }

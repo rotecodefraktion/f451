@@ -1,6 +1,6 @@
 import { and, eq } from 'drizzle-orm'
 import type { GitProvider, RepoRef } from '@f451/git-provider'
-import { parsePage, parseVersion } from '@f451/markdown'
+import { parsePage, parseVersion, type ChangelogEntry } from '@f451/markdown'
 import type { Db } from '../db/client.js'
 import { pageVersions } from '../db/schema.js'
 import type { IndexerLogger } from './index-space.js'
@@ -67,9 +67,11 @@ export async function reconstructPageVersions(
   const commits = await deps.provider.listCommits(space.repoRef, { ref: 'main', path: seite.path, limit: MAX_COMMITS })
   let vorherige: string | undefined
   let neu = 0
+  let changelog: ChangelogEntry[] | undefined
   for (const commit of [...commits].reverse()) {
     const datei = await deps.provider.readFile(space.repoRef, seite.path, commit.sha)
     const { frontmatter } = parsePage(datei.content)
+    changelog = frontmatter.changelog
     const teile = parseVersion(frontmatter.version)
     if (!teile || frontmatter.version === vorherige) continue
     vorherige = frontmatter.version
@@ -94,6 +96,30 @@ export async function reconstructPageVersions(
         releasedAt: new Date(eintrag?.date ?? commit.date),
         author: eintrag?.author ?? commit.authorName,
         note: eintrag?.note ?? '',
+      })
+      .onConflictDoNothing()
+      .returning({ version: pageVersions.version })
+    neu += ergebnis.length
+  }
+
+  // Versions no release commit wrote — the implicit 0.1.0 of an existing
+  // page (f451#50) — name their commit in the changelog (`ref`).
+  for (const eintrag of changelog ?? []) {
+    const teile = parseVersion(eintrag.version)
+    if (!eintrag.ref || !teile) continue
+    const datei = await deps.provider.readFile(space.repoRef, seite.path, eintrag.ref)
+    const ergebnis = await deps.db
+      .insert(pageVersions)
+      .values({
+        pageId: seite.id,
+        spaceId: space.id,
+        version: eintrag.version,
+        ...teile,
+        mergeSha: eintrag.ref,
+        blobSha: datei.sha,
+        releasedAt: new Date(eintrag.date),
+        author: eintrag.author,
+        note: eintrag.note,
       })
       .onConflictDoNothing()
       .returning({ version: pageVersions.version })

@@ -172,7 +172,8 @@ export function parseFrontmatterBlock(
           errors.push(`changelog[${index}]: version, date und author sind Pflicht`)
           return
         }
-        entries.push({ version, date, author, note })
+        const ref = text('ref')
+        entries.push({ version, date, author, note, ...(ref ? { ref } : {}) })
       })
       // Fail-Soft wie der Rest des Parsers: gültige Einträge überleben, auch
       // wenn ein einzelner kaputt ist. Nur wenn NICHTS gültig war, bleibt das

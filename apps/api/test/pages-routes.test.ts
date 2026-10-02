@@ -3,7 +3,8 @@ import { eq } from 'drizzle-orm'
 import Fastify, { type FastifyInstance } from 'fastify'
 import type { GitProvider, PullRequestInfo } from '@f451/git-provider'
 import { NotFoundError } from '@f451/git-provider'
-import { registerPagesRoutes, type PagesDeps } from '../src/routes/pages.js'
+import { EMPTY_METADATA_SCHEMA } from '@f451/markdown'
+import { registerPagesRoutes, resolveVersionFields, type PagesDeps } from '../src/routes/pages.js'
 import { createDb, type Db } from '../src/db/client.js'
 import { locks, pages, pageVersions, spaces as spacesTable, users } from '../src/db/schema.js'
 import { clearMetadataSchemaCache } from '../src/spaces/metadata-schema.js'
@@ -389,6 +390,24 @@ describe.sequential('GET /api/pages/:id: Versionsanzeige (Seitenversionierung Et
       pageId: 'p-4', spaceId: versionedSpace.id, version: '1.2.0', major: 1, minor: 2, patch: 0,
       mergeSha: 'c'.repeat(40), blobSha: 'blob-release', author: 'alice',
     })
+
+    // Implicit version (spec addendum 2026-10-02): pages on `main` without
+    // `version`. p-5 in the versioned space, p-6 in the unversioned one, p-7
+    // exists only as a draft.
+    await db.insert(pages).values([
+      {
+        id: 'p-5', spaceId: versionedSpace.id, path: 'p-5/index.md', ref: 'main', title: 'P5', lang: 'de',
+        htmlRendered: '<h1>P5</h1>', lastBlobSha: 'blob-p5', frontmatter: { tags: [], relations: {} },
+      },
+      {
+        id: 'p-6', spaceId: unversionedSpace.id, path: 'p-6/index.md', ref: 'main', title: 'P6', lang: 'de',
+        htmlRendered: '<h1>P6</h1>', frontmatter: { tags: [], relations: {} },
+      },
+      {
+        id: 'p-7', spaceId: versionedSpace.id, path: 'p-7/index.md', ref: 'draft', title: 'P7', lang: 'de',
+        htmlRendered: '<h1>P7</h1>', frontmatter: { tags: [], relations: {} },
+      },
+    ])
   }, 120_000)
 
   afterAll(async () => {
@@ -458,5 +477,60 @@ describe.sequential('GET /api/pages/:id: Versionsanzeige (Seitenversionierung Et
     expect(res.statusCode).toBe(200)
     expect(res.json()).toMatchObject({ version: '1.2.0', versioning: true, changedSinceRelease: false })
     await app.close()
+  })
+
+  it('reports an existing page without version as implicit 0.1.0', async () => {
+    const app = buildTestApp({
+      db,
+      spaces: [versionedSpace, unversionedSpace],
+      providerRegistry: () => versioningSchemaProvider(),
+    })
+    await app.ready()
+    const res = await app.inject({ method: 'GET', url: '/api/pages/p-5' })
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toMatchObject({
+      version: '0.1.0',
+      implicitVersion: true,
+      versioning: true,
+      changedSinceRelease: false,
+    })
+    await app.close()
+  })
+
+  it('reports no implicit version when versioning is off', async () => {
+    const app = buildTestApp({
+      db,
+      spaces: [versionedSpace, unversionedSpace],
+      providerRegistry: () => noSchemaProvider(),
+    })
+    await app.ready()
+    const res = await app.inject({ method: 'GET', url: '/api/pages/p-6' })
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toMatchObject({ versioning: false, changedSinceRelease: false })
+    expect(res.json().version).toBeUndefined()
+    expect(res.json().implicitVersion).toBeUndefined()
+    await app.close()
+  })
+
+  it('leaves an explicit version untouched (no implicitVersion)', async () => {
+    const app = buildTestApp({
+      db,
+      spaces: [versionedSpace, unversionedSpace],
+      providerRegistry: () => versioningSchemaProvider(),
+    })
+    await app.ready()
+    const res = await app.inject({ method: 'GET', url: '/api/pages/p-2' })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().version).toBe('1.2.0')
+    expect(res.json().implicitVersion).toBeUndefined()
+    await app.close()
+  })
+
+  it('reports no version for a draft-only page (resolveVersionFields)', async () => {
+    // The review route passes the draft row for pages not yet on `main`; a
+    // draft has no version until its first release.
+    const [row] = await db.select().from(pages).where(eq(pages.id, 'p-7'))
+    const fields = await resolveVersionFields({ db }, row!, { ...EMPTY_METADATA_SCHEMA, versioning: true })
+    expect(fields).toEqual({ versioning: true, changedSinceRelease: false })
   })
 })

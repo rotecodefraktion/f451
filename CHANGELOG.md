@@ -6,6 +6,21 @@ All notable changes to f451. The format follows
 to the HTTP API, the MCP tools, the page format or the configuration only come
 with a new major version.
 
+## [1.1.1] — 2026-10-02
+
+No breaking changes. `implicitVersion` and `implicit` are new optional API fields.
+
+### Fixed
+
+- Versions in a versioned space: 1.0.0 is a release the reviewer chooses, not
+  automatic. A new page's first release offers 0.1.0 (default) or 1.0.0; until
+  now it always became 1.0.0. A page that already existed when versioning was
+  turned on counts as 0.1.0, its first release offers 0.1.1, 0.2.0 or 1.0.0,
+  and its original state appears in the version list as the initial version.
+  Drafts have no version; nothing is written to Git until a release.
+- Review page: section titles use one font and style, and the version box's
+  title sits inside the box instead of on its border.
+
 ## [1.1.0] — 2026-10-01
 
 No breaking changes. Spaces without a `classification:` block behave as before.
@@ -84,5 +99,6 @@ f451 License 1.1 — PolyForm Shield 1.0.0 with additional conditions: free to
 use, change and share, also commercially; a separate license is needed only to
 sell f451 or offer it as a paid hosted service. See `LICENSE.md`.
 
+[1.1.1]: https://github.com/rotecodefraktion/f451/releases/tag/v1.1.1
 [1.1.0]: https://github.com/rotecodefraktion/f451/releases/tag/v1.1.0
 [1.0.0]: https://github.com/rotecodefraktion/f451/releases/tag/v1.0.0
