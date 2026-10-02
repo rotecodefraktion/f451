@@ -27,6 +27,7 @@ import {
   type KontrastRolle,
   type LayerSource,
   type Mode,
+  type Origin,
   type ResolvedTheme,
   type RuleViolation,
   type StructureTokenName,
@@ -67,6 +68,84 @@ export interface EditorData {
   rules: RuleViolation[]
 }
 
+/** One entry of `GET /api/theme/library` / `GET /api/spaces/:space/theme/library` (addendum §3). */
+export type LibraryOrigin = 'builtin' | 'instance' | 'space'
+
+export interface LibraryEntry {
+  slug: string
+  name: string
+  origin: LibraryOrigin
+  file: ThemeFile
+}
+
+// ---- Templates (`use`, addendum §3) -------------------------------------------
+
+const INSTANCE_PREFIX = 'instance/'
+
+/**
+ * The template a `use` reference names, seen from the editor's scope — the
+ * same lookup as the API's `theme/library.ts#findTemplate`:
+ * `instance/<slug>` → instance library (built-in or instance repo);
+ * `<slug>` → the scope's own library (instance scope: instance library, space
+ * scope: the space's templates; the user scope has no own library).
+ */
+export function findTemplate(
+  use: string,
+  scope: EditorScope['kind'],
+  templates: readonly LibraryEntry[],
+): LibraryEntry | undefined {
+  const instanceRef = use.startsWith(INSTANCE_PREFIX)
+  const slug = instanceRef ? use.slice(INSTANCE_PREFIX.length) : use
+  const namespace = instanceRef || scope === 'instance' ? 'instance' : scope === 'space' ? 'space' : null
+  if (namespace === null) return undefined
+  return templates.find((e) => e.slug === slug && (namespace === 'space' ? e.origin === 'space' : e.origin !== 'space'))
+}
+
+/** The library entry behind an origin mark: a space layer's template is a space template, any other an instance one. */
+function templateEntryFor(slug: string, source: LayerSource, templates: readonly LibraryEntry[]): LibraryEntry | undefined {
+  return templates.find((e) => e.slug === slug && (source === 'space' ? e.origin === 'space' : e.origin !== 'space'))
+}
+
+/** A template as the layer under the one that uses it: same source, origin mark `template: <slug>` (as the API builds it). */
+function templateLayer(entry: LibraryEntry, source: LayerSource): ThemeLayer {
+  const { layer } = parseThemeFile(entry.file, source, { allowUse: false, allowFavicon: true })
+  return { ...layer, template: entry.slug }
+}
+
+export interface DraftChain {
+  parsed: ReturnType<typeof parseThemeFile>
+  /** the template the draft's `use` names, when the library knows it */
+  template: LibraryEntry | null
+  /** the draft's `use` when the library does not know it — the layer then applies without a template */
+  missingUse: string | null
+  /** `[...belowLayers, template?, own]` */
+  layers: ThemeLayer[]
+  /** what applies without the draft's own values: the layers below plus the template */
+  below: ResolvedTheme
+}
+
+/**
+ * The draft's layer chain with its `use` expanded the way the server expands
+ * it before mixing: `[...belowLayers, template, own]`. `belowLayers` from the
+ * API are already expanded; only the draft's own `use` is resolved here, so a
+ * change of the template select shows at once. An unknown reference adds no
+ * layer (the server's read behaviour) and is reported in `missingUse`.
+ */
+export function draftChain(data: EditorData, draft: ThemeFile, templates: readonly LibraryEntry[] = []): DraftChain {
+  const source = layerSource(data.scope)
+  const parsed = parseThemeFile(draft, source)
+  const use = draft.use
+  const entry = use ? findTemplate(use, data.scope.kind, templates) : undefined
+  const below = entry ? [...data.belowLayers, templateLayer(entry, source)] : data.belowLayers
+  return {
+    parsed,
+    template: entry ?? null,
+    missingUse: use && !entry ? use : null,
+    layers: [...below, parsed.layer],
+    below: entry ? resolveTheme(below) : data.below,
+  }
+}
+
 // ---- Rows and groups --------------------------------------------------------
 
 export type ValueMode = Mode | 'base'
@@ -82,6 +161,10 @@ export interface RowValue {
   set?: string
   /** what applies without the draft's value — the row falls back to this on reset */
   below: string
+  /** slug of the template the effective value comes from (origin stays 'inherited'); absent otherwise */
+  template?: string
+  /** that template's name from the library; the slug when the library does not know it */
+  templateName?: string
 }
 
 export interface EditorRow {
@@ -153,23 +236,43 @@ function effectiveOf(resolved: ResolvedTheme, mode: ValueMode, name: TokenName):
   return formula.kind === 'veil' ? formulaToCss(formula) : loeseBezug(mode, `~${name}` as Bezug, resolved[mode])
 }
 
-function originSource(resolved: ResolvedTheme, mode: ValueMode, name: TokenName): LayerSource {
-  const origins = (mode === 'base' ? resolved.origin.base : resolved.origin[mode]) as Record<string, { source: LayerSource }>
-  return origins[name]?.source ?? 'default'
+function originOf(resolved: ResolvedTheme, mode: ValueMode, name: TokenName): Origin | undefined {
+  const origins = (mode === 'base' ? resolved.origin.base : resolved.origin[mode]) as Record<string, Origin>
+  return origins[name]
 }
 
-function rowValue(draft: ThemeFile, data: EditorData, resolved: ResolvedTheme, mode: ValueMode, name: TokenName): RowValue {
-  const own = draft[mode]?.[fileKey(name)]
+interface RowContext {
+  draft: ThemeFile
+  resolved: ResolvedTheme
+  below: ResolvedTheme
+  templates: readonly LibraryEntry[]
+  /** the template the draft's own `use` picked — named directly, so `instance/fokus`
+   *  in a space is not confused with the space's own `fokus` */
+  draftTemplate: LibraryEntry | null
+  ownSource: LayerSource
+}
+
+function rowValue(ctx: RowContext, mode: ValueMode, name: TokenName): RowValue {
+  const own = ctx.draft[mode]?.[fileKey(name)]
+  const origin = originOf(ctx.resolved, mode, name)
   const value: RowValue = {
-    effective: effectiveOf(resolved, mode, name),
-    origin: own !== undefined ? 'set' : originSource(resolved, mode, name) === 'default' ? 'default' : 'inherited',
-    below: effectiveOf(data.below, mode, name),
+    effective: effectiveOf(ctx.resolved, mode, name),
+    origin: own !== undefined ? 'set' : (origin?.source ?? 'default') === 'default' ? 'default' : 'inherited',
+    below: effectiveOf(ctx.below, mode, name),
   }
   if (own !== undefined) value.set = own
+  else if (origin?.template !== undefined) {
+    value.template = origin.template
+    const picked =
+      ctx.draftTemplate && origin.source === ctx.ownSource && ctx.draftTemplate.slug === origin.template
+        ? ctx.draftTemplate
+        : templateEntryFor(origin.template, origin.source, ctx.templates)
+    value.templateName = picked?.name ?? origin.template
+  }
   return value
 }
 
-function buildRow(data: EditorData, draft: ThemeFile, resolved: ResolvedTheme, name: TokenName): EditorRow {
+function buildRow(ctx: RowContext, name: TokenName): EditorRow {
   const meta = catalog[name] as TokenMeta
   const kind = kindOf(name)
   const modes: ValueMode[] = kind === 'switch' ? [] : kind === 'structure' ? ['base'] : ['light', 'dark']
@@ -184,7 +287,7 @@ function buildRow(data: EditorData, draft: ThemeFile, resolved: ResolvedTheme, n
   }
   if (meta.range) row.range = meta.range
   if (!meta.settable) row.lockReason = meta.lockReason
-  for (const mode of modes) row.values[mode] = rowValue(draft, data, resolved, mode, name)
+  for (const mode of modes) row.values[mode] = rowValue(ctx, mode, name)
   if (kind === 'derived') {
     row.formula = formulaToCss(tokens.derived[name as DerivedTokenName])
     row.overridden = row.values.light?.origin === 'set' || row.values.dark?.origin === 'set'
@@ -192,17 +295,26 @@ function buildRow(data: EditorData, draft: ThemeFile, resolved: ResolvedTheme, n
   return row
 }
 
-/** The draft resolved on top of the layers below the scope. */
-function resolveDraft(data: EditorData, draft: ThemeFile) {
-  const parsed = parseThemeFile(draft, layerSource(data.scope))
-  return { parsed, resolved: resolveTheme([...data.belowLayers, parsed.layer]) }
+/** The draft resolved on top of the layers below the scope and its own template. */
+function resolveDraft(data: EditorData, draft: ThemeFile, templates: readonly LibraryEntry[]) {
+  const chain = draftChain(data, draft, templates)
+  return { chain, parsed: chain.parsed, resolved: resolveTheme(chain.layers) }
 }
 
-export function buildGroups(data: EditorData, draft: ThemeFile): EditorGroup[] {
-  const { resolved } = resolveDraft(data, draft)
+/** `templates` is the scope's library — needed to expand the draft's `use` and to name template marks. */
+export function buildGroups(data: EditorData, draft: ThemeFile, templates: readonly LibraryEntry[] = []): EditorGroup[] {
+  const { chain, resolved } = resolveDraft(data, draft, templates)
+  const ctx: RowContext = {
+    draft,
+    resolved,
+    below: chain.below,
+    templates,
+    draftTemplate: chain.template,
+    ownSource: layerSource(data.scope),
+  }
   const groups = new Map<TokenGroup, EditorGroup>(GROUPS.map((g) => [g, { group: g, rows: [], setCount: 0 }]))
   for (const name of tokenNames) {
-    const row = buildRow(data, draft, resolved, name)
+    const row = buildRow(ctx, name)
     const group = groups.get(row.group)!
     group.rows.push(row)
     group.setCount += Object.values(row.values).filter((v) => v?.origin === 'set').length
@@ -230,6 +342,26 @@ export function setValue(draft: ThemeFile, name: string, mode: ValueMode, value:
   const next: ThemeFile = { ...draft }
   if (Object.keys(section).length > 0) next[mode] = section
   else delete next[mode]
+  return next
+}
+
+/** Sets (or with `null`/`''` removes) the draft's template reference `use`. Never mutates `draft`. */
+export function setUse(draft: ThemeFile, use: string | null): ThemeFile {
+  const next: ThemeFile = { ...draft }
+  if (use === null || use === '') delete next.use
+  else next.use = use
+  return next
+}
+
+/**
+ * The body of "Als Vorlage speichern": the draft's values under the given
+ * name, without `use` (a template must not use another, `template_no_nesting`)
+ * and without `brand` (a template carries tokens only).
+ */
+export function templateFile(draft: ThemeFile, name: string): ThemeFile {
+  const next: ThemeFile = { ...draft, name }
+  delete next.use
+  delete next.brand
   return next
 }
 
@@ -323,6 +455,10 @@ export interface Assessment {
   errors: number
   warnings: number
   saveBlocked: boolean
+  /** the template the draft's `use` names, when the library knows it */
+  template: LibraryEntry | null
+  /** the draft's `use` when the library does not know it (a notice at the select, not counted as error) */
+  missingUse: string | null
 }
 
 const THRESHOLD_FIELD: Record<KontrastRolle, keyof ContrastThresholds> = {
@@ -358,14 +494,25 @@ function toRowFinding(f: ContrastFinding, aa: ContrastThresholds, contrastBlocks
  * parse, resolve on top of the layers below, contrast against the scope's
  * thresholds, cross-token rules. Errors block saving, warnings never do. In
  * the user scope contrast is only ever a warning (rules and parse errors still
- * block, as on the server).
+ * block, as on the server). The draft's `use` is expanded with `templates`
+ * (the scope's library) before mixing, as the server does.
  */
-export function assess(data: EditorData, draft: ThemeFile): Assessment {
-  const { parsed, resolved } = resolveDraft(data, draft)
+export function assess(data: EditorData, draft: ThemeFile, templates: readonly LibraryEntry[] = []): Assessment {
+  const { chain, parsed, resolved } = resolveDraft(data, draft, templates)
   const contrastBlocks = data.scope.kind !== 'user'
   const findings = checkContrast(resolved, data.thresholds).map((f) => toRowFinding(f, data.aa, contrastBlocks))
   const rules = checkRules(resolved)
   const errors = findings.filter((f) => f.state === 'error').length + rules.length + parsed.errors.length
   const warnings = findings.filter((f) => f.state === 'warning').length
-  return { resolved, findings, rules, problems: parsed.errors, errors, warnings, saveBlocked: errors > 0 }
+  return {
+    resolved,
+    findings,
+    rules,
+    problems: parsed.errors,
+    errors,
+    warnings,
+    saveBlocked: errors > 0,
+    template: chain.template,
+    missingUse: chain.missingUse,
+  }
 }

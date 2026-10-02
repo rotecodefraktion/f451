@@ -19,9 +19,12 @@ import {
   groupOpenDefaults,
   isEmpty,
   resetGroup,
+  setUse,
   setValue,
+  templateFile,
   type EditorData,
   type EditorRow,
+  type LibraryEntry,
 } from './theme-editor.js'
 
 /**
@@ -213,6 +216,105 @@ describe('assess', () => {
       const a = assess(userData(), setValue({}, 'color-accent', 'light', '#aa3300'))
       expect(a.resolved.origin.light['--color-accent']?.source).toBe('user')
     })
+  })
+})
+
+describe('templates (use)', () => {
+  // A space template and an instance template of the same slug side by side:
+  // `fokus` and `instance/fokus` are different references (addendum §3).
+  const SPACE_FOKUS = '#7a2210'
+  const INSTANCE_FOKUS = '#1d4f91'
+  const library: LibraryEntry[] = [
+    { slug: 'fokus', name: 'Fokus Space', origin: 'space', file: { name: 'Fokus Space', light: { 'color-accent': SPACE_FOKUS } } },
+    { slug: 'fokus', name: 'Fokus Instanz', origin: 'instance', file: { light: { 'color-accent': INSTANCE_FOKUS } } },
+    { slug: 'papier', name: 'Papier', origin: 'builtin', file: { dark: { 'color-accent': '#e0a080' } } },
+  ]
+  const accentLight = (data: EditorData, draft: ThemeFile, templates: LibraryEntry[] = library) =>
+    buildGroups(data, draft, templates)
+      .flatMap((g) => g.rows)
+      .find((r) => r.name === '--color-accent')!.values.light!
+
+  it('expands an own `use` from the scope library, marking the rows with the template', () => {
+    const v = accentLight(editorData(), { use: 'fokus' })
+    expect(v).toEqual({
+      effective: SPACE_FOKUS,
+      origin: 'inherited',
+      below: SPACE_FOKUS,
+      template: 'fokus',
+      templateName: 'Fokus Space',
+    })
+    // what the template does not set keeps its old origin and no mark
+    const dark = buildGroups(editorData(), { use: 'fokus' }, library)
+      .flatMap((g) => g.rows)
+      .find((r) => r.name === '--color-accent')!.values.dark!
+    expect(dark).toMatchObject({ origin: 'default' })
+    expect(dark.template).toBeUndefined()
+  })
+
+  it('expands `instance/<slug>` from the instance library', () => {
+    expect(accentLight(editorData(), { use: 'instance/fokus' })).toMatchObject({
+      effective: INSTANCE_FOKUS,
+      origin: 'inherited',
+      template: 'fokus',
+      templateName: 'Fokus Instanz',
+    })
+    const a = assess(editorData(), { use: 'instance/papier' }, library)
+    expect(a.template?.origin).toBe('builtin')
+    expect(a.resolved.dark['--color-accent']).toBe('#e0a080')
+    expect(a.resolved.origin.dark['--color-accent']).toEqual({ source: 'space', template: 'papier' })
+  })
+
+  it('lets the own values lie over the template', () => {
+    const v = accentLight(editorData(), { use: 'fokus', light: { 'color-accent': '#123456' } })
+    expect(v).toEqual({ effective: '#123456', origin: 'set', set: '#123456', below: SPACE_FOKUS })
+  })
+
+  it('applies an unknown `use` without a template and reports it, without blocking', () => {
+    const a = assess(editorData(), { use: 'nope' }, library)
+    expect(a.template).toBeNull()
+    expect(a.missingUse).toBe('nope')
+    expect(a.saveBlocked).toBe(false)
+    expect(a.resolved.light['--color-accent']).toBe(INSTANCE_ACCENT)
+    expect(accentLight(editorData(), { use: 'nope' })).toEqual({ effective: INSTANCE_ACCENT, origin: 'inherited', below: INSTANCE_ACCENT })
+    // without a loaded library every reference is unknown
+    expect(assess(editorData(), { use: 'fokus' }).missingUse).toBe('fokus')
+    expect(assess(editorData(), {}, library).missingUse).toBeNull()
+  })
+
+  it('knows no own library in the user scope', () => {
+    const userData: EditorData = { ...editorData(), scope: { kind: 'user' } }
+    expect(assess(userData, { use: 'fokus' }, library).missingUse).toBe('fokus')
+    const a = assess(userData, { use: 'instance/fokus' }, library)
+    expect(a.template?.origin).toBe('instance')
+    expect(a.resolved.origin.light['--color-accent']).toEqual({ source: 'user', template: 'fokus' })
+  })
+
+  it('looks up the instance library for the instance scope with or without prefix', () => {
+    const instanceData: EditorData = { ...editorData(), scope: { kind: 'instance' }, belowLayers: [], below: resolveTheme([]) }
+    expect(assess(instanceData, { use: 'fokus' }, library).template?.name).toBe('Fokus Instanz')
+    expect(assess(instanceData, { use: 'instance/fokus' }, library).template?.name).toBe('Fokus Instanz')
+  })
+
+  it('names the template of an inherited layer from the library, the slug as fallback', () => {
+    const below: ThemeLayer = { source: 'instance', template: 'fokus', light: { '--color-accent': INSTANCE_FOKUS } }
+    const data: EditorData = { ...editorData(), belowLayers: [below], below: resolveTheme([below]) }
+    expect(accentLight(data, {})).toMatchObject({ origin: 'inherited', template: 'fokus', templateName: 'Fokus Instanz' })
+    expect(accentLight(data, {}, [])).toMatchObject({ template: 'fokus', templateName: 'fokus' })
+  })
+
+  it('setUse sets and clears the reference without mutating', () => {
+    const draft: ThemeFile = { light: { 'color-accent': '#123456' } }
+    const used = setUse(draft, 'instance/papier')
+    expect(used).toEqual({ use: 'instance/papier', light: { 'color-accent': '#123456' } })
+    expect(setUse(used, null)).toEqual(draft)
+    expect(setUse(used, '')).toEqual(draft)
+    expect(draft.use).toBeUndefined()
+  })
+
+  it('templateFile drops use and brand and sets the name', () => {
+    const draft: ThemeFile = { name: 'Alt', use: 'fokus', brand: { name: 'X' }, light: { 'color-accent': '#123456' } }
+    expect(templateFile(draft, 'Neu')).toEqual({ name: 'Neu', light: { 'color-accent': '#123456' } })
+    expect(draft.use).toBe('fokus')
   })
 })
 

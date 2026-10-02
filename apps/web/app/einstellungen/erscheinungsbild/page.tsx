@@ -9,8 +9,8 @@ import { ThresholdStrip } from '../../../components/theme-editor/threshold-strip
 import { apiFetch } from '../../../lib/api'
 import { getT } from '../../../lib/i18n/server'
 import { getMe } from '../../../lib/session'
-import type { EditorData } from '../../../lib/theme-editor'
-import { editorApiPath, pickScope, type ThemeScopes } from '../../../lib/theme-editor-view'
+import type { EditorData, LibraryEntry } from '../../../lib/theme-editor'
+import { editorApiPath, libraryApiPath, pickScope, type ThemeScopes } from '../../../lib/theme-editor-view'
 import { Shell } from '../../shell'
 
 /**
@@ -66,13 +66,17 @@ export default async function ErscheinungsbildPage({
   }
   const scope = scopes ? pickScope(scopeQuery, scopes) : null
 
+  // Editor data and the scope's template library side by side; a library that
+  // cannot be loaded leaves the editor usable (the select says so).
   let data: EditorData | null = null
+  let templates: LibraryEntry[] | null = null
   if (scope) {
-    try {
-      data = await apiFetch<EditorData>(editorApiPath(scope), { cookie })
-    } catch {
-      data = null
-    }
+    const [editor, library] = await Promise.all([
+      apiFetch<EditorData>(editorApiPath(scope), { cookie }).catch(() => null),
+      apiFetch<{ templates: LibraryEntry[] }>(libraryApiPath(scope), { cookie }).catch(() => null),
+    ])
+    data = editor
+    templates = library?.templates ?? null
   }
 
   let content: ReactNode
@@ -104,6 +108,7 @@ export default async function ErscheinungsbildPage({
       <ThemeEditor
         scopes={scopes}
         data={data}
+        templates={templates}
         thresholdStrip={
           // "Meine Einstellungen" has no "Prüfschärfe" strip (addendum §7): contrast never blocks there.
           kind === 'user' ? undefined : (

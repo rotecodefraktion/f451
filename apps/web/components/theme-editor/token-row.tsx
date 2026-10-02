@@ -3,7 +3,7 @@
 import type { ContrastThresholds, Mode } from '@f451/design-tokens'
 import type { ReactNode } from 'react'
 import { useT } from '../../lib/i18n/provider'
-import type { EditorRow, RowFinding, ValueMode, ValueOrigin } from '../../lib/theme-editor'
+import type { EditorRow, RowFinding, RowValue, ValueMode, ValueOrigin } from '../../lib/theme-editor'
 import { rowId } from '../../lib/theme-editor-view'
 import { RowFindings } from './row-findings'
 import { ColorField, StructureField, Swatch, TextField, fieldId } from './value-fields'
@@ -57,15 +57,25 @@ export function TokenRow(props: TokenRowProps) {
         ? t('settings.appearance.originInherited')
         : t('settings.appearance.originDefault')
 
+  // A value from a template reads "Vorlage · <name>" instead of "geerbt".
+  const markText = (v: RowValue) =>
+    v.origin !== 'set' && v.template !== undefined
+      ? t('settings.appearance.originTemplate', { name: v.templateName ?? v.template })
+      : originName(v.origin)
+
   // One mark when all modes agree, otherwise one per mode.
-  const origins = modes.map((m) => ({ mode: m, origin: row.values[m]!.origin }))
-  const uniform = origins.every((o) => o.origin === origins[0]?.origin)
+  const origins = modes.map((m) => {
+    const v = row.values[m]!
+    return { mode: m, origin: v.origin, template: v.origin !== 'set' && v.template !== undefined, text: markText(v) }
+  })
+  const uniform = origins.every((o) => o.text === origins[0]?.text)
   const marks = uniform
-    ? origins.slice(0, 1).map((o) => ({ key: 'all', origin: o.origin, text: originName(o.origin) }))
+    ? origins.slice(0, 1).map((o) => ({ key: 'all', origin: o.origin, template: o.template, text: o.text }))
     : origins.map((o) => ({
         key: o.mode,
         origin: o.origin,
-        text: t('settings.appearance.originPerMode', { mode: modeName(o.mode), origin: originName(o.origin) }),
+        template: o.template,
+        text: t('settings.appearance.originPerMode', { mode: modeName(o.mode), origin: o.text }),
       }))
 
   const shown = (m: ValueMode) => {
@@ -159,7 +169,12 @@ export function TokenRow(props: TokenRowProps) {
         <code className="te-name">{row.name}</code>
         <span className="te-origins">
           {marks.map((m) => (
-            <span key={m.key} className={m.origin === 'set' ? 'chip neutral te-origin-set' : 'chip neutral'}>
+            <span
+              key={m.key}
+              className={
+                m.origin === 'set' ? 'chip neutral te-origin-set' : m.template ? 'chip neutral te-origin-template' : 'chip neutral'
+              }
+            >
               {m.text}
             </span>
           ))}

@@ -15,7 +15,7 @@ import {
   type TokenMeta,
   type TokenName,
 } from '@f451/design-tokens'
-import { fieldCheck, type Assessment, type EditorGroup, type EditorScope } from './theme-editor.js'
+import { fieldCheck, type Assessment, type EditorGroup, type EditorScope, type LibraryEntry } from './theme-editor.js'
 
 // ---- Scope ------------------------------------------------------------------
 
@@ -74,6 +74,70 @@ export function themeApiPath(scope: ScopeKey | EditorScope): string {
     case 'space':
       return `/api/spaces/${encodeURIComponent(scope.id)}/theme`
   }
+}
+
+// ---- Templates (addendum §3) ------------------------------------------------
+
+/**
+ * Library path of a scope: `GET` lists, `PUT`/`DELETE` with a slug write one
+ * template. The user scope has no library of its own — it lists the instance
+ * library (and never writes).
+ */
+export function libraryApiPath(scope: ScopeKey | EditorScope, slug?: string): string {
+  const base = scope.kind === 'space' ? `/api/spaces/${encodeURIComponent(scope.id)}/theme/library` : '/api/theme/library'
+  return slug === undefined ? base : `${base}/${encodeURIComponent(slug)}`
+}
+
+/** Slug grammar of a template (addendum §3), as the API checks it. */
+export const TEMPLATE_SLUG = /^[a-z0-9-]{1,40}$/
+
+const TRANSLITERATE: Record<string, string> = { ä: 'ae', ö: 'oe', ü: 'ue', ß: 'ss' }
+
+/**
+ * A slug proposal from a template name: lower case, German umlauts spelled
+ * out, other accents dropped, every other run of characters a single dash, at
+ * most 40 characters, no dash at either end. May be empty (a name of signs
+ * only) — the form then asks for a slug.
+ */
+export function slugFromName(name: string): string {
+  return name
+    .normalize('NFC')
+    .toLowerCase()
+    .replace(/[äöüß]/g, (c) => TRANSLITERATE[c] ?? c)
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40)
+    .replace(/-+$/, '')
+}
+
+export interface TemplateOption {
+  /** the `use` value this option writes */
+  value: string
+  entry: LibraryEntry
+}
+
+/**
+ * The options of the template select, in two groups. `own`: the scope's own
+ * library, referenced as `<slug>` — for the instance that is the whole
+ * instance library (built-ins included), for a space its own templates.
+ * `instance`: the instance library referenced as `instance/<slug>` — for a
+ * space and for the user scope (which has no own library).
+ */
+export function templateOptions(
+  scope: EditorScope['kind'],
+  templates: readonly LibraryEntry[],
+): { own: TemplateOption[]; instance: TemplateOption[] } {
+  const instanceLib = templates.filter((e) => e.origin !== 'space')
+  if (scope === 'instance') return { own: instanceLib.map((entry) => ({ value: entry.slug, entry })), instance: [] }
+  const own = scope === 'space' ? templates.filter((e) => e.origin === 'space').map((entry) => ({ value: entry.slug, entry })) : []
+  return { own, instance: instanceLib.map((entry) => ({ value: `instance/${entry.slug}`, entry })) }
+}
+
+/** True when the scope itself holds the template file — only then may it be overwritten or deleted from here. */
+export function ownsTemplate(scope: EditorScope['kind'], entry: Pick<LibraryEntry, 'origin'>): boolean {
+  return (scope === 'space' && entry.origin === 'space') || (scope === 'instance' && entry.origin === 'instance')
 }
 
 // ---- Fields -----------------------------------------------------------------

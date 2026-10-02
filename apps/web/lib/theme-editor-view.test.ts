@@ -7,18 +7,73 @@ import {
   editorApiPath,
   firstRows,
   joinLength,
+  libraryApiPath,
   overridesToThemeFile,
+  ownsTemplate,
   pickScope,
   pickerValue,
   rowId,
   scopeParam,
   serverWarningCount,
+  slugFromName,
   splitLength,
+  TEMPLATE_SLUG,
+  templateOptions,
   themeApiPath,
   thresholdField,
   tokenStates,
   type ThemeScopes,
 } from './theme-editor-view.js'
+import type { LibraryEntry } from './theme-editor.js'
+
+describe('templates', () => {
+  it('derives a slug from a name', () => {
+    expect(slugFromName('Ruhiges Blau')).toBe('ruhiges-blau')
+    expect(slugFromName('  Größe & Übersicht!  ')).toBe('groesse-uebersicht')
+    expect(slugFromName('Café Noir')).toBe('cafe-noir')
+    expect(slugFromName('Team_2026 / Druck')).toBe('team-2026-druck')
+    expect(slugFromName('---')).toBe('')
+    expect(slugFromName('***')).toBe('')
+  })
+
+  it('keeps a derived slug within the grammar, cut at 40 without a trailing dash', () => {
+    const long = slugFromName(`${'a'.repeat(39)} b c`)
+    expect(long).toBe('a'.repeat(39))
+    expect(TEMPLATE_SLUG.test(long)).toBe(true)
+    expect(slugFromName('x'.repeat(50))).toHaveLength(40)
+    for (const name of ['Ruhiges Blau', 'Größe', 'Café Noir', 'A1 b2']) expect(TEMPLATE_SLUG.test(slugFromName(name))).toBe(true)
+  })
+
+  const lib: LibraryEntry[] = [
+    { slug: 'papier', name: 'Papier', origin: 'builtin', file: {} },
+    { slug: 'fokus', name: 'Fokus (Instanz)', origin: 'instance', file: {} },
+    { slug: 'fokus', name: 'Fokus (Space)', origin: 'space', file: {} },
+  ]
+
+  it('groups the options per scope', () => {
+    const values = (o: ReturnType<typeof templateOptions>) => ({
+      own: o.own.map((x) => x.value),
+      instance: o.instance.map((x) => x.value),
+    })
+    expect(values(templateOptions('instance', lib))).toEqual({ own: ['papier', 'fokus'], instance: [] })
+    expect(values(templateOptions('space', lib))).toEqual({ own: ['fokus'], instance: ['instance/papier', 'instance/fokus'] })
+    expect(values(templateOptions('user', lib))).toEqual({ own: [], instance: ['instance/papier', 'instance/fokus'] })
+  })
+
+  it('lets a scope delete only its own template files', () => {
+    expect(ownsTemplate('instance', { origin: 'instance' })).toBe(true)
+    expect(ownsTemplate('instance', { origin: 'builtin' })).toBe(false)
+    expect(ownsTemplate('space', { origin: 'space' })).toBe(true)
+    expect(ownsTemplate('space', { origin: 'instance' })).toBe(false)
+    expect(ownsTemplate('user', { origin: 'instance' })).toBe(false)
+  })
+
+  it('builds the library paths', () => {
+    expect(libraryApiPath({ kind: 'user' })).toBe('/api/theme/library')
+    expect(libraryApiPath({ kind: 'instance' }, 'fokus')).toBe('/api/theme/library/fokus')
+    expect(libraryApiPath({ kind: 'space', id: 'a b' }, 'fokus')).toBe('/api/spaces/a%20b/theme/library/fokus')
+  })
+})
 
 const scopes: ThemeScopes = {
   user: { available: false },

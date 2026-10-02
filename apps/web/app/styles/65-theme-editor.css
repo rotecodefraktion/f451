@@ -688,3 +688,68 @@
   color: var(--color-text-muted);
   border-bottom-color: var(--color-border-strong);
 }
+
+/* ---- Template select (components/theme-editor/template-select.tsx) ------ */
+.te-template {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+.te-template-field {
+  max-width: var(--layout-rail-w);
+}
+.te-template-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.te-template-select {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.te-template-note {
+  margin: var(--space-0);
+  font-size: var(--text-xs);
+  line-height: var(--leading-ui);
+  color: var(--color-text-muted);
+}
+/* A `use` the library does not know: the theme applies without it — a note in
+   the warn tone, with the words saying what happened. */
+.te-template-note-missing {
+  padding: var(--space-1) var(--space-2);
+  color: var(--color-text);
+  background: var(--color-status-review-wash);
+  border-left: var(--rule-marker) solid var(--color-status-review);
+  border-radius: var(--radius-sm);
+}
+.te-template-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: var(--measure);
+}
+.te-template-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}
+.te-template-input {
+  flex: 1 1 var(--layout-note-w);
+  min-width: 0;
+}
+.te-template-slug {
+  font-family: var(--font-mono);
+}
+.te-template-status {
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+  color: var(--color-text-muted);
+}
+.te-template-status-error {
+  color: var(--color-danger);
+}
+/* "Vorlage · <name>" reads like "geerbt", set apart by the italic name only. */
+.te-origin-template {
+  font-style: italic;
+}

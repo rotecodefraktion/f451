@@ -12,17 +12,21 @@ import {
   fieldCheck,
   groupOpenDefaults,
   resetGroup,
+  setUse,
   setValue,
   type EditorData,
   type EditorRow,
+  type LibraryEntry,
   type RowFinding,
   type ValueMode,
 } from '../../lib/theme-editor'
 import {
   describeSaveFailure,
   firstRows,
+  libraryApiPath,
   overridesToThemeFile,
   rowId,
+  scopeParam,
   serverWarningCount,
   themeApiPath,
   tokenStates,
@@ -35,6 +39,7 @@ import { ComponentPreview } from './component-preview'
 import { endProgramPreview, ProgramPreview } from './program-preview'
 import { ScopeSelector } from './scope-selector'
 import { StatusBar, type ActionStatus } from './status-bar'
+import { TemplateSelect } from './template-select'
 import { GroupSection } from './token-group'
 import { fieldKey } from './token-row'
 
@@ -46,6 +51,8 @@ export interface ThemeEditorProps {
   data: EditorData
   /** slot for the "Prüfschärfe" strip — between scope selector and the first group; the page leaves it out for the user scope */
   thresholdStrip?: ReactNode
+  /** the scope's template library (`GET …/theme/library`); `null` when it could not be loaded */
+  templates: LibraryEntry[] | null
 }
 
 /**
@@ -55,7 +62,7 @@ export interface ThemeEditorProps {
  * same checks the server runs on save. The page itself keeps the saved theme —
  * the draft never touches the document's style.
  */
-export function ThemeEditor({ scopes, data, thresholdStrip }: ThemeEditorProps) {
+export function ThemeEditor({ scopes, data, thresholdStrip, templates }: ThemeEditorProps) {
   // Program preview (whole app, localStorage) — ends on save or remove (July spec, "Vorschau").
   const [previewActive, setPreviewActive] = useState(false)
   const { t, locale } = useT()
@@ -86,8 +93,29 @@ export function ThemeEditor({ scopes, data, thresholdStrip }: ThemeEditorProps) 
     }
   }
 
-  const groups = useMemo(() => buildGroups(data, draft), [data, draft])
-  const assessment = useMemo(() => assess(data, draft), [data, draft])
+  // The library is refetched here after a template write — a `router.refresh()`
+  // would hand in new `data` and so throw the draft away.
+  const [librarySource, setLibrarySource] = useState(templates)
+  const [library, setLibrary] = useState(templates)
+  if (librarySource !== templates) {
+    setLibrarySource(templates)
+    setLibrary(templates)
+  }
+
+  async function reloadLibrary() {
+    try {
+      const res = await fetch(libraryApiPath(data.scope), { credentials: 'same-origin' })
+      if (!res.ok) return
+      const body = (await res.json()) as { templates?: unknown }
+      if (Array.isArray(body.templates)) setLibrary(body.templates as LibraryEntry[])
+    } catch {
+      /* keep the list we have — the write itself succeeded */
+    }
+  }
+
+  const libraryEntries = useMemo(() => library ?? [], [library])
+  const groups = useMemo(() => buildGroups(data, draft, libraryEntries), [data, draft, libraryEntries])
+  const assessment = useMemo(() => assess(data, draft, libraryEntries), [data, draft, libraryEntries])
   const states = useMemo(() => tokenStates(assessment), [assessment])
   const jumpTargets = useMemo(() => firstRows(groups, states), [groups, states])
 
@@ -451,6 +479,18 @@ export function ThemeEditor({ scopes, data, thresholdStrip }: ThemeEditorProps) 
             />
           </div>
         ) : null}
+        <TemplateSelect
+          key={scopeParam(data.scope)}
+          scope={data.scope}
+          canWrite={data.canWrite}
+          templates={library}
+          use={draft.use}
+          current={assessment.template}
+          draft={draft}
+          busy={busy !== null}
+          onUse={(use) => setDraft((d) => setUse(d, use))}
+          onLibraryChanged={reloadLibrary}
+        />
         {groups.map((group) => (
           <GroupSection
             key={group.group}
