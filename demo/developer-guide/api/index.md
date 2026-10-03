@@ -71,6 +71,34 @@ the *current* SHA and content instead of silently overwriting it. The
 caller is expected to re-fetch, reconcile, and retry with the new
 `baseSha`.
 
+## Theming routes
+
+Theme files live in Git (see [[architecture]]). Writes need push right on
+the respective repository and are committed with the caller's own Git
+account; `404` stays ambiguous. `GET /api/theme/resolved` and the brand
+files are public, because the layout needs them before sign-in.
+
+| Route | Purpose |
+|---|---|
+| `GET` / `PUT` / `DELETE /api/theme` | Instance theme with origin per token |
+| `GET` / `PUT` / `DELETE /api/spaces/:space/theme` | Space theme |
+| `GET` / `PUT` / `DELETE /api/me/theme` | Personal theme. Session only — API tokens get `403`. `?format=yaml` exports; `PUT` with `Content-Type: application/yaml` imports. Without a stored theme `GET` answers `200` with an empty one. |
+| `GET /api/theme/resolved?space=` | The finished chain (default, instance, space, user) plus `brand`. Without a session the user level is missing, without `space` the space level. |
+| `GET /api/theme/scopes` | The scopes the caller may view or write |
+| `GET /api/theme/editor?scope=` | What the settings page needs for one scope |
+| `GET` / `PUT` / `DELETE /api/theme/contrast` | Contrast thresholds, instance only |
+| `GET /api/theme/library`, `/api/spaces/:space/theme/library` | Templates as `{ slug, name, origin }`, origin `builtin`, `instance` or `space` |
+| `PUT` / `DELETE /api/theme/library/:slug`, `/api/spaces/:space/theme/library/:slug` | Write or delete a template |
+| `GET /api/brand/logo`, `/api/brand/favicon`, `/api/spaces/:space/brand/logo` | Brand files, `ETag` from the blob SHA |
+| `PUT` / `DELETE /api/theme/brand/logo`, `/api/theme/brand/favicon`, `/api/spaces/:space/brand/logo` | Write or remove a brand file (body: SVG) |
+
+Saving a theme refuses the whole file with `400` and a list per token if a
+value is invalid, a token locked, or a contrast threshold missed; for
+personal themes contrast problems come back as `warnings[]` instead. A
+space theme that violates a rule only through an inherited value (for
+example `measure` above `measure-wide`) is refused with `422`. Logos over
+256 KB or not SVG answer `422`.
+
 ## Release archive routes
 
 In a versioned space, `release_page` (and the review release) accepts an

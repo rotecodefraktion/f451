@@ -79,6 +79,9 @@ export default async function VerbindungenPage({
         <a href="/einstellungen/verbindungen" className="settings-nav-item active" aria-current="page">
           {t('settings.connections.navItem')}
         </a>
+        <a href="/einstellungen/erscheinungsbild" className="settings-nav-item">
+          {t('settings.appearance.navItem')}
+        </a>
       </div>
       <Attribution />
     </nav>

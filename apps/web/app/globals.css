@@ -65,6 +65,7 @@
 /* Anwendungsrahmen und Ansichten — Reihenfolge = frühere Dateireihenfolge */
 @import './styles/60-chrome-topbar.css'; /* alt 174-593   */
 @import './styles/64-werkzeuge-einstellungen.css'; /* alt 594-830   */
+@import './styles/65-theme-editor.css';
 @import './styles/60-chrome-raster.css'; /* alt 831-1230  */
 @import './styles/61-lese.css'; /* alt 1231-1930 */
 @import './styles/60-chrome-leiste.css'; /* alt 1931-2029 */

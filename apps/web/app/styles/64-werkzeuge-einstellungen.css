@@ -66,6 +66,12 @@
   place-items: center;
   box-shadow: var(--shadow-md);
 }
+/* An operator logo (theming, #3) fills the same box; the mark's shadow stays. */
+.login-card .mark .brand-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
 .login-card .mark svg {
   width: 100%;
   height: 100%;
@@ -303,162 +309,6 @@
 .token-reveal-actions {
   display: flex;
   gap: var(--space-3);
-}
-
-/* =========================================================================
-   Erscheinungsbild (Einstellungen) — der Token-Editor
-
-   Markup: `components/erscheinungsbild-editor.tsx`, Seite
-   `app/einstellungen/erscheinungsbild/page.tsx`.
-
-   Diese Seite stellt die Tokens ein, mit denen alles andere gezeichnet wird.
-   Sie darf deshalb ihre eigene Erscheinung an KEINEM px-Literal hängen haben:
-   sonst wäre ausgerechnet der Editor die eine Ansicht, die auf ein Theme nicht
-   reagiert. Jeder Wert unten ist ein `var(--…)` aus dem Katalog
-   (`00-tokens.css`) bzw. den Ableitungen (`10-ableitungen.css`). Dass die
-   Nachbarabschnitte dieser Datei noch px-Literale führen, ist Altbestand und
-   hier ausdrücklich kein Vorbild.
-
-   Bedienelemente kommen aus den Bausteinen: `.input` (41-eingabe.css) und
-   `.btn` (40-schaltflaeche.css) bringen `--control-h` und den Fokusring mit.
-   Eigenes steht hier nur, wo ein Baustein nicht greift — der Farbwähler
-   (`<input type="color">` trägt keine Bausteinklasse) und die Anordnung.
-   ========================================================================= */
-
-/* Kopfzeile der Insel: Moduswahl links, „Alles zurücksetzen" rechts. */
-.eb-kopf {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--space-4);
-  margin-top: var(--space-5);
-}
-.eb-hinweis {
-  margin: var(--space-2) 0 0;
-  font-size: var(--text-sm);
-  line-height: var(--leading-ui);
-  color: var(--color-text-muted);
-}
-
-.eb-gruppe {
-  margin-top: var(--space-6);
-}
-/* Der Gruppentitel IST die Gliederung dieser langen Liste (es gibt keine
-   Suche und keinen Filter). Damit er auch nach dreißig Zeilen noch sagt, wo
-   man ist, klebt er beim Rollen oben an: `.main` ist der Rollbereich
-   (`overflow-y: auto`, 60-chrome-raster.css), deshalb greift `top: 0` hier.
-   Die eigene Fläche ist Pflicht — sonst rollen die Zeilen sichtbar durch. */
-.eb-gruppe-kopf {
-  position: sticky;
-  top: var(--space-0);
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-0);
-  background: var(--color-bg);
-  border-bottom: var(--rule-hair) solid var(--color-border-strong);
-}
-.eb-gruppe-kopf h2 {
-  margin: var(--space-0);
-  font-family: var(--font-display);
-  font-size: var(--text-lg);
-  font-weight: var(--weight-display);
-  letter-spacing: var(--tracking-tight);
-}
-
-/* Zwei Spalten: links wofür der Wert steht, rechts der Wert. Die zweite Spur
-   trägt `--layout-rail-w` — die Breite einer Nebenspalte; einen Token für
-   „Breite der Bedienspalte" kennt der Katalog nicht (gemeldet). */
-.eb-zeile {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, var(--layout-rail-w));
-  align-items: start;
-  gap: var(--space-2) var(--space-4);
-  padding: var(--space-3) var(--space-0);
-  border-bottom: var(--rule-hair) solid var(--color-border-hair);
-}
-.eb-zeile-kopf {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  min-width: 0;
-}
-.eb-rolle {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
-  line-height: var(--leading-ui);
-}
-.eb-name {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--color-text-muted);
-}
-/* Nebentexte der Zeile: fehlender Grundwert, Sperrgrund. Beides sind Sätze,
-   also `--leading-ui` statt der engen Zeile einer Beschriftung. */
-.eb-nebentext {
-  font-size: var(--text-xs);
-  line-height: var(--leading-ui);
-  color: var(--color-text-muted);
-}
-
-.eb-eingabe {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  min-width: 0;
-}
-/* Das Feld nimmt den Rest der Spur; der Wert ist Code, also dicktengleich. */
-.eb-text {
-  flex: 1 1 var(--layout-note-w);
-  font-family: var(--font-mono);
-}
-/* Der Farbwähler ist ein Bedienelement und bekommt dieselbe Zielgröße wie
-   Feld und Schaltfläche (`--control-h`, 44px). */
-.eb-farbe {
-  flex: none;
-  width: var(--control-h);
-  height: var(--control-h);
-  padding: var(--space-1);
-  background: var(--color-bg);
-  border: var(--rule-hair) solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-}
-/* Die EINE Fokusregel (40-schaltflaeche.css) zählt ihre Klassen einzeln auf;
-   `<input type="color">` trägt keine davon. Hier stehen dieselben drei Werte,
-   damit kein zweites Fokusbild entsteht — kein neuer Wert, nur dieselbe Regel
-   an einem Element, das die Liste dort nicht kennt. */
-.eb-farbe:focus-visible {
-  outline: var(--focus-w) solid var(--color-focus);
-  outline-offset: var(--focus-offset);
-}
-
-/* Kontrastangabe unter dem Feld, ggf. mit der Warnmarke `.chip.warn`
-   (42-marke.css) — die trägt Zeichen und Wort, nicht Farbe allein. */
-.eb-kontrast {
-  display: inline-flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  flex: 1 1 100%;
-  font-size: var(--text-xs);
-  line-height: var(--leading-ui);
-  color: var(--color-text-muted);
-}
-
-/* Im schmalen Fenster steht der Wert unter seiner Beschriftung. Derselbe
-   Haltepunkt wie die kompakte Kopfleiste weiter unten in dieser Datei —
-   Medienabfragen können keine Custom Properties lesen, das px steht hier
-   also nicht zur Wahl. */
-@media (max-width: 640px) {
-  .eb-zeile {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 /* =========================================================================

@@ -26,6 +26,13 @@ See [[spaces-and-git-providers]] for the full explanation.
 | `F451_WEBHOOK_SECRET_FORGEJO` | Forgejo webhooks should be accepted | — |
 | `F451_WEBHOOK_SECRET_GITHUB` | GitHub webhooks should be accepted | — |
 | `F451_GLOBAL_TEMPLATES` | A provider-wide template repository is shared across spaces | — |
+| `F451_INSTANCE_CONFIG` | The instance should have its own theme, templates, brand or contrast thresholds | — (built-in default theme) |
+
+`F451_INSTANCE_CONFIG` is a JSON object `{"provider","owner","repo"}` naming
+the instance repository, which holds `_meta/theme.yaml`, `_meta/themes/`,
+`_meta/contrast.yaml` and `_meta/brand/`. It may point at the same repository
+as `F451_GLOBAL_TEMPLATES`, and its provider must also be used by a space in
+`F451_SPACES`. Invalid JSON fails at startup. See [[theming]].
 
 ## Sign-in (OIDC)
 

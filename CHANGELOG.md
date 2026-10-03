@@ -6,6 +6,39 @@ All notable changes to f451. The format follows
 to the HTTP API, the MCP tools, the page format or the configuration only come
 with a new major version.
 
+## [1.2.0] — 2026-10-03
+
+No breaking changes. Without `F451_INSTANCE_CONFIG` and without theme files,
+the appearance is unchanged.
+
+### Added
+
+- **Themes per instance and space** — `_meta/theme.yaml` in the instance repo
+  (new env `F451_INSTANCE_CONFIG`) and in each space repo. Token values are
+  resolved per token and per mode, validated against a closed grammar and
+  delivered inline in the page head. Rights, history and review come from Git.
+- **Personal theme** — "My settings" stored with the account (migration
+  0013, table `user_settings`), applied on top of instance and space in every
+  space. Download and upload as YAML in the `_meta/theme.yaml` format;
+  adjustments from the old browser-only preview can be taken over once.
+- **Templates** — `_meta/themes/<slug>.yaml` per instance and space,
+  selected with `use`, and five built-in ones: fokus, klar-warm,
+  system-raster, werkbank, rotecodefraktion.
+- **Corridors** — `--measure`, `--measure-wide`, grid widths and
+  `--control-h` are settable within fixed ranges; breakpoints stay fixed.
+- **Brand** — name, logo and favicon per instance, name and logo per space
+  (SVG only, 256 KB).
+- **Contrast thresholds** — per role, set instance-wide in
+  `_meta/contrast.yaml` (1.5–7.0) against a fixed AA reference. Below the
+  threshold blocks saving an instance or space theme; personal themes only
+  get warnings.
+- **Appearance settings page** — `/einstellungen/erscheinungsbild` with the
+  scopes My settings, Instance and each writable space, origin marks,
+  template picker, contrast feedback and a phone layout.
+- **API** — `/api/theme`, `/api/spaces/:space/theme`, `/api/me/theme`,
+  `/api/theme/resolved`, `/api/theme/scopes`, `/api/theme/editor`,
+  `/api/theme/contrast`, the template library routes and the brand routes.
+
 ## [1.1.1] — 2026-10-02
 
 No breaking changes. `implicitVersion` and `implicit` are new optional API fields.
@@ -99,6 +132,7 @@ f451 License 1.1 — PolyForm Shield 1.0.0 with additional conditions: free to
 use, change and share, also commercially; a separate license is needed only to
 sell f451 or offer it as a paid hosted service. See `LICENSE.md`.
 
+[1.2.0]: https://github.com/rotecodefraktion/f451/releases/tag/v1.2.0
 [1.1.1]: https://github.com/rotecodefraktion/f451/releases/tag/v1.1.1
 [1.1.0]: https://github.com/rotecodefraktion/f451/releases/tag/v1.1.0
 [1.0.0]: https://github.com/rotecodefraktion/f451/releases/tag/v1.0.0

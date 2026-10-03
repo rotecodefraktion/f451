@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyReply } from 'fastify'
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import {
   checkContrast,
   checkRules,
@@ -16,7 +16,9 @@ import type { GitProvider } from '@f451/git-provider'
 import { ConflictError, NotFoundError, ProviderError } from '@f451/git-provider'
 import { stringify as stringifyYaml } from 'yaml'
 import type { SpaceAccess } from '../auth/permissions.js'
+import type { Db } from '../db/client.js'
 import type { SpaceConfig } from '../spaces/config.js'
+import { resolveBrand } from '../theme/brand.js'
 import { loadContrastThresholds } from '../theme/contrast-config.js'
 import {
   INSTANCE_THEME_PATH,
@@ -25,7 +27,9 @@ import {
   loadInstanceTheme,
   type InstanceThemeDeps,
 } from '../theme/instance-theme.js'
+import { findTemplate, layersOf, loadLibrary, templateLayer, type LibraryEntry } from '../theme/library.js'
 import { invalidateSpaceTheme, loadSpaceTheme, SPACE_THEME_PATH } from '../theme/space-theme.js'
+import { loadUserTheme } from '../theme/user-theme.js'
 import {
   resolveNewPageWriteContext,
   resolveSpaceWriteGate,
@@ -56,6 +60,13 @@ import {
  * push-right check — never through the service registry, which stays the read
  * path. Validation is strict: parse errors, cross-token rules and contrast
  * below threshold are each a 422 and nothing is committed.
+ *
+ * User layer (Stage 6): `resolved` appends the session user's personal theme
+ * (`user_settings`) last, so it wins over instance and space. Its own routes
+ * live in `me-theme.ts`.
+ *
+ * Brand (Stage 8): `resolved` carries `brand` (name and file URLs) so the layout
+ * needs no second call; the files themselves are served by `brand.ts`.
  */
 
 export interface ThemeDeps extends InstanceThemeDeps {
@@ -69,11 +80,13 @@ export interface ThemeDeps extends InstanceThemeDeps {
   canWrite?: NewPageGateDeps['canWrite']
   /** Provider bound to the caller's linked account (`drafts/user-provider.ts`). */
   getUserProvider?: NewPageGateDeps['getUserProvider']
+  /** Database for the user layer (Stage 6, `user_settings`); unset → `resolved` has no user layer. */
+  db?: Db
 }
 
 const tokenMapSchema = { type: 'object', additionalProperties: { type: 'string' } } as const
 
-const problemSchema = {
+export const problemSchema = {
   type: 'object',
   properties: {
     code: { type: 'string' },
@@ -84,7 +97,7 @@ const problemSchema = {
   required: ['code', 'path', 'message'],
 } as const
 
-const themeFileSchema = {
+export const themeFileSchema = {
   type: ['object', 'null'],
   properties: {
     name: { type: 'string' },
@@ -174,7 +187,16 @@ const resolvedSchema = {
           properties: { base: originMapSchema, light: originMapSchema, dark: originMapSchema },
           required: ['base', 'light', 'dark'],
         },
-        brand: { type: 'null' },
+        // `null` = no brand anywhere in the chain, the f451 mark applies (addendum §5).
+        brand: {
+          type: ['object', 'null'],
+          properties: {
+            name: { type: ['string', 'null'] },
+            logoUrl: { type: ['string', 'null'] },
+            faviconUrl: { type: ['string', 'null'] },
+          },
+          required: ['name', 'logoUrl', 'faviconUrl'],
+        },
         layers: { type: 'array', items: { type: 'string' } },
       },
       required: ['css', 'origin', 'brand', 'layers'],
@@ -189,7 +211,7 @@ function themeBody<O extends 'instance' | 'space'>(theme: ParsedTheme | null, or
 
 // --- Write path (Stage 4) -------------------------------------------------
 
-const forbiddenSchema = {
+export const forbiddenSchema = {
   type: 'object',
   properties: { error: { type: 'string' }, action: { type: 'string' } },
   required: ['error'],
@@ -217,7 +239,7 @@ const ruleViolationSchema = {
   required: ['rule', 'message', 'tokens'],
 } as const
 
-const contrastFindingSchema = {
+export const contrastFindingSchema = {
   type: 'object',
   properties: {
     mode: { type: 'string' },
@@ -240,7 +262,7 @@ const contrastFindingSchema = {
 } as const
 
 /** 422: exactly one of `errors` (file), `rules` (resolved chain) or `contrast` is set. */
-const invalidSchema = {
+export const invalidSchema = {
   type: 'object',
   properties: {
     status: { type: 'string', enum: ['invalid', 'contrast'] },
@@ -286,21 +308,29 @@ const deleteThemeSchema = { tags: ['theme'], response: deleteResponses } as cons
 const deleteSpaceThemeSchema = { tags: ['theme'], params: spaceThemeSchema.params, response: deleteResponses } as const
 
 /** Upper bound of a theme file (July spec "Validierung und Sicherheit": file ≤ 32 KiB). */
-const THEME_BODY_LIMIT = 32 * 1024
+export const THEME_BODY_LIMIT = 32 * 1024
 
 /** Theme files are read from and written to the published state. */
 const THEME_BRANCH = 'main'
 
-type WriteTarget = { space: SpaceConfig; provider: GitProvider }
-type GateFailure = { ok: false; status: number; body: unknown }
+export type WriteTarget = { space: SpaceConfig; provider: GitProvider }
+export type GateFailure = { ok: false; status: number; body: unknown }
 
-type InvalidBody =
+export type InvalidBody =
   | { status: 'invalid'; errors: ParsedTheme['errors'] }
   | { status: 'invalid'; rules: ReturnType<typeof describeViolation>[] }
   | { status: 'contrast'; contrast: ReturnType<typeof checkContrast> }
 
+/** The 422 of a write whose `use` names no template of the reachable libraries. */
+export function useUnknown(use: string): InvalidBody {
+  return {
+    status: 'invalid',
+    errors: [{ code: 'use_unknown', path: 'use', message: `"${use}" names no template in the library` }],
+  }
+}
+
 /** A violation with each token's resolved value and layer, so an inherited token is named as such. */
-function describeViolation(resolved: ResolvedTheme, violation: RuleViolation) {
+export function describeViolation(resolved: ResolvedTheme, violation: RuleViolation) {
   const values = resolved.base as Record<string, string>
   const origins = resolved.origin.base as Record<string, Origin>
   return {
@@ -315,7 +345,7 @@ function describeViolation(resolved: ResolvedTheme, violation: RuleViolation) {
 }
 
 /** Provider failures of a write: stale sha → 409, provider 403 (e.g. archived repo) → 403, rest → 502. */
-function providerFailure(reply: FastifyReply, err: unknown): FastifyReply {
+export function providerFailure(reply: FastifyReply, err: unknown): FastifyReply {
   if (err instanceof ConflictError) {
     return reply
       .code(409)
@@ -328,114 +358,171 @@ function providerFailure(reply: FastifyReply, err: unknown): FastifyReply {
   return reply.code(502).send({ status: 'error', reason: `Provider error: ${message}` })
 }
 
+/** The gate dependencies of the write routes; `null` without auth (no writes then). */
+export function themeWriteGateDeps(deps: ThemeDeps): NewPageGateDeps | null {
+  if (!deps.access || !deps.canWrite || !deps.getUserProvider) return null
+  return {
+    spaces: deps.spaces ?? [],
+    access: deps.access,
+    canWrite: deps.canWrite,
+    getUserProvider: deps.getUserProvider,
+  }
+}
+
+/** Instance repo: 404 without `F451_INSTANCE_CONFIG`, then the same account/push-right chain as a space. */
+export async function instanceWriteTarget(
+  deps: ThemeDeps,
+  gateDeps: NewPageGateDeps,
+  userId: string,
+): Promise<({ ok: true } & WriteTarget) | GateFailure> {
+  const cfg = deps.instanceConfig
+  if (!cfg) {
+    return { ok: false, status: 404, body: { status: 'not_found', reason: 'No instance repository is configured.' } }
+  }
+  const space = instancePseudoSpace(cfg)
+  const gate = await resolveSpaceWriteGate(gateDeps, userId, space)
+  if (!gate.ok) return gate
+  return { ok: true, space, provider: gate.provider }
+}
+
+export interface ValidateThemeOptions {
+  /** Validating a library template of this slug: no `use` allowed (`template_no_nesting`),
+   *  the layer carries the template's origin mark. */
+  asTemplate?: string
+  /** The library a `use` is looked up in; only called when the file names one. */
+  library?: () => Promise<LibraryEntry[]>
+}
+
+/**
+ * Strict check of a theme file against the chain as it will be after the write.
+ * Order: file (grammar, locked/unknown tokens, unknown keys, `use` known) → cross-token
+ * rules → contrast below the instance thresholds. The first failing stage answers.
+ * `inherited` is the chain below, already with its templates expanded.
+ */
+export async function validateThemeWrite(
+  deps: ThemeDeps,
+  body: unknown,
+  source: 'instance' | 'space',
+  inherited: readonly ThemeLayer[],
+  opts: ValidateThemeOptions,
+  log: Parameters<typeof loadContrastThresholds>[1],
+): Promise<{ ok: true; parsed: ParsedTheme } | { ok: false; body: InvalidBody }> {
+  const parsed = parseThemeFile(body, source, {
+    allowUse: opts.asTemplate === undefined,
+    allowFavicon: source === 'instance',
+  })
+  // Reading ignores an unknown top-level key with a warning; writing rejects it
+  // (July spec "Grenzfälle": `thresholds` in a theme.yaml).
+  const errors = [...parsed.errors, ...parsed.warnings.filter((w) => w.code === 'key_unknown')]
+  if (errors.length > 0) return { ok: false, body: { status: 'invalid', errors } }
+
+  let own: ThemeLayer[]
+  if (opts.asTemplate !== undefined) {
+    own = [{ ...parsed.layer, template: opts.asTemplate }]
+  } else if (parsed.file.use) {
+    // Unknown slug: an error when saving, a warning when reading (addendum §3).
+    const library = opts.library ? await opts.library() : []
+    const entry = findTemplate(parsed.file.use, source, library)
+    if (!entry) return { ok: false, body: useUnknown(parsed.file.use) }
+    own = [templateLayer(entry, source), parsed.layer]
+  } else {
+    own = [parsed.layer]
+  }
+
+  const resolved = resolveTheme([...inherited, ...own])
+  const violations = checkRules(resolved)
+  if (violations.length > 0) {
+    return { ok: false, body: { status: 'invalid', rules: violations.map((v) => describeViolation(resolved, v)) } }
+  }
+
+  const thresholds = await loadContrastThresholds(deps, log)
+  const contrast = checkContrast(resolved, thresholds).filter((f) => f.belowThreshold)
+  if (contrast.length > 0) return { ok: false, body: { status: 'contrast', contrast } }
+
+  return { ok: true, parsed }
+}
+
+/** Writes the normalised file on `main` with the caller's provider; `null` on success. */
+export async function commitThemeFile(
+  target: WriteTarget,
+  path: string,
+  file: ParsedTheme['file'],
+  message: string,
+  reply: FastifyReply,
+): Promise<FastifyReply | null> {
+  // An existing file's sha makes the write an update instead of a colliding create.
+  let sha: string | undefined
+  try {
+    sha = (await target.provider.readFile(target.space.repoRef, path, THEME_BRANCH)).sha
+  } catch (err) {
+    if (!(err instanceof NotFoundError)) return providerFailure(reply, err)
+  }
+  try {
+    await target.provider.writeFile(target.space.repoRef, path, stringifyYaml(file), {
+      branch: THEME_BRANCH,
+      message,
+      sha,
+    })
+  } catch (err) {
+    return providerFailure(reply, err)
+  }
+  return null
+}
+
+/** Removes the file on `main` with the caller's provider; 404 when there is none, `null` on success. */
+export async function removeThemeFile(
+  target: WriteTarget,
+  path: string,
+  message: string,
+  reply: FastifyReply,
+): Promise<FastifyReply | null> {
+  const missing = () => reply.code(404).send({ status: 'not_found', reason: 'There is no theme file to remove.' })
+  let sha: string
+  try {
+    sha = (await target.provider.readFile(target.space.repoRef, path, THEME_BRANCH)).sha
+  } catch (err) {
+    return err instanceof NotFoundError ? missing() : providerFailure(reply, err)
+  }
+  try {
+    await target.provider.deleteFile(target.space.repoRef, path, { branch: THEME_BRANCH, message, sha })
+  } catch (err) {
+    return err instanceof NotFoundError ? missing() : providerFailure(reply, err)
+  }
+  return null
+}
+
 function registerThemeWriteRoutes(
   instance: FastifyInstance,
   deps: ThemeDeps,
   gateDeps: NewPageGateDeps,
 ): void {
-  /** Instance repo: 404 without `F451_INSTANCE_CONFIG`, then the same account/push-right chain as a space. */
-  async function instanceTarget(userId: string): Promise<({ ok: true } & WriteTarget) | GateFailure> {
-    const cfg = deps.instanceConfig
-    if (!cfg) {
-      return { ok: false, status: 404, body: { status: 'not_found', reason: 'No instance repository is configured.' } }
-    }
-    const space = instancePseudoSpace(cfg)
-    const gate = await resolveSpaceWriteGate(gateDeps, userId, space)
-    if (!gate.ok) return gate
-    return { ok: true, space, provider: gate.provider }
-  }
-
-  /**
-   * Strict check of a theme file against the chain as it will be after the write.
-   * Order: file (grammar, locked/unknown tokens, unknown keys) → cross-token rules →
-   * contrast below the instance thresholds. The first failing stage answers.
-   */
-  async function validate(
-    body: unknown,
-    source: 'instance' | 'space',
-    inherited: readonly ThemeLayer[],
-    log: Parameters<typeof loadContrastThresholds>[1],
-  ): Promise<{ ok: true; parsed: ParsedTheme } | { ok: false; body: InvalidBody }> {
-    const parsed = parseThemeFile(body, source, { allowUse: true, allowFavicon: source === 'instance' })
-    // Reading ignores an unknown top-level key with a warning; writing rejects it
-    // (July spec "Grenzfälle": `thresholds` in a theme.yaml).
-    const errors = [...parsed.errors, ...parsed.warnings.filter((w) => w.code === 'key_unknown')]
-    if (errors.length > 0) return { ok: false, body: { status: 'invalid', errors } }
-
-    const resolved = resolveTheme([...inherited, parsed.layer])
-    const violations = checkRules(resolved)
-    if (violations.length > 0) {
-      return { ok: false, body: { status: 'invalid', rules: violations.map((v) => describeViolation(resolved, v)) } }
-    }
-
-    const thresholds = await loadContrastThresholds(deps, log)
-    const contrast = checkContrast(resolved, thresholds).filter((f) => f.belowThreshold)
-    if (contrast.length > 0) return { ok: false, body: { status: 'contrast', contrast } }
-
-    return { ok: true, parsed }
-  }
-
-  /** Writes the normalised file on `main` with the caller's provider; `null` on success. */
-  async function commitTheme(
-    target: WriteTarget,
-    path: string,
-    parsed: ParsedTheme,
-    reply: FastifyReply,
-  ): Promise<FastifyReply | null> {
-    // An existing file's sha makes the write an update instead of a colliding create.
-    let sha: string | undefined
-    try {
-      sha = (await target.provider.readFile(target.space.repoRef, path, THEME_BRANCH)).sha
-    } catch (err) {
-      if (!(err instanceof NotFoundError)) return providerFailure(reply, err)
-    }
-    try {
-      await target.provider.writeFile(target.space.repoRef, path, stringifyYaml(parsed.file), {
-        branch: THEME_BRANCH,
-        message: `Theme: ${parsed.file.name ?? 'update'}`,
-        sha,
-      })
-    } catch (err) {
-      return providerFailure(reply, err)
-    }
-    return null
-  }
-
-  /** Removes the file on `main` with the caller's provider; 404 when there is none, `null` on success. */
-  async function removeTheme(target: WriteTarget, path: string, reply: FastifyReply): Promise<FastifyReply | null> {
-    const missing = () => reply.code(404).send({ status: 'not_found', reason: 'There is no theme file to remove.' })
-    let sha: string
-    try {
-      sha = (await target.provider.readFile(target.space.repoRef, path, THEME_BRANCH)).sha
-    } catch (err) {
-      return err instanceof NotFoundError ? missing() : providerFailure(reply, err)
-    }
-    try {
-      await target.provider.deleteFile(target.space.repoRef, path, { branch: THEME_BRANCH, message: 'Theme: remove', sha })
-    } catch (err) {
-      return err instanceof NotFoundError ? missing() : providerFailure(reply, err)
-    }
-    return null
-  }
+  const commitMessage = (parsed: ParsedTheme) => `Theme: ${parsed.file.name ?? 'update'}`
 
   instance.put('/api/theme', { schema: putThemeSchema, bodyLimit: THEME_BODY_LIMIT }, async (req, reply) => {
-    const target = await instanceTarget(req.user!.id)
+    const target = await instanceWriteTarget(deps, gateDeps, req.user!.id)
     if (!target.ok) return reply.code(target.status as 403 | 404).send(target.body)
 
-    const checked = await validate(req.body, 'instance', [], req.log)
+    const checked = await validateThemeWrite(
+      deps,
+      req.body,
+      'instance',
+      [],
+      { library: () => loadLibrary(deps, { kind: 'instance' }, req.log) },
+      req.log,
+    )
     if (!checked.ok) return reply.code(422).send(checked.body)
 
-    const failed = await commitTheme(target, INSTANCE_THEME_PATH, checked.parsed, reply)
+    const failed = await commitThemeFile(target, INSTANCE_THEME_PATH, checked.parsed.file, commitMessage(checked.parsed), reply)
     if (failed) return failed
     invalidateInstanceTheme()
     return reply.code(200).send(themeBody(checked.parsed, 'instance' as const))
   })
 
   instance.delete('/api/theme', { schema: deleteThemeSchema }, async (req, reply) => {
-    const target = await instanceTarget(req.user!.id)
+    const target = await instanceWriteTarget(deps, gateDeps, req.user!.id)
     if (!target.ok) return reply.code(target.status as 403 | 404).send(target.body)
 
-    const failed = await removeTheme(target, INSTANCE_THEME_PATH, reply)
+    const failed = await removeThemeFile(target, INSTANCE_THEME_PATH, 'Theme: remove', reply)
     if (failed) return failed
     invalidateInstanceTheme()
     return reply.code(204).send()
@@ -449,11 +536,19 @@ function registerThemeWriteRoutes(
       const target = await resolveNewPageWriteContext(gateDeps, req.user!.id, req.params.space)
       if (!target.ok) return reply.code(target.status as 403 | 404).send(target.body)
 
-      const instanceLayer = (await loadInstanceTheme(deps, req.log))?.layer
-      const checked = await validate(req.body, 'space', instanceLayer ? [instanceLayer] : [], req.log)
+      const inherited = await layersOf(deps, await loadInstanceTheme(deps, req.log), { kind: 'instance' }, req.log)
+      const space = target.space
+      const checked = await validateThemeWrite(
+        deps,
+        req.body,
+        'space',
+        inherited,
+        { library: () => loadLibrary(deps, { kind: 'space', space }, req.log) },
+        req.log,
+      )
       if (!checked.ok) return reply.code(422).send(checked.body)
 
-      const failed = await commitTheme(target, SPACE_THEME_PATH, checked.parsed, reply)
+      const failed = await commitThemeFile(target, SPACE_THEME_PATH, checked.parsed.file, commitMessage(checked.parsed), reply)
       if (failed) return failed
       invalidateSpaceTheme(target.space.id)
       return reply.code(200).send(themeBody(checked.parsed, 'space' as const))
@@ -467,7 +562,7 @@ function registerThemeWriteRoutes(
       const target = await resolveNewPageWriteContext(gateDeps, req.user!.id, req.params.space)
       if (!target.ok) return reply.code(target.status as 403 | 404).send(target.body)
 
-      const failed = await removeTheme(target, SPACE_THEME_PATH, reply)
+      const failed = await removeThemeFile(target, SPACE_THEME_PATH, 'Theme: remove', reply)
       if (failed) return failed
       invalidateSpaceTheme(target.space.id)
       return reply.code(204).send()
@@ -489,6 +584,39 @@ export function registerThemeRoutes(app: FastifyInstance, deps: ThemeDeps): void
   async function spaceTheme(space: SpaceConfig, log: Parameters<typeof loadSpaceTheme>[2]) {
     if (!deps.providerRegistry) return null
     return loadSpaceTheme({ providerRegistry: deps.providerRegistry, now: deps.now }, space, log)
+  }
+
+  /**
+   * The user layer (Stage 6): only for a session user — an API token
+   * (`apiTokenScope` set) never gets it, the personal theme concerns browsers
+   * only. Fail-soft: a database error drops the layer, reading never breaks.
+   */
+  async function sessionUserTheme(req: Pick<FastifyRequest, 'user' | 'apiTokenScope' | 'log'>) {
+    if (!deps.db || !req.user || req.apiTokenScope != null) return null
+    try {
+      return await loadUserTheme(deps.db, req.user.id)
+    } catch (err) {
+      req.log.warn({ err }, 'user theme: unreadable — layer skipped (fail-soft)')
+      return null
+    }
+  }
+
+  /**
+   * The brand for the layout (addendum §5), with URLs as the browser reaches them
+   * through the web proxy. An inherited instance logo is named by the instance URL,
+   * so every space shares one cached file. `null` when nothing is set.
+   */
+  async function brandBody(space: SpaceConfig | null, log: FastifyRequest['log']) {
+    const brand = await resolveBrand(deps, space ?? undefined, log)
+    const logoUrl =
+      brand.logoScope === 'space' && space
+        ? `/api/spaces/${encodeURIComponent(space.id)}/brand/logo`
+        : brand.logoScope === 'instance'
+          ? '/api/brand/logo'
+          : null
+    const faviconUrl = brand.favicon ? '/api/brand/favicon' : null
+    if (brand.name === null && logoUrl === null && faviconUrl === null) return null
+    return { name: brand.name, logoUrl, faviconUrl }
   }
 
   app.register(async (instance) => {
@@ -513,31 +641,31 @@ export function registerThemeRoutes(app: FastifyInstance, deps: ThemeDeps): void
       { schema: resolvedSchema },
       async (req) => {
         // An unknown or unreadable `space` is ignored rather than answered with 404: the layout
-        // asks for every page, and a wrong id must not break rendering. Stage 6 adds the user layer.
+        // asks for every page, and a wrong id must not break rendering.
         const instanceTheme = await loadInstanceTheme(deps, req.log)
         const space = req.query.space ? await readableSpace(req.query.space, req.user?.id ?? '') : null
         const spaceThemeParsed = space ? await spaceTheme(space, req.log) : null
-        const layers: ThemeLayer[] = [instanceTheme?.layer, spaceThemeParsed?.layer].filter(
-          (l): l is ThemeLayer => Boolean(l),
-        )
+        const userTheme = await sessionUserTheme(req)
+        // `use` is resolved before mixing (addendum §3): a layer with a template becomes
+        // [template, own]. The user layer looks templates up in the instance library.
+        const layers: ThemeLayer[] = [
+          ...(await layersOf(deps, instanceTheme, { kind: 'instance' }, req.log)),
+          ...(space ? await layersOf(deps, spaceThemeParsed, { kind: 'space', space }, req.log) : []),
+          ...(await layersOf(deps, userTheme, { kind: 'instance' }, req.log)),
+        ]
         const resolved = resolveTheme(layers)
         return {
           css: toCssDeclarations(resolved),
           origin: resolved.origin,
-          brand: null,
-          layers: layers.map((l): LayerSource => l.source),
+          brand: await brandBody(space, req.log),
+          // One entry per level, also when a template doubled it.
+          layers: [...new Set(layers.map((l): LayerSource => l.source))],
         }
       },
     )
 
     // Writes need a user-bound provider and the push-right probe — both exist only with auth.
-    if (deps.access && deps.canWrite && deps.getUserProvider) {
-      registerThemeWriteRoutes(instance, deps, {
-        spaces: deps.spaces ?? [],
-        access: deps.access,
-        canWrite: deps.canWrite,
-        getUserProvider: deps.getUserProvider,
-      })
-    }
+    const gateDeps = themeWriteGateDeps(deps)
+    if (gateDeps) registerThemeWriteRoutes(instance, deps, gateDeps)
   })
 }

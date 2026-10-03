@@ -74,6 +74,16 @@
   width: 100%;
   height: 100%;
 }
+/* Brand logo (theme `brand.logo`, app/shell.tsx) in place of the mark: same
+   height as the mark, width follows the file up to a cap. */
+.brand .brand-logo {
+  display: block;
+  height: 28px;
+  width: auto;
+  max-width: 168px;
+  object-fit: contain;
+  flex: none;
+}
 /* Home-Link (nur „f451"-Marke, NICHT der `.app`-Space-Name daneben) — soll
    optisch kein Standard-Link sein: `currentColor` statt Linkfarbe, keine
    Unterstreichung, nur ein dezenter Hover als Klickbarkeits-Hinweis. */

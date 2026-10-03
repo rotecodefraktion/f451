@@ -1,0 +1,867 @@
+/* =========================================================================
+   Theme editor (settings page "Erscheinungsbild")
+
+   Markup: `components/theme-editor/*`, page
+   `app/einstellungen/erscheinungsbild/page.tsx`. July spec
+   `2026-07-26-themefaehigkeit-design.md`, chapter "Bedienung".
+
+   This page sets the tokens everything else is drawn with, so its own look
+   hangs on no literal: every value below is a `var(--…)` from the catalog.
+   Controls come from the building blocks — `.input`/`.select`/`.selectwrap`
+   (41-eingabe.css), `.btn` (40-schaltflaeche.css), `.chip` (42-marke.css),
+   `.card`/`.callout` (43-flaeche.css). What stands here is arrangement plus
+   the few elements no block covers (colour picker, swatch, findings).
+
+   No media query: the columns are flex items with a token basis and wrap on
+   their own, so the page needs no px breakpoint.
+   ========================================================================= */
+
+.te-heading {
+  margin: var(--space-0) var(--space-0) var(--space-2);
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-display);
+  letter-spacing: var(--tracking-tight);
+}
+.te-intro {
+  max-width: var(--measure);
+  margin: var(--space-0) var(--space-0) var(--space-5);
+  color: var(--color-text-muted);
+}
+
+/* ---- Frame: editor column, optional preview column ---------------------- */
+.theme-editor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-6);
+}
+.theme-editor-main {
+  flex: 1 1 var(--measure);
+  min-width: 0;
+}
+/* The preview runs along while the rows scroll (`.main` is the scroll area). */
+.theme-editor-preview {
+  position: sticky;
+  top: var(--space-0);
+  flex: 0 1 var(--layout-rail-w);
+  min-width: 0;
+}
+
+.te-scope {
+  max-width: var(--layout-rail-w);
+}
+.te-readonly {
+  margin-bottom: var(--space-5);
+}
+
+/* ---- Header bar: counts, jumps, actions --------------------------------- */
+/* Sticks to the top while scrolling — the counts and Save stay in reach. Own
+   surface is required, otherwise the rows show through. */
+.te-bar {
+  position: sticky;
+  top: var(--space-0);
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  padding: var(--space-3) var(--space-0);
+  background: var(--color-bg);
+  border-bottom: var(--rule-hair) solid var(--color-border-strong);
+}
+.te-bar-counts,
+.te-bar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.te-bar-note,
+.te-bar-status {
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+  color: var(--color-text-muted);
+}
+.te-bar-status-error {
+  color: var(--color-danger);
+}
+
+/* ---- Groups ------------------------------------------------------------- */
+.te-group {
+  margin-bottom: var(--space-4);
+}
+.te-group-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  cursor: pointer;
+}
+.te-group-head h2 {
+  display: inline;
+  margin: var(--space-0);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-display);
+  letter-spacing: var(--tracking-tight);
+}
+.te-group-tools {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--space-2) var(--space-0);
+  border-bottom: var(--rule-hair) solid var(--color-border-strong);
+}
+
+/* ---- Rows --------------------------------------------------------------- */
+.te-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3) var(--space-0);
+  border-bottom: var(--rule-hair) solid var(--color-border-hair);
+}
+/* A row with a rejection is marked at its edge — the word stays in the finding. */
+.te-row-error {
+  border-left: var(--focus-w) solid var(--color-danger);
+  padding-left: var(--space-3);
+}
+.te-row-warning {
+  border-left: var(--focus-w) solid var(--color-status-review);
+  padding-left: var(--space-3);
+}
+.te-row-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: 1 1 var(--layout-note-w);
+  min-width: 0;
+}
+.te-name {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+.te-origins {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+/* "hier gesetzt" reads stronger than "Vorgabe"/"geerbt" — same neutral chip, full text colour. */
+.te-origin-set {
+  color: var(--color-text);
+}
+.te-role {
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+  color: var(--color-text-muted);
+}
+.te-row-value {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  flex: 2 1 var(--layout-rail-w);
+  min-width: 0;
+}
+.te-row-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-2);
+  flex: none;
+}
+
+/* Light and dark side by side, both editable at once (spec "Aufbau der Seite"). */
+.te-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+.te-mode {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: 1 1 var(--layout-note-w);
+  min-width: 0;
+}
+.te-mode-label {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-muted);
+}
+.te-base {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* ---- Fields ------------------------------------------------------------- */
+.te-color,
+.te-length {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.te-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-mono);
+}
+.te-number {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-mono);
+}
+.te-unit {
+  flex: none;
+}
+/* The picker is a control and gets the same target size as field and button. */
+.te-picker {
+  flex: none;
+  width: var(--control-h);
+  height: var(--control-h);
+  padding: var(--space-1);
+  background: var(--color-bg);
+  border: var(--rule-hair) solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+/* The one focus rule (40-schaltflaeche.css) lists its classes; a colour input
+   carries none of them — same three values, no second focus look. */
+.te-picker:focus-visible {
+  outline: var(--focus-w) solid var(--color-focus);
+  outline-offset: var(--focus-offset);
+}
+.te-picker:disabled {
+  cursor: default;
+}
+
+/* Derived colour: formula and computed swatch. */
+.te-formula {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: var(--space-0);
+  font-size: var(--text-sm);
+}
+.te-formula-label {
+  color: var(--color-text-muted);
+}
+.te-formula code,
+.te-derived-value code,
+.te-locked-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+.te-derived-value {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.te-swatch {
+  flex: none;
+  width: var(--space-5);
+  height: var(--space-5);
+  border: var(--rule-hair) solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+}
+
+/* Locked: value as text, lock glyph, reason visible beside it (not a tooltip). */
+.te-locked {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  color: var(--color-text-muted);
+}
+.te-lock-reason {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  line-height: var(--leading-ui);
+}
+.te-lock {
+  flex: none;
+  width: 1em;
+  height: 1em;
+  margin-top: var(--space-1);
+}
+
+/* ---- Inline feedback ---------------------------------------------------- */
+.te-field-error {
+  margin: var(--space-0);
+  font-size: var(--text-xs);
+  line-height: var(--leading-ui);
+  color: var(--color-danger);
+}
+.te-findings,
+.te-messages {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: var(--space-0);
+  padding: var(--space-0);
+  list-style: none;
+  font-size: var(--text-xs);
+  line-height: var(--leading-ui);
+}
+.te-messages {
+  color: var(--color-danger);
+}
+.te-finding-ok {
+  color: var(--color-text-muted);
+}
+/* Warning and rejection carry a sign AND words, not colour alone — the same
+   signs as `.chip.warn` and `.chip.error`. */
+.te-finding-warning,
+.te-finding-error {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+}
+.te-finding-warning {
+  color: var(--color-status-review);
+  background: var(--color-status-review-wash);
+}
+.te-finding-warning::before {
+  content: '!';
+  font-weight: var(--weight-strong);
+}
+.te-finding-error {
+  color: var(--color-danger);
+  background: var(--color-danger-wash);
+}
+.te-finding-error::before {
+  content: '×';
+  font-weight: var(--weight-strong);
+}
+
+/* ---- Component preview (`component-preview.tsx`) ------------------------ */
+.te-pv {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.te-pv-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.te-pv-title {
+  margin: var(--space-0);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-display);
+  letter-spacing: var(--tracking-tight);
+}
+.te-pv-modes {
+  display: flex;
+  gap: var(--space-1);
+}
+.te-pv-intro {
+  margin: var(--space-0);
+  font-size: var(--text-xs);
+  line-height: var(--leading-ui);
+  color: var(--color-text-muted);
+}
+
+/* The stage carries the draft as inline custom properties and `data-theme`
+   (tokens.css recomputes the derived colours there). What it cannot get that
+   way is listed here:
+   - surface and text colour, because `color`/`background` are computed where
+     they are set (body) and inherited as values, not as `var()`;
+   - the app's own mixes of `10-ableitungen.css` that the blocks below read
+     (`--panel-2`, `--link`, `--code-line`). They sit on `:root` only and would
+     arrive already computed from the document's colours. Same formulas as
+     there — when one changes there, it changes here;
+   - the panel/page flip of the dark mode (`--color-bg` is the raised surface
+     there). `lib/theme-preview.ts` leaves dark `--color-bg` out of the inline
+     style for that reason. */
+.te-pv-stage {
+  --panel-2: color-mix(in srgb, var(--color-text) 4%, var(--color-bg));
+  --link: color-mix(in srgb, var(--color-accent) 82%, var(--color-text));
+  --code-line: color-mix(in srgb, var(--color-text) 78%, var(--color-bg));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-4);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+  border: var(--rule-hair) solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.te-pv-stage[data-theme='dark'] {
+  --color-bg: var(--color-bg-raised);
+  --code-line: color-mix(in srgb, var(--color-text) 22%, var(--color-bg-sunken));
+}
+/* The reading block keeps its own margins out of the stage's gap. */
+.te-pv-stage .page-body > :last-child {
+  margin-bottom: var(--space-0);
+}
+
+.te-pv-cells {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+.te-pv-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+}
+.te-pv-caption {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  line-height: var(--leading-ui);
+  color: var(--color-text-muted);
+}
+
+/* Forced states — the same declarations as the real `:hover` and
+   `:focus-visible` rules of `40-schaltflaeche.css` and the tree row of
+   `60-chrome-raster.css`, so the preview shows them without a pointer. */
+.te-pv .btn.is-hover {
+  background: var(--color-surface-hover);
+}
+.te-pv .btn.primary.is-hover {
+  background: color-mix(in srgb, var(--color-text) 88%, var(--color-accent));
+  border-color: color-mix(in srgb, var(--color-text) 88%, var(--color-accent));
+}
+.te-pv .btn.quiet.is-hover {
+  color: var(--color-text);
+  background: var(--color-surface-hover);
+}
+.te-pv .btn.danger.is-hover {
+  background: color-mix(in srgb, var(--color-danger) 16%, var(--color-bg));
+}
+.te-pv .btn.is-focus {
+  outline: var(--focus-w) solid var(--color-focus);
+  outline-offset: var(--focus-offset);
+}
+.te-pv .nav a.is-hover {
+  background: var(--color-surface-hover);
+}
+
+/* Margin note: no block of its own exists yet; drawn at the note column's
+   width from the catalog (`--layout-note-w`). */
+.te-pv-note {
+  max-width: var(--layout-note-w);
+  margin: var(--space-0) var(--space-0) var(--rhythm);
+  padding-left: var(--space-3);
+  border-left: var(--rule-hair) solid var(--color-border-strong);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  line-height: var(--leading-ui);
+  color: var(--color-text-muted);
+}
+
+/* Code lines with numbers in the gutter colour. */
+.te-pv-line {
+  display: block;
+}
+.te-pv-ln {
+  display: inline-block;
+  min-width: 2ch;
+  margin-right: var(--space-3);
+  padding-right: var(--space-2);
+  border-right: var(--rule-hair) solid var(--code-line);
+  text-align: right;
+  color: var(--color-code-gutter);
+}
+.te-pv-comment {
+  font-style: italic;
+  color: var(--color-code-comment);
+}
+
+.te-pv-tree .node-row {
+  gap: var(--space-2);
+}
+
+/* Dialog over its veil, inline: the declarations of the `dialog` base and
+   `dialog::backdrop` in `44-dialog.css`, on plain elements. */
+.te-pv-veil {
+  padding: var(--space-5) var(--space-3);
+  background: var(--color-scrim);
+  border-radius: var(--radius-md);
+}
+.te-pv-dialog {
+  background: var(--color-bg);
+  color: var(--color-text);
+  border: var(--rule-hair) solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+/* ---- Whole-program preview (`program-preview.tsx`, `preview-banner.tsx`) - */
+.te-try {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.te-try-hint {
+  margin: var(--space-0);
+  font-size: var(--text-xs);
+  line-height: var(--leading-ui);
+  color: var(--color-text-muted);
+}
+/* Fixed at the bottom on every page while a preview is stored; signal colour
+   of a warning, because a trial must not pass for the saved theme. */
+.te-preview-banner {
+  position: fixed;
+  right: var(--space-0);
+  bottom: var(--space-0);
+  left: var(--space-0);
+  z-index: 50;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-status-review-wash);
+  color: var(--color-text);
+  border-top: var(--rule-marker) solid var(--color-status-review);
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+}
+.te-preview-banner-text {
+  font-weight: var(--weight-strong);
+}
+
+/* ---- Strip "Prüfschärfe" (components/theme-editor/threshold-strip.tsx) --- */
+/* Two tones (spec "Damit die Absenkung nicht in Vergessenheit gerät"): quiet
+   side text at the defaults; once a threshold is below its default, the warn
+   wash with the marker line of `.callout.warn`. The text stays in the text
+   colour — review on its own wash measures below AA. */
+.te-threshold {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+  color: var(--color-text-muted);
+}
+.te-threshold-lowered {
+  padding: var(--space-3);
+  color: var(--color-text);
+  background: var(--color-status-review-wash);
+  border-left: var(--rule-marker) solid var(--color-status-review);
+  border-radius: var(--radius-sm);
+}
+.te-threshold-line,
+.te-threshold-note,
+.te-threshold-readonly,
+.te-threshold-empty {
+  margin: var(--space-0);
+}
+.te-threshold-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.te-threshold-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}
+.te-threshold-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: 1 1 var(--layout-note-w);
+  min-width: 0;
+}
+.te-threshold-label {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+.te-threshold-notefield {
+  min-width: 0;
+  resize: vertical;
+}
+.te-threshold-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.te-threshold-status {
+  margin: var(--space-0);
+  font-size: var(--text-xs);
+}
+.te-threshold-status-error {
+  color: var(--color-danger);
+}
+
+/* Info text and report: native disclosure, summary as the toggle. */
+.te-threshold-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-h);
+  font-weight: var(--weight-medium);
+  color: var(--color-text);
+  cursor: pointer;
+  list-style: none;
+}
+.te-threshold-summary::-webkit-details-marker {
+  display: none;
+}
+.te-threshold-summary::before {
+  content: '▸';
+  color: var(--color-text-muted);
+}
+.te-threshold-info[open] > .te-threshold-summary::before,
+.te-threshold-report[open] > .te-threshold-summary::before {
+  content: '▾';
+}
+.te-threshold-summary:focus-visible {
+  outline: var(--focus-w) solid var(--color-focus);
+  outline-offset: var(--focus-offset);
+}
+.te-threshold-i {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-5);
+  height: var(--space-5);
+  font-family: var(--font-mono);
+  font-weight: var(--weight-strong);
+  border: var(--rule-hair) solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+}
+.te-threshold-info-body {
+  max-width: var(--measure);
+  padding: var(--space-3) var(--space-0);
+  font-size: var(--text-sm);
+  color: var(--color-text);
+}
+.te-threshold-info-body h3 {
+  margin: var(--space-4) var(--space-0) var(--space-2);
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: var(--weight-display);
+  letter-spacing: var(--tracking-tight);
+}
+.te-threshold-info-body p,
+.te-threshold-info-body ul,
+.te-threshold-info-body ol {
+  margin: var(--space-0) var(--space-0) var(--space-2);
+}
+.te-threshold-info-body code {
+  font-family: var(--font-mono);
+}
+
+.te-threshold-table-wrap {
+  overflow-x: auto;
+  margin-bottom: var(--space-2);
+}
+.te-threshold-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-xs);
+  color: var(--color-text);
+}
+.te-threshold-table th,
+.te-threshold-table td {
+  padding: var(--space-1) var(--space-2);
+  text-align: left;
+  vertical-align: top;
+  border-bottom: var(--rule-hair) solid var(--color-border-hair);
+}
+.te-threshold-table th {
+  font-weight: var(--weight-medium);
+  color: var(--color-text-muted);
+  border-bottom-color: var(--color-border-strong);
+}
+
+/* ---- Template select (components/theme-editor/template-select.tsx) ------ */
+.te-template {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+.te-template-field {
+  max-width: var(--layout-rail-w);
+}
+.te-template-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.te-template-select {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.te-template-note {
+  margin: var(--space-0);
+  font-size: var(--text-xs);
+  line-height: var(--leading-ui);
+  color: var(--color-text-muted);
+}
+/* A `use` the library does not know: the theme applies without it — a note in
+   the warn tone, with the words saying what happened. */
+.te-template-note-missing {
+  padding: var(--space-1) var(--space-2);
+  color: var(--color-text);
+  background: var(--color-status-review-wash);
+  border-left: var(--rule-marker) solid var(--color-status-review);
+  border-radius: var(--radius-sm);
+}
+.te-template-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: var(--measure);
+}
+.te-template-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}
+.te-template-input {
+  flex: 1 1 var(--layout-note-w);
+  min-width: 0;
+}
+.te-template-slug {
+  font-family: var(--font-mono);
+}
+.te-template-status {
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+  color: var(--color-text-muted);
+}
+.te-template-status-error {
+  color: var(--color-danger);
+}
+/* "Vorlage · <name>" reads like "geerbt", set apart by the italic name only. */
+.te-origin-template {
+  font-style: italic;
+}
+
+/* ---- Brand strip (components/theme-editor/brand-strip.tsx) -------------- */
+.te-brand {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  padding: var(--space-4);
+  border: var(--rule-hair) solid var(--color-border-hair);
+  border-radius: var(--radius-md);
+}
+.te-brand-heading {
+  margin: var(--space-0);
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: var(--weight-display);
+  letter-spacing: var(--tracking-tight);
+}
+.te-brand-subheading {
+  margin: var(--space-0);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+.te-brand-note {
+  margin: var(--space-0);
+  font-size: var(--text-xs);
+  line-height: var(--leading-ui);
+  color: var(--color-text-muted);
+}
+.te-brand-name {
+  max-width: var(--layout-rail-w);
+}
+.te-brand-file {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.te-brand-previews {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+/* One box per mode: the draft's colours inline, `data-theme` recomputes the
+   derived ones; the dark surface flip as in `.te-pv-stage`. */
+.te-brand-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  flex: 1 1 var(--layout-note-w);
+  min-width: 0;
+  margin: var(--space-0);
+  padding: var(--space-3);
+  background: var(--color-bg);
+  color: var(--color-text);
+  border: var(--rule-hair) solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+}
+.te-brand-preview[data-theme='dark'] {
+  --color-bg: var(--color-bg-raised);
+}
+/* Same arrangement and logo height as the top bar's `.brand-home`. */
+.te-brand-sample {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: var(--weight-display);
+}
+.te-brand-logo {
+  display: block;
+  height: 28px;
+  width: auto;
+  max-width: 168px;
+  object-fit: contain;
+  flex: none;
+}
+.te-brand-word {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.te-brand-empty {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-text);
+  color: var(--color-text-muted);
+}
+.te-brand-caption {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+.te-brand-favicon {
+  display: flex;
+  align-items: center;
+  min-height: var(--space-6);
+}
+.te-brand-favicon-img {
+  display: block;
+  width: var(--space-6);
+  height: var(--space-6);
+  object-fit: contain;
+}
+.te-brand-status {
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+  color: var(--color-text-muted);
+}
+.te-brand-status-error {
+  color: var(--color-danger);
+}

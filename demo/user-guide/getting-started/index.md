@@ -43,4 +43,4 @@ reconnect, spaces from that provider stay hidden.
 
 - [[reading-and-navigating]] to find your way around a space
 - [[writing-a-page]] once your account is connected and you are ready to write
-- [[appearance-and-settings]] for theme, language and managing connections later
+- [[settings]] for connections and tokens, [[appearance]] for theme and language

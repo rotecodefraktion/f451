@@ -36,7 +36,7 @@ this guide:
 - [[writing-a-page]] — draft, review, approval, and what happens on a conflict
 - [[editor-reference]] — formatting, wikilinks, callouts, images, diagrams, video
 - [[templates-and-metadata]] — starting points for new pages and structured fields
-- [[appearance-and-settings]] — theme, language, connected accounts
+- [[settings]] — connected accounts, access tokens, and the appearance branch: theme, contrast, dark mode, language
 - [[ai-agents]] — connecting an AI agent to a space through MCP
 - [[faq]] — short answers to recurring questions
 

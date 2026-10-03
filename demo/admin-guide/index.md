@@ -28,6 +28,8 @@ writing pages in it — for that, see the User Guide space.
 - [[github-sign-in]] — enabling GitHub as a sign-in method
 - [[spaces-and-git-providers]] — configuring spaces, service tokens,
   webhooks, and the drift job
+- [[theming]] — instance and space themes, templates, logo, and the
+  contrast thresholds
 - [[configuration-reference]] — every environment variable, grouped by
   concern
 - [[production-setup]] — what a production server looks like: TLS, sign-in,

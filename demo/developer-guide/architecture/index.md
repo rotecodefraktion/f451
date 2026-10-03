@@ -77,6 +77,25 @@ underscores, and attachment paths are fixed to the page's own `_media/`. A
 central guard doesn't exist yet; `isReleasePath` in the API is the helper for
 future routes.
 
+## Themes in Git
+
+Instance and space themes are files, not rows: `_meta/theme.yaml`,
+`_meta/themes/<slug>.yaml`, `_meta/brand/` in the space repository, and in
+the instance repository named by `F451_INSTANCE_CONFIG` also
+`_meta/contrast.yaml`. The api reads them with a five-minute cache that
+writes and webhook pushes empty.
+
+One resolver in `packages/design-tokens` turns a list of levels (default,
+instance, space, user) into the full token set, with an origin per token, the
+derived colours and the contrast check. The shipped default and the layout's
+inline `<style>` go through the same code, so there is no second way for
+values to become CSS; see [[web-frontend]].
+
+The single exception to "nothing lives only in the database" is
+`user_settings`: the personal theme, one row per user. A user has no
+repository. Losing the table loses those themes, as it loses sessions; the
+YAML download is the backup.
+
 ## Classification checks
 
 Classes are plain frontmatter, read from `pages.frontmatter` — there is no
