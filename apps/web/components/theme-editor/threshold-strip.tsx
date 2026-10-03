@@ -265,6 +265,7 @@ export function ThresholdStrip({ data, canWriteInstance, scopeKind }: ThresholdS
 
   const info = m.thresholdInfo
   const infoSections = [info.why, info.who, info.legal, info.defaults, info.meetAA]
+  const aaInfo = m.threshold.aaInfo
 
   return (
     <section className={lowered ? 'te-threshold te-threshold-lowered' : 'te-threshold'} aria-label={m.threshold.heading}>
@@ -372,6 +373,20 @@ export function ThresholdStrip({ data, canWriteInstance, scopeKind }: ThresholdS
               <h3>{s.heading}</h3>
               {infoBody(s.body)}
             </div>
+          ))}
+        </div>
+      </details>
+
+      <details className="te-threshold-info">
+        <summary className="te-threshold-summary">
+          <span className="te-threshold-i" aria-hidden="true">
+            i
+          </span>
+          {aaInfo.title}
+        </summary>
+        <div className="te-threshold-info-body">
+          {[aaInfo.what, aaInfo.levels, aaInfo.howF451, aaInfo.twoSteps, aaInfo.report, aaInfo.guide].map((p) => (
+            <p key={p}>{p}</p>
           ))}
         </div>
       </details>

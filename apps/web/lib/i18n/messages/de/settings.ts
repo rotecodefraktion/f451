@@ -262,6 +262,18 @@ export const settings = {
       infoToggle: 'Warum es Kontrastschwellen gibt',
       reportToggle: 'Bericht „Werte unter AA"',
       reportEmpty: 'Kein Wert liegt unter AA.',
+      aaInfo: {
+        title: 'Was bedeutet AA?',
+        what: 'AA ist die mittlere Stufe der WCAG (Web Content Accessibility Guidelines), der Norm für barrierefreie Webseiten, auf die sich auch Gesetze wie das Barrierefreiheitsstärkungsgesetz beziehen. Für Farben legt sie fest, wie stark sich Schrift und Hintergrund in der Helligkeit unterscheiden müssen — das Kontrastverhältnis. Schwarz auf Weiß ist 21:1, dieselbe Farbe wäre 1:1.',
+        levels: 'Text braucht mindestens 4,5:1 (große Schrift 3:1), Bedienelemente, Zeichen und Rahmen mindestens 3:1.',
+        howF451:
+          'f451 rechnet den Kontrast bei jedem gespeicherten Theme für feste Farbpaare nach — Text auf Papier, Chip-Schrift auf Chip-Fläche, Zeilennummern, Fokusring — getrennt für Hell und Dunkel.',
+        twoSteps:
+          'Zwei Stufen: Unter der eingestellten Schwelle wird das Speichern verweigert. Darüber, aber unter AA, ist ein Wert eine Warnung: Er blockiert nicht, bleibt aber an der Zeile sichtbar und steht im Bericht „Werte unter AA“.',
+        report:
+          'Der Bericht ist die vollständige Liste der Werte unter AA, für alle, die es ändern können — und die Grundlage für eine Barrierefreiheitserklärung.',
+        guide: 'Mehr dazu im User Guide, Seite Erscheinungsbild → Kontrast und AA.',
+      },
       colMode: 'Modus',
       colRatio: 'Gemessen',
       colAA: 'AA-Bezug',

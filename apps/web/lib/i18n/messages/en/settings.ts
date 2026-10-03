@@ -233,6 +233,18 @@ export const settings: Messages['settings'] = {
       infoToggle: 'Why contrast thresholds exist',
       reportToggle: 'Report "Values below AA"',
       reportEmpty: 'No value is below AA.',
+      aaInfo: {
+        title: 'What does AA mean?',
+        what: 'AA is the middle level of the WCAG (Web Content Accessibility Guidelines), the standard for accessible websites that laws such as the European Accessibility Act also refer to. For colours it defines how much text and background must differ in lightness — the contrast ratio. Black on white is 21:1, the same colour would be 1:1.',
+        levels: 'Text needs at least 4.5:1 (large text 3:1), controls, icons and borders at least 3:1.',
+        howF451:
+          'f451 recalculates the contrast of every saved theme for fixed colour pairs — text on paper, chip text on chip background, line numbers, focus ring — separately for light and dark.',
+        twoSteps:
+          'Two levels: below the configured threshold, saving is refused. Above it but below AA, a value is a warning: it does not block, but stays visible at its row and is listed in the report “Values below AA”.',
+        report:
+          'The report is the complete list of values below AA, for everyone who can change them — and the basis for an accessibility statement.',
+        guide: 'More in the User Guide, page Appearance → Contrast and AA.',
+      },
       colMode: 'Mode',
       colRatio: 'Measured',
       colAA: 'AA reference',

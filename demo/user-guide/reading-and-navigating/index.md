@@ -19,7 +19,7 @@ Below the page list sit the space's tools, grouped as **Find**
 (**Search**, **Graph view**, **Link report** — see [[search-and-graph]])
 and **Configure** (**Templates**, **Metadata schema**, **Connections**,
 **Appearance** — see [[templates-and-metadata]] and
-[[appearance-and-settings]]).
+[[appearance]]).
 
 ## Breadcrumbs and the running position
 

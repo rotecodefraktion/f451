@@ -23,7 +23,7 @@ default ← instance ← space ← user
 Whatever a level does not set is inherited from the level below. When the
 instance theme changes, every space moves with it, except for the tokens a
 space set itself. The user level is a personal theme stored with the account
-(in the User Guide, page *Appearance and settings*); neither the instance nor
+(in the User Guide, page *My settings*); neither the instance nor
 a space can forbid it.
 
 ## Set up the instance repository
