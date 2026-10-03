@@ -390,6 +390,22 @@ export const pageReleases = pgTable(
   }),
 )
 
+/**
+ * Personal theme (theming spec §2): one row per user, `theme` is the normalised
+ * theme file (`name`, `base`, `light`, `dark`, optional `use`).
+ *
+ * The ONE table not derivable from Git — a user has no repository. Losing
+ * `pg-data` loses personal themes (like sessions); `GET /api/me/theme?format=yaml`
+ * is the backup.
+ */
+export const userSettings = pgTable('user_settings', {
+  userId: text('user_id')
+    .primaryKey()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  theme: jsonb('theme').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
 export const schema = {
   spaces,
   pages,
@@ -402,4 +418,5 @@ export const schema = {
   pageReleases,
   apiTokens,
   pageVersions,
+  userSettings,
 }

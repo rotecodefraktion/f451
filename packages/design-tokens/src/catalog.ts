@@ -2,10 +2,12 @@
  * Token-Katalog des Erscheinungsbilds 2026 („Editorial").
  *
  * Quelle: `docs/design/mockups-2026/editorial.html`, Kapitel 4 „Tokens" —
- * 103 Deklarationen, dazu zwei Nachträge (s. `addedAfterMockup`), zusammen
- * 105. Dieser Katalog beschreibt jedes davon EINMAL: auf welcher
+ * 103 Deklarationen, dazu die Nachträge (s. `addedAfterMockup`: Klassen,
+ * Diagramme, Telefon) — die Zahlen je Ebene und Gruppe stehen in
+ * `catalog.test.ts`. Dieser Katalog beschreibt jedes Token EINMAL: auf welcher
  * Ebene es liegt, in welche Gruppe der späteren Einstellungsseite es gehört,
- * welche Rolle es im Klartext hat und ob ein Anwender-Theme es setzen darf.
+ * welche Rolle es im Klartext hat, ob ein Anwender-Theme es setzen darf und
+ * in welchem Wertbereich (`range`, Theming-Spec 2026-10-02 §4).
  *
  * Warum Katalog und Werte getrennt sind: Die Rollentexte werden von der
  * Einstellungsseite „Erscheinungsbild" angezeigt
@@ -66,12 +68,35 @@ export type TokenGroup =
  */
 export type TokenEmit = 'css' | 'component' | 'generator'
 
+/**
+ * Wertgrammatik und Grenzen eines setzbaren Tokens.
+ *
+ * Jedes setzbare Token trägt genau eine; `checkValue` (grammar.ts) prüft einen
+ * Wert dagegen, bevor er je ins CSS gelangt. Grenzen sind einschließlich, bei
+ * `length` in der jeweiligen Einheit, bei `duration` in Millisekunden.
+ *
+ * - `text-size` — 0,5–6 rem oder die eingeschränkte `clamp()`-Form.
+ * - `choice`    — exakter Treffer; für die Paare der Gliederungsnummerierung.
+ */
+export type TokenRange =
+  | { kind: 'hex' }
+  | { kind: 'length'; units: readonly ('px' | 'rem' | 'em' | 'ch')[]; min: number; max: number }
+  | { kind: 'number'; min: number; max: number; integer?: boolean }
+  | { kind: 'duration'; min: number; max: number }
+  | { kind: 'font-stack' }
+  | { kind: 'easing' }
+  | { kind: 'shadow' }
+  | { kind: 'text-size' }
+  | { kind: 'choice'; values: readonly string[] }
+
 type TokenMetaBase = {
   readonly level: TokenLevel
   readonly group: TokenGroup
   /** Rolle im Klartext, Wortlaut aus Kapitel 4 des Entwurfs. */
   readonly role: string
   readonly emit: TokenEmit
+  /** Grammatik und Grenzen; Pflicht für jedes setzbare Token, bei gesperrten abwesend (`catalog.test.ts`). */
+  readonly range?: TokenRange
   /**
    * Gesetzt, wenn das Token NACH der Abnahme hinzugekommen ist — der
    * Referenzentwurf kennt es nicht.
@@ -116,6 +141,7 @@ export const catalog = {
     group: 'Grundfarben',
     role: 'Papier: Lese- und Grundfläche',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'css',
   },
   '--color-bg-raised': {
@@ -123,6 +149,7 @@ export const catalog = {
     group: 'Grundfarben',
     role: 'abgesetzte Fläche: Karte, Diagrammkasten',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'css',
   },
   '--color-bg-sunken': {
@@ -130,6 +157,7 @@ export const catalog = {
     group: 'Grundfarben',
     role: 'zurückgesetzter Rand: Navigation, Umfeld',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'css',
   },
   '--color-text': {
@@ -137,6 +165,7 @@ export const catalog = {
     group: 'Grundfarben',
     role: 'Tinte: Lesetext, primäre Schaltfläche',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'css',
   },
   '--color-text-muted': {
@@ -144,6 +173,7 @@ export const catalog = {
     group: 'Grundfarben',
     role: 'Nebentext: Marginalie, Metazeile, Etikett',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'css',
   },
   '--color-accent': {
@@ -151,6 +181,7 @@ export const catalog = {
     group: 'Grundfarben',
     role: 'Bedeutung: Verweise, Position im Text, Fokus',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'css',
   },
   '--color-accent-contrast': {
@@ -158,6 +189,7 @@ export const catalog = {
     group: 'Grundfarben',
     role: 'Schrift auf Akzentfläche',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'css',
   },
   '--color-border': {
@@ -165,6 +197,7 @@ export const catalog = {
     group: 'Grundfarben',
     role: 'Haarlinie: Trennung im Satz',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'css',
   },
   '--color-danger': {
@@ -172,6 +205,7 @@ export const catalog = {
     group: 'Grundfarben',
     role: 'zerstörende Aktion, Fehlerblock',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'css',
   },
   '--color-status-working': {
@@ -179,6 +213,7 @@ export const catalog = {
     group: 'Workflow-Status',
     role: 'Entwurf',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'css',
   },
   '--color-status-review': {
@@ -186,6 +221,7 @@ export const catalog = {
     group: 'Workflow-Status',
     role: 'In Review, Warnung',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'css',
   },
   '--color-status-released': {
@@ -193,6 +229,7 @@ export const catalog = {
     group: 'Workflow-Status',
     role: 'Released, Erfolg',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'css',
   },
   '--color-status-archived': {
@@ -200,6 +237,7 @@ export const catalog = {
     group: 'Workflow-Status',
     role: 'Archiviert',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'css',
   },
   '--color-code-bg': {
@@ -207,6 +245,7 @@ export const catalog = {
     group: 'Satz von Code und Markierung',
     role: 'Fläche des Codeblocks (Papierton, kein Kasten)',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'css',
   },
   '--color-code-text': {
@@ -214,6 +253,7 @@ export const catalog = {
     group: 'Satz von Code und Markierung',
     role: 'Code-Tinte',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'css',
   },
   '--color-code-comment': {
@@ -221,6 +261,7 @@ export const catalog = {
     group: 'Satz von Code und Markierung',
     role: 'Kommentar (kursiv, nie farbig codiert)',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'css',
   },
   '--color-code-gutter': {
@@ -228,6 +269,7 @@ export const catalog = {
     group: 'Satz von Code und Markierung',
     role: 'Zeilennummern, Verzeichnisziffern',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'css',
   },
   '--color-mark': {
@@ -235,6 +277,7 @@ export const catalog = {
     group: 'Satz von Code und Markierung',
     role: 'Textmarker, Suchtreffer',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'css',
   },
   '--shadow-sm': {
@@ -242,6 +285,7 @@ export const catalog = {
     group: 'Schatten',
     role: 'primäre Schaltfläche',
     settable: true,
+    range: { kind: 'shadow' },
     emit: 'css',
   },
   '--shadow-md': {
@@ -249,6 +293,7 @@ export const catalog = {
     group: 'Schatten',
     role: 'Dialog, Register',
     settable: true,
+    range: { kind: 'shadow' },
     emit: 'css',
   },
   '--shadow-accent': {
@@ -256,6 +301,7 @@ export const catalog = {
     group: 'Schatten',
     role: 'reserviert (Akzentfläche)',
     settable: true,
+    range: { kind: 'shadow' },
     emit: 'css',
   },
 
@@ -265,6 +311,7 @@ export const catalog = {
     group: 'Abgeleitet',
     role: 'feinste Linie in Tabellen',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'css',
   },
   '--color-border-strong': {
@@ -272,6 +319,7 @@ export const catalog = {
     group: 'Abgeleitet',
     role: 'tragende Linie: Eingabefeld, Markerlinie',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'css',
   },
   '--color-glyph-state': {
@@ -279,6 +327,7 @@ export const catalog = {
     group: 'Abgeleitet',
     role: 'Zeichen, das einen Zustand trägt (Randschalter)',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'css',
   },
   '--color-surface-hover': {
@@ -286,6 +335,7 @@ export const catalog = {
     group: 'Abgeleitet',
     role: 'Zeile unter dem Zeiger',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'css',
   },
   '--color-accent-wash': {
@@ -293,6 +343,7 @@ export const catalog = {
     group: 'Abgeleitet',
     role: 'aktive Zeile in Baum und Register',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'css',
   },
   '--color-accent-line': {
@@ -300,6 +351,7 @@ export const catalog = {
     group: 'Abgeleitet',
     role: 'zurückgenommene Akzentlinie',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'css',
   },
   '--color-danger-wash': {
@@ -307,6 +359,7 @@ export const catalog = {
     group: 'Abgeleitet',
     role: 'Fläche des Fehlerblocks',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'css',
   },
   '--color-status-working-wash': {
@@ -314,6 +367,7 @@ export const catalog = {
     group: 'Abgeleitet',
     role: 'Fläche Entwurf / Hinweis',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'css',
   },
   '--color-status-review-wash': {
@@ -321,6 +375,7 @@ export const catalog = {
     group: 'Abgeleitet',
     role: 'Fläche In Review / Warnung',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'css',
   },
   '--color-status-released-wash': {
@@ -328,6 +383,7 @@ export const catalog = {
     group: 'Abgeleitet',
     role: 'Fläche Released / Erfolg',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'css',
   },
   '--color-status-archived-wash': {
@@ -335,6 +391,7 @@ export const catalog = {
     group: 'Abgeleitet',
     role: 'Fläche Archiviert',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'css',
   },
   '--color-focus': {
@@ -342,6 +399,7 @@ export const catalog = {
     group: 'Abgeleitet',
     role: 'Fokusring (= Akzent)',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'css',
   },
   '--color-scrim': {
@@ -354,12 +412,13 @@ export const catalog = {
     emit: 'css',
   },
 
-  // ---- Ebene 3: strukturelle Tokens (69) ---------------------------------
+  // ---- Ebene 3: strukturelle Tokens ---------------------------------------
   '--font-text': {
     level: 'structure',
     group: 'Schriftfamilien',
     role: 'Lesetext — der Kern der These',
     settable: true,
+    range: { kind: 'font-stack' },
     emit: 'css',
   },
   '--font-display': {
@@ -367,6 +426,7 @@ export const catalog = {
     group: 'Schriftfamilien',
     role: 'Überschriften, Titel',
     settable: true,
+    range: { kind: 'font-stack' },
     emit: 'css',
   },
   '--font-sans': {
@@ -374,6 +434,7 @@ export const catalog = {
     group: 'Schriftfamilien',
     role: 'Bedienoberfläche, Etiketten, Tabellen',
     settable: true,
+    range: { kind: 'font-stack' },
     emit: 'css',
   },
   '--font-mono': {
@@ -381,6 +442,7 @@ export const catalog = {
     group: 'Schriftfamilien',
     role: 'Code, Konsole, Werte',
     settable: true,
+    range: { kind: 'font-stack' },
     emit: 'css',
   },
 
@@ -389,6 +451,7 @@ export const catalog = {
     group: 'Schriftgrößen',
     role: 'Kleinstbeschriftung: Tastenkürzel, Zähler, Graph-Etiketten',
     settable: true,
+    range: { kind: 'text-size' },
     emit: 'css',
     addedAfterMockup:
       'Der Entwurf kennt keine Stufe unter 12 px, die Anwendung setzte 10 und 11 px aber an elf Stellen als Literal '
@@ -399,6 +462,7 @@ export const catalog = {
     group: 'Schriftgrößen',
     role: 'Etikett, Marginalie, Bildunterschrift',
     settable: true,
+    range: { kind: 'text-size' },
     emit: 'css',
   },
   '--text-sm': {
@@ -406,6 +470,7 @@ export const catalog = {
     group: 'Schriftgrößen',
     role: 'Bedienoberfläche, Tabelle, Code',
     settable: true,
+    range: { kind: 'text-size' },
     emit: 'css',
   },
   '--text-ui': {
@@ -413,6 +478,7 @@ export const catalog = {
     group: 'Schriftgrößen',
     role: 'Grundschrift der Bedienoberfläche (body)',
     settable: true,
+    range: { kind: 'text-size' },
     emit: 'css',
     addedAfterMockup:
       'Der Entwurf setzt den Grundtext der Oberfläche auf 15 px, führt ihn aber nicht als Stufe; 20-basis.css trug ihn '
@@ -423,6 +489,7 @@ export const catalog = {
     group: 'Schriftgrößen',
     role: 'Lesetext',
     settable: true,
+    range: { kind: 'text-size' },
     emit: 'css',
   },
   '--text-lg': {
@@ -430,6 +497,7 @@ export const catalog = {
     group: 'Schriftgrößen',
     role: 'Vorspann, h3',
     settable: true,
+    range: { kind: 'text-size' },
     emit: 'css',
   },
   '--text-xl': {
@@ -437,6 +505,7 @@ export const catalog = {
     group: 'Schriftgrößen',
     role: 'h2 im Satz',
     settable: true,
+    range: { kind: 'text-size' },
     emit: 'css',
   },
   '--text-2xl': {
@@ -444,6 +513,7 @@ export const catalog = {
     group: 'Schriftgrößen',
     role: 'Kapitelüberschrift',
     settable: true,
+    range: { kind: 'text-size' },
     emit: 'css',
   },
   '--text-3xl': {
@@ -451,6 +521,7 @@ export const catalog = {
     group: 'Schriftgrößen',
     role: 'Seitentitel',
     settable: true,
+    range: { kind: 'text-size' },
     emit: 'css',
   },
   '--text-4xl': {
@@ -458,6 +529,7 @@ export const catalog = {
     group: 'Schriftgrößen',
     role: 'Titelei des Musterbuchs',
     settable: true,
+    range: { kind: 'text-size' },
     emit: 'css',
   },
   '--cap-ratio': {
@@ -465,6 +537,7 @@ export const catalog = {
     group: 'Schriftgrößen',
     role: 'Versalhöhe der Serifenfamilie als Anteil der Schriftgröße',
     settable: true,
+    range: { kind: 'number', min: 0.5, max: 0.85 },
     emit: 'css',
   },
   '--text-hang': {
@@ -482,6 +555,7 @@ export const catalog = {
     group: 'Satzdetails',
     role: 'große Titel',
     settable: true,
+    range: { kind: 'number', min: 1.0, max: 2.4 },
     emit: 'css',
   },
   '--leading-heading': {
@@ -489,6 +563,7 @@ export const catalog = {
     group: 'Satzdetails',
     role: 'Überschriften',
     settable: true,
+    range: { kind: 'number', min: 1.0, max: 2.4 },
     emit: 'css',
   },
   '--leading-ui': {
@@ -496,6 +571,7 @@ export const catalog = {
     group: 'Satzdetails',
     role: 'Bedienoberfläche',
     settable: true,
+    range: { kind: 'number', min: 1.0, max: 2.4 },
     emit: 'css',
   },
   '--leading-text': {
@@ -503,6 +579,7 @@ export const catalog = {
     group: 'Satzdetails',
     role: 'Lesetext',
     settable: true,
+    range: { kind: 'number', min: 1.0, max: 2.4 },
     emit: 'css',
   },
   '--leading-code': {
@@ -510,6 +587,7 @@ export const catalog = {
     group: 'Satzdetails',
     role: 'Codeblock',
     settable: true,
+    range: { kind: 'number', min: 1.0, max: 2.4 },
     emit: 'css',
   },
   '--tracking-tight': {
@@ -517,6 +595,7 @@ export const catalog = {
     group: 'Satzdetails',
     role: 'Titel',
     settable: true,
+    range: { kind: 'length', units: ['em'], min: -0.05, max: 0.3 },
     emit: 'css',
   },
   '--tracking-normal': {
@@ -524,6 +603,7 @@ export const catalog = {
     group: 'Satzdetails',
     role: 'Grundwert',
     settable: true,
+    range: { kind: 'length', units: ['em'], min: -0.05, max: 0.3 },
     emit: 'css',
   },
   '--tracking-caps': {
@@ -531,6 +611,7 @@ export const catalog = {
     group: 'Satzdetails',
     role: 'Kapitälchen-Etiketten',
     settable: true,
+    range: { kind: 'length', units: ['em'], min: -0.05, max: 0.3 },
     emit: 'css',
   },
   '--weight-text': {
@@ -538,6 +619,7 @@ export const catalog = {
     group: 'Satzdetails',
     role: 'Lesetext',
     settable: true,
+    range: { kind: 'number', min: 100, max: 900, integer: true },
     emit: 'css',
   },
   '--weight-medium': {
@@ -545,6 +627,7 @@ export const catalog = {
     group: 'Satzdetails',
     role: 'Reiter, Zweigknoten',
     settable: true,
+    range: { kind: 'number', min: 100, max: 900, integer: true },
     emit: 'css',
   },
   '--weight-strong': {
@@ -552,6 +635,7 @@ export const catalog = {
     group: 'Satzdetails',
     role: 'Auszeichnung, Schaltflächen',
     settable: true,
+    range: { kind: 'number', min: 100, max: 900, integer: true },
     emit: 'css',
   },
   '--weight-display': {
@@ -559,6 +643,7 @@ export const catalog = {
     group: 'Satzdetails',
     role: 'Titel',
     settable: true,
+    range: { kind: 'number', min: 100, max: 900, integer: true },
     emit: 'css',
   },
 
@@ -592,6 +677,7 @@ export const catalog = {
     group: 'Satzdetails',
     role: 'Gliederungsziffer der Hauptkapitel: Inhalt der hängenden Ziffer, oder none für keine Nummerierung',
     settable: true,
+    range: { kind: 'choice', values: ['none', "counter(sec) '.'"] },
     emit: 'css',
     addedAfterMockup:
       'Der Entwurf verdrahtet die Ziffer fest (.prose h2::before { content: counter(sec) "." }). Erst die Einstellung „Gliederungsnummerierung" macht daraus einen Wert.',
@@ -601,6 +687,7 @@ export const catalog = {
     group: 'Satzdetails',
     role: 'Gliederungsziffern der Unterkapitel (h3, h4): inline-block zeigt sie hierarchisch an, none verbirgt sie',
     settable: true,
+    range: { kind: 'choice', values: ['none', 'inline-block'] },
     emit: 'css',
     addedAfterMockup:
       'Der Entwurf nummeriert nur die Hauptkapitel; die hierarchische Variante ist nach der Abnahme dazugekommen.',
@@ -609,17 +696,17 @@ export const catalog = {
   '--measure': {
     level: 'structure',
     group: 'Maß, Raster, Dichte',
-    role: 'Zeilenlänge — gilt nur für Fließtext: Absatz, Liste, Zitat, Überschrift',
-    settable: false,
-    lockReason: 'Trägt die Breitenstufen-Zusage und geht über --layout-note-x in die Randspalte ein.',
+    role: 'Zeilenlänge — gilt nur für Fließtext: Absatz, Liste, Zitat, Überschrift. Korridor 60–80ch: darin bleibt die Randspalte rechenbar (--layout-note-x).',
+    settable: true,
+    range: { kind: 'length', units: ['ch'], min: 60, max: 80 },
     emit: 'css',
   },
   '--measure-wide': {
     level: 'structure',
     group: 'Maß, Raster, Dichte',
-    role: 'Textbereich mit Randspalte: Marginalie, Hinweisblock, Prozedurtext',
-    settable: false,
-    lockReason: 'Geht in --layout-app-w ein und verschiebt damit das Verhalten beim Ein- und Ausklappen.',
+    role: 'Textbereich mit Randspalte: Marginalie, Hinweisblock, Prozedurtext. Korridor 80–120ch: --layout-app-w rechnet sich daraus mit, die Einklapp-Zusage bleibt erhalten.',
+    settable: true,
+    range: { kind: 'length', units: ['ch'], min: 80, max: 120 },
     emit: 'css',
   },
   '--measure-full': {
@@ -636,6 +723,7 @@ export const catalog = {
     group: 'Maß, Raster, Dichte',
     role: 'Faktor aller Innenabstände',
     settable: true,
+    range: { kind: 'number', min: 0.75, max: 1.5 },
     emit: 'css',
   },
   '--rhythm': {
@@ -643,6 +731,7 @@ export const catalog = {
     group: 'Maß, Raster, Dichte',
     role: 'Absatzabstand des Satzspiegels',
     settable: true,
+    range: { kind: 'length', units: ['rem'], min: 0.5, max: 3 },
     emit: 'css',
   },
   '--space-0': {
@@ -658,6 +747,7 @@ export const catalog = {
     group: 'Maß, Raster, Dichte',
     role: 'Grundskala, Stufe 1',
     settable: true,
+    range: { kind: 'length', units: ['rem'], min: 0, max: 8 },
     emit: 'css',
   },
   '--space-2': {
@@ -665,6 +755,7 @@ export const catalog = {
     group: 'Maß, Raster, Dichte',
     role: 'Grundskala, Stufe 2',
     settable: true,
+    range: { kind: 'length', units: ['rem'], min: 0, max: 8 },
     emit: 'css',
   },
   '--space-3': {
@@ -672,6 +763,7 @@ export const catalog = {
     group: 'Maß, Raster, Dichte',
     role: 'Grundskala, Stufe 3',
     settable: true,
+    range: { kind: 'length', units: ['rem'], min: 0, max: 8 },
     emit: 'css',
   },
   '--space-4': {
@@ -679,6 +771,7 @@ export const catalog = {
     group: 'Maß, Raster, Dichte',
     role: 'Grundskala, Stufe 4',
     settable: true,
+    range: { kind: 'length', units: ['rem'], min: 0, max: 8 },
     emit: 'css',
   },
   '--space-5': {
@@ -686,6 +779,7 @@ export const catalog = {
     group: 'Maß, Raster, Dichte',
     role: 'Grundskala, Stufe 5',
     settable: true,
+    range: { kind: 'length', units: ['rem'], min: 0, max: 8 },
     emit: 'css',
   },
   '--space-6': {
@@ -693,6 +787,7 @@ export const catalog = {
     group: 'Maß, Raster, Dichte',
     role: 'Grundskala, Stufe 6',
     settable: true,
+    range: { kind: 'length', units: ['rem'], min: 0, max: 8 },
     emit: 'css',
   },
   '--space-7': {
@@ -700,6 +795,7 @@ export const catalog = {
     group: 'Maß, Raster, Dichte',
     role: 'Grundskala, Stufe 7',
     settable: true,
+    range: { kind: 'length', units: ['rem'], min: 0, max: 8 },
     emit: 'css',
   },
   '--space-8': {
@@ -707,6 +803,7 @@ export const catalog = {
     group: 'Maß, Raster, Dichte',
     role: 'Grundskala, Stufe 8',
     settable: true,
+    range: { kind: 'length', units: ['rem'], min: 0, max: 8 },
     emit: 'css',
   },
   '--space-9': {
@@ -714,6 +811,7 @@ export const catalog = {
     group: 'Maß, Raster, Dichte',
     role: 'Abstand zwischen Abschnitten',
     settable: true,
+    range: { kind: 'length', units: ['rem'], min: 0, max: 8 },
     emit: 'css',
   },
   '--space-10': {
@@ -721,6 +819,7 @@ export const catalog = {
     group: 'Maß, Raster, Dichte',
     role: 'Kapitelabstand',
     settable: true,
+    range: { kind: 'length', units: ['rem'], min: 0, max: 8 },
     emit: 'css',
   },
   '--space-11': {
@@ -728,30 +827,31 @@ export const catalog = {
     group: 'Maß, Raster, Dichte',
     role: 'Titelei, Grundmaß für Breiten',
     settable: true,
+    range: { kind: 'length', units: ['rem'], min: 0, max: 8 },
     emit: 'css',
   },
   '--layout-nav-w': {
     level: 'structure',
     group: 'Maß, Raster, Dichte',
-    role: 'Breite des Seitenbaums (eingeklappt: Spalte entfällt ganz)',
-    settable: false,
-    lockReason: GRID_LOCK,
+    role: 'Breite des Seitenbaums (eingeklappt: Spalte entfällt ganz). Korridor 200–360px: Die Haltepunkte rechnen mit der Breite, und der Korridor bleibt unter ihrer Schranke.',
+    settable: true,
+    range: { kind: 'length', units: ['px'], min: 200, max: 360 },
     emit: 'css',
   },
   '--layout-rail-w': {
     level: 'structure',
     group: 'Maß, Raster, Dichte',
-    role: 'Breite der Info-Leiste (eingeklappt: Spalte entfällt ganz)',
-    settable: false,
-    lockReason: GRID_LOCK,
+    role: 'Breite der Info-Leiste (eingeklappt: Spalte entfällt ganz). Korridor 200–360px: Die Haltepunkte rechnen mit der Breite, und der Korridor bleibt unter ihrer Schranke.',
+    settable: true,
+    range: { kind: 'length', units: ['px'], min: 200, max: 360 },
     emit: 'css',
   },
   '--layout-gutter': {
     level: 'structure',
     group: 'Maß, Raster, Dichte',
-    role: 'Steg links und rechts der Dokumentspalte; trägt die hängenden Ziffern',
-    settable: false,
-    lockReason: GRID_LOCK,
+    role: 'Steg links und rechts der Dokumentspalte; trägt die hängenden Ziffern. Korridor 0,5–3rem: Der Steg bleibt breit genug für --layout-hang und nimmt dem Inhalt nie mehr als die Randspalte.',
+    settable: true,
+    range: { kind: 'length', units: ['rem'], min: 0.5, max: 3 },
     emit: 'css',
   },
   '--layout-hang': {
@@ -765,17 +865,17 @@ export const catalog = {
   '--layout-note-w': {
     level: 'structure',
     group: 'Maß, Raster, Dichte',
-    role: 'Breite der Marginalie',
-    settable: false,
-    lockReason: GRID_LOCK,
+    role: 'Breite der Marginalie. Korridor 160–320px: schmal genug, dass die Randspalte vor dem Satz abbricht, breit genug für ein lesbares Wort.',
+    settable: true,
+    range: { kind: 'length', units: ['px'], min: 160, max: 320 },
     emit: 'css',
   },
   '--layout-note-gap': {
     level: 'structure',
     group: 'Maß, Raster, Dichte',
-    role: 'Abstand zwischen Satz und Marginalie',
-    settable: false,
-    lockReason: GRID_LOCK,
+    role: 'Abstand zwischen Satz und Marginalie. Korridor 0–2rem: Er verschiebt nur die Randspalte, nie den Satz.',
+    settable: true,
+    range: { kind: 'length', units: ['rem'], min: 0, max: 2 },
     emit: 'css',
   },
   '--layout-note-x': {
@@ -805,9 +905,9 @@ export const catalog = {
   '--layout-sheet-max': {
     level: 'structure',
     group: 'Maß, Raster, Dichte',
-    role: 'Außenmaß des Satzspiegels',
-    settable: false,
-    lockReason: GRID_LOCK,
+    role: 'Außenmaß des Satzspiegels. Korridor 480–960px: Er begrenzt nur die Außenbreite, die Spalten darin rechnen sich mit.',
+    settable: true,
+    range: { kind: 'length', units: ['px'], min: 480, max: 960 },
     emit: 'css',
   },
 
@@ -816,6 +916,7 @@ export const catalog = {
     group: 'Linien, Radien, Bedienelemente',
     role: 'Haarlinie',
     settable: true,
+    range: { kind: 'length', units: ['px'], min: 0, max: 4 },
     emit: 'css',
   },
   '--rule-strong': {
@@ -823,6 +924,7 @@ export const catalog = {
     group: 'Linien, Radien, Bedienelemente',
     role: 'Zäsur, Kartenkopf, Fokusring',
     settable: true,
+    range: { kind: 'length', units: ['px'], min: 0, max: 4 },
     emit: 'css',
   },
   '--rule-marker': {
@@ -830,6 +932,7 @@ export const catalog = {
     group: 'Linien, Radien, Bedienelemente',
     role: 'Markerlinie an Hinweis, Code, aktivem Eintrag',
     settable: true,
+    range: { kind: 'length', units: ['px'], min: 0, max: 4 },
     emit: 'css',
   },
   '--diagram-frame-w': {
@@ -837,6 +940,7 @@ export const catalog = {
     group: 'Linien, Radien, Bedienelemente',
     role: 'Rahmen um eingebettete Diagramme — 0 blendet ihn aus',
     settable: true,
+    range: { kind: 'length', units: ['px'], min: 0, max: 4 },
     emit: 'css',
     addedAfterMockup:
       'Der Entwurf kennt nur den einen Bildrahmen (.prose img). Dass draw.io- und Excalidraw-Diagramme ihren eigenen Rahmen im SVG mitbringen und dadurch doppelt gerahmt erscheinen, zeigt sich erst an echten Inhalten — der Entwurf zeigt Bilder, keine Diagramme.',
@@ -846,6 +950,7 @@ export const catalog = {
     group: 'Linien, Radien, Bedienelemente',
     role: 'Inline-Code, Farbfleck',
     settable: true,
+    range: { kind: 'length', units: ['rem'], min: 0, max: 2 },
     emit: 'css',
   },
   '--radius-md': {
@@ -853,6 +958,7 @@ export const catalog = {
     group: 'Linien, Radien, Bedienelemente',
     role: 'Schaltflächen, Felder',
     settable: true,
+    range: { kind: 'length', units: ['rem'], min: 0, max: 2 },
     emit: 'css',
   },
   '--radius-lg': {
@@ -860,6 +966,7 @@ export const catalog = {
     group: 'Linien, Radien, Bedienelemente',
     role: 'Dialog, Register',
     settable: true,
+    range: { kind: 'length', units: ['rem'], min: 0, max: 2 },
     emit: 'css',
   },
   '--radius-pill': {
@@ -867,14 +974,15 @@ export const catalog = {
     group: 'Linien, Radien, Bedienelemente',
     role: 'Status-Chip, Schrittziffer',
     settable: true,
+    range: { kind: 'length', units: ['rem'], min: 0, max: 100 },
     emit: 'css',
   },
   '--control-h': {
     level: 'structure',
     group: 'Linien, Radien, Bedienelemente',
-    role: 'Mindest-Zielgröße aller Bedienelemente',
-    settable: false,
-    lockReason: 'Zusicherung 4 der Erscheinungsbild-Spec: mindestens 44 × 44 px. Der Wert IST die Zusage.',
+    role: 'Mindest-Zielgröße aller Bedienelemente. Korridor 44–64px: Die Untergrenze IST Zusicherung 4 (mindestens 44 × 44 px), nach oben ist nur mehr Platz.',
+    settable: true,
+    range: { kind: 'length', units: ['px'], min: 44, max: 64 },
     emit: 'css',
   },
   '--control-pad-x': {
@@ -882,6 +990,7 @@ export const catalog = {
     group: 'Linien, Radien, Bedienelemente',
     role: 'waagerechter Innenabstand',
     settable: true,
+    range: { kind: 'length', units: ['rem'], min: 0, max: 2 },
     emit: 'css',
   },
   '--control-pad-y': {
@@ -889,6 +998,7 @@ export const catalog = {
     group: 'Linien, Radien, Bedienelemente',
     role: 'senkrechter Innenabstand',
     settable: true,
+    range: { kind: 'length', units: ['rem'], min: 0, max: 2 },
     emit: 'css',
   },
 
@@ -897,6 +1007,7 @@ export const catalog = {
     group: 'Fokus und Bewegung',
     role: 'Stärke des Fokusrings',
     settable: true,
+    range: { kind: 'length', units: ['px'], min: 2, max: 6 },
     emit: 'css',
   },
   '--focus-offset': {
@@ -904,6 +1015,7 @@ export const catalog = {
     group: 'Fokus und Bewegung',
     role: 'Abstand des Fokusrings',
     settable: true,
+    range: { kind: 'length', units: ['rem'], min: 0, max: 0.5 },
     emit: 'css',
   },
   '--motion-fast': {
@@ -911,6 +1023,7 @@ export const catalog = {
     group: 'Fokus und Bewegung',
     role: 'Übergänge (bei reduzierter Bewegung aus)',
     settable: true,
+    range: { kind: 'duration', min: 0, max: 400 },
     emit: 'css',
   },
   '--motion-ease': {
@@ -918,6 +1031,7 @@ export const catalog = {
     group: 'Fokus und Bewegung',
     role: 'Beschleunigung',
     settable: true,
+    range: { kind: 'easing' },
     emit: 'css',
   },
 
@@ -964,6 +1078,7 @@ export const catalog = {
     group: 'Diagramme',
     role: 'Fläche einer Bahn (Zuständigkeitsstreifen)',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'generator',
     addedAfterMockup: DIAGRAM_NEW,
   },
@@ -972,6 +1087,7 @@ export const catalog = {
     group: 'Diagramme',
     role: 'Rand und Trennlinie einer Bahn',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'generator',
     addedAfterMockup: DIAGRAM_NEW,
   },
@@ -980,6 +1096,7 @@ export const catalog = {
     group: 'Diagramme',
     role: 'Beschriftung der Bahn (senkrecht im Kopf)',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'generator',
     addedAfterMockup: DIAGRAM_NEW,
   },
@@ -988,6 +1105,7 @@ export const catalog = {
     group: 'Diagramme',
     role: 'Fläche von Anfang und Ende',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'generator',
     addedAfterMockup: DIAGRAM_NEW,
   },
@@ -996,6 +1114,7 @@ export const catalog = {
     group: 'Diagramme',
     role: 'Rand von Anfang und Ende',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'generator',
     addedAfterMockup: DIAGRAM_NEW,
   },
@@ -1004,6 +1123,7 @@ export const catalog = {
     group: 'Diagramme',
     role: 'Fläche eines Schritts',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'generator',
     addedAfterMockup: DIAGRAM_NEW,
   },
@@ -1012,6 +1132,7 @@ export const catalog = {
     group: 'Diagramme',
     role: 'Rand eines Schritts im Bahnendiagramm',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'generator',
     addedAfterMockup: DIAGRAM_NEW,
   },
@@ -1024,6 +1145,7 @@ export const catalog = {
     group: 'Diagramme',
     role: 'Rand eines Schritts im Flussdiagramm',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'generator',
     addedAfterMockup: DIAGRAM_NEW,
   },
@@ -1032,6 +1154,7 @@ export const catalog = {
     group: 'Diagramme',
     role: 'Fläche einer Entscheidung (Raute)',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'generator',
     addedAfterMockup: DIAGRAM_NEW,
   },
@@ -1040,6 +1163,7 @@ export const catalog = {
     group: 'Diagramme',
     role: 'Rand einer Entscheidung',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'generator',
     addedAfterMockup: DIAGRAM_NEW,
   },
@@ -1048,6 +1172,7 @@ export const catalog = {
     group: 'Diagramme',
     role: 'Schrift in Kästen und Rauten',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'generator',
     addedAfterMockup: DIAGRAM_NEW,
   },
@@ -1056,6 +1181,7 @@ export const catalog = {
     group: 'Diagramme',
     role: 'Verbindungslinie samt Pfeilspitze',
     settable: true,
+    range: { kind: 'hex' },
     emit: 'generator',
     addedAfterMockup: DIAGRAM_NEW,
   },
@@ -1065,6 +1191,7 @@ export const catalog = {
     group: 'Diagramme',
     role: 'Höhe einer Bahn',
     settable: true,
+    range: { kind: 'number', min: 100, max: 500 },
     emit: 'generator',
     addedAfterMockup: DIAGRAM_NEW,
   },
@@ -1073,6 +1200,7 @@ export const catalog = {
     group: 'Diagramme',
     role: 'Breite des Bahnenkopfs mit der senkrechten Beschriftung',
     settable: true,
+    range: { kind: 'number', min: 16, max: 80 },
     emit: 'generator',
     addedAfterMockup: DIAGRAM_NEW,
   },
@@ -1081,6 +1209,7 @@ export const catalog = {
     group: 'Diagramme',
     role: 'Breite eines Schritts im Bahnendiagramm',
     settable: true,
+    range: { kind: 'number', min: 60, max: 300 },
     emit: 'generator',
     addedAfterMockup: DIAGRAM_NEW,
   },
@@ -1089,6 +1218,7 @@ export const catalog = {
     group: 'Diagramme',
     role: 'Höhe eines Schritts im Bahnendiagramm',
     settable: true,
+    range: { kind: 'number', min: 24, max: 200 },
     emit: 'generator',
     addedAfterMockup: DIAGRAM_NEW,
   },
@@ -1097,6 +1227,7 @@ export const catalog = {
     group: 'Diagramme',
     role: 'waagerechter Rasterabstand der Schritte (Mitte zu Mitte)',
     settable: true,
+    range: { kind: 'number', min: 80, max: 400 },
     emit: 'generator',
     addedAfterMockup: DIAGRAM_NEW,
   },
@@ -1105,6 +1236,7 @@ export const catalog = {
     group: 'Diagramme',
     role: 'Breite eines Knotens im Flussdiagramm',
     settable: true,
+    range: { kind: 'number', min: 80, max: 400 },
     emit: 'generator',
     addedAfterMockup: DIAGRAM_NEW,
   },
@@ -1113,6 +1245,7 @@ export const catalog = {
     group: 'Diagramme',
     role: 'Höhe eines Schritts im Flussdiagramm',
     settable: true,
+    range: { kind: 'number', min: 24, max: 200 },
     emit: 'generator',
     addedAfterMockup: DIAGRAM_NEW,
   },
@@ -1121,6 +1254,7 @@ export const catalog = {
     group: 'Diagramme',
     role: 'Höhe von Anfang und Ende im Flussdiagramm',
     settable: true,
+    range: { kind: 'number', min: 24, max: 120 },
     emit: 'generator',
     addedAfterMockup: DIAGRAM_NEW,
   },
@@ -1129,6 +1263,7 @@ export const catalog = {
     group: 'Diagramme',
     role: 'Breite einer Entscheidung',
     settable: true,
+    range: { kind: 'number', min: 80, max: 400 },
     emit: 'generator',
     addedAfterMockup: DIAGRAM_NEW,
   },
@@ -1137,6 +1272,7 @@ export const catalog = {
     group: 'Diagramme',
     role: 'Höhe einer Entscheidung',
     settable: true,
+    range: { kind: 'number', min: 40, max: 240 },
     emit: 'generator',
     addedAfterMockup: DIAGRAM_NEW,
   },
@@ -1145,6 +1281,7 @@ export const catalog = {
     group: 'Diagramme',
     role: 'senkrechter Rasterabstand der Zeilen im Flussdiagramm',
     settable: true,
+    range: { kind: 'number', min: 30, max: 200 },
     emit: 'generator',
     addedAfterMockup: DIAGRAM_NEW,
   },
@@ -1153,6 +1290,7 @@ export const catalog = {
     group: 'Diagramme',
     role: 'Eckenrundung von Anfang und Ende (mxGraph-arcSize)',
     settable: true,
+    range: { kind: 'number', min: 0, max: 50 },
     emit: 'generator',
     addedAfterMockup: DIAGRAM_NEW,
   },
@@ -1161,6 +1299,7 @@ export const catalog = {
     group: 'Diagramme',
     role: 'Schrift der Beschriftungen im Diagramm',
     settable: true,
+    range: { kind: 'font-stack' },
     emit: 'generator',
     addedAfterMockup: DIAGRAM_NEW,
   },
@@ -1169,6 +1308,7 @@ export const catalog = {
     group: 'Diagramme',
     role: 'Schriftgröße der Beschriftungen; bestimmt zugleich den Zeilenumbruch',
     settable: true,
+    range: { kind: 'number', min: 8, max: 32 },
     emit: 'generator',
     addedAfterMockup: DIAGRAM_NEW,
   },

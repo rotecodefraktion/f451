@@ -10,6 +10,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@f451/design-tokens':
+        specifier: workspace:*
+        version: link:../../packages/design-tokens
       '@f451/git-provider':
         specifier: workspace:*
         version: link:../../packages/git-provider
@@ -52,6 +55,9 @@ importers:
       pg:
         specifier: ^8.22.0
         version: 8.22.0
+      yaml:
+        specifier: ^2.6.0
+        version: 2.9.0
     devDependencies:
       '@testcontainers/postgresql':
         specifier: ^12.0.4

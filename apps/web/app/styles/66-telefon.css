@@ -143,6 +143,65 @@
     color: var(--color-text-muted);
     opacity: 0.5;
   }
+
+  /* ---- Appearance page (theme editor, `components/theme-editor/*`) ----
+     Spec addendum 2026-10-02 §7 "Telefon": the token table becomes a list —
+     one token per entry, its field(s) below. Single-column grids instead of
+     the flex rows of `65-theme-editor.css`: in a grid the flex bases of the
+     children (`--layout-note-w`, `--layout-rail-w`) have no say, so nothing
+     keeps a minimum width that would push the row wider than the phone. */
+
+  /* Frame: the preview leaves the side column and follows the groups. */
+  .theme-editor {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .theme-editor-preview {
+    position: static;
+  }
+
+  /* Scope selector and every select of the page at full width. */
+  .te-scope {
+    max-width: none;
+  }
+  .theme-editor .selectwrap {
+    width: 100%;
+  }
+
+  /* Status bar: the status answer takes its own line instead of squeezing
+     beside the buttons. */
+  .te-bar-status {
+    flex-basis: 100%;
+  }
+
+  /* Token row: name and origin, role, field(s), actions — stacked. */
+  .te-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .te-row-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  /* Colour pairs: light over dark. */
+  .te-modes {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Length: number over unit, so the unit select can take the full width. */
+  .te-length {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* "Prüfschärfe" strip: the four threshold fields stacked. */
+  .te-threshold-fields {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* =========================================================================

@@ -5,6 +5,7 @@ import { SignInNote } from '../components/sign-in-note'
 import { redirect } from 'next/navigation'
 import { apiFetch } from '../lib/api'
 import { getT } from '../lib/i18n/server'
+import { getBrand } from '../lib/resolved-theme'
 import { getMe } from '../lib/session'
 
 interface HomeProps {
@@ -68,14 +69,17 @@ export default async function Home({ searchParams }: HomeProps) {
   const { methods, note } = await signInOptions()
   const retryHref = `/?next=${encodeURIComponent(target)}`
   const { t } = await getT()
+  // The instance brand (theming, #3): the resolved-theme route is public, so
+  // the sign-in card can carry the operator's logo and name before a session.
+  const brand = await getBrand()
 
   return (
     <main className="login-page">
       <div className="login-card card">
         <span className="mark" aria-hidden="true">
-          <BrandMark />
+          {brand?.logoUrl ? <img src={brand.logoUrl} alt="" className="brand-logo" /> : <BrandMark />}
         </span>
-        <span className="brandline">f451</span>
+        <span className="brandline">{brand?.name ?? 'f451'}</span>
         <p className="claim">{t('settings.login.claim')}</p>
         <h1>{t('settings.login.heading')}</h1>
         <p className="lede">{t('settings.login.lede')}</p>

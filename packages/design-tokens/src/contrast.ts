@@ -1,22 +1,30 @@
 import type { ThemeColorTokenName } from './catalog.js'
+import type { Mode, ModeValues, ResolvedTheme } from './theme.js'
 import { tokens } from './tokens.js'
 
 /**
- * Kontrastrechnung und die geprüften Farbpaare — EINE Quelle für den Test
- * (`test/contrast.test.ts`) und für die Einstellungsseite „Erscheinungsbild".
+ * Contrast arithmetic, the measured colour pairs and the thresholds per role —
+ * ONE source for the test (`test/contrast.test.ts`), for the "Appearance"
+ * settings page and for the theme check on save.
  *
- * Bis hierher stand beides im Test. Die Seite nennt bei jeder Farbe ihren
- * Kontrastwert; hätte sie eine eigene Rechnung und eigene Bezüge, zeigte sie
- * einem Anwender andere Zahlen als die, gegen die geprüft wird — und zwar
- * still. Deshalb liegen Rechnung, Mischung und Paartabelle hier, und der Test
- * liest sie von hier.
+ * Both used to live in the test. The page shows a contrast value next to every
+ * colour; with its own arithmetic and its own pairs it would show a user
+ * different numbers than the ones being checked — silently. So arithmetic,
+ * mixing and the pair table live here and the test reads them from here.
  *
- * Was NICHT hier steht: die Schwellen je Rolle. Sie sind eine fachliche
- * Festlegung mit Herleitung und stehen weiter im Test.
+ * The thresholds per role are a domain decision with a derivation
+ * (`docs/superpowers/specs/2026-07-26-themefaehigkeit-design.md`, "Vier
+ * Rollen, vier Voreinstellungen"). They moved here with `checkContrast`: the
+ * save check measures the RESOLVED set of a theme (after inheritance, after
+ * the derived formulas) against them, and the test pins their values.
  */
 
 function rgb(hex: string): [number, number, number] {
-  const h = hex.replace('#', '')
+  let h = hex.replace('#', '')
+  // The colour grammar admits `#rgb`, `#rgba` and `#rrggbbaa` (grammar.ts).
+  // Shorthand is expanded; alpha is dropped — a translucent colour has no
+  // contrast of its own without knowing what lies beneath it.
+  if (h.length <= 4) h = [...h].map((c) => c + c).join('')
   return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)) as [number, number, number]
 }
 
@@ -47,8 +55,33 @@ export function contrastRatio(vordergrund: string, hintergrund: string): number 
   return (l1! + 0.05) / (l2! + 0.05)
 }
 
-/** Die vier Rollen der Kontrasttabelle; die Schwellen dazu stehen im Test. */
+/** The four roles of the contrast table; their thresholds are `DEFAULT_THRESHOLDS` / `AA_THRESHOLDS`. */
 export type KontrastRolle = 'Lesetext' | 'kurze Schrift' | 'nicht-textliche Zeichen' | 'beiläufige Beschriftung'
+
+/** One threshold per role — reading text, short text on a surface, non-text marks, incidental labels. */
+export interface ContrastThresholds {
+  readingText: number
+  shortText: number
+  nonText: number
+  incidental: number
+}
+
+/**
+ * The instance-wide defaults the spec decided on. Adjustable later via
+ * `_meta/contrast.yaml`; lowering one turns an error into a warning, it never
+ * makes the finding disappear — the AA reference below is fixed.
+ */
+export const DEFAULT_THRESHOLDS: ContrastThresholds = { readingText: 4.5, shortText: 3.5, nonText: 3.0, incidental: 2.0 }
+
+/** The fixed AA reference per role (SC 1.4.3 for text, SC 1.4.11 for non-text). Not adjustable. */
+export const AA_THRESHOLDS: ContrastThresholds = { readingText: 4.5, shortText: 4.5, nonText: 3.0, incidental: 4.5 }
+
+const THRESHOLD_FIELD: Record<KontrastRolle, keyof ContrastThresholds> = {
+  Lesetext: 'readingText',
+  'kurze Schrift': 'shortText',
+  'nicht-textliche Zeichen': 'nonText',
+  'beiläufige Beschriftung': 'incidental',
+}
 
 /**
  * Notation: `--color-x` ist ein Theme-Wert, `~--color-x` ein abgeleiteter, der
@@ -145,11 +178,23 @@ export const KONTRASTPAARE: Kontrastpaar[] = [
   },
 ]
 
-/** Löst einen Bezug im gegebenen Erscheinungsmodus zu einem Hex-Wert auf. */
-export function loeseBezug(mode: 'light' | 'dark', bezug: Bezug): string {
-  const theme = tokens[mode] as Record<string, string>
+/**
+ * Resolves a reference to a hex value in the given mode.
+ *
+ * Without `values` it reads the shipped defaults (`tokens`). With a resolved
+ * mode map (`ResolvedTheme.light` / `.dark`) it measures that set instead: a
+ * plain `--color-x` is read from it, a derived `~--color-x` uses the explicit
+ * value if a layer set one and otherwise evaluates the formula with the
+ * resolved theme colours as inputs — the same mix the browser performs, since
+ * the inline style only overrides the inputs of the formula block.
+ */
+export function loeseBezug(mode: Mode, bezug: Bezug, values: ModeValues = tokens[mode]): string {
+  const theme = values as Record<string, string>
   if (!bezug.startsWith('~')) return theme[bezug]!
-  const formel = tokens.derived[bezug.slice(1) as keyof typeof tokens.derived]
+  const name = bezug.slice(1)
+  const explicit = theme[name]
+  if (explicit !== undefined) return explicit
+  const formel = tokens.derived[name as keyof typeof tokens.derived]
   switch (formel.kind) {
     case 'mix':
       return mix(theme[formel.source as ThemeColorTokenName]!, formel.percent, theme[formel.into as ThemeColorTokenName]!)
@@ -158,4 +203,42 @@ export function loeseBezug(mode: 'light' | 'dark', bezug: Bezug): string {
     case 'veil':
       return formel.color
   }
+}
+
+export interface ContrastFinding {
+  mode: Mode
+  role: KontrastRolle
+  pair: Kontrastpaar
+  ratio: number
+  /** the threshold the finding was measured against (from `thresholds`) */
+  threshold: number
+  belowThreshold: boolean
+  /** below the fixed AA reference of the role — reported even when the threshold passes */
+  belowAA: boolean
+}
+
+/**
+ * Measures every pair of `KONTRASTPAARE` on the resolved set, separately for
+ * light and dark (a theme that only sets light values is checked in dark
+ * against the inherited dark values — the combination a reader will see).
+ * Returns one finding per pair and mode, passing ones included, so a report
+ * can show every value; callers filter on `belowThreshold` / `belowAA`.
+ */
+export function checkContrast(resolved: ResolvedTheme, thresholds: ContrastThresholds = DEFAULT_THRESHOLDS): ContrastFinding[] {
+  return (['light', 'dark'] as const).flatMap((mode) =>
+    KONTRASTPAARE.map((pair) => {
+      const field = THRESHOLD_FIELD[pair.rolle]
+      const threshold = thresholds[field]
+      const ratio = contrastRatio(loeseBezug(mode, pair.vorn, resolved[mode]), loeseBezug(mode, pair.hinten, resolved[mode]))
+      return {
+        mode,
+        role: pair.rolle,
+        pair,
+        ratio,
+        threshold,
+        belowThreshold: ratio < threshold,
+        belowAA: ratio < AA_THRESHOLDS[field],
+      }
+    }),
+  )
 }

@@ -6,6 +6,8 @@
 export const shell = {
   meta: {
     title: 'f451 — Dokumentationsplattform',
+    /** With a brand name from the theme (`brand.name`) in place of "f451". */
+    brandTitle: '{name} — Dokumentationsplattform',
   },
   topbar: {
     homeAriaLabel: 'Zur Startseite',

@@ -11,6 +11,13 @@
 export * from './catalog.js'
 export * from './tokens.js'
 export * from './contrast.js'
+export { checkValue, type ValueCheck } from './grammar.js'
+// Layer resolver, cross-token rules and the CSS difference of a resolved theme.
+export * from './theme.js'
+// Theme file parser: file names without dashes in, a grammar-checked ThemeLayer out.
+export * from './theme-file.js'
+// Built-in theme templates (Fokus, Klar & Warm, System / Raster, Werkbank, Rotecodefraktion).
+export { builtinTemplates, type BuiltinTemplate } from './builtin-themes.js'
 // Die CSS-Schreibweise einer Mischvorschrift — die Seite zeigt sie für die
 // abgeleiteten Tokens an, die sich nicht zu einem Farbwert ausrechnen lassen.
 export { formulaToCss } from './css.js'

@@ -1,8 +1,11 @@
 import type { Metadata } from 'next'
 import { headers } from 'next/headers'
 import localFont from 'next/font/local'
+import { PreviewBanner } from '../components/theme-editor/preview-banner'
 import { LocaleProvider } from '../lib/i18n/provider.js'
 import { getT } from '../lib/i18n/server.js'
+import { getBrand, getResolvedTheme } from '../lib/resolved-theme.js'
+import { themeStyleText } from '../lib/theme-style.js'
 // Ein einziger Stil-Einstieg: `globals.css` ist nur noch die @import-Liste
 // (s. Kopfkommentar dort). Die Graph-Ansicht stand bis Teilschritt H5 des
 // Bausteinsystem-Umbaus als zweiter Import daneben und damit hinter allem in
@@ -58,7 +61,9 @@ const jetbrainsMono = localFont({
  */
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getT()
-  return { title: t('shell.meta.title') }
+  // A brand name replaces "f451" in the title (addendum §5).
+  const name = (await getBrand())?.name
+  return { title: name ? t('shell.meta.brandTitle', { name }) : t('shell.meta.title') }
 }
 
 // Flash-frei: setzt data-theme aus localStorage VOR dem ersten Paint. Ohne
@@ -80,21 +85,25 @@ const NO_FLASH_THEME = `(function(){try{var t=localStorage.getItem('theme');if(t
 // Der Schlüssel `panes` steht zugleich dort (PANE_STORAGE_KEY).
 const NO_FLASH_PANES = `(function(){try{var r=document.documentElement,s=null;try{s=JSON.parse(localStorage.getItem('panes')||'null');}catch(e){}var nav,rail;if(s&&typeof s.nav==='boolean'&&typeof s.rail==='boolean'){nav=s.nav;rail=s.rail;}else{nav=matchMedia('(min-width: 900px)').matches;rail=matchMedia('(min-width: 1180px)').matches;}r.setAttribute('data-nav',nav?'on':'off');r.setAttribute('data-rail',rail?'on':'off');}catch(e){}})();`
 
-// Die auf der Seite „Erscheinungsbild" eingestellten Token-Überschreibungen,
-// ebenfalls VOR dem ersten Paint. Ohne dieses Script erschiene bei jedem
-// Seitenaufruf kurz das ausgelieferte Farbschema, bevor die Client-Insel
-// (`components/erscheinungsbild-editor.tsx`) ihre Werte anlegt.
+// The token overrides of the program preview ("Im ganzen Programm
+// ausprobieren" on the appearance page), also applied BEFORE the first paint.
+// Without this script every page load would briefly show the saved theme
+// before the preview's values arrive.
 //
-// Es MUSS nach NO_FLASH_THEME laufen: welcher Wertesatz gilt, hängt am dort
-// gesetzten `data-theme` (fehlt es, entscheidet prefers-color-scheme — dieselbe
-// Regel wie in `tokens.css`).
+// The key `erscheinungsbild` (`PREVIEW_STORAGE_KEY` in `lib/theme-preview.ts`)
+// is written by the program preview (`components/theme-editor/program-preview.tsx`)
+// and read by the preview banner (`components/theme-editor/preview-banner.tsx`),
+// which also re-applies the values when the mode changes after load.
 //
-// Gespeichert liegt `{ light: {…}, dark: {…} }` unter dem Schlüssel
-// `erscheinungsbild` (SPEICHER_SCHLUESSEL in der Insel). Das Script prüft jeden
-// Schritt einzeln und wirft nie: ein von Hand verbogener oder veralteter
-// Eintrag darf die Anwendung nicht anhalten, sondern nur wirkungslos bleiben.
-// Übernommen werden ausschließlich Zeichenketten unter `--`-Namen — nichts
-// anderes gehört an ein Wurzelelement.
+// It MUST run after NO_FLASH_THEME: which value set applies depends on the
+// `data-theme` set there (if absent, prefers-color-scheme decides — the same
+// rule as in `tokens.css`).
+//
+// Stored is `{ light: {…}, dark: {…} }`, from the preview with a top-level
+// `preview: true` marker this script ignores (`lib/erscheinungsbild.ts`). The script checks every step on its
+// own and never throws: a hand-bent or stale entry must not stop the app, only
+// stay without effect. Only strings under `--` names are taken over — nothing
+// else belongs on the root element.
 const NO_FLASH_TOKENS = `(function(){try{var r=document.documentElement,m=r.getAttribute('data-theme');if(m!=='dark'&&m!=='light'){m=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}var s=null;try{s=JSON.parse(localStorage.getItem('erscheinungsbild')||'null');}catch(e){}if(!s||typeof s!=='object')return;var w=s[m];if(!w||typeof w!=='object')return;for(var k in w){if(Object.prototype.hasOwnProperty.call(w,k)&&typeof w[k]==='string'&&k.slice(0,2)==='--'){r.style.setProperty(k,w[k]);}}}catch(e){}})();`
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
@@ -104,7 +113,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // Inline-Theme-Script durch. `headers()` macht das Layout dynamisch — die
   // Routen sind es (bis auf not-found) ohnehin, und eine per-Request-CSP
   // schließt statisches Prerendering des Dokuments prinzipbedingt aus.
-  const nonce = (await headers()).get('x-nonce') ?? undefined
+  const requestHeaders = await headers()
+  const nonce = requestHeaders.get('x-nonce') ?? undefined
   // Sprache serverseitig ermitteln (Cookie `lang` > Accept-Language > `de`,
   // s. `lib/i18n/server.ts#getLocale`) und den Client-`<LocaleProvider>`
   // damit seeden — der Client leitet die Sprache NIE selbst ab, das hält
@@ -130,6 +140,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // e.g. an instance's colours and self-hosted typefaces. Same-origin paths
   // only — that is what the CSP (`style-src 'self'`, `font-src 'self'`) allows.
   const customStylesheet = process.env.F451_CUSTOM_STYLESHEET
+  // Resolved theme (instance, space and user layer) and the brand; `null` on any
+  // failure — then the built-in tokens and the f451 icon apply. Shared per
+  // request with `generateMetadata` and the `<Shell>` (`lib/resolved-theme.ts`).
+  const resolvedTheme = await getResolvedTheme()
+  const themeCss = themeStyleText(resolvedTheme?.css)
+  // Brand favicon (instance only, addendum §5). Without one, `app/icon.svg`
+  // (Next's file convention) stays the icon.
+  const faviconUrl = resolvedTheme?.brand?.faviconUrl ?? null
   return (
     <html
       lang={locale}
@@ -149,11 +167,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     >
       <head>
         <script nonce={nonce} dangerouslySetInnerHTML={{ __html: NO_FLASH_THEME + NO_FLASH_PANES + NO_FLASH_TOKENS }} />
+        {/* After the built-in tokens (globals.css), before the operator stylesheet. */}
+        {themeCss ? <style id="f451-theme" dangerouslySetInnerHTML={{ __html: themeCss }} /> : null}
         {customStylesheet?.startsWith('/') ? <link rel="stylesheet" href={customStylesheet} /> : null}
+        {faviconUrl ? <link rel="icon" type="image/svg+xml" href={faviconUrl} /> : null}
       </head>
       <body>
         <LocaleProvider locale={locale} messages={messages}>
           {children}
+          {/* "Vorschau aktiv — beenden": only renders while a program preview is stored. */}
+          <PreviewBanner />
         </LocaleProvider>
       </body>
     </html>

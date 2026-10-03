@@ -6,6 +6,7 @@ import { branchExists, cleanupMergedDraft, findPageIdForDraftBranch } from '../d
 import { indexChangedFiles, type IncrementalReport } from '../indexer/incremental.js'
 import type { OpsCounters } from '../ops/counters.js'
 import type { SpaceConfig } from '../spaces/config.js'
+import { invalidateSpaceTheme, SPACE_THEME_PATH } from '../theme/space-theme.js'
 
 export interface WebhookSecrets {
   forgejo?: string
@@ -280,6 +281,13 @@ async function handlePush(
 
   reply.code(202).send({ status: 'accepted' })
 
+  // A push that touches the space theme or its templates empties that
+  // space's theme cache (July spec, "Zwischenspeicherung"); the next read
+  // loads the file again instead of waiting for the five-minute expiry.
+  if ([...normalized.changedPaths, ...normalized.removedPaths].some(isThemePath)) {
+    invalidateSpaceTheme(space.id)
+  }
+
   // Asynchron: Antwort ist bereits raus, Indexierung läuft im Hintergrund.
   const gitProvider = deps.providerRegistry(space)
   indexChangedFiles(
@@ -406,4 +414,9 @@ async function cleanupAfterMerge(
     deps.counters.increment('webhook_errors')
     deps.onCleanup?.({ space: space.id, pageId, error })
   }
+}
+
+/** `_meta/theme.yaml`, the template library `_meta/themes/*` and the brand files `_meta/brand/*`. */
+function isThemePath(path: string): boolean {
+  return path === SPACE_THEME_PATH || path.startsWith('_meta/themes/') || path.startsWith('_meta/brand/')
 }

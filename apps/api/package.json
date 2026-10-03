@@ -11,6 +11,7 @@
     "db:migrate": "tsx src/db/migrate-cli.ts"
   },
   "dependencies": {
+    "@f451/design-tokens": "workspace:*",
     "@f451/git-provider": "workspace:*",
     "@f451/markdown": "workspace:*",
     "@fastify/cookie": "^11.1.1",
@@ -24,7 +25,8 @@
     "hast-util-sanitize": "^5.0.2",
     "hast-util-to-html": "^9.0.5",
     "openid-client": "^6",
-    "pg": "^8.22.0"
+    "pg": "^8.22.0",
+    "yaml": "^2.6.0"
   },
   "devDependencies": {
     "@testcontainers/postgresql": "^12.0.4",
