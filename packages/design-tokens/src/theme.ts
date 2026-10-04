@@ -141,5 +141,37 @@ export function toCssDeclarations(resolved: ResolvedTheme): { root: string[]; li
   }
 }
 
+/**
+ * Building-block switches (structure spec 1, 2026-10-04): tokens with
+ * `emit: 'attribute'`. They never become custom properties; the layout puts
+ * them on `<html>` as `data-<name>` and the blocks branch on the attribute.
+ */
+export const ATTRIBUTE_TOKENS: readonly StructureTokenName[] = namesOfLevel('structure').filter(
+  (n) => catalog[n].emit === 'attribute',
+)
+
+/** `--chip-style` → `chip-style`: the attribute name the DOM gets (`data-chip-style`). */
+export function attributeName(token: StructureTokenName): string {
+  return token.slice(2)
+}
+
+/** Only the switches that differ from Editorial — what the server renders onto `<html>`. */
+export function toAttributes(resolved: ResolvedTheme): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const n of ATTRIBUTE_TOKENS) {
+    if (resolved.origin.base[n]?.source === 'default') continue
+    if (resolved.base[n] === tokens.structure[n]) continue
+    out[attributeName(n)] = resolved.base[n]
+  }
+  return out
+}
+
+/** Every switch with its value — the previews write the full set so a document deviation cannot leak in. */
+export function attributeValues(resolved: ResolvedTheme): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const n of ATTRIBUTE_TOKENS) out[attributeName(n)] = resolved.base[n]
+  return out
+}
+
 // Cross-token rules live next door; re-exported so the resolver stays the one entry point.
 export { checkRules, type RuleViolation } from './rules.js'

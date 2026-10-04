@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { checkRules, resolveTheme, toCssDeclarations, type ThemeLayer } from '../src/theme.js'
+import {
+  ATTRIBUTE_TOKENS,
+  attributeValues,
+  checkRules,
+  resolveTheme,
+  toAttributes,
+  toCssDeclarations,
+  type ThemeLayer,
+} from '../src/theme.js'
 import { tokens } from '../src/tokens.js'
 
 /**
@@ -144,5 +152,40 @@ describe('toCssDeclarations', () => {
   it('keeps generator-only tokens out of the stylesheet, like css.ts does', () => {
     const css = toCssDeclarations(resolveTheme([{ source: 'instance', light: { '--diagram-lane-fill': '#000000' } }]))
     expect(css.light).toEqual([])
+  })
+})
+
+describe('toAttributes / attributeValues', () => {
+  it('lists the twelve switches', () => {
+    expect(ATTRIBUTE_TOKENS).toHaveLength(12)
+    expect(ATTRIBUTE_TOKENS).toContain('--chip-style')
+  })
+
+  it('is empty for the defaults and for a layer that sets the default value', () => {
+    expect(toAttributes(resolveTheme([]))).toEqual({})
+    const same: ThemeLayer = { source: 'instance', base: { '--callout-style': 'bar' } }
+    // origin says instance, value is the default — the DOM only needs deviations,
+    // the origin mark on the settings page still says "instance" (Review Focus 2)
+    const resolved = resolveTheme([same])
+    expect(resolved.origin.base['--callout-style'].source).toBe('instance')
+    expect(toAttributes(resolved)).toEqual({})
+  })
+
+  it('names deviations without the dashes, later layer wins', () => {
+    const instance: ThemeLayer = { source: 'instance', base: { '--chip-style': 'filled', '--code-header': 'on' } }
+    const user: ThemeLayer = { source: 'user', base: { '--chip-style': 'marker' } }
+    expect(toAttributes(resolveTheme([instance, user]))).toEqual({ 'chip-style': 'marker', 'code-header': 'on' })
+  })
+
+  it('attributeValues carries every switch, defaults included', () => {
+    const values = attributeValues(resolveTheme([{ source: 'space', base: { '--list-marker': 'disc' } }]))
+    expect(Object.keys(values)).toHaveLength(12)
+    expect(values['list-marker']).toBe('disc')
+    expect(values['callout-style']).toBe('bar')
+  })
+
+  it('toCssDeclarations never emits a switch', () => {
+    const css = toCssDeclarations(resolveTheme([{ source: 'instance', base: { '--chip-style': 'filled' } }]))
+    expect(css.root.some((d) => d.startsWith('--chip-style'))).toBe(false)
   })
 })
