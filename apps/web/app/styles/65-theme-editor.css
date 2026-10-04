@@ -546,10 +546,10 @@
    side text at the defaults; once a threshold is below its default, the warn
    wash with the marker line of `.callout.warn`. The text stays in the text
    colour — review on its own wash measures below AA. */
+/* The whole strip is a native disclosure: collapsed to its one-line summary so
+   the template select and token groups below stay in view (open by default
+   only when thresholds are lowered). */
 .te-threshold {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
   margin-bottom: var(--space-4);
   font-size: var(--text-sm);
   line-height: var(--leading-ui);
@@ -562,7 +562,34 @@
   border-left: var(--rule-marker) solid var(--color-status-review);
   border-radius: var(--radius-sm);
 }
-.te-threshold-line,
+.te-threshold-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-h);
+  cursor: pointer;
+  list-style: none;
+}
+.te-threshold-head::-webkit-details-marker {
+  display: none;
+}
+.te-threshold-head::before {
+  content: '▸';
+  color: var(--color-text-muted);
+}
+.te-threshold[open] > .te-threshold-head::before {
+  content: '▾';
+}
+.te-threshold-head:focus-visible {
+  outline: var(--focus-w) solid var(--color-focus);
+  outline-offset: var(--focus-offset);
+}
+.te-threshold-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+}
 .te-threshold-note,
 .te-threshold-readonly,
 .te-threshold-empty {
