@@ -679,7 +679,8 @@
    Mediävalziffer ist. Die Hängebreite steckt in `--hang-w`, damit der
    Review-Diff sie auf 0 stellen kann (s. Dateiende). */
 .page-body h2:not(:empty)::before {
-  content: var(--heading-number);
+  /* interim fallback until the --heading-number switch lands (Task 10 of the structure-1 plan) */
+  content: var(--heading-number, counter(sec) '.');
   display: inline-block;
   /* Im TEXTFLUSS, nicht hängend: Auf Wunsch des Auftraggebers steht die Ziffer
      unmittelbar vor dem Titel, an derselben Stelle, an der eine von Hand in den
