@@ -37,3 +37,25 @@ export function themeStyleText(css: ThemeCssDeclarations | null | undefined): st
   }
   return out
 }
+
+const ATTRIBUTE_NAME = /^[a-z][a-z0-9-]{0,40}$/
+const ATTRIBUTE_VALUE = /^[a-z0-9-]{1,40}$/
+/** Attributes `<html>` already uses for other switches; a theme must not be able to touch them. */
+const RESERVED = new Set(['theme', 'nav', 'rail', 'altlasten'])
+
+/**
+ * `GET /api/theme/resolved` → `attributes` as props for `<html>`: `data-<name>`
+ * per building-block switch that differs from Editorial (structure spec 1).
+ * Names and values are validated fail-closed by the API; the grammar here keeps
+ * a broken response from ever writing an arbitrary attribute.
+ */
+export type DataAttributes = Record<`data-${string}`, string>
+
+export function themeAttributes(attributes: Record<string, string> | null | undefined): DataAttributes {
+  const out: DataAttributes = {}
+  for (const [name, value] of Object.entries(attributes ?? {})) {
+    if (!ATTRIBUTE_NAME.test(name) || RESERVED.has(name) || typeof value !== 'string' || !ATTRIBUTE_VALUE.test(value)) continue
+    out[`data-${name}`] = value
+  }
+  return out
+}

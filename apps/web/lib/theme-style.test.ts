@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { themeStyleText } from './theme-style.js'
+import { themeAttributes, themeStyleText } from './theme-style.js'
 
 describe('themeStyleText', () => {
   it('returns an empty string for empty input', () => {
@@ -42,5 +42,22 @@ describe('themeStyleText', () => {
     expect(themeStyleText({ root: ['--x: </style>;', '--radius-md: 6px;'], light: [], dark: [] })).toBe(
       ':root{--radius-md: 6px;}',
     )
+  })
+})
+
+describe('themeAttributes', () => {
+  it('prefixes the names with data-', () => {
+    expect(themeAttributes({ 'chip-style': 'filled', 'code-header': 'on' })).toEqual({ 'data-chip-style': 'filled', 'data-code-header': 'on' })
+  })
+
+  it('drops names and values outside the attribute grammar and the reserved names', () => {
+    expect(
+      themeAttributes({ 'chip style': 'filled', 'chip-style': 'fil led', 'chip-style"': 'x', theme: 'dark', nav: 'off', rail: 'off', altlasten: 'da' }),
+    ).toEqual({})
+  })
+
+  it('is empty without input', () => {
+    expect(themeAttributes(undefined)).toEqual({})
+    expect(themeAttributes(null)).toEqual({})
   })
 })
