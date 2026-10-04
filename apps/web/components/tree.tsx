@@ -123,7 +123,7 @@ function TreeNode({
       href={href}
       className={classes}
       title={node.archived ? t('actions.tree.archivedTitle', { title: node.title }) : undefined}
-      style={{ paddingLeft: `calc(var(--space-3) + ${depth} * var(--space-5))` }}
+      style={{ paddingLeft: 'var(--space-3)' }}
       stopClickPropagation
     >
       {node.archived ? ARCHIVE_ICON : DOC_ICON}
@@ -159,11 +159,15 @@ function TreeNode({
         </>
       }
     >
-      <SiblingList space={space} parentId={node.id} childIds={node.children.map((child) => child.id)}>
-        {node.children.map((child) => (
-          <TreeNode key={child.id} node={child} space={space} depth={depth + 1} allNodes={allNodes} t={t} />
-        ))}
-      </SiblingList>
+      {/* `.kids` carries the indentation of a nesting level (and the guide line
+          of `--tree-guides`, 60-chrome-raster.css); not interactive. */}
+      <div className="kids">
+        <SiblingList space={space} parentId={node.id} childIds={node.children.map((child) => child.id)}>
+          {node.children.map((child) => (
+            <TreeNode key={child.id} node={child} space={space} depth={depth + 1} allNodes={allNodes} t={t} />
+          ))}
+        </SiblingList>
+      </div>
     </TreeBranch>
   )
 }

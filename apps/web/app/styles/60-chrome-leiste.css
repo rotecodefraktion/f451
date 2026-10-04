@@ -16,18 +16,82 @@
 /* =========================================================================
    Leseansicht — rechte Leiste: ToC / Tags / Metadaten / Relationen (Task 4)
    ========================================================================= */
+/* Switch pattern (Bausteine): one rule per value sets private `--_…`
+   properties on the carrier (`<html>` or the preview stage, no `html` prefix);
+   the block reads them with the Editorial value as `var()` fallback. A carrier
+   value references only catalog tokens, never a property the block sets on
+   itself.
+
+   --toc-style: `numbered-progress` (Editorial) = chapter numbers in front of
+   each top-level entry (a middle dot in front of nested ones, as the mockup
+   does) and a hairline on the left that an accent line fills up to
+   --toc-progress (0% until a scroll spy sets it — follow-up, not here);
+   `bar` = the entries hang on a 2-px border (the application before 1.2.5).
+   The indentation of nested entries stays the inline padding from
+   `components/rail.tsx`. */
+[data-toc-style="numbered-progress"] {
+  --_toc-pad: 0 0 0 var(--space-4);
+  --_toc-rail: var(--rule-hair);
+  --_toc-num: counter(toc) '.';
+  --_toc-sub: '·';
+  --_toc-link-border: 0;
+}
+[data-toc-style="bar"] {
+  --_toc-pad: 0;
+  --_toc-rail: 0;
+  --_toc-num: none;
+  --_toc-sub: none;
+  --_toc-link-border: 2px;
+}
 .toc {
+  position: relative;
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: var(--_toc-pad, 0 0 0 var(--space-4));
+  counter-reset: toc;
   font-size: var(--text-sm);
 }
+.toc::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--_toc-rail, var(--rule-hair));
+  background: var(--color-border);
+}
+.toc::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(var(--_toc-rail, var(--rule-hair)) * 2);
+  height: var(--toc-progress, 0%);
+  background: var(--color-accent);
+}
+.toc li {
+  counter-increment: toc;
+}
+.toc li[data-sub] {
+  counter-increment: none;
+}
 .toc a {
-  display: block;
+  display: flex;
+  gap: var(--space-3);
+  align-items: baseline;
   color: var(--color-text-muted);
-  padding: 5px 0 5px var(--space-3);
-  border-left: 2px solid var(--color-border);
+  padding: 5px var(--space-2) 5px var(--space-3);
+  border-left: var(--_toc-link-border, 0) solid var(--color-border);
   font-size: var(--text-sm);
+}
+.toc a::before {
+  content: var(--_toc-num, counter(toc) '.');
+  color: var(--color-border-strong);
+  font-variant-numeric: lining-nums tabular-nums;
+  min-width: var(--space-5);
+}
+.toc li[data-sub] a::before {
+  content: var(--_toc-sub, '·');
 }
 /* Redesign Phase 2 (Handoff): Hover ist neutral (Text dunkler + Rand
    `--line-2`), NICHT akzentfarben — Akzent bleibt der aktiven TOC-Zeile
