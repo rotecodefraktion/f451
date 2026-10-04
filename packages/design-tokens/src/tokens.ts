@@ -206,13 +206,22 @@ const designStructure: StructureValues = {
   '--weight-strong': '650',
   '--weight-display': '600',
 
-  // Gliederungsnummerierung: Vorgabe ist „oberste Ebene" — die Ziffer steht an
-  // den Hauptkapiteln, die Unterkapitel bleiben ohne. Genau so zeigt es der
-  // abgenommene Entwurf, der die beiden Werte nur nicht als Tokens führt,
-  // sondern in `.prose h2::before` fest verdrahtet. Die beiden anderen
-  // Einstellungen („aus", „hierarchisch") stehen in catalog.ts.
-  '--heading-number': "counter(sec) '.'",
-  '--heading-number-sub': 'none',
+  // Building-block switches (group „Bausteine"): the construction the Editorial
+  // mockup hard-wires. Attribute tokens — never written to the stylesheet, see
+  // catalog.ts TokenEmit. The construction the application had before 1.2.5
+  // lives on as the built-in template "rotecodefraktion".
+  '--table-style': 'open',
+  '--callout-style': 'bar',
+  '--card-top-rule': 'on',
+  '--button-primary': 'ink',
+  '--chip-style': 'outline-caps',
+  '--heading-number': 'numeral',
+  '--heading-depth': 'top',
+  '--toc-style': 'numbered-progress',
+  '--tree-guides': 'on',
+  '--code-header': 'off',
+  '--rail-blocks': 'rules',
+  '--list-marker': 'dash',
 
   '--measure': '68ch',
   '--measure-wide': '96ch',
