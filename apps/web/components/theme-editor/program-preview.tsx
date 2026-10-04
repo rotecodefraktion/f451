@@ -63,6 +63,7 @@ export function applyStoredPreview(): void {
   for (const [name, value] of Object.entries(stored[mode])) {
     if (name.startsWith('--')) root.style.setProperty(name, value)
   }
+  for (const [name, value] of Object.entries(stored.attributes)) root.setAttribute(`data-${name}`, value)
 }
 
 function announce(active: boolean): void {
@@ -92,6 +93,9 @@ export function endProgramPreview(): void {
   }
   if (stored) for (const name of overrideNames(stored)) document.documentElement.style.removeProperty(name)
   announce(false)
+  // The switch attributes the preview wrote replaced the server-rendered ones, and
+  // the right ones depend on the page (space theme). A reload is the one honest way back.
+  if (stored && Object.keys(stored.attributes).length > 0) window.location.reload()
 }
 
 /**

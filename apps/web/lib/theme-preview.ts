@@ -11,10 +11,19 @@
  *
  * Nothing here touches the DOM or the storage; the components do.
  */
-import { catalog, toCssDeclarations, type Mode, type ResolvedTheme, type TokenName } from '@f451/design-tokens'
+import {
+  attributeValues,
+  catalog,
+  toCssDeclarations,
+  type Mode,
+  type ResolvedTheme,
+  type TokenName,
+} from '@f451/design-tokens'
+import type { Ueberschreibungen } from './erscheinungsbild.js'
+import type { DataAttributes } from './theme-style.js'
 
-/** Same shape as `lib/erscheinungsbild.ts` reads and writes: names with dashes, per mode. */
-export type PreviewOverrides = Record<Mode, Record<string, string>>
+/** Same shape as `lib/erscheinungsbild.ts` reads and writes: names with dashes per mode, plus the switches. */
+export type PreviewOverrides = Ueberschreibungen
 
 /** The localStorage key the no-flash script of `app/layout.tsx` reads (`NO_FLASH_TOKENS`). */
 export const PREVIEW_STORAGE_KEY = 'erscheinungsbild'
@@ -63,7 +72,17 @@ export function programOverrides(resolved: ResolvedTheme): PreviewOverrides {
   return {
     light: withoutFlip('light', { ...root, ...declarationsToMap(css.light) }),
     dark: withoutFlip('dark', { ...root, ...declarationsToMap(css.dark) }),
+    // the FULL set: the no-flash script and applyStoredPreview set every switch, so
+    // a deviation the server rendered cannot show through (Review Focus 3)
+    attributes: attributeValues(resolved),
   }
+}
+
+/** `data-<name>` for every switch — the component preview's stage root, so the nearest carrier is the stage. */
+export function previewAttributes(resolved: ResolvedTheme): DataAttributes {
+  const out: DataAttributes = {}
+  for (const [name, value] of Object.entries(attributeValues(resolved))) out[`data-${name}`] = value
+  return out
 }
 
 /**
