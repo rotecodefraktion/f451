@@ -3,7 +3,7 @@
 import type { TokenRange } from '@f451/design-tokens'
 import { useT } from '../../lib/i18n/provider'
 import { fieldKindFor, type ValueMode } from '../../lib/theme-editor'
-import { joinLength, pickerValue, splitLength } from '../../lib/theme-editor-view'
+import { choiceLabel, joinLength, pickerValue, splitLength } from '../../lib/theme-editor-view'
 
 export interface FieldProps {
   token: string
@@ -172,7 +172,7 @@ export function StructureField({ range, ...props }: FieldProps & { range: TokenR
         >
           {options.map((v) => (
             <option key={v} value={v}>
-              {v}
+              {choiceLabel((key) => t(key as Parameters<typeof t>[0]), v)}
             </option>
           ))}
         </select>

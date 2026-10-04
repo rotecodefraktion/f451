@@ -6,6 +6,8 @@ import {
   brandAllowed,
   brandApiPath,
   brandImageUrl,
+  CHOICE_VALUES,
+  choiceLabel,
   describeBrandFailure,
   describeSaveFailure,
   editorApiPath,
@@ -29,6 +31,21 @@ import {
   type ThemeScopes,
 } from './theme-editor-view.js'
 import type { LibraryEntry } from './theme-editor.js'
+
+describe('choiceLabel', () => {
+  // `lib/i18n/format.ts` answers a missing key with the marker ⟦key⟧ and never throws
+  const t = (key: string) => (key === 'settings.appearance.choice.filled' ? 'gefüllt' : `⟦${key}⟧`)
+  it('translates a known value and falls back to the raw value', () => {
+    expect(choiceLabel(t, 'filled')).toBe('gefüllt')
+    expect(choiceLabel(t, 'none')).toBe('none')
+    expect(choiceLabel(t, 'boxed')).toBe('boxed')
+  })
+  it('lists every value of every switch', () => {
+    expect(CHOICE_VALUES).toEqual(
+      expect.arrayContaining(['bar', 'box', 'ink', 'accent', 'outline-caps', 'filled', 'marker', 'numeral', 'none', 'top', 'all', 'off', 'on', 'plain', 'cards', 'disc', 'dash']),
+    )
+  })
+})
 
 describe('templates', () => {
   it('derives a slug from a name', () => {
