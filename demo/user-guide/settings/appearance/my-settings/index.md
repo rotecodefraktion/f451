@@ -39,8 +39,8 @@ loads such a file and saves it as your theme. If this browser still holds
 adjustments from before personal themes existed, the page offers once to
 take them over.
 
-You can adopt a built-in template into your own settings with **Adopt
-template** and download the result as a complete YAML file.
+You can take a built-in template over into your own settings with **Adopt
+template** (it replaces your current values) and download the result as a complete YAML file.
 
 ## Reset
 

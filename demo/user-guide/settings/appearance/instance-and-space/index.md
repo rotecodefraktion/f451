@@ -32,7 +32,7 @@ The **Template** list above the table starts you from a ready-made set:
 the five built-in ones (fokus, klar-warm, system-raster, werkbank,
 rotecodefraktion), those of the instance, and in a space those of the
 space. Your own values lie on top of the template. **Adopt template**
-copies the template's values into your draft and clears the selection, so you
+replaces your draft's values with the template's and clears the selection, so you
 can change them one by one; **Save as template …** stores the chosen
 template's values together with yours (not in My settings).
 

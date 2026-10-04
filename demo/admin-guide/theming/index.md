@@ -150,7 +150,7 @@ colours keeps that look.
 
 Built-ins cannot be edited, but they can be copied: on the appearance page
 choose the scope (instance or space), pick the built-in in **Template**,
-press **Adopt template** — its values move into your draft, the template
+press **Adopt template** — the template's values replace the draft's, the template
 selection is cleared — change what you like, then **Save as template …**
 with a name and slug. The new file in `_meta/themes/` holds everything the
 built-in set, the twelve switches included, and no `use`. **Save as

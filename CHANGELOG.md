@@ -25,8 +25,8 @@ own colours keeps it.
   → `attributes`), never as custom properties.
 - The five built-in templates carry the construction of their mockups and set
   all twelve switches explicitly.
-- Settings page: **Adopt template** copies the chosen template into the
-  draft; **Save as template …** embeds the chosen template instead of dropping
+- Settings page: **Adopt template** replaces the draft with the chosen
+  template; **Save as template …** embeds the chosen template instead of dropping
   it; translated labels for switch values.
 - Code blocks carry `data-lang`; `code-header: on` shows the language.
 
