@@ -377,11 +377,28 @@ function orderedSection(values: Record<string, string>): Record<string, string> 
 }
 
 /**
- * The template's values copied into the draft — own values win, `use` is cleared,
- * `brand` is not copied (it belongs to the level, not the template). A draft
- * change like any other; nothing is saved until the user saves (spec "Vorlage kopieren").
+ * "Vorlage übernehmen": the whole template replaces the draft's sections — own
+ * values in `base`, `light` and `dark` are dropped, a section the template lacks
+ * is removed, `use` is cleared. `name` and `brand` of the draft stay (they belong
+ * to the level, not the template). A draft change like any other; nothing is
+ * saved until the user saves.
  */
 export function adoptTemplate(draft: ThemeFile, template: LibraryEntry): ThemeFile {
+  const next: ThemeFile = { ...draft }
+  delete next.use
+  for (const mode of SECTIONS) {
+    const section = orderedSection(template.file[mode] ?? {})
+    if (Object.keys(section).length > 0) next[mode] = section
+    else delete next[mode]
+  }
+  return next
+}
+
+/**
+ * The template embedded under the draft — own values win, `use` is cleared,
+ * keys in catalog order. What the page shows is what "Als Vorlage speichern" saves.
+ */
+export function embedTemplate(draft: ThemeFile, template: LibraryEntry): ThemeFile {
   const next: ThemeFile = { ...draft }
   delete next.use
   for (const mode of SECTIONS) {
@@ -398,7 +415,7 @@ export function adoptTemplate(draft: ThemeFile, template: LibraryEntry): ThemeFi
  * Without a known template only the own values are saved, as before 1.2.5.
  */
 export function templateFile(draft: ThemeFile, name: string, template: LibraryEntry | null = null): ThemeFile {
-  const next: ThemeFile = { ...(template ? adoptTemplate(draft, template) : draft), name }
+  const next: ThemeFile = { ...(template ? embedTemplate(draft, template) : draft), name }
   delete next.use
   delete next.brand
   return next

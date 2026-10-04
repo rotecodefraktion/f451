@@ -13,6 +13,7 @@ import {
 import { describe, expect, it } from 'vitest'
 import {
   adoptTemplate,
+  embedTemplate,
   assess,
   buildGroups,
   fieldCheck,
@@ -335,15 +336,34 @@ describe('templates (use)', () => {
     expect(templateFile(draft, 'Neu', null)).toEqual({ name: 'Neu', light: { 'color-accent': '#123456' } })
   })
 
-  it('adoptTemplate copies the template into the draft, own values win, use is cleared, keys in catalog order', () => {
-    const draft: ThemeFile = { use: 'fokus', light: { 'color-accent': '#123456' } }
+  it('adoptTemplate replaces the sections with the template, keeps name and brand, clears use', () => {
+    const draft: ThemeFile = {
+      name: 'Alt',
+      use: 'fokus',
+      brand: { name: 'X' },
+      light: { 'color-accent': '#123456' },
+      dark: { 'color-bg': '#000000' },
+    }
     const adopted = adoptTemplate(draft, fokus)
-    expect(adopted.use).toBeUndefined()
-    expect(adopted.light).toEqual({ 'color-bg': '#ffffff', 'color-accent': '#123456' })
+    expect(adopted).toEqual({
+      name: 'Alt',
+      brand: { name: 'X' },
+      base: { 'font-sans': 'Hanken Grotesk, sans-serif', 'chip-style': 'filled' },
+      light: { 'color-bg': '#ffffff', 'color-accent': '#0000ff' },
+    })
     expect(Object.keys(adopted.light!)).toEqual(['color-bg', 'color-accent'])
     expect(Object.keys(adopted.base!)).toEqual(['font-sans', 'chip-style'])
-    expect(adopted.brand).toBeUndefined()
     expect(draft.use).toBe('fokus')
+    expect(draft.light).toEqual({ 'color-accent': '#123456' })
+  })
+
+  it('embedTemplate puts the template under the own values, clears use, keeps brand', () => {
+    const draft: ThemeFile = { use: 'fokus', brand: { name: 'X' }, light: { 'color-accent': '#123456' } }
+    expect(embedTemplate(draft, fokus)).toEqual({
+      brand: { name: 'X' },
+      base: { 'font-sans': 'Hanken Grotesk, sans-serif', 'chip-style': 'filled' },
+      light: { 'color-bg': '#ffffff', 'color-accent': '#123456' },
+    })
   })
 })
 

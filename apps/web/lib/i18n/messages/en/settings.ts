@@ -171,7 +171,7 @@ export const settings: Messages['settings'] = {
       saveAs: 'Save as template …',
       saveAsHint: 'Saves the values of the chosen template and of this draft — without the template selection and without the brand.',
       adopt: 'Adopt template',
-      adoptHint: 'Copies the chosen template’s values into this draft; your own values stay. Nothing is saved until you save.',
+      adoptHint: 'Replaces this draft’s values with the chosen template’s and clears the template selection. Nothing is saved until you save.',
       nameLabel: 'Name',
       slugLabel: 'Short name (file name)',
       slugHint: 'a–z, 0–9 and hyphen, at most 40 characters',

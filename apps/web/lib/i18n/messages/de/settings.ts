@@ -199,7 +199,7 @@ export const settings = {
       saveAsHint: 'Gespeichert werden die Werte der gewählten Vorlage und dieses Entwurfs — ohne Vorlagen-Auswahl und ohne Marke.',
       adopt: 'Vorlage übernehmen',
       adoptHint:
-        'Schreibt die Werte der gewählten Vorlage in diesen Entwurf; eigene Werte bleiben. Gespeichert wird erst beim Speichern.',
+        'Ersetzt die Werte dieses Entwurfs durch die der gewählten Vorlage und leert die Vorlagen-Auswahl. Gespeichert wird erst beim Speichern.',
       nameLabel: 'Name',
       slugLabel: 'Kürzel (Dateiname)',
       slugHint: 'a–z, 0–9 und Bindestrich, höchstens 40 Zeichen',
