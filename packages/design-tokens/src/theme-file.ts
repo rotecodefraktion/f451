@@ -33,7 +33,7 @@ export interface ThemeFile {
 /**
  * Error codes: `token_unknown`, `token_locked`, `value_invalid`, `use_invalid`,
  * `template_no_nesting`, `brand_favicon_instance_only`, `brand_path_invalid`.
- * Warning codes: `key_unknown`, `value_trimmed`.
+ * Warning codes: `key_unknown`, `value_trimmed`, `value_migrated`.
  */
 export interface ThemeProblem {
   code: string
@@ -66,6 +66,18 @@ type Problems = { errors: ThemeProblem[]; warnings: ThemeProblem[] }
 const SECTIONS: readonly Section[] = ['base', 'light', 'dark']
 const TOP_LEVEL_KEYS: ReadonlySet<string> = new Set(['name', 'use', 'base', 'light', 'dark', 'brand'])
 const BRAND_KEYS: ReadonlySet<string> = new Set(['name', 'logo', 'favicon'])
+
+/**
+ * Old spellings read as their 1.2.5 form (structure spec 1): `--heading-number`
+ * was a CSS value and `--heading-number-sub` a separate token; both are choice
+ * switches now. Readers get a `value_migrated` warning and the migrated echo —
+ * the write path stores `parsed.file`, so one save rewrites the file.
+ * A value the map does not know is left as it is and fails its grammar.
+ */
+const MIGRATIONS: Record<string, { token: string; values: Record<string, string> }> = {
+  'heading-number': { token: 'heading-number', values: { "counter(sec) '.'": 'numeral', 'counter(sec) "."': 'numeral' } },
+  'heading-number-sub': { token: 'heading-depth', values: { none: 'top', 'inline-block': 'all' } },
+}
 
 // `<slug>` or `instance/<slug>`; slug is [a-z0-9-]{1,40} (addendum §3).
 const USE_REF = /^(?:instance\/)?[a-z0-9-]{1,40}$/
@@ -102,20 +114,37 @@ function parseSection(section: Section, raw: unknown, out: Problems): Record<str
     return undefined
   }
   const values: Record<string, string> = {}
-  for (const [key, rawValue] of Object.entries(raw)) {
-    const path = `${section}.${key}`
+  for (const [rawKey, rawValue] of Object.entries(raw)) {
+    let key = rawKey
+    const path = `${section}.${rawKey}`
     if (key.startsWith('-')) {
       out.errors.push({
         code: 'token_unknown',
-        token: key,
+        token: rawKey,
         path,
-        message: `"${key}": write token names without the leading dashes (e.g. "color-accent")`,
+        message: `"${rawKey}": write token names without the leading dashes (e.g. "color-accent")`,
       })
       continue
     }
+    let migratedValue: string | null = null
+    const migration = Object.prototype.hasOwnProperty.call(MIGRATIONS, key) ? MIGRATIONS[key] : undefined
+    if (migration) {
+      const original = scalar(rawValue)
+      const mapped = original === null ? undefined : migration.values[original.trim()]
+      if (mapped !== undefined) {
+        out.warnings.push({
+          code: 'value_migrated',
+          token: `--${migration.token}`,
+          path,
+          message: `"${rawKey}: ${original}" is written as "${migration.token}: ${mapped}" since 1.2.5`,
+        })
+        key = migration.token
+        migratedValue = mapped
+      }
+    }
     const name = `--${key}`
     if (!Object.prototype.hasOwnProperty.call(catalog, name)) {
-      out.errors.push({ code: 'token_unknown', token: name, path, message: `"${key}" is not a known token` })
+      out.errors.push({ code: 'token_unknown', token: name, path, message: `"${rawKey}" is not a known token` })
       continue
     }
     const meta = catalog[name as TokenName] as TokenMeta
@@ -132,7 +161,7 @@ function parseSection(section: Section, raw: unknown, out: Problems): Record<str
       })
       continue
     }
-    const text = scalar(rawValue)
+    const text = migratedValue ?? scalar(rawValue)
     if (text === null) {
       out.errors.push({ code: 'value_invalid', token: name, path, message: `"${key}" must be a string, got ${typeof rawValue}` })
       continue

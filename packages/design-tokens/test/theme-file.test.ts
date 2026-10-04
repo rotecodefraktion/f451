@@ -154,3 +154,38 @@ describe('parseThemeFile', () => {
     expect(r.layer).toStrictEqual({ source: 'instance' })
   })
 })
+
+describe('migration of the heading tokens (1.2.5)', () => {
+  it("reads heading-number: counter(sec) '.' as numeral with a warning", () => {
+    const parsed = parseThemeFile({ base: { 'heading-number': "counter(sec) '.'" } }, 'instance')
+    expect(parsed.errors).toEqual([])
+    expect(parsed.layer.base).toEqual({ '--heading-number': 'numeral' })
+    expect(parsed.file.base).toEqual({ 'heading-number': 'numeral' })
+    expect(parsed.warnings).toEqual([
+      expect.objectContaining({ code: 'value_migrated', token: '--heading-number', path: 'base.heading-number' }),
+    ])
+  })
+
+  it('reads heading-number-sub as heading-depth (none → top, inline-block → all)', () => {
+    const top = parseThemeFile({ base: { 'heading-number-sub': 'none' } }, 'instance')
+    expect(top.layer.base).toEqual({ '--heading-depth': 'top' })
+    const all = parseThemeFile({ base: { 'heading-number-sub': 'inline-block' } }, 'space')
+    expect(all.layer.base).toEqual({ '--heading-depth': 'all' })
+    expect(all.file.base).toEqual({ 'heading-depth': 'all' })
+    expect(all.errors).toEqual([])
+    expect(all.warnings.map((w) => w.code)).toEqual(['value_migrated'])
+  })
+
+  it('leaves new-form values alone and rejects unknown ones', () => {
+    const fine = parseThemeFile({ base: { 'heading-number': 'none', 'heading-depth': 'all' } }, 'instance')
+    expect(fine.warnings).toEqual([])
+    expect(fine.layer.base).toEqual({ '--heading-number': 'none', '--heading-depth': 'all' })
+    const bad = parseThemeFile({ base: { 'heading-number-sub': 'block' } }, 'instance')
+    expect(bad.errors.map((e) => e.code)).toEqual(['token_unknown'])
+  })
+
+  it('a switch in light/dark is a section error like any structure token', () => {
+    const parsed = parseThemeFile({ light: { 'chip-style': 'filled' } }, 'instance')
+    expect(parsed.errors.map((e) => e.code)).toEqual(['value_invalid'])
+  })
+})
