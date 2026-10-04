@@ -7,6 +7,7 @@ import { istVorschau, leseUeberschreibungen } from '../../lib/erscheinungsbild'
 import { useT } from '../../lib/i18n/provider'
 import { overrideNames, PREVIEW_STORAGE_KEY, type PreviewOverrides } from '../../lib/theme-preview'
 import {
+  adoptTemplate,
   assess,
   buildGroups,
   fieldCheck,
@@ -509,6 +510,7 @@ export function ThemeEditor({ scopes, data, thresholdStrip, templates }: ThemeEd
           draft={draft}
           busy={busy !== null}
           onUse={(use) => setDraft((d) => setUse(d, use))}
+          onAdopt={() => setDraft((d) => (assessment.template ? adoptTemplate(d, assessment.template) : d))}
           onLibraryChanged={reloadLibrary}
         />
         {groups.map((group) => (

@@ -28,6 +28,8 @@ export interface TemplateSelectProps {
   /** a theme write is running */
   busy: boolean
   onUse: (use: string | null) => void
+  /** copy the chosen template into the draft and clear `use` */
+  onAdopt: () => void
   /** refetch the library after a template write */
   onLibraryChanged: () => Promise<void>
 }
@@ -122,7 +124,7 @@ export function TemplateSelect(props: TemplateSelectProps) {
         method: 'PUT',
         credentials: 'same-origin',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(templateFile(draft, trimmed)),
+        body: JSON.stringify(templateFile(draft, trimmed, current)),
       })
       if (res.ok) {
         closeForm()
@@ -226,18 +228,29 @@ export function TemplateSelect(props: TemplateSelectProps) {
           {t('settings.appearance.template.notFound', { use: unknownUse })}
         </p>
       ) : null}
-      {canSaveAs && !formOpen ? (
+      {canWrite && !formOpen ? (
         <div className="btn-row">
+          {canSaveAs ? (
+            <button
+              type="button"
+              className="btn small"
+              disabled={disabled}
+              onClick={() => {
+                setStatus(null)
+                setFormOpen(true)
+              }}
+            >
+              {t('settings.appearance.template.saveAs')}
+            </button>
+          ) : null}
           <button
             type="button"
             className="btn small"
-            disabled={disabled}
-            onClick={() => {
-              setStatus(null)
-              setFormOpen(true)
-            }}
+            disabled={disabled || !current}
+            onClick={props.onAdopt}
+            title={t('settings.appearance.template.adoptHint')}
           >
-            {t('settings.appearance.template.saveAs')}
+            {t('settings.appearance.template.adopt')}
           </button>
         </div>
       ) : null}

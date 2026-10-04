@@ -367,13 +367,38 @@ export function setBrandName(draft: ThemeFile, name: string | null): ThemeFile {
   return next
 }
 
+/** Keys of one file section in catalog order (group, then catalog order); unknown keys last, alphabetically. */
+function orderedSection(values: Record<string, string>): Record<string, string> {
+  const rank = (key: string): number => {
+    const name = catalogName(key)
+    return name ? tokenNames.indexOf(name) : Number.MAX_SAFE_INTEGER
+  }
+  return Object.fromEntries(Object.entries(values).sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b)))
+}
+
 /**
- * The body of "Als Vorlage speichern": the draft's values under the given
- * name, without `use` (a template must not use another, `template_no_nesting`)
- * and without `brand` (a template carries tokens only).
+ * The template's values copied into the draft — own values win, `use` is cleared,
+ * `brand` is not copied (it belongs to the level, not the template). A draft
+ * change like any other; nothing is saved until the user saves (spec "Vorlage kopieren").
  */
-export function templateFile(draft: ThemeFile, name: string): ThemeFile {
-  const next: ThemeFile = { ...draft, name }
+export function adoptTemplate(draft: ThemeFile, template: LibraryEntry): ThemeFile {
+  const next: ThemeFile = { ...draft }
+  delete next.use
+  for (const mode of SECTIONS) {
+    const merged = orderedSection({ ...(template.file[mode] ?? {}), ...(draft[mode] ?? {}) })
+    if (Object.keys(merged).length > 0) next[mode] = merged
+    else delete next[mode]
+  }
+  return next
+}
+
+/**
+ * The body of "Als Vorlage speichern": the chosen template embedded under the
+ * own values (a template may not `use` another one), named, without `brand`.
+ * Without a known template only the own values are saved, as before 1.2.5.
+ */
+export function templateFile(draft: ThemeFile, name: string, template: LibraryEntry | null = null): ThemeFile {
+  const next: ThemeFile = { ...(template ? adoptTemplate(draft, template) : draft), name }
   delete next.use
   delete next.brand
   return next

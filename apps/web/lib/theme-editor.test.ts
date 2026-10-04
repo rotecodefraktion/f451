@@ -12,6 +12,7 @@ import {
 } from '@f451/design-tokens'
 import { describe, expect, it } from 'vitest'
 import {
+  adoptTemplate,
   assess,
   buildGroups,
   fieldCheck,
@@ -312,9 +313,36 @@ describe('templates (use)', () => {
     expect(draft.use).toBeUndefined()
   })
 
-  it('templateFile drops use and brand and sets the name', () => {
+  const fokus: LibraryEntry = {
+    slug: 'fokus',
+    name: 'Fokus',
+    origin: 'builtin',
+    file: { name: 'Fokus', base: { 'chip-style': 'filled', 'font-sans': 'Hanken Grotesk, sans-serif' }, light: { 'color-accent': '#0000ff', 'color-bg': '#ffffff' } },
+  }
+
+  it('templateFile embeds the chosen template under the own values, without use and brand (Review Focus 4)', () => {
     const draft: ThemeFile = { name: 'Alt', use: 'fokus', brand: { name: 'X' }, light: { 'color-accent': '#123456' } }
-    expect(templateFile(draft, 'Neu')).toEqual({ name: 'Neu', light: { 'color-accent': '#123456' } })
+    expect(templateFile(draft, 'Neu', fokus)).toEqual({
+      name: 'Neu',
+      base: { 'font-sans': 'Hanken Grotesk, sans-serif', 'chip-style': 'filled' },
+      light: { 'color-bg': '#ffffff', 'color-accent': '#123456' },
+    })
+    expect(draft.use).toBe('fokus')
+  })
+
+  it('templateFile without a known template saves the own values only, as before', () => {
+    const draft: ThemeFile = { name: 'Alt', use: 'missing', light: { 'color-accent': '#123456' } }
+    expect(templateFile(draft, 'Neu', null)).toEqual({ name: 'Neu', light: { 'color-accent': '#123456' } })
+  })
+
+  it('adoptTemplate copies the template into the draft, own values win, use is cleared, keys in catalog order', () => {
+    const draft: ThemeFile = { use: 'fokus', light: { 'color-accent': '#123456' } }
+    const adopted = adoptTemplate(draft, fokus)
+    expect(adopted.use).toBeUndefined()
+    expect(adopted.light).toEqual({ 'color-bg': '#ffffff', 'color-accent': '#123456' })
+    expect(Object.keys(adopted.light!)).toEqual(['color-bg', 'color-accent'])
+    expect(Object.keys(adopted.base!)).toEqual(['font-sans', 'chip-style'])
+    expect(adopted.brand).toBeUndefined()
     expect(draft.use).toBe('fokus')
   })
 })
