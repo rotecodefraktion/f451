@@ -484,6 +484,19 @@ export function ThemeEditor({ scopes, data, thresholdStrip, templates }: ThemeEd
             />
           </div>
         ) : null}
+        <TemplateSelect
+          key={scopeParam(data.scope)}
+          scope={data.scope}
+          canWrite={data.canWrite}
+          templates={library}
+          use={draft.use}
+          current={assessment.template}
+          draft={draft}
+          busy={busy !== null}
+          onUse={(use) => setDraft((d) => setUse(d, use))}
+          onAdopt={() => setDraft((d) => (assessment.template ? adoptTemplate(d, assessment.template) : d))}
+          onLibraryChanged={reloadLibrary}
+        />
         {/* "Marke" (addendum §7): instance and space only. Rendered here, not
             passed in as a slot like the threshold strip, because the name is
             part of the draft this component holds. */}
@@ -500,19 +513,6 @@ export function ThemeEditor({ scopes, data, thresholdStrip, templates }: ThemeEd
             onName={(name) => setDraft((d) => setBrandName(d, name))}
           />
         )}
-        <TemplateSelect
-          key={scopeParam(data.scope)}
-          scope={data.scope}
-          canWrite={data.canWrite}
-          templates={library}
-          use={draft.use}
-          current={assessment.template}
-          draft={draft}
-          busy={busy !== null}
-          onUse={(use) => setDraft((d) => setUse(d, use))}
-          onAdopt={() => setDraft((d) => (assessment.template ? adoptTemplate(d, assessment.template) : d))}
-          onLibraryChanged={reloadLibrary}
-        />
         {groups.map((group) => (
           <GroupSection
             key={group.group}
