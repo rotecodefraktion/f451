@@ -63,6 +63,9 @@ export const actions = {
   tree: {
     archivedBadge: 'Archiv',
     archivedTitle: '{title} — archiviert (schreibgeschützt)',
+    filter: {
+      placeholder: 'Seiten filtern',
+    },
   },
   reorder: {
     genericError: 'Umsortieren fehlgeschlagen — bitte erneut versuchen.',

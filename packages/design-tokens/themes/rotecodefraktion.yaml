@@ -18,6 +18,11 @@ base:
   code-header: 'off'
   rail-blocks: 'plain'
   list-marker: 'disc'
+  topbar: 'on'
+  page-head: 'toolbar'
+  pane-controls: 'edges'
+  rail-scroll: 'own'
+  status-bar: 'off'
 light:
   color-bg: '#faf8f5'
   color-bg-raised: '#ffffff'

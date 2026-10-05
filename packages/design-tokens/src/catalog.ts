@@ -47,6 +47,7 @@ export type TokenGroup =
   | 'Linien, Radien, Bedienelemente'
   | 'Fokus und Bewegung'
   | 'Bausteine'
+  | 'Rahmen'
   | 'Anzeigeschalter'
   | 'Diagramme'
 
@@ -1106,6 +1107,53 @@ export const catalog = {
     range: { kind: 'choice', values: ['disc', 'dash'] },
     emit: 'attribute',
     addedAfterMockup: 'Der Entwurf lässt dem Browser den Punkt; System/Raster und Werkbank setzen den Gedankenstrich.',
+  },
+
+  // ---- Rahmen (5) — Rahmenschalter, 2026-10-05-theming-struktur-2 ---------
+  '--topbar': {
+    level: 'structure',
+    group: 'Rahmen',
+    role: 'Kopfleiste über dem Raster: off ohne, on mit Marke, Suche und Konto',
+    settable: true,
+    range: { kind: 'choice', values: ['off', 'on'] },
+    emit: 'attribute',
+    addedAfterMockup: 'Der Entwurf kommt ohne Kopfleiste aus; die anderen Entwürfe und die Anwendung vor 1.2.6 tragen eine.',
+  },
+  '--page-head': {
+    level: 'structure',
+    group: 'Rahmen',
+    role: 'Seitenkopf: title mit Titelzeile und Metazeile, toolbar mit Kolumnentitel, Werkzeugleiste und Zweitleiste',
+    settable: true,
+    range: { kind: 'choice', values: ['title', 'toolbar'] },
+    emit: 'attribute',
+    addedAfterMockup: 'Der Entwurf setzt die Titelzeile fest; die Anwendung vor 1.2.6 und Werkbank tragen die Werkzeugleiste.',
+  },
+  '--pane-controls': {
+    level: 'structure',
+    group: 'Rahmen',
+    role: 'Bedienung von Seitenbaum und Info-Leiste: edges mit Daumenregistern am Rand, topbar mit Schaltern in der Kopfleiste (verlangt --topbar: on)',
+    settable: true,
+    range: { kind: 'choice', values: ['edges', 'topbar'] },
+    emit: 'attribute',
+    addedAfterMockup: 'Der Entwurf öffnet die Leisten über Register am Rand; andere Entwürfe schalten sie aus der Kopfleiste.',
+  },
+  '--rail-scroll': {
+    level: 'structure',
+    group: 'Rahmen',
+    role: 'Info-Leiste: sticky klebt im Dokument-Scroll, own scrollt für sich',
+    settable: true,
+    range: { kind: 'choice', values: ['sticky', 'own'] },
+    emit: 'attribute',
+    addedAfterMockup: 'Der Entwurf lässt die Info-Leiste kleben; die Anwendung vor 1.2.6 lässt sie für sich scrollen.',
+  },
+  '--status-bar': {
+    level: 'structure',
+    group: 'Rahmen',
+    role: 'Statusleiste am Fuß des Hauptbereichs: off ohne, bottom mit Status, Stand und Abschnitt x/y',
+    settable: true,
+    range: { kind: 'choice', values: ['off', 'bottom'] },
+    emit: 'attribute',
+    addedAfterMockup: 'Der Entwurf kennt keine Statusleiste; Werkbank zeigt eine am Fuß.',
   },
 
   // ---- Anzeigeschalter (2) — Zustände, keine Werte ------------------------

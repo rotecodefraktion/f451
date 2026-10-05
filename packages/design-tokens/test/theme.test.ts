@@ -130,6 +130,19 @@ describe('checkRules', () => {
     const v = checkRules(resolveTheme([{ source: 'instance', base: { '--measure': 'calc(60ch + 1rem)' } }]))
     expect(v).toEqual([])
   })
+
+  it('requires --topbar on for --pane-controls topbar, naming both tokens', () => {
+    const v = checkRules(resolveTheme([{ source: 'instance', base: { '--pane-controls': 'topbar' } }]))
+    expect(v).toHaveLength(1)
+    expect(v[0]!.rule).toBe('pane-controls-needs-topbar')
+    expect(v[0]!.tokens).toEqual(['--topbar', '--pane-controls'])
+    expect(v[0]!.message).toContain('--pane-controls topbar (instance)')
+    expect(v[0]!.message).toContain('--topbar off (default)')
+    const ok = checkRules(
+      resolveTheme([{ source: 'instance', base: { '--pane-controls': 'topbar', '--topbar': 'on' } }]),
+    )
+    expect(ok).toEqual([])
+  })
 })
 
 describe('toCssDeclarations', () => {
@@ -156,9 +169,10 @@ describe('toCssDeclarations', () => {
 })
 
 describe('toAttributes / attributeValues', () => {
-  it('lists the twelve switches', () => {
-    expect(ATTRIBUTE_TOKENS).toHaveLength(12)
+  it('lists the seventeen switches', () => {
+    expect(ATTRIBUTE_TOKENS).toHaveLength(17)
     expect(ATTRIBUTE_TOKENS).toContain('--chip-style')
+    expect(ATTRIBUTE_TOKENS).toContain('--pane-controls')
   })
 
   it('is empty for the defaults and for a layer that sets the default value', () => {
@@ -179,7 +193,7 @@ describe('toAttributes / attributeValues', () => {
 
   it('attributeValues carries every switch, defaults included', () => {
     const values = attributeValues(resolveTheme([{ source: 'space', base: { '--list-marker': 'disc' } }]))
-    expect(Object.keys(values)).toHaveLength(12)
+    expect(Object.keys(values)).toHaveLength(17)
     expect(values['list-marker']).toBe('disc')
     expect(values['callout-style']).toBe('bar')
   })

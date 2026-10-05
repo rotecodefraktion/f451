@@ -10,7 +10,8 @@ import type { ResolvedTheme } from './theme.js'
  *
  * The three rules of the spec: the `--space-*` scale does not decrease,
  * `--weight-strong` sits at least 100 above `--weight-text`, and `--measure`
- * does not exceed `--measure-wide`.
+ * does not exceed `--measure-wide`. Since 1.2.6 a fourth: `--pane-controls:
+ * topbar` requires `--topbar: on`.
  *
  * Values are expected to be plain `<number><unit>` after the grammar check. A
  * value this file cannot read (a `calc()` or `var()` from the defaults, or two
@@ -100,7 +101,27 @@ function measureOrder(resolved: ResolvedTheme): RuleViolation[] {
   ]
 }
 
+/**
+ * Pane switches in the top bar need a top bar; without one the panes could not
+ * be opened at all. Readers fall back to `edges` (theming-struktur-2 spec).
+ */
+function paneControlsNeedTopbar(resolved: ResolvedTheme): RuleViolation[] {
+  if (resolved.base['--pane-controls'] !== 'topbar' || resolved.base['--topbar'] === 'on') return []
+  return [
+    {
+      rule: 'pane-controls-needs-topbar',
+      tokens: ['--topbar', '--pane-controls'],
+      message: `${describe(resolved, '--pane-controls')} requires --topbar on, but it is ${describe(resolved, '--topbar')}`,
+    },
+  ]
+}
+
 /** Cross-token rules on the resolved set; empty = ok. */
 export function checkRules(resolved: ResolvedTheme): RuleViolation[] {
-  return [...spaceScale(resolved), ...weightGap(resolved), ...measureOrder(resolved)]
+  return [
+    ...spaceScale(resolved),
+    ...weightGap(resolved),
+    ...measureOrder(resolved),
+    ...paneControlsNeedTopbar(resolved),
+  ]
 }

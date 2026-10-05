@@ -41,6 +41,11 @@ base:
   code-header: 'on'
   rail-blocks: 'cards'
   list-marker: 'dash'
+  topbar: 'on'
+  page-head: 'toolbar'
+  pane-controls: 'topbar'
+  rail-scroll: 'own'
+  status-bar: 'bottom'
 light:
   color-bg: '#ffffff'
   color-bg-raised: '#f7f8f9'

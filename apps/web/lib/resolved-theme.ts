@@ -1,6 +1,7 @@
 import { cookies, headers } from 'next/headers'
 import { cache } from 'react'
 import { apiFetch } from './api.js'
+import { frameShape, type FrameShape } from './frame-shape.js'
 import type { ThemeCssDeclarations } from './theme-style.js'
 
 /** The brand of the resolved chain (addendum §5); URLs go through the web proxy. */
@@ -15,6 +16,8 @@ export interface ResolvedThemeResponse {
   css: ThemeCssDeclarations
   brand?: ResolvedBrand | null
   attributes?: Record<string, string>
+  /** Every switch with its resolved value, defaults included (structure spec 2). */
+  switches?: Record<string, string>
 }
 
 /**
@@ -45,4 +48,9 @@ export const getResolvedTheme = cache(async (): Promise<ResolvedThemeResponse | 
 /** The brand of the current request; `null` without one or when the theme could not be loaded. */
 export async function getBrand(): Promise<ResolvedBrand | null> {
   return (await getResolvedTheme())?.brand ?? null
+}
+
+/** The frame of the current request; Editorial defaults when the theme could not be loaded. */
+export async function getFrame(opts: { hasTree: boolean }): Promise<FrameShape> {
+  return frameShape((await getResolvedTheme())?.switches, opts)
 }

@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import {
+  attributeValues,
   checkContrast,
   checkRules,
   parseThemeFile,
@@ -201,8 +202,11 @@ const resolvedSchema = {
         layers: { type: 'array', items: { type: 'string' } },
         // Building-block switches that differ from Editorial, as `data-<name>` for `<html>` (structure spec 1).
         attributes: { type: 'object', additionalProperties: { type: 'string' } },
+        // Every switch with its resolved value, defaults included — the server components read the
+        // frame switches from here (structure spec 2).
+        switches: { type: 'object', additionalProperties: { type: 'string' } },
       },
-      required: ['css', 'origin', 'brand', 'layers', 'attributes'],
+      required: ['css', 'origin', 'brand', 'layers', 'attributes', 'switches'],
     },
   },
 } as const
@@ -664,6 +668,7 @@ export function registerThemeRoutes(app: FastifyInstance, deps: ThemeDeps): void
           // One entry per level, also when a template doubled it.
           layers: [...new Set(layers.map((l): LayerSource => l.source))],
           attributes: toAttributes(resolved),
+          switches: attributeValues(resolved),
         }
       },
     )

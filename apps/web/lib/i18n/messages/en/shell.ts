@@ -23,6 +23,10 @@ export const shell: Messages['shell'] = {
       label: 'Info sidebar',
       title: 'Collapse or expand the info sidebar (key ] )',
     },
+    search: {
+      label: 'Search',
+      title: 'Search (⌘K)',
+    },
   },
   attribution: {
     before: 'Based on ',

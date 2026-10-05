@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { EditorRoot } from '../../../../../../components/editor/editor-root'
 import type { PageData } from '../../../../../../components/page-view'
 import { ApiError, apiFetch } from '../../../../../../lib/api'
+import { getFrame } from '../../../../../../lib/resolved-theme'
 import { decodeRouteParam, wikiPageEditHref, wikiPageHref } from '../../../../../../lib/urls'
 
 interface EditPageProps {
@@ -109,10 +110,18 @@ export default async function EditPage({ params }: EditPageProps) {
   }
 
   const metadataSchema = await metadataSchemaPromise
+  // Frame switch `--status-bar: bottom` (f451#60): save state at the foot of `.main`.
+  const { statusBar } = await getFrame({ hasTree: true })
 
   return (
     <main className="main">
-      <EditorRoot pageId={pageId} space={spaceId} title={title} metadataSchema={metadataSchema} />
+      <EditorRoot
+        pageId={pageId}
+        space={spaceId}
+        title={title}
+        metadataSchema={metadataSchema}
+        statusBarBottom={statusBar}
+      />
     </main>
   )
 }

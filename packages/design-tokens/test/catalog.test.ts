@@ -64,6 +64,13 @@ describe('Katalog gegen den Referenzentwurf', () => {
       '--code-header',
       '--rail-blocks',
       '--list-marker',
+      // Frame switches (2026-10-05-theming-struktur-2): the mockup hard-wires
+      // one frame; the switch makes it a value.
+      '--topbar',
+      '--page-head',
+      '--pane-controls',
+      '--rail-scroll',
+      '--status-bar',
       // Der Hausstil der Diagramme (2026-07-27-mcp-anhaenge-design.md,
       // Paket 1). Alle 26 tragen dieselbe Begründung — der Entwurf zeigt
       // Bilder, keine Diagramme.
@@ -94,7 +101,7 @@ describe('Katalog gegen den Referenzentwurf', () => {
       '--diagram-font-family',
       '--diagram-font-size',
     ])
-    expect(tokenNames).toHaveLength(144)
+    expect(tokenNames).toHaveLength(149)
   })
 
   it('teilt sie auf die Ebenen der Token-Architektur auf', () => {
@@ -103,7 +110,7 @@ describe('Katalog gegen den Referenzentwurf', () => {
     // Diagramm-Tokens (Theme 21 + 12 Farben, Struktur 70 + 14 Maße).
     expect(namesOfLevel('theme')).toHaveLength(33)
     expect(namesOfLevel('derived')).toHaveLength(13)
-    expect(namesOfLevel('structure')).toHaveLength(96)
+    expect(namesOfLevel('structure')).toHaveLength(101)
     expect(namesOfLevel('switch')).toHaveLength(2)
   })
 
@@ -124,6 +131,7 @@ describe('Katalog gegen den Referenzentwurf', () => {
       'Linien, Radien, Bedienelemente': 11,
       'Fokus und Bewegung': 4,
       Bausteine: 12,
+      Rahmen: 5,
       Anzeigeschalter: 2,
       Diagramme: 26,
     }
@@ -134,7 +142,7 @@ describe('Katalog gegen den Referenzentwurf', () => {
 })
 
 describe('Positivliste der Themefähigkeit', () => {
-  it('hält die Bilanz 132 setzbar / 12 gesperrt', () => {
+  it('hält die Bilanz 137 setzbar / 12 gesperrt', () => {
     // 84 aus dem Entwurf, dazu die beiden Nachträge der
     // Gliederungsnummerierung und der Diagrammrahmen — alle drei setzbar,
     // denn genau das ist ihr Zweck. Ebenso die 26 Diagramm-Tokens: Der Sinn
@@ -143,7 +151,7 @@ describe('Positivliste der Themefähigkeit', () => {
     // Korridor-Tokens (Zeilenlänge, Rasterbreiten, Bedienelementhöhe): setzbar
     // nur innerhalb ihrer `range`.
     const setzbar = tokenNames.filter((n) => catalog[n].settable)
-    expect(setzbar).toHaveLength(132)
+    expect(setzbar).toHaveLength(137)
     expect(tokenNames.length - setzbar.length).toBe(12)
   })
 
@@ -162,11 +170,16 @@ describe('Positivliste der Themefähigkeit', () => {
       '--code-header',
       '--rail-blocks',
       '--list-marker',
+      '--topbar',
+      '--page-head',
+      '--pane-controls',
+      '--rail-scroll',
+      '--status-bar',
     ])
     for (const n of switches) {
       const meta = catalog[n] as TokenMeta
       expect(meta.level).toBe('structure')
-      expect(meta.group).toBe('Bausteine')
+      expect(['Bausteine', 'Rahmen']).toContain(meta.group)
       expect(meta.settable).toBe(true)
       expect(meta.range?.kind).toBe('choice')
       expect(meta.range?.kind === 'choice' && meta.range.values.includes(tokens.structure[n as StructureTokenName])).toBe(true)
