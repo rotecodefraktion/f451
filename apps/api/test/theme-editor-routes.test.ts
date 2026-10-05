@@ -10,6 +10,7 @@ import type { ThemeDeps } from '../src/routes/theme.js'
 import { invalidateContrastThresholds } from '../src/theme/contrast-config.js'
 import { INSTANCE_THEME_PATH, invalidateInstanceTheme } from '../src/theme/instance-theme.js'
 import { invalidateAllSpaceThemes, SPACE_THEME_PATH } from '../src/theme/space-theme.js'
+import { invalidateStylesheet } from '../src/theme/stylesheet-cache.js'
 import type { InstanceConfig, SpaceConfig } from '../src/spaces/config.js'
 import { startPg, type PgTestInstance } from './helpers/pg-container.js'
 
@@ -109,6 +110,7 @@ describe('theme editor routes', () => {
     invalidateInstanceTheme()
     invalidateAllSpaceThemes()
     invalidateContrastThresholds()
+    invalidateStylesheet()
   })
 
   it('GET /api/theme/scopes lists only readable spaces, with canWrite', async () => {
@@ -256,6 +258,67 @@ describe('theme editor routes', () => {
     expect(res.statusCode).toBe(404)
     await app.close()
   })
+
+  it('editor carries the stylesheet state with problems and the font list (f451#61)', async () => {
+    const instanceCss = '@font-face { src: url(fonts/haus.woff2) }\nbody { color: red }\n'
+    const spaceCss = 'a { color: red }\n@import "x.css";\n'
+    const base = provider({})
+    const repo: GitProvider = {
+      ...base,
+      async readFile(r, path) {
+        if (path === '_meta/theme.css' && r.repo === 'instance') return { path, content: instanceCss, sha: 'css-i' }
+        if (path === '_meta/theme.css' && r.repo === 'docs') return { path, content: spaceCss, sha: 'css-s' }
+        throw new NotFoundError(path)
+      },
+      async listTree(r) {
+        if (r.repo !== 'instance') return []
+        return [
+          { path: '_meta/fonts', type: 'dir', sha: 'd' },
+          { path: '_meta/fonts/haus.woff2', type: 'file', sha: 'f1' },
+          { path: '_meta/fonts/Bad Name.woff2', type: 'file', sha: 'f2' },
+        ]
+      },
+      async readFileBinary(_r, path) {
+        if (path === '_meta/fonts/haus.woff2') return { content: Buffer.from('wOF2-font-bytes', 'latin1'), sha: 'f1' }
+        throw new NotFoundError(path)
+      },
+    }
+    const app = Fastify()
+    app.decorateRequest('user', null)
+    app.addHook('onRequest', async (req) => {
+      req.user = { id: 'alice', email: 'alice@test.local', displayName: 'alice' }
+    })
+    registerThemeEditorRoutes(app, {
+      providerRegistry: () => repo,
+      instanceConfig,
+      spaces: [docs],
+      access: { canRead: async () => true },
+      canWrite: async () => true,
+      getUserProvider: async () => repo,
+    })
+
+    const own = await app.inject({ method: 'GET', url: '/api/theme/editor?scope=instance' })
+    expect(own.statusCode).toBe(200)
+    expect(own.json().stylesheet).toEqual({
+      status: 'ok',
+      bytes: Buffer.byteLength(instanceCss, 'utf8'),
+      sha: 'css-i',
+      problems: [],
+      fonts: [
+        { name: 'Bad Name.woff2', bytes: null, ok: false },
+        { name: 'haus.woff2', bytes: 15, ok: true },
+      ],
+    })
+
+    const space = await app.inject({ method: 'GET', url: '/api/theme/editor?scope=space&space=docs' })
+    expect(space.statusCode).toBe(200)
+    const sheet = space.json().stylesheet
+    expect(sheet.status).toBe('invalid')
+    expect(sheet.sha).toBe('css-s')
+    expect(sheet.problems.map((p: { code: string; line: number }) => [p.code, p.line])).toEqual([['css_import', 2]])
+    expect(sheet.fonts).toEqual([])
+    await app.close()
+  })
 })
 
 /**
@@ -332,6 +395,7 @@ describe.sequential('theme editor routes, user scope', () => {
     expect(body.resolved).toEqual(body.below)
     expect(body.thresholds).toEqual(DEFAULT_THRESHOLDS)
     expect(body.rules).toEqual([])
+    expect(body.stylesheet).toBeNull()
     await app.close()
   })
 

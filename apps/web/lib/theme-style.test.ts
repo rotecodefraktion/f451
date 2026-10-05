@@ -1,5 +1,43 @@
 import { describe, expect, it } from 'vitest'
-import { themeAttributes, themeStyleText } from './theme-style.js'
+import { themeAttributes, themeStyleText, themeStylesheetLinks } from './theme-style.js'
+
+describe('themeStylesheetLinks', () => {
+  it('keeps the instance and the space stylesheet in the given order', () => {
+    expect(
+      themeStylesheetLinks(['/api/theme/stylesheet?v=abc1234', '/api/spaces/team%20docs/theme/stylesheet?v=def5678']),
+    ).toEqual(['/api/theme/stylesheet?v=abc1234', '/api/spaces/team%20docs/theme/stylesheet?v=def5678'])
+  })
+
+  it('keeps an instance-only list (space without own CSS)', () => {
+    expect(themeStylesheetLinks(['/api/theme/stylesheet?v=abc1234'])).toEqual(['/api/theme/stylesheet?v=abc1234'])
+  })
+
+  it('drops everything that is not one of the two stylesheet routes with ?v=', () => {
+    expect(
+      themeStylesheetLinks([
+        '/api/theme/stylesheet',
+        '/api/theme/stylesheet?v=',
+        '/api/theme/stylesheet?v=abc&x=1',
+        'https://evil.example/api/theme/stylesheet?v=abc',
+        '//evil.example/api/theme/stylesheet?v=abc',
+        '/api/theme/fonts/a.woff2',
+        '/api/spaces/a/b/theme/stylesheet?v=abc',
+        '/api/spaces/../theme/stylesheet?v=abc',
+        '/api/spaces//theme/stylesheet?v=abc',
+        '/custom.css',
+        'javascript:alert(1)',
+        42 as unknown as string,
+      ]),
+    ).toEqual([])
+  })
+
+  it('returns none with skip, for null and for a non-array', () => {
+    expect(themeStylesheetLinks(['/api/theme/stylesheet?v=abc1234'], { skip: true })).toEqual([])
+    expect(themeStylesheetLinks(null)).toEqual([])
+    expect(themeStylesheetLinks(undefined)).toEqual([])
+    expect(themeStylesheetLinks('/api/theme/stylesheet?v=abc' as unknown as string[])).toEqual([])
+  })
+})
 
 describe('themeStyleText', () => {
   it('returns an empty string for empty input', () => {

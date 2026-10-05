@@ -66,6 +66,20 @@ export interface EditorData {
   note: string | null
   findings: ContrastFinding[]
   rules: RuleViolation[]
+  /** the scope's theme stylesheet (f451#61); `null` for the user scope */
+  stylesheet: EditorStylesheet | null
+}
+
+/** `_meta/theme.css` and `_meta/fonts/` of an instance or space repo, as the settings strip shows them. */
+export interface EditorStylesheet {
+  status: 'ok' | 'too_large' | 'invalid' | 'missing' | 'unreadable'
+  /** size of the file; `null` without one */
+  bytes: number | null
+  /** blob sha of the file; `null` without one */
+  sha: string | null
+  /** rule violations, only for `invalid` */
+  problems: { code: string; line: number; message: string }[]
+  fonts: { name: string; bytes: number | null; ok: boolean }[]
 }
 
 /** One entry of `GET /api/theme/library` / `GET /api/spaces/:space/theme/library` (addendum §3). */
