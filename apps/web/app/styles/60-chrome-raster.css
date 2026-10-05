@@ -560,9 +560,27 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* The brand keeps its full width in the narrow tree column: the global
+   `.brand` may shrink (and clips with `overflow: hidden`), which cut the word
+   to "f45". Here the space switcher gives way instead, its label ending in an
+   ellipsis. The top bar keeps the global rules. */
+.tree-head-row > .brand {
+  flex: none;
+}
+.tree-head-row .brand-wort {
+  flex: none;
+  white-space: nowrap;
+}
 .tree-head-row .space-switcher {
   position: static;
   flex: 0 1 auto;
+}
+.tree-head-row .app-switch {
+  max-width: 100%;
+}
+.tree-head-row .app-switch-label {
+  min-width: 0;
+  white-space: nowrap;
 }
 .tree-head-row .space-switcher-menu {
   left: 0;

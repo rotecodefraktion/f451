@@ -4,7 +4,7 @@ import { PageBody } from './page-body'
 import { ReadingPosition } from './reading-position'
 import { StatusBarBottom } from './status-bar-bottom'
 import { UnarchiveButton } from './unarchive-button'
-import { dropDuplicateTitle } from '../lib/drop-duplicate-title'
+import { takeLeadHeading } from '../lib/lead-heading'
 import { getT } from '../lib/i18n/server.js'
 import { buildBreadcrumb, formatUpdatedAt, sectionSlugs } from '../lib/page-view'
 import { getFrame } from '../lib/resolved-theme'
@@ -168,6 +168,11 @@ export async function PageView({ data }: { data: PageData }) {
   // `--status-bar: bottom` adds the status bar at the foot of `.main`.
   const { pageHead, statusBar } = await getFrame({ hasTree: true })
   const titleMode = pageHead === 'title'
+  // Title mode: a leading `# Heading` of the body becomes the title row and
+  // leaves the body (never two h1); without one the frontmatter title is used.
+  const { headingHtml, rest: bodyHtml } = titleMode
+    ? takeLeadHeading(data.html)
+    : { headingHtml: null, rest: data.html }
 
   // Workflow status chip — in the head (`.toolbar`/`.doc-head`) and, with the
   // status bar on, again in the status bar.
@@ -268,12 +273,19 @@ export async function PageView({ data }: { data: PageData }) {
       {titleMode ? (
         <>
           {/* Title row (spec "`--page-head: title` und das h1"): the frame
-              renders the frontmatter title as h1, status and actions on the
-              same row. The meta line below is a <div>, not a <p>: the
+              renders the body's leading h1 (`lib/lead-heading.ts`) or, without
+              one, the frontmatter title as h1, status and actions on the same
+              row. `headingHtml` comes from the body HTML, which the markdown
+              pipeline has already sanitized — injecting it here is as safe as
+              rendering the body. The meta line below is a <div>, not a <p>: the
               breadcrumb is a <nav>, which a <p> must not contain. The section
               position of the running head is not shown in this mode. */}
           <header className="doc-head">
-            <h1 className="doc-head__title">{data.title}</h1>
+            {headingHtml !== null ? (
+              <h1 className="doc-head__title" dangerouslySetInnerHTML={{ __html: headingHtml }} />
+            ) : (
+              <h1 className="doc-head__title">{data.title}</h1>
+            )}
             <div className="doc-head__actions">{statusAndActions}</div>
           </header>
           <div className="metaline">
@@ -386,7 +398,7 @@ export async function PageView({ data }: { data: PageData }) {
       ) : null}
 
       <div className="body">
-        <PageBody html={titleMode ? dropDuplicateTitle(data.html, data.title) : data.html} />
+        <PageBody html={bodyHtml} />
       </div>
 
       {statusBar ? (
