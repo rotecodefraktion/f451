@@ -24,7 +24,9 @@ export function PaneBarToggle({ pane, shortcuts = false }: PaneBarToggleProps) {
   return (
     <button
       type="button"
-      className={`bar-pane-toggle bar-pane-toggle--${pane}`}
+      className={
+        pane === 'nav' ? 'bar-pane-toggle bar-pane-toggle--nav' : 'bar-pane-toggle bar-pane-toggle--rail'
+      }
       aria-expanded={panes[pane]}
       aria-controls={pane === 'nav' ? 'pane-nav' : 'pane-rail'}
       aria-label={t(pane === 'nav' ? 'shell.panes.nav.label' : 'shell.panes.rail.label')}
