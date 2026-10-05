@@ -40,6 +40,7 @@ export function GroupSection({
           </span>
         ) : null}
       </summary>
+      {group.group === 'Rahmen' ? <p className="te-template-note">{t('settings.appearance.frameGroupNote')}</p> : null}
       <div className="te-group-tools">
         <button
           type="button"
