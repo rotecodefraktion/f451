@@ -47,6 +47,12 @@ systemctl enable --now f451-demo-update.timer f451-demo-reset.timer f451-demo-st
 `setup` writes all secrets into `demo.env` (Forgejo admin, service token,
 OAuth app, token key, visitor passwords) and prints both visitor logins.
 
+Besides the spaces, `setup` and `apply` create an instance repository
+`f451/instance`. Its `_meta/theme.yaml` (pushed from `deploy/demo/instance/`)
+selects the built-in template `rotecodefraktion`, so the demo keeps the look of
+f451 before 1.2.5. Visitors can read it but not write it, and the nightly reset
+restores it together with the spaces.
+
 Set `F451_IMPRINT_URL` and `F451_PRIVACY_URL` in `demo.env` for a public
 instance: the app shows them next to the attribution notice, Forgejo in its
 footer. The privacy policy should cover the access log and statistics below —

@@ -1,0 +1,4 @@
+# Instance theme of the public demo: the built-in template "rotecodefraktion"
+# carries the construction and colours of f451 before 1.2.5.
+name: Demo
+use: rotecodefraktion
