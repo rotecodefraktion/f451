@@ -6,6 +6,7 @@ import { SpaceSwitcher, type SpaceSwitcherSpace } from '../components/space-swit
 import { getT } from '../lib/i18n/server.js'
 import { getBrand, getFrame } from '../lib/resolved-theme.js'
 import { LangSwitcher } from './lang-switcher.js'
+import { PaneBarToggle } from './pane-bar-toggle'
 import { PaneEdges } from './pane-edges'
 import { PhoneBar } from './phone-bar'
 import { ThemeToggle } from './theme-toggle'
@@ -95,6 +96,20 @@ export async function Shell({
   // the name the word. Same per-request call as the root layout.
   const brand = await getBrand()
   const frame = await getFrame({ hasTree })
+  // `--pane-controls: topbar` (frameShape guarantees the top bar is there):
+  // the pane switches sit in the top bar instead of the edge grips. The graph
+  // view has no panes, so it gets neither.
+  const barPanes = variant !== 'graph' && frame.paneControls === 'topbar'
+  const shellClass =
+    variant === 'graph'
+      ? 'shell shell-graph'
+      : [
+          'shell',
+          frame.topbar ? null : 'shell-no-topbar',
+          barPanes ? 'shell-bar-panes' : null,
+        ]
+          .filter(Boolean)
+          .join(' ')
 
   const brandBlock = (
     <div className="brand">
@@ -151,7 +166,11 @@ export async function Shell({
           {brandBlock}
           {spaceControl}
           <div className="grow" />
+          {/* Pane switches around the search, in reading order: the tree's
+              switch left of it, the info sidebar's right of it. */}
+          {barPanes ? <PaneBarToggle pane="nav" shortcuts /> : null}
           <SearchDialog />
+          {barPanes ? <PaneBarToggle pane="rail" /> : null}
           {/* Nur der Dialog, ohne sichtbaren Auslöser — geöffnet wird er per `?`
               oder per CustomEvent aus der Werkzeugliste der linken Leiste. Er
               hängt hier, weil er auf JEDER Seite der Schale erreichbar sein
@@ -192,12 +211,8 @@ export async function Shell({
           `data-rail` am `<html>`-Element (s. `pane-edges.tsx`).
           Die Graph-Ansicht hat weder Seitenbaum noch Info-Leiste — dort gäbe
           es nichts zu schalten, also auch kein Register. */}
-      <div
-        className={
-          variant === 'graph' ? 'shell shell-graph' : frame.topbar ? 'shell' : 'shell shell-no-topbar'
-        }
-      >
-        {variant === 'graph' ? null : <PaneEdges searchOnEdge={!frame.topbar} />}
+      <div className={shellClass}>
+        {variant === 'graph' || barPanes ? null : <PaneEdges searchOnEdge={!frame.topbar} />}
         {typeof sidebar === 'function' ? sidebar(chrome) : sidebar}
         {children}
       </div>

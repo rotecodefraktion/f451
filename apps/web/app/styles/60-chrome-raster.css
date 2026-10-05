@@ -127,10 +127,20 @@
 /* `:not(…='off')` statt `='on'`: fehlt das Attribut (JavaScript blockiert), sind
    beide Leisten offen — dann muss die Untergrenze genauso greifen. */
 :root:not([data-nav='off']):not([data-rail='off']) .shell > .tree {
-  width: min(var(--layout-nav-w), 25vw, (100vw - 2 * var(--layout-edge-w) - 22rem) / 2);
+  width: min(var(--layout-nav-w), 25vw, (100vw - 2 * var(--_edge-w, var(--layout-edge-w)) - 22rem) / 2);
 }
 :root:not([data-nav='off']):not([data-rail='off']) .shell > .rail {
-  width: min(var(--layout-rail-w), 25vw, (100vw - 2 * var(--layout-edge-w) - 22rem) / 2);
+  width: min(var(--layout-rail-w), 25vw, (100vw - 2 * var(--_edge-w, var(--layout-edge-w)) - 22rem) / 2);
+}
+/* --pane-controls: `topbar` — the switches sit in the top bar
+   (`app/pane-bar-toggle.tsx`), no edge grips are rendered. Columns 1 and 5 are
+   `auto` and empty, so they collapse to 0 by themselves; only the document
+   minimum above must stop reserving their width. Keyed on the class the shell
+   sets from `frameShape`, not on `[data-pane-controls]`: that attribute carries
+   the raw theme value, and where `frameShape` falls back to the edges (top bar
+   off, pages without a tree) the grips are there after all. */
+.shell.shell-bar-panes {
+  --_edge-w: 0px;
 }
 .shell > .pane-edge--rail {
   grid-column: 5;
@@ -279,6 +289,61 @@
    ist ohnehin `aria-hidden`, das Kürzel steht im `title` des Schalters. */
 @media (max-width: 900px) {
   .pane-toggle kbd {
+    display: none;
+  }
+}
+
+/* ---- Pane switches in the top bar (`--pane-controls: topbar`) ----
+   `app/pane-bar-toggle.tsx`: same state, same glyphs as the edge grips, as
+   44 × 44 px icon buttons left and right of the search. The glyph follows the
+   root attribute like the grips (see above). A page without info sidebar (or
+   tree) has nothing to switch, like the grips there. Hidden on the phone: the
+   phone bar carries its own switches (`66-telefon.css`). */
+.bar-pane-toggle {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--control-h);
+  height: var(--control-h);
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.bar-pane-toggle:hover {
+  color: var(--color-text);
+  border-color: var(--color-border);
+  background: var(--color-surface-hover);
+}
+.bar-pane-toggle .glyph {
+  font-size: var(--text-lg);
+  line-height: 1;
+  color: var(--color-glyph-state);
+}
+.bar-pane-toggle--nav .glyph::before {
+  content: '◧';
+}
+.bar-pane-toggle--rail .glyph::before {
+  content: '◨';
+}
+:root[data-nav='off'] .bar-pane-toggle--nav,
+:root[data-rail='off'] .bar-pane-toggle--rail,
+:root[data-nav='off'] .bar-pane-toggle--nav .glyph,
+:root[data-rail='off'] .bar-pane-toggle--rail .glyph {
+  color: var(--color-accent);
+}
+:root[data-nav='off'] .bar-pane-toggle--nav .glyph::before,
+:root[data-rail='off'] .bar-pane-toggle--rail .glyph::before {
+  content: '□';
+}
+:root:not(:has(.shell > .rail)) .bar-pane-toggle--rail,
+:root:not(:has(.shell > .tree)) .bar-pane-toggle--nav {
+  display: none;
+}
+@media (max-width: 699px) and (pointer: coarse) {
+  .bar-pane-toggle {
     display: none;
   }
 }
@@ -909,6 +974,27 @@
   padding: 26px var(--space-6);
   background: var(--color-bg-sunken);
   border-left: 1px solid var(--color-border);
+}
+/* --rail-scroll (Rahmen, same switch pattern): `sticky` (Editorial, the
+   fallback) = the rail is as tall as its content, sits at the top of its grid
+   cell and scrolls on its own only when taller than the cell (= the window
+   below the top bar, or the whole window without one); `own` = a scroll area
+   over the full grid height (the application before 1.2.6). The grid row has
+   the window height and `.main` owns the page scroll, so `top: 0` is the top
+   edge below the top bar either way. Not on the phone: there the rail is a
+   fixed sheet (`66-telefon.css`), which `top` would pull to the top edge. */
+[data-rail-scroll="own"] {
+  --_rail-position: static;
+  --_rail-align: stretch;
+  --_rail-max-h: none;
+}
+@media not all and (max-width: 699px) and (pointer: coarse) {
+  .shell > .rail {
+    position: var(--_rail-position, sticky);
+    top: 0;
+    align-self: var(--_rail-align, start);
+    max-height: var(--_rail-max-h, 100%);
+  }
 }
 /* Die einzelnen Abschnitte (ToC/Tags/Metadaten/Verknüpfte Seiten) sind im
    Handoff NICHT einzeln eingerahmt — nur der Mini-Graph unten bekommt einen
