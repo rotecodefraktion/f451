@@ -13,7 +13,7 @@ look of f451 is made of design values (colours, fonts, spacing); you can
 change them for yourself, and people with the right permissions can
 change them for a space or the whole installation.
 
-- [[my-settings]] — your personal theme: scope, origin marks, previews,
+- [[my-settings]] — your personal theme: scope, origin marks, building-block switches, previews,
   download and upload, reset
 - [[instance-and-space]] — the other scopes, who may write, templates and
   brand

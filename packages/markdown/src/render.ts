@@ -14,6 +14,7 @@ import { parseImageAltSize } from './image-size.js'
 import { createSlugger } from './slug.js'
 import { remarkAlerts } from './alerts.js'
 import { matchYoutubeParagraph } from './youtube.js'
+import { rehypeCodeLang } from './code-lang.js'
 import type { ParseOptions } from './types.js'
 
 export interface RenderOptions extends ParseOptions {
@@ -315,6 +316,8 @@ export const baseSanitizeSchema: SanitizeSchema = (() => {
     ],
     p: [...withMergedClassNames(attrs.p, ['alert-title'])],
     img: [...withMergedClassNames(attrs.img, ['yt-thumb']), 'loading'],
+    // Code header (theming structure 1): rehypeCodeLang sets data-lang on <pre>.
+    pre: [...(attrs.pre ?? []), 'dataLang'],
   }
   return base
 })()
@@ -347,6 +350,7 @@ export function renderHtml(markdown: string, opts: RenderOptions): string {
     .use(rehypeRaw)
     .use(rehypeMinifyWhitespace)
     .use(rehypeHeadingIds)
+    .use(rehypeCodeLang)
     .use(rehypeSanitize, baseSanitizeSchema)
     .use(rehypeStringify)
     .processSync(markdown)

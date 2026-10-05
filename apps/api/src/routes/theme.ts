@@ -4,6 +4,7 @@ import {
   checkRules,
   parseThemeFile,
   resolveTheme,
+  toAttributes,
   toCssDeclarations,
   type LayerSource,
   type Origin,
@@ -198,8 +199,10 @@ const resolvedSchema = {
           required: ['name', 'logoUrl', 'faviconUrl'],
         },
         layers: { type: 'array', items: { type: 'string' } },
+        // Building-block switches that differ from Editorial, as `data-<name>` for `<html>` (structure spec 1).
+        attributes: { type: 'object', additionalProperties: { type: 'string' } },
       },
-      required: ['css', 'origin', 'brand', 'layers'],
+      required: ['css', 'origin', 'brand', 'layers', 'attributes'],
     },
   },
 } as const
@@ -660,6 +663,7 @@ export function registerThemeRoutes(app: FastifyInstance, deps: ThemeDeps): void
           brand: await brandBody(space, req.log),
           // One entry per level, also when a template doubled it.
           layers: [...new Set(layers.map((l): LayerSource => l.source))],
+          attributes: toAttributes(resolved),
         }
       },
     )

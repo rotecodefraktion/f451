@@ -6,6 +6,18 @@ base:
   font-display: "'Instrument Serif', Georgia, serif"
   font-sans: "'DM Sans', system-ui, sans-serif"
   font-mono: "'IBM Plex Mono', ui-monospace, monospace"
+  table-style: 'framed'
+  callout-style: 'bar'
+  card-top-rule: 'off'
+  button-primary: 'ink'
+  chip-style: 'outline-caps'
+  heading-number: 'numeral'
+  heading-depth: 'top'
+  toc-style: 'bar'
+  tree-guides: 'off'
+  code-header: 'off'
+  rail-blocks: 'plain'
+  list-marker: 'disc'
 light:
   color-bg: '#faf8f5'
   color-bg-raised: '#ffffff'

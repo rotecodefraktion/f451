@@ -14,6 +14,7 @@ import {
   type TokenGroup,
   type TokenMeta,
   type TokenName,
+  tokenNames,
 } from '@f451/design-tokens'
 import { fieldCheck, type Assessment, type EditorGroup, type EditorScope, type LibraryEntry } from './theme-editor.js'
 
@@ -167,6 +168,27 @@ export function splitLength(value: string, units: readonly string[]): { amount: 
 
 export function joinLength(amount: string, unit: string): string {
   return `${amount.trim()}${unit}`
+}
+
+/** Every value of every choice token — the i18n block `settings.appearance.choice` has one key per entry. */
+export const CHOICE_VALUES: readonly string[] = [
+  ...new Set(
+    tokenNames.flatMap((n) => {
+      const range = (catalog[n] as TokenMeta).range
+      return range?.kind === 'choice' ? [...range.values] : []
+    }),
+  ),
+]
+
+/**
+ * The option text of a choice field: translated when `settings.appearance.choice.<value>`
+ * exists, else the raw value (an invalid value from a file stays visible as itself).
+ * `lib/i18n/format.ts` marks a missing key as `⟦key⟧` — that marker is the fallback signal.
+ */
+export function choiceLabel(t: (key: string) => string, value: string): string {
+  if (!CHOICE_VALUES.includes(value)) return value
+  const text = t(`settings.appearance.choice.${value}`)
+  return text === '' || text.startsWith('⟦') ? value : text
 }
 
 const THRESHOLD_FIELD: Record<KontrastRolle, keyof ContrastThresholds> = {

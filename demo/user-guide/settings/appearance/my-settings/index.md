@@ -39,6 +39,9 @@ loads such a file and saves it as your theme. If this browser still holds
 adjustments from before personal themes existed, the page offers once to
 take them over.
 
+You can take a built-in template over into your own settings with **Adopt
+template** (it replaces your current values) and download the result as a complete YAML file.
+
 ## Reset
 
 **Reset my settings** deletes your personal theme; you then see the

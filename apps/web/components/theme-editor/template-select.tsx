@@ -3,7 +3,7 @@
 import type { ThemeFile } from '@f451/design-tokens'
 import { useState, type FormEvent } from 'react'
 import { useT } from '../../lib/i18n/provider'
-import { templateFile, type EditorScope, type LibraryEntry } from '../../lib/theme-editor'
+import { templateFile, type EditorScope, type LibraryEntry, type TemplateState } from '../../lib/theme-editor'
 import {
   describeSaveFailure,
   libraryApiPath,
@@ -28,6 +28,10 @@ export interface TemplateSelectProps {
   /** a theme write is running */
   busy: boolean
   onUse: (use: string | null) => void
+  /** which template applies here and underneath (`templateState`) */
+  state: TemplateState
+  /** copy the chosen template into the draft; `use` stays */
+  onAdopt: () => void
   /** refetch the library after a template write */
   onLibraryChanged: () => Promise<void>
 }
@@ -39,7 +43,7 @@ export interface TemplateSelectProps {
  * Template writes go straight to the library routes and refetch the list.
  */
 export function TemplateSelect(props: TemplateSelectProps) {
-  const { scope, canWrite, templates, use, current, draft, busy, onUse, onLibraryChanged } = props
+  const { scope, canWrite, templates, use, current, draft, busy, state, onUse, onLibraryChanged } = props
   const { t, locale } = useT()
   const [formOpen, setFormOpen] = useState(false)
   const [name, setName] = useState('')
@@ -61,6 +65,26 @@ export function TemplateSelect(props: TemplateSelectProps) {
   const label = (entry: LibraryEntry) =>
     entry.origin === 'builtin' ? t('settings.appearance.template.builtin', { name: entry.name }) : entry.name
   const ratio = (n: number) => n.toLocaleString(locale, { maximumFractionDigits: 2 })
+
+  const sourceLabel = (source: string) =>
+    source === 'space' ? t('settings.appearance.template.sourceSpace') : t('settings.appearance.template.sourceInstance')
+  function underneath(): string {
+    const inherited = state.inherited
+    switch (inherited.kind) {
+      case 'template':
+        return t('settings.appearance.template.underneathTemplate', { name: inherited.name, source: sourceLabel(inherited.source) })
+      case 'custom':
+        return t('settings.appearance.template.underneathCustom', { source: sourceLabel(inherited.source) })
+      default:
+        return t('settings.appearance.template.underneathDefault')
+    }
+  }
+  const scopeNote =
+    scope.kind === 'instance'
+      ? state.own === 'none'
+        ? t('settings.appearance.template.instanceDefault')
+        : null
+      : t('settings.appearance.template.underneath', { what: underneath() })
 
   async function failureOf(res: Response): Promise<ActionStatus> {
     // 405: a built-in slug on the instance routes — neither writable nor deletable.
@@ -122,7 +146,7 @@ export function TemplateSelect(props: TemplateSelectProps) {
         method: 'PUT',
         credentials: 'same-origin',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(templateFile(draft, trimmed)),
+        body: JSON.stringify(templateFile(draft, trimmed, current)),
       })
       if (res.ok) {
         closeForm()
@@ -172,7 +196,11 @@ export function TemplateSelect(props: TemplateSelectProps) {
               disabled={!canWrite || disabled}
               onChange={(event) => onUse(event.target.value === '' ? null : event.target.value)}
             >
-              <option value="">{t('settings.appearance.template.none')}</option>
+              <option value="">
+                {state.own === 'custom'
+                  ? t('settings.appearance.template.noneCustom')
+                  : t('settings.appearance.template.none')}
+              </option>
               {unknownUse !== null ? (
                 <option value={unknownUse}>{t('settings.appearance.template.unknownOption', { use: unknownUse })}</option>
               ) : null}
@@ -219,6 +247,7 @@ export function TemplateSelect(props: TemplateSelectProps) {
           ) : null}
         </div>
       </div>
+      {scopeNote !== null ? <p className="te-template-note">{scopeNote}</p> : null}
       {templates === null ? (
         <p className="te-template-note">{t('settings.appearance.template.loadError')}</p>
       ) : unknownUse !== null ? (
@@ -226,18 +255,29 @@ export function TemplateSelect(props: TemplateSelectProps) {
           {t('settings.appearance.template.notFound', { use: unknownUse })}
         </p>
       ) : null}
-      {canSaveAs && !formOpen ? (
+      {canWrite && !formOpen ? (
         <div className="btn-row">
+          {canSaveAs ? (
+            <button
+              type="button"
+              className="btn small"
+              disabled={disabled}
+              onClick={() => {
+                setStatus(null)
+                setFormOpen(true)
+              }}
+            >
+              {t('settings.appearance.template.saveAs')}
+            </button>
+          ) : null}
           <button
             type="button"
             className="btn small"
-            disabled={disabled}
-            onClick={() => {
-              setStatus(null)
-              setFormOpen(true)
-            }}
+            disabled={disabled || !current}
+            onClick={props.onAdopt}
+            title={t('settings.appearance.template.adoptHint')}
           >
-            {t('settings.appearance.template.saveAs')}
+            {t('settings.appearance.template.adopt')}
           </button>
         </div>
       ) : null}

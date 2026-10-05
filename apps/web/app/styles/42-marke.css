@@ -103,6 +103,50 @@
      `.canvas .hint` (65-graph.css) ist die Ableseleiste der Zeichenflaeche
      („N Knoten · M Kanten · Space"), kein Zustandstraeger; die
      Bestandsaufnahme §5.2 ordnet sie folgerichtig nicht dem Chip zu. */
+/* Switch pattern (Bausteine): one rule per value sets private `--_…`
+   properties on the carrier (`<html>` or the preview stage, no `html` prefix);
+   the block reads them with the Editorial value as `var()` fallback. A carrier
+   value references only catalog tokens and keywords, never a property the
+   block sets on itself (`--chip-glyph`).
+
+   --chip-style: `outline-caps` (Editorial) = small caps, tracked, hairline in
+   currentColor on the status wash; `filled` = mixed case, medium weight, no
+   border (Fokus/Klar & Warm); `marker` = square corners, strong border, a
+   hollow square marker instead of the glyph (System/Raster — form carries the
+   meaning, colour never alone). Every value resets every property the other
+   values set, so a stage with `outline-caps` under a document with `marker`
+   shows no square. */
+[data-chip-style="outline-caps"] {
+  --_chip-transform: uppercase;
+  --_chip-tracking: var(--tracking-caps);
+  --_chip-weight: var(--weight-strong);
+  --_chip-border-c: currentColor;
+  --_chip-radius: var(--radius-pill);
+  /* guaranteed-invalid → the block falls back to its own --chip-glyph */
+  --_chip-glyph-content: initial;
+  --_chip-marker-w: auto;
+  --_chip-marker-box: 0;
+}
+[data-chip-style="filled"] {
+  --_chip-transform: none;
+  --_chip-tracking: 0;
+  --_chip-weight: var(--weight-medium);
+  --_chip-border-c: transparent;
+  --_chip-radius: var(--radius-pill);
+  --_chip-glyph-content: initial;
+  --_chip-marker-w: auto;
+  --_chip-marker-box: 0;
+}
+[data-chip-style="marker"] {
+  --_chip-transform: uppercase;
+  --_chip-tracking: var(--tracking-caps);
+  --_chip-weight: var(--weight-strong);
+  --_chip-border-c: var(--color-border-strong);
+  --_chip-radius: var(--radius-sm);
+  --_chip-glyph-content: '';
+  --_chip-marker-w: 0.6em;
+  --_chip-marker-box: 2px;
+}
 .chip {
   display: inline-flex;
   align-items: center;
@@ -110,14 +154,14 @@
   padding: var(--space-1) var(--space-3);
   /* Rand in der Zustandsfarbe: die Marke traegt ihre Bedeutung auch dann,
      wenn die Flaeche (z. B. auf getoentem Grund) kaum auffaellt. */
-  border: var(--rule-hair) solid currentColor;
-  border-radius: var(--radius-pill);
+  border: var(--rule-hair) solid var(--_chip-border-c, currentColor);
+  border-radius: var(--_chip-radius, var(--radius-pill));
   font-family: var(--font-sans);
   font-size: var(--text-xs);
-  font-weight: var(--weight-strong);
+  font-weight: var(--_chip-weight, var(--weight-strong));
   line-height: var(--leading-ui);
-  letter-spacing: var(--tracking-caps);
-  text-transform: uppercase;
+  letter-spacing: var(--_chip-tracking, var(--tracking-caps));
+  text-transform: var(--_chip-transform, uppercase);
   /* Nachtrag Teilschritt I: die Marke bricht nicht. Der Bestand hatte das
      (`.chip` in globals.css:1302, `white-space: nowrap`); der Baustein hatte
      es verloren, weil die Uebergangsschicht am Dateifuss nur Eigenschaften
@@ -147,11 +191,20 @@
    Absicht — ist die Variable nicht gesetzt (bare `.chip`, Altnamen), wird
    die Deklaration bei der Wertberechnung ungueltig, `content` faellt auf
    `normal` zurueck und es entsteht kein Kasten. So bekommt keine heutige
-   Marke ein zweites oder ein leeres Zeichen. */
+   Marke ein zweites oder ein leeres Zeichen.
+
+   --chip-style: the glyph variants keep exactly that (`--_chip-glyph-content`
+   is guaranteed-invalid there, so the fallback `var(--chip-glyph)` applies);
+   `marker` replaces the glyph with an empty hollow square. */
 .chip:not(:has(.glyph, svg, img))::before {
-  content: var(--chip-glyph);
+  content: var(--_chip-glyph-content, var(--chip-glyph));
   font-size: var(--text-sm);
   line-height: 1;
+  display: inline-block;
+  width: var(--_chip-marker-w, auto);
+  height: var(--_chip-marker-w, auto);
+  border: var(--_chip-marker-box, 0) solid currentColor;
+  box-sizing: border-box;
 }
 
 /* ---- Die Varianten ------------------------------------------------------

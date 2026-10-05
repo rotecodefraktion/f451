@@ -14,6 +14,7 @@ export interface ResolvedBrand {
 export interface ResolvedThemeResponse {
   css: ThemeCssDeclarations
   brand?: ResolvedBrand | null
+  attributes?: Record<string, string>
 }
 
 /**

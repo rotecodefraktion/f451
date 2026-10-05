@@ -70,6 +70,24 @@ const SOURCES: readonly Source[] = [
   { slug: 'rotecodefraktion', name: 'Rotecodefraktion', path: 'deploy/demo/theme/theme.css' },
 ]
 
+/**
+ * Building-block switches per template (structure spec 1, 2026-10-04). The
+ * script reads VALUES from a mockup, not construction — these come from the
+ * comparison of the mockups against Editorial and are written into `base`
+ * explicitly, the default values included, so a copy of a template shows every
+ * switch. Rotecodefraktion is the construction the application had before
+ * 1.2.5 (framed table, no card rule, bar TOC, no tree guides, plain rail,
+ * disc markers) with the demo theme's colours and typefaces.
+ */
+const SHARED = { 'table-style': 'framed', 'card-top-rule': 'off', 'heading-depth': 'top', 'toc-style': 'bar', 'tree-guides': 'off' }
+const SWITCHES: Record<string, Record<string, string>> = {
+  fokus:            { ...SHARED, 'callout-style': 'box', 'button-primary': 'accent', 'chip-style': 'filled',       'heading-number': 'none',    'code-header': 'on',  'rail-blocks': 'plain', 'list-marker': 'disc' },
+  'klar-warm':      { ...SHARED, 'callout-style': 'box', 'button-primary': 'accent', 'chip-style': 'filled',       'heading-number': 'none',    'code-header': 'on',  'rail-blocks': 'cards', 'list-marker': 'disc' },
+  'system-raster':  { ...SHARED, 'callout-style': 'bar', 'button-primary': 'accent', 'chip-style': 'marker',       'heading-number': 'none',    'code-header': 'on',  'rail-blocks': 'plain', 'list-marker': 'dash' },
+  werkbank:         { ...SHARED, 'callout-style': 'box', 'button-primary': 'accent', 'chip-style': 'outline-caps', 'heading-number': 'none',    'code-header': 'on',  'rail-blocks': 'cards', 'list-marker': 'dash' },
+  rotecodefraktion: { ...SHARED, 'callout-style': 'bar', 'button-primary': 'ink',    'chip-style': 'outline-caps', 'heading-number': 'numeral', 'code-header': 'off', 'rail-blocks': 'plain', 'list-marker': 'disc' },
+}
+
 type Mode = 'light' | 'dark'
 type Section = 'base' | 'light' | 'dark'
 
@@ -317,6 +335,15 @@ function extract(source: Source): Extracted {
       }
       kept[section].set(name, check.value)
     }
+  }
+
+  // Switches after the extracted values; `kept` is keyed by the full token name.
+  const switches = SWITCHES[source.slug] ?? {}
+  for (const [key, value] of Object.entries(switches)) {
+    const name = `--${key}`
+    const meta = catalog[name as TokenName] as TokenMeta | undefined
+    if (!meta?.range || !checkValue(meta.range, value).ok) throw new Error(`${source.slug}: switch ${key}=${value} is not a catalog value`)
+    kept.base.set(name, value)
   }
 
   const file: ThemeFile = { name: source.name }

@@ -112,7 +112,11 @@ export default async function ErscheinungsbildPage({
         thresholdStrip={
           // "Meine Einstellungen" has no "Prüfschärfe" strip (addendum §7): contrast never blocks there.
           kind === 'user' ? undefined : (
-            <ThresholdStrip data={data} canWriteInstance={scopes.instance.canWrite} scopeKind={kind} />
+            <ThresholdStrip
+              data={data}
+              canWriteInstance={scopes.instance.canWrite}
+              scopeKind={kind}
+            />
           )
         }
       />

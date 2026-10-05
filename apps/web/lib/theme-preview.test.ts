@@ -1,6 +1,13 @@
 import { catalog, resolveTheme, tokens, type ThemeTokenName } from '@f451/design-tokens'
 import { describe, expect, it } from 'vitest'
-import { currentMode, declarationsToMap, overrideNames, previewStyle, programOverrides } from './theme-preview.js'
+import {
+  currentMode,
+  declarationsToMap,
+  overrideNames,
+  previewAttributes,
+  previewStyle,
+  programOverrides,
+} from './theme-preview.js'
 
 const defaults = resolveTheme([])
 const drafted = resolveTheme([
@@ -27,8 +34,10 @@ describe('declarationsToMap', () => {
 })
 
 describe('programOverrides', () => {
-  it('is empty for the built-in tokens', () => {
-    expect(programOverrides(defaults)).toEqual({ light: {}, dark: {} })
+  it('carries no custom property for the built-in tokens', () => {
+    const o = programOverrides(defaults)
+    expect(o.light).toEqual({})
+    expect(o.dark).toEqual({})
   })
 
   it('carries only changed tokens, structure ones in both modes', () => {
@@ -73,11 +82,29 @@ describe('previewStyle', () => {
 
 describe('overrideNames', () => {
   it('is the union of both modes', () => {
-    expect(overrideNames({ light: { '--a': '1', '--b': '2' }, dark: { '--b': '3', '--c': '4' } }).sort()).toEqual([
-      '--a',
-      '--b',
-      '--c',
-    ])
+    expect(
+      overrideNames({ light: { '--a': '1', '--b': '2' }, dark: { '--b': '3', '--c': '4' }, attributes: {} }).sort(),
+    ).toEqual(['--a', '--b', '--c'])
+  })
+})
+
+describe('switch attributes in the previews', () => {
+  it('programOverrides carries the full switch set, defaults included', () => {
+    const over = programOverrides(resolveTheme([{ source: 'user', base: { '--chip-style': 'marker' } }]))
+    expect(Object.keys(over.attributes)).toHaveLength(12)
+    expect(over.attributes['chip-style']).toBe('marker')
+    expect(over.attributes['callout-style']).toBe('bar')
+  })
+
+  it('previewAttributes prefixes data- and carries every switch', () => {
+    const attrs = previewAttributes(defaults)
+    expect(Object.keys(attrs)).toHaveLength(12)
+    expect(attrs['data-list-marker']).toBe('dash')
+  })
+
+  it('previewStyle never carries a switch as a custom property', () => {
+    const style = previewStyle(resolveTheme([{ source: 'user', base: { '--chip-style': 'marker' } }]), 'light')
+    expect(Object.keys(style).some((k) => k === '--chip-style')).toBe(false)
   })
 })
 

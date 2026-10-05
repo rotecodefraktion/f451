@@ -5,7 +5,7 @@ import { PreviewBanner } from '../components/theme-editor/preview-banner'
 import { LocaleProvider } from '../lib/i18n/provider.js'
 import { getT } from '../lib/i18n/server.js'
 import { getBrand, getResolvedTheme } from '../lib/resolved-theme.js'
-import { themeStyleText } from '../lib/theme-style.js'
+import { themeAttributes, themeStyleText } from '../lib/theme-style.js'
 // Ein einziger Stil-Einstieg: `globals.css` ist nur noch die @import-Liste
 // (s. Kopfkommentar dort). Die Graph-Ansicht stand bis Teilschritt H5 des
 // Bausteinsystem-Umbaus als zweiter Import daneben und damit hinter allem in
@@ -104,7 +104,13 @@ const NO_FLASH_PANES = `(function(){try{var r=document.documentElement,s=null;tr
 // own and never throws: a hand-bent or stale entry must not stop the app, only
 // stay without effect. Only strings under `--` names are taken over — nothing
 // else belongs on the root element.
-const NO_FLASH_TOKENS = `(function(){try{var r=document.documentElement,m=r.getAttribute('data-theme');if(m!=='dark'&&m!=='light'){m=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}var s=null;try{s=JSON.parse(localStorage.getItem('erscheinungsbild')||'null');}catch(e){}if(!s||typeof s!=='object')return;var w=s[m];if(!w||typeof w!=='object')return;for(var k in w){if(Object.prototype.hasOwnProperty.call(w,k)&&typeof w[k]==='string'&&k.slice(0,2)==='--'){r.style.setProperty(k,w[k]);}}}catch(e){}})();`
+//
+// Program preview (`localStorage['erscheinungsbild']`, lib/erscheinungsbild.ts): the
+// per-mode custom properties as before, plus `attributes` — the FULL switch set of
+// the previewed draft as `data-<name>`, so a deviation the server rendered onto
+// <html> cannot show through while a preview is running. Same grammar as
+// lib/theme-style.ts#themeAttributes.
+const NO_FLASH_TOKENS = `(function(){try{var r=document.documentElement,s=null;try{s=JSON.parse(localStorage.getItem('erscheinungsbild')||'null');}catch(e){}if(!s||typeof s!=='object')return;var a=s.attributes;if(a&&typeof a==='object'){for(var n in a){if(Object.prototype.hasOwnProperty.call(a,n)&&typeof a[n]==='string'&&/^[a-z][a-z0-9-]{0,40}$/.test(n)&&/^[a-z0-9-]{1,40}$/.test(a[n])&&n!=='theme'&&n!=='nav'&&n!=='rail'&&n!=='altlasten'){r.setAttribute('data-'+n,a[n]);}}}var m=r.getAttribute('data-theme');if(m!=='dark'&&m!=='light'){m=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}var w=s[m];if(!w||typeof w!=='object')return;for(var k in w){if(Object.prototype.hasOwnProperty.call(w,k)&&typeof w[k]==='string'&&k.slice(0,2)==='--'){r.style.setProperty(k,w[k]);}}}catch(e){}})();`
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // CSP-Nonce (Phase 4a Task 4, s. `middleware.ts`): die Middleware generiert
@@ -148,6 +154,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // Brand favicon (instance only, addendum §5). Without one, `app/icon.svg`
   // (Next's file convention) stays the icon.
   const faviconUrl = resolvedTheme?.brand?.faviconUrl ?? null
+  const switchAttributes = themeAttributes(resolvedTheme?.attributes)
   return (
     <html
       lang={locale}
@@ -164,6 +171,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       // ausschaltbar geblieben.
       data-altlasten="weg"
       className={`${hankenGrotesk.variable} ${schibstedGrotesk.variable} ${jetbrainsMono.variable}`}
+      // Building-block switches of the resolved theme (structure spec 1); the no-flash script below may override them with a running program preview.
+      {...switchAttributes}
     >
       <head>
         <script nonce={nonce} dangerouslySetInnerHTML={{ __html: NO_FLASH_THEME + NO_FLASH_PANES + NO_FLASH_TOKENS }} />

@@ -7,6 +7,7 @@ import { istVorschau, leseUeberschreibungen } from '../../lib/erscheinungsbild'
 import { useT } from '../../lib/i18n/provider'
 import { overrideNames, PREVIEW_STORAGE_KEY, type PreviewOverrides } from '../../lib/theme-preview'
 import {
+  adoptTemplate,
   assess,
   buildGroups,
   fieldCheck,
@@ -15,6 +16,7 @@ import {
   setBrandName,
   setUse,
   setValue,
+  templateState,
   type EditorData,
   type EditorRow,
   type LibraryEntry,
@@ -79,6 +81,7 @@ export function ThemeEditor({ scopes, data, thresholdStrip, templates }: ThemeEd
   const [busy, setBusy] = useState<'save' | 'remove' | 'import' | null>(null)
   const [status, setStatus] = useState<ActionStatus | null>(null)
   const isUser = data.scope.kind === 'user'
+  const isSpace = data.scope.kind === 'space'
   const fileInput = useRef<HTMLInputElement>(null)
   // Old browser overrides offered for takeover (addendum §2); checked once per page load.
   const [takeover, setTakeover] = useState<PreviewOverrides | null>(null)
@@ -118,6 +121,7 @@ export function ThemeEditor({ scopes, data, thresholdStrip, templates }: ThemeEd
   const libraryEntries = useMemo(() => library ?? [], [library])
   const groups = useMemo(() => buildGroups(data, draft, libraryEntries), [data, draft, libraryEntries])
   const assessment = useMemo(() => assess(data, draft, libraryEntries), [data, draft, libraryEntries])
+  const templateInfo = useMemo(() => templateState(data, draft, libraryEntries), [data, draft, libraryEntries])
   const states = useMemo(() => tokenStates(assessment), [assessment])
   const jumpTargets = useMemo(() => firstRows(groups, states), [groups, states])
   // Unsaved edits — a brand upload refreshes the page and would drop them, so it asks first.
@@ -369,7 +373,11 @@ export function ThemeEditor({ scopes, data, thresholdStrip, templates }: ThemeEd
 
   /** The ok text; a personal theme saved below the thresholds names the count as a quiet note. */
   async function successText(kind: 'save' | 'remove' | 'import', res: Response): Promise<string> {
-    if (kind === 'remove') return t(isUser ? 'settings.appearance.user.removed' : 'settings.appearance.removed')
+    if (kind === 'remove') {
+      return t(
+        isUser ? 'settings.appearance.user.removed' : isSpace ? 'settings.appearance.space.removed' : 'settings.appearance.removed',
+      )
+    }
     const saved = t(kind === 'import' ? 'settings.appearance.user.imported' : 'settings.appearance.saved')
     if (!isUser) return saved
     let count = 0
@@ -382,7 +390,14 @@ export function ThemeEditor({ scopes, data, thresholdStrip, templates }: ThemeEd
   }
 
   function remove() {
-    if (!window.confirm(t(isUser ? 'settings.appearance.user.removeConfirm' : 'settings.appearance.removeConfirm'))) return
+    const question = t(
+      isUser
+        ? 'settings.appearance.user.removeConfirm'
+        : isSpace
+          ? 'settings.appearance.space.removeConfirm'
+          : 'settings.appearance.removeConfirm',
+    )
+    if (!window.confirm(question)) return
     void send('remove')
   }
 
@@ -449,6 +464,7 @@ export function ThemeEditor({ scopes, data, thresholdStrip, templates }: ThemeEd
           </div>
         ) : null}
         {thresholdStrip ?? null}
+        {isSpace && data.file !== null ? <p className="te-template-note">{t('settings.appearance.space.ownTheme')}</p> : null}
         <StatusBar
           errors={assessment.errors}
           warnings={assessment.warnings}
@@ -461,7 +477,9 @@ export function ThemeEditor({ scopes, data, thresholdStrip, templates }: ThemeEd
           busy={busy}
           onSave={() => void send('save')}
           onRemove={remove}
-          removeLabel={isUser ? t('settings.appearance.user.remove') : undefined}
+          removeLabel={
+            isUser ? t('settings.appearance.user.remove') : isSpace ? t('settings.appearance.space.remove') : undefined
+          }
           status={status}
         />
         {isUser ? (
@@ -483,6 +501,20 @@ export function ThemeEditor({ scopes, data, thresholdStrip, templates }: ThemeEd
             />
           </div>
         ) : null}
+        <TemplateSelect
+          key={scopeParam(data.scope)}
+          scope={data.scope}
+          canWrite={data.canWrite}
+          templates={library}
+          use={draft.use}
+          current={assessment.template}
+          draft={draft}
+          busy={busy !== null}
+          state={templateInfo}
+          onUse={(use) => setDraft((d) => setUse(d, use))}
+          onAdopt={() => setDraft((d) => (assessment.template ? adoptTemplate(d, assessment.template) : d))}
+          onLibraryChanged={reloadLibrary}
+        />
         {/* "Marke" (addendum §7): instance and space only. Rendered here, not
             passed in as a slot like the threshold strip, because the name is
             part of the draft this component holds. */}
@@ -499,18 +531,6 @@ export function ThemeEditor({ scopes, data, thresholdStrip, templates }: ThemeEd
             onName={(name) => setDraft((d) => setBrandName(d, name))}
           />
         )}
-        <TemplateSelect
-          key={scopeParam(data.scope)}
-          scope={data.scope}
-          canWrite={data.canWrite}
-          templates={library}
-          use={draft.use}
-          current={assessment.template}
-          draft={draft}
-          busy={busy !== null}
-          onUse={(use) => setDraft((d) => setUse(d, use))}
-          onLibraryChanged={reloadLibrary}
-        />
         {groups.map((group) => (
           <GroupSection
             key={group.group}

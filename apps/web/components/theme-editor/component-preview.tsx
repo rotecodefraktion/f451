@@ -3,7 +3,7 @@
 import type { Mode, ResolvedTheme } from '@f451/design-tokens'
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useT } from '../../lib/i18n/provider'
-import { currentMode, previewStyle } from '../../lib/theme-preview'
+import { currentMode, previewAttributes, previewStyle } from '../../lib/theme-preview'
 
 export interface ComponentPreviewProps {
   resolved: ResolvedTheme
@@ -52,6 +52,7 @@ export function ComponentPreview({ resolved }: ComponentPreviewProps) {
   }, [])
 
   const style = useMemo(() => previewStyle(resolved, mode) as CSSProperties, [resolved, mode])
+  const attrs = useMemo(() => previewAttributes(resolved), [resolved])
 
   const rest = t('settings.appearance.preview.stateRest')
   const hover = t('settings.appearance.preview.stateHover')
@@ -92,7 +93,7 @@ export function ComponentPreview({ resolved }: ComponentPreviewProps) {
       </div>
       <p className="te-pv-intro">{t('settings.appearance.preview.intro')}</p>
 
-      <div className="te-pv-stage" data-theme={mode} style={style} inert>
+      <div className="te-pv-stage" data-theme={mode} style={style} inert {...attrs}>
         {/* Reading text: hanging number, paragraph in the measure, margin note, table, code. */}
         <div className="page-body">
           <h2>{t('settings.appearance.preview.sampleHeading')}</h2>
@@ -116,7 +117,7 @@ export function ComponentPreview({ resolved }: ComponentPreviewProps) {
               </tr>
             </tbody>
           </table>
-          <pre>
+          <pre data-lang="bash">
             <code>
               {codeLines.map((line, i) => (
                 <span key={i} className="te-pv-line">

@@ -79,6 +79,7 @@ describe('theme routes', () => {
     expect(body.css.dark).toEqual([])
     expect(body.brand).toBeNull()
     expect(body.origin.light['--color-accent']).toEqual({ source: 'default' })
+    expect(body.attributes).toEqual({})
     await app.close()
   })
 
@@ -91,6 +92,18 @@ describe('theme routes', () => {
     expect(body.css.light).toContain('--color-accent: #0b5fa5;')
     expect(body.origin.light['--color-accent'].source).toBe('instance')
     expect(body.css.dark.some((d: string) => d.startsWith('--color-accent:'))).toBe(false)
+    await app.close()
+  })
+
+  it('GET /api/theme/resolved carries the switch deviations as attributes', async () => {
+    const app = appWithTheme('name: Switches\nbase:\n  chip-style: filled\n  callout-style: bar\n')
+    const res = await app.inject({ method: 'GET', url: '/api/theme/resolved' })
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    // `callout-style: bar` is the default — set, but no deviation (Review Focus 2)
+    expect(body.attributes).toEqual({ 'chip-style': 'filled' })
+    expect(body.origin.base['--callout-style'].source).toBe('instance')
+    expect(body.css.root.some((d: string) => d.startsWith('--chip-style'))).toBe(false)
     await app.close()
   })
 

@@ -87,16 +87,37 @@
 }
 
 /* Primaer = Tinte, nicht Farbe. Der Entwurf haelt die Akzentfarbe fuer
-   Bedeutung frei; die Hauptaktion traegt deshalb die Textfarbe als Flaeche. */
+   Bedeutung frei; die Hauptaktion traegt deshalb die Textfarbe als Flaeche.
+
+   Switch pattern (Bausteine): one rule per value sets private `--_…`
+   properties on the carrier (`<html>` or the preview stage, no `html` prefix);
+   the block reads them with the Editorial value as `var()` fallback.
+
+   --button-primary: `ink` (Editorial) = text colour; `accent` = accent with its
+   contrast colour (the four 2026 mockups). The pair accent-contrast on accent
+   is already a measured contrast pair. */
+[data-button-primary="ink"] {
+  --_btn-p-bg: var(--color-text);
+  --_btn-p-fg: var(--color-bg);
+  --_btn-p-hover: color-mix(in srgb, var(--color-text) 88%, var(--color-accent));
+}
+[data-button-primary="accent"] {
+  --_btn-p-bg: var(--color-accent);
+  --_btn-p-fg: var(--color-accent-contrast);
+  --_btn-p-hover: color-mix(in srgb, var(--color-accent) 85%, var(--color-text));
+}
 .btn.primary {
-  background: var(--color-text);
-  color: var(--color-bg);
-  border-color: var(--color-text);
+  background: var(--_btn-p-bg, var(--color-text));
+  color: var(--_btn-p-fg, var(--color-bg));
+  border-color: var(--_btn-p-bg, var(--color-text));
   box-shadow: var(--shadow-sm);
 }
 .btn.primary:hover {
-  background: color-mix(in srgb, var(--color-text) 88%, var(--color-accent));
-  border-color: color-mix(in srgb, var(--color-text) 88%, var(--color-accent));
+  background: var(--_btn-p-hover, color-mix(in srgb, var(--color-text) 88%, var(--color-accent)));
+  border-color: var(
+    --_btn-p-hover,
+    color-mix(in srgb, var(--color-text) 88%, var(--color-accent))
+  );
 }
 
 /* Zurueckhaltend = randlos. Ersetzt die randlosen Symbolknoepfe der

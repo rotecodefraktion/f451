@@ -618,6 +618,22 @@
   min-width: 0;
 }
 
+/* --tree-guides (Bausteine, pattern see `.rail` below): `on` (Editorial) = a
+   hairline along every nesting level; `off` = indentation only (the
+   application before 1.2.5). The children of an expanded node sit in `.kids`
+   (`components/tree.tsx`), which carries the indentation the links used to
+   carry as inline padding. */
+[data-tree-guides="on"] {
+  --_tree-guide: var(--rule-hair) solid var(--color-border);
+}
+[data-tree-guides="off"] {
+  --_tree-guide: 0;
+}
+.nav .kids {
+  margin-left: var(--space-5);
+  border-left: var(--_tree-guide, var(--rule-hair) solid var(--color-border));
+}
+
 /* Umbenennen/Verschieben (Phase 3.2, `tree-node-actions.tsx`) — Link + kleine
    Aktions-Buttons in einer Zeile; die Buttons sitzen bewusst AUSSERHALB des
    `<a>` (kein verschachteltes interaktives Element) und blenden per Hover/
@@ -715,13 +731,53 @@
 /* ---- Rechte Leiste (Chrome) ----
    Redesign Phase 2 (Handoff „Right rail"): randlose `--surface-subtle`-
    Fläche mit EINER Hairline links, Innenabstand 26px/24px, eigener
-   Scrollbereich über die volle Grid-Höhe (s. `.shell`). */
+   Scrollbereich über die volle Grid-Höhe (s. `.shell`).
+
+   Switch pattern (Bausteine), valid for every switch in this file: one rule
+   per value sets private `--_…` properties on the carrier (`<html>` or the
+   preview stage, no `html` prefix — the nearer carrier wins by inheritance);
+   the block reads them with the Editorial value as `var()` fallback. A carrier
+   value references only catalog tokens, never a property the block sets on
+   itself.
+
+   --rail-blocks: `rules` (Editorial) = a hairline under every block but the
+   last; `plain` = sections with an eyebrow, no frame (the application before
+   1.2.5); `cards` = each block a raised card (Klar & Warm, Werkbank). The
+   `--_rp-last-*` pair keeps the last card closed: only `rules` drops the
+   bottom rule of the last block. */
+[data-rail-blocks="rules"] {
+  --_rp-pad: 0 0 var(--space-5);
+  --_rp-border-w: 0 0 var(--rule-hair);
+  --_rp-radius: 0;
+  --_rp-bg: transparent;
+  --_rp-last-pad: 0;
+  --_rp-last-border: 0;
+  --_rail-gap: var(--space-5);
+}
+[data-rail-blocks="plain"] {
+  --_rp-pad: 0;
+  --_rp-border-w: 0;
+  --_rp-radius: 0;
+  --_rp-bg: transparent;
+  --_rp-last-pad: 0;
+  --_rp-last-border: 0;
+  --_rail-gap: var(--space-7);
+}
+[data-rail-blocks="cards"] {
+  --_rp-pad: var(--space-4);
+  --_rp-border-w: var(--rule-hair);
+  --_rp-radius: var(--radius-lg);
+  --_rp-bg: var(--color-bg-raised);
+  --_rp-last-pad: var(--space-4);
+  --_rp-last-border: var(--rule-hair);
+  --_rail-gap: var(--space-4);
+}
 .rail {
   min-height: 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: var(--space-7);
+  gap: var(--_rail-gap, var(--space-5));
   padding: 26px var(--space-6);
   background: var(--color-bg-sunken);
   border-left: 1px solid var(--color-border);
@@ -736,11 +792,16 @@
    Markup noch `card` steht — die Leseansicht schreibt nur noch `rp`, die
    Review-Leiste und das Metadaten-Panel (H2/H3) tragen `card rp` weiter. */
 .rail .rp {
-  padding: 0;
-  border: 0;
-  border-radius: 0;
+  padding: var(--_rp-pad, 0 0 var(--space-5));
+  border: solid var(--color-border);
+  border-width: var(--_rp-border-w, 0 0 var(--rule-hair));
+  border-radius: var(--_rp-radius, 0);
   box-shadow: none;
-  background: transparent;
+  background: var(--_rp-bg, transparent);
+}
+.rail .rp:last-child {
+  border-bottom-width: var(--_rp-last-border, 0);
+  padding-bottom: var(--_rp-last-pad, 0);
 }
 .rp h4 {
   /* A UI label, not a content heading: the UI font like every other label,

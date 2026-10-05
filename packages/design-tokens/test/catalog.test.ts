@@ -1,7 +1,14 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { catalog, namesOfLevel, tokenNames, type TokenGroup, type TokenMeta } from '../src/catalog.js'
+import {
+  catalog,
+  namesOfLevel,
+  tokenNames,
+  type StructureTokenName,
+  type TokenGroup,
+  type TokenMeta,
+} from '../src/catalog.js'
 import { design, tokens } from '../src/tokens.js'
 
 const MOCKUP = fileURLToPath(new URL('../../../docs/design/mockups-2026/editorial.html', import.meta.url))
@@ -42,9 +49,21 @@ describe('Katalog gegen den Referenzentwurf', () => {
       // Zwei Schriftstufen, die die Oberfläche als Literal führte (#77).
       '--text-2xs',
       '--text-ui',
-      '--heading-number',
-      '--heading-number-sub',
       '--diagram-frame-w',
+      // Building-block switches (2026-10-04-theming-struktur-1): the mockup
+      // hard-wires one construction per block; the switch makes it a value.
+      '--table-style',
+      '--callout-style',
+      '--card-top-rule',
+      '--button-primary',
+      '--chip-style',
+      '--heading-number',
+      '--heading-depth',
+      '--toc-style',
+      '--tree-guides',
+      '--code-header',
+      '--rail-blocks',
+      '--list-marker',
       // Der Hausstil der Diagramme (2026-07-27-mcp-anhaenge-design.md,
       // Paket 1). Alle 26 tragen dieselbe Begründung — der Entwurf zeigt
       // Bilder, keine Diagramme.
@@ -75,7 +94,7 @@ describe('Katalog gegen den Referenzentwurf', () => {
       '--diagram-font-family',
       '--diagram-font-size',
     ])
-    expect(tokenNames).toHaveLength(134)
+    expect(tokenNames).toHaveLength(144)
   })
 
   it('teilt sie auf die Ebenen der Token-Architektur auf', () => {
@@ -84,7 +103,7 @@ describe('Katalog gegen den Referenzentwurf', () => {
     // Diagramm-Tokens (Theme 21 + 12 Farben, Struktur 70 + 14 Maße).
     expect(namesOfLevel('theme')).toHaveLength(33)
     expect(namesOfLevel('derived')).toHaveLength(13)
-    expect(namesOfLevel('structure')).toHaveLength(86)
+    expect(namesOfLevel('structure')).toHaveLength(96)
     expect(namesOfLevel('switch')).toHaveLength(2)
   })
 
@@ -100,10 +119,11 @@ describe('Katalog gegen den Referenzentwurf', () => {
       Schatten: 3,
       Schriftfamilien: 4,
       Schriftgrößen: 12,
-      Satzdetails: 14,
+      Satzdetails: 12,
       'Maß, Raster, Dichte': 27,
       'Linien, Radien, Bedienelemente': 11,
       'Fokus und Bewegung': 4,
+      Bausteine: 12,
       Anzeigeschalter: 2,
       Diagramme: 26,
     }
@@ -114,7 +134,7 @@ describe('Katalog gegen den Referenzentwurf', () => {
 })
 
 describe('Positivliste der Themefähigkeit', () => {
-  it('hält die Bilanz 124 setzbar / 10 gesperrt', () => {
+  it('hält die Bilanz 132 setzbar / 12 gesperrt', () => {
     // 84 aus dem Entwurf, dazu die beiden Nachträge der
     // Gliederungsnummerierung und der Diagrammrahmen — alle drei setzbar,
     // denn genau das ist ihr Zweck. Ebenso die 26 Diagramm-Tokens: Der Sinn
@@ -123,8 +143,35 @@ describe('Positivliste der Themefähigkeit', () => {
     // Korridor-Tokens (Zeilenlänge, Rasterbreiten, Bedienelementhöhe): setzbar
     // nur innerhalb ihrer `range`.
     const setzbar = tokenNames.filter((n) => catalog[n].settable)
-    expect(setzbar).toHaveLength(124)
-    expect(tokenNames.length - setzbar.length).toBe(10)
+    expect(setzbar).toHaveLength(132)
+    expect(tokenNames.length - setzbar.length).toBe(12)
+  })
+
+  it('every switch is a settable structure choice emitted as attribute', () => {
+    const switches = tokenNames.filter((n) => catalog[n].emit === 'attribute')
+    expect(switches).toEqual([
+      '--table-style',
+      '--callout-style',
+      '--card-top-rule',
+      '--button-primary',
+      '--chip-style',
+      '--heading-number',
+      '--heading-depth',
+      '--toc-style',
+      '--tree-guides',
+      '--code-header',
+      '--rail-blocks',
+      '--list-marker',
+    ])
+    for (const n of switches) {
+      const meta = catalog[n] as TokenMeta
+      expect(meta.level).toBe('structure')
+      expect(meta.group).toBe('Bausteine')
+      expect(meta.settable).toBe(true)
+      expect(meta.range?.kind).toBe('choice')
+      expect(meta.range?.kind === 'choice' && meta.range.values.includes(tokens.structure[n as StructureTokenName])).toBe(true)
+    }
+    expect('--heading-number-sub' in catalog).toBe(false)
   })
 
   it('every settable token carries a range', () => {
@@ -147,6 +194,8 @@ describe('Positivliste der Themefähigkeit', () => {
         '--layout-app-w',
         '--layout-edge-w',
         '--layout-hang',
+        '--layout-note-gap',
+        '--layout-note-w',
         '--layout-note-x',
         '--measure-full',
         '--space-0',
