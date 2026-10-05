@@ -49,6 +49,9 @@ export const actions: Messages['actions'] = {
   tree: {
     archivedBadge: 'Archived',
     archivedTitle: '{title} — archived (read-only)',
+    filter: {
+      placeholder: 'Filter pages',
+    },
   },
   reorder: {
     genericError: 'Reordering failed — please try again.',

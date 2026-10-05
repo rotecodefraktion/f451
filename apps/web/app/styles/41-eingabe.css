@@ -144,6 +144,12 @@ textarea.input[aria-invalid='true'] {
   pointer-events: none;
 }
 
+/* Filter field at the top of the page tree (`components/tree-filter.tsx`):
+   the `.input` building block with a gap to the first tree row. */
+.input.tree-filter {
+  margin-bottom: var(--space-2);
+}
+
 /* =========================================================================
    Kontrollkaestchen
 

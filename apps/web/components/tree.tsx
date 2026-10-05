@@ -1,11 +1,13 @@
 import { ActiveLink } from './active-link'
 import { SiblingList } from './tree-dnd'
 import { TreeBranch, TreeExpansionProvider } from './tree-expansion'
+import { TreeFilter } from './tree-filter'
 import { TreeNodeActions, type FlatNode } from './tree-node-actions'
 import { getT } from '../lib/i18n/server.js'
 import type { DotPaths, Params } from '../lib/i18n/format.js'
 import type { Messages } from '../lib/i18n/types.js'
 import { toNodeRefs } from '../lib/tree-expansion.js'
+import { toFilterNodes } from '../lib/tree-filter.js'
 import { wikiPageHref } from '../lib/urls'
 
 /** Signatur des an `getT()` gebundenen `t()` — hier durchgereicht, da `Tree`
@@ -86,6 +88,7 @@ export async function Tree({ space, nodes }: TreeProps) {
   const allNodes = flattenNodes(nodes, 0)
   return (
     <TreeExpansionProvider space={space} nodes={toNodeRefs(nodes)}>
+      <TreeFilter nodes={toFilterNodes(nodes)} />
       <SiblingList space={space} parentId={null} childIds={nodes.map((node) => node.id)}>
         {nodes.map((node) => (
           <TreeNode key={node.id} node={node} space={space} depth={0} allNodes={allNodes} t={t} />
@@ -136,8 +139,10 @@ function TreeNode({
   // damit die Klick-Buttons NICHT innerhalb des `<a>` sitzen (kein
   // verschachteltes interaktives Element) und per Hover (`.node-row:hover
   // .node-actions`, `app/globals.css`) ein-/ausgeblendet werden können.
+  // `data-node-id` is the hook for the filter island (`tree-filter.tsx`),
+  // which hides nodes in the DOM instead of re-rendering the tree.
   const row = (
-    <div className="node-row">
+    <div className="node-row" data-node-id={node.id}>
       {link}
       {isSpaceRoot ? null : (
         <TreeNodeActions space={space} node={{ id: node.id, title: node.title, path: node.path }} allNodes={allNodes} />
