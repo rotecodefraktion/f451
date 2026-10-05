@@ -7,6 +7,7 @@ import { indexChangedFiles, type IncrementalReport } from '../indexer/incrementa
 import type { OpsCounters } from '../ops/counters.js'
 import type { SpaceConfig } from '../spaces/config.js'
 import { invalidateSpaceTheme, SPACE_THEME_PATH } from '../theme/space-theme.js'
+import { FONTS_DIR, STYLESHEET_PATH } from '../theme/stylesheet.js'
 
 export interface WebhookSecrets {
   forgejo?: string
@@ -416,7 +417,14 @@ async function cleanupAfterMerge(
   }
 }
 
-/** `_meta/theme.yaml`, the template library `_meta/themes/*` and the brand files `_meta/brand/*`. */
+/** `_meta/theme.yaml`, the template library `_meta/themes/*`, the brand files `_meta/brand/*`,
+ *  the stylesheet `_meta/theme.css` and its fonts `_meta/fonts/*`. */
 function isThemePath(path: string): boolean {
-  return path === SPACE_THEME_PATH || path.startsWith('_meta/themes/') || path.startsWith('_meta/brand/')
+  return (
+    path === SPACE_THEME_PATH
+    || path === STYLESHEET_PATH
+    || path.startsWith('_meta/themes/')
+    || path.startsWith('_meta/brand/')
+    || path.startsWith(FONTS_DIR)
+  )
 }

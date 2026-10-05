@@ -31,6 +31,7 @@ import {
 } from '../theme/instance-theme.js'
 import { findTemplate, layersOf, loadLibrary, templateLayer, type LibraryEntry } from '../theme/library.js'
 import { invalidateSpaceTheme, loadSpaceTheme, SPACE_THEME_PATH } from '../theme/space-theme.js'
+import { loadStylesheet } from '../theme/stylesheet.js'
 import { loadUserTheme } from '../theme/user-theme.js'
 import {
   resolveNewPageWriteContext,
@@ -205,8 +206,11 @@ const resolvedSchema = {
         // Every switch with its resolved value, defaults included — the server components read the
         // frame switches from here (structure spec 2).
         switches: { type: 'object', additionalProperties: { type: 'string' } },
+        // URLs of the theme stylesheets that apply (f451#61): instance, then space; only present
+        // and valid files, each with `?v=<sha>` for cache busting.
+        stylesheets: stringArray,
       },
-      required: ['css', 'origin', 'brand', 'layers', 'attributes', 'switches'],
+      required: ['css', 'origin', 'brand', 'layers', 'attributes', 'switches', 'stylesheets'],
     },
   },
 } as const
@@ -626,6 +630,19 @@ export function registerThemeRoutes(app: FastifyInstance, deps: ThemeDeps): void
     return { name: brand.name, logoUrl, faviconUrl }
   }
 
+  /** The stylesheet URLs for the layout (f451#61): instance, then space, each only when
+   *  its file is present and valid; `?v=` carries the short blob sha for cache busting. */
+  async function stylesheetUrls(space: SpaceConfig | null, log: FastifyRequest['log']): Promise<string[]> {
+    const urls: string[] = []
+    const own = await loadStylesheet(deps, { kind: 'instance' }, log)
+    if (own) urls.push(`/api/theme/stylesheet?v=${own.sha.slice(0, 7)}`)
+    if (space) {
+      const file = await loadStylesheet(deps, { kind: 'space', space }, log)
+      if (file) urls.push(`/api/spaces/${encodeURIComponent(space.id)}/theme/stylesheet?v=${file.sha.slice(0, 7)}`)
+    }
+    return urls
+  }
+
   app.register(async (instance) => {
     instance.get('/api/theme', { schema: themeSchema }, async (req) => {
       return themeBody(await loadInstanceTheme(deps, req.log), 'instance' as const)
@@ -669,6 +686,7 @@ export function registerThemeRoutes(app: FastifyInstance, deps: ThemeDeps): void
           layers: [...new Set(layers.map((l): LayerSource => l.source))],
           attributes: toAttributes(resolved),
           switches: attributeValues(resolved),
+          stylesheets: await stylesheetUrls(space, req.log),
         }
       },
     )
