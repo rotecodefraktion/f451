@@ -161,6 +161,14 @@ export const settings = {
     serverConflict: 'Die Theme-Datei wurde inzwischen geändert. Lade die Seite neu und versuche es erneut.',
     serverNotFound: 'Es gibt keine Theme-Datei zum Entfernen.',
     serverError: 'Der Vorgang ist fehlgeschlagen. Bitte erneut versuchen.',
+    // A space's own theme (scope `space`): removing it falls back to the instance theme
+    space: {
+      remove: 'Auf Instanz-Theme zurücksetzen',
+      removeConfirm:
+        'Das eigene Theme dieses Space löschen? Die Datei _meta/theme.yaml wird aus dem Repository des Space entfernt; danach gilt hier wieder das Theme der Instanz.',
+      removed: 'Auf das Instanz-Theme zurückgesetzt.',
+      ownTheme: 'Dieser Space hat ein eigenes Theme. Seine Werte gelten hier vor denen der Instanz.',
+    },
     // "Meine Einstellungen" — the personal theme (scope `user`)
     user: {
       remove: 'Meine Einstellungen zurücksetzen',

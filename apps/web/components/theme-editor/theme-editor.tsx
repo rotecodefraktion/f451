@@ -80,6 +80,7 @@ export function ThemeEditor({ scopes, data, thresholdStrip, templates }: ThemeEd
   const [busy, setBusy] = useState<'save' | 'remove' | 'import' | null>(null)
   const [status, setStatus] = useState<ActionStatus | null>(null)
   const isUser = data.scope.kind === 'user'
+  const isSpace = data.scope.kind === 'space'
   const fileInput = useRef<HTMLInputElement>(null)
   // Old browser overrides offered for takeover (addendum §2); checked once per page load.
   const [takeover, setTakeover] = useState<PreviewOverrides | null>(null)
@@ -370,7 +371,11 @@ export function ThemeEditor({ scopes, data, thresholdStrip, templates }: ThemeEd
 
   /** The ok text; a personal theme saved below the thresholds names the count as a quiet note. */
   async function successText(kind: 'save' | 'remove' | 'import', res: Response): Promise<string> {
-    if (kind === 'remove') return t(isUser ? 'settings.appearance.user.removed' : 'settings.appearance.removed')
+    if (kind === 'remove') {
+      return t(
+        isUser ? 'settings.appearance.user.removed' : isSpace ? 'settings.appearance.space.removed' : 'settings.appearance.removed',
+      )
+    }
     const saved = t(kind === 'import' ? 'settings.appearance.user.imported' : 'settings.appearance.saved')
     if (!isUser) return saved
     let count = 0
@@ -383,7 +388,14 @@ export function ThemeEditor({ scopes, data, thresholdStrip, templates }: ThemeEd
   }
 
   function remove() {
-    if (!window.confirm(t(isUser ? 'settings.appearance.user.removeConfirm' : 'settings.appearance.removeConfirm'))) return
+    const question = t(
+      isUser
+        ? 'settings.appearance.user.removeConfirm'
+        : isSpace
+          ? 'settings.appearance.space.removeConfirm'
+          : 'settings.appearance.removeConfirm',
+    )
+    if (!window.confirm(question)) return
     void send('remove')
   }
 
@@ -450,6 +462,7 @@ export function ThemeEditor({ scopes, data, thresholdStrip, templates }: ThemeEd
           </div>
         ) : null}
         {thresholdStrip ?? null}
+        {isSpace && data.file !== null ? <p className="te-template-note">{t('settings.appearance.space.ownTheme')}</p> : null}
         <StatusBar
           errors={assessment.errors}
           warnings={assessment.warnings}
@@ -462,7 +475,9 @@ export function ThemeEditor({ scopes, data, thresholdStrip, templates }: ThemeEd
           busy={busy}
           onSave={() => void send('save')}
           onRemove={remove}
-          removeLabel={isUser ? t('settings.appearance.user.remove') : undefined}
+          removeLabel={
+            isUser ? t('settings.appearance.user.remove') : isSpace ? t('settings.appearance.space.remove') : undefined
+          }
           status={status}
         />
         {isUser ? (

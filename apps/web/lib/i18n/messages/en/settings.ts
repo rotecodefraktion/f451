@@ -137,6 +137,13 @@ export const settings: Messages['settings'] = {
     serverConflict: 'The theme file changed in the meantime. Reload the page and try again.',
     serverNotFound: 'There is no theme file to remove.',
     serverError: 'The action failed. Please try again.',
+    space: {
+      remove: 'Reset to instance theme',
+      removeConfirm:
+        "Delete this space's own theme? The file _meta/theme.yaml is removed from the space's repository; the instance theme applies here again.",
+      removed: 'Reset to the instance theme.',
+      ownTheme: "This space has its own theme. Its values take precedence over the instance's here.",
+    },
     user: {
       remove: 'Reset my settings',
       removeConfirm:
