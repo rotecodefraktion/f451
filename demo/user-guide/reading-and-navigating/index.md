@@ -21,6 +21,14 @@ and **Configure** (**Templates**, **Metadata schema**, **Connections**,
 **Appearance** — see [[templates-and-metadata]] and
 [[appearance]]).
 
+The field at the top of the list, **Filter pages**, narrows the tree as you
+type: only pages whose title contains the text stay visible, together with
+the folders above them. Press **Escape** to clear the field.
+
+Without a top bar (the default look), search, space switcher, language,
+theme and account sit at the top and bottom of the page tree instead; when
+the tree is closed, a magnifier on the left edge opens the search.
+
 ## Breadcrumbs and the running position
 
 Every page shows its breadcrumb trail above the title, so you always

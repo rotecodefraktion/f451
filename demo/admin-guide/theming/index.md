@@ -128,6 +128,48 @@ Files from before 1.2.5 that set `heading-number: counter(sec) '.'` or
 `heading-number-sub` are read in the new form with a warning and rewritten on
 the next save.
 
+## Frame
+
+Five more choice tokens, in the group **Rahmen**, switch the page frame. They
+work like the building blocks (a value that differs from Editorial becomes a
+`data-<name>` attribute), but most of them change the **markup**, not only the
+styling.
+
+| Token | Values (Editorial first) | Effect |
+|---|---|---|
+| `topbar` | `off`, `on` | top bar above the page grid |
+| `page-head` | `title`, `toolbar` | a title row (h1 from the front matter title, status chip, actions) with a meta line below, or the column title plus toolbar of 1.2.5 |
+| `pane-controls` | `edges`, `topbar` | thumb grips on the edges, or switches for the tree and the info rail in the top bar (grips are dropped) |
+| `rail-scroll` | `sticky`, `own` | info rail sticks within the document scroll, or scrolls on its own |
+| `status-bar` | `off`, `bottom` | a slim line at the foot of the main area: status, last update, section x of y |
+
+**Rule:** `pane-controls: topbar` needs `topbar: on`. Saving a theme that
+breaks it is refused with both tokens named; a file that breaks it anyway (say,
+edited by hand) is read with the edge grips instead.
+
+Frame switches change markup, so they show **after saving**, not in the
+program preview. Pages without a page tree (settings, graph, error pages)
+always keep the top bar, whatever `topbar` says — brand, account and search
+need a place. Without a top bar, brand, space switcher and search move to the
+head of the page tree, language, theme and account to its foot. The phone
+layout is the same for every switch.
+
+With `page-head: title`, the first `# heading` of a page's content is not
+shown a second time in the reading view if it equals the title.
+
+Each template writes all five switches:
+
+| Switch | Editorial (default) | Fokus | Klar & Warm | System / Raster | Werkbank | Rotecodefraktion |
+|---|---|---|---|---|---|---|
+| `topbar` | off | off | on | off | on | on |
+| `page-head` | title | title | title | title | toolbar | toolbar |
+| `pane-controls` | edges | edges | topbar | edges | topbar | edges |
+| `rail-scroll` | sticky | sticky | sticky | sticky | own | own |
+| `status-bar` | off | off | off | off | bottom | off |
+
+`use: rotecodefraktion` keeps the frame of 1.2.5. An instance without a theme
+sees the Editorial frame from 1.2.6 on.
+
 ## Templates
 
 A template is a theme file in `_meta/themes/`. The active theme selects it
