@@ -138,7 +138,7 @@ styling.
 | Token | Values (Editorial first) | Effect |
 |---|---|---|
 | `topbar` | `off`, `on` | top bar above the page grid |
-| `page-head` | `title`, `toolbar` | a title row (h1 from the front matter title, status chip, actions) with a meta line below, or the column title plus toolbar of 1.2.5 |
+| `page-head` | `title`, `toolbar` | a title row (h1 from the page's leading `#` heading, else the front matter title; status chip; actions) with a meta line below, or the column title plus toolbar of 1.2.5 |
 | `pane-controls` | `edges`, `topbar` | thumb grips on the edges, or switches for the tree and the info rail in the top bar (grips are dropped) |
 | `rail-scroll` | `sticky`, `own` | info rail sticks within the document scroll, or scrolls on its own |
 | `status-bar` | `off`, `bottom` | a slim line at the foot of the main area: status, last update, section x of y |
@@ -154,8 +154,9 @@ need a place. Without a top bar, brand, space switcher and search move to the
 head of the page tree, language, theme and account to its foot. The phone
 layout is the same for every switch.
 
-With `page-head: title`, the first `# heading` of a page's content is not
-shown a second time in the reading view if it equals the title.
+With `page-head: title`, if the page body starts with a `# heading`, the title
+row shows that heading and it is removed from the body; only a page without a
+leading `#` heading shows the front matter `title:`. There is never a second h1.
 
 Each template writes all five switches:
 
