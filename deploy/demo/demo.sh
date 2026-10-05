@@ -33,6 +33,8 @@ WRITER_USER=writer
 # Spaces: <id>:<name>. Each is demo/<id>/ in this repository.
 SPACES=("user-guide:User Guide" "developer-guide:Developer Guide" "admin-guide:Admin Guide" "playground:Playground")
 WRITABLE_SPACE=playground
+# Instance repository (instance theme); its content is deploy/demo/instance/.
+INSTANCE_REPO=instance
 
 say() { printf '\033[1;34m» %s\033[0m\n' "$*"; }
 die() { printf '\033[1;31mError: %s\033[0m\n' "$*" >&2; exit 1; }
@@ -103,6 +105,7 @@ write_static_config() {
   env_set F451_WEB_PORT "127.0.0.1:8080"
   env_set F451_DRAWIO_PORT "127.0.0.1:8081"
   env_set F451_SPACES "'$(spaces_json)'"
+  env_set F451_INSTANCE_CONFIG "'{\"provider\":\"forgejo\",\"owner\":\"$ORG\",\"repo\":\"$INSTANCE_REPO\"}'"
   [ -n "$(env_get POSTGRES_PASSWORD)" ] || env_set POSTGRES_PASSWORD "$(secret)"
   [ -n "$(env_get F451_TOKEN_KEY)" ] || env_set F451_TOKEN_KEY "$(openssl rand -base64 32)"
   [ -n "$(env_get F451_ADMIN_TOKEN)" ] || env_set F451_ADMIN_TOKEN "$(secret)"
@@ -188,12 +191,12 @@ ensure_grant() {  # ensure_grant NAME
 
 ensure_repos() {
   local id
-  for s in "${SPACES[@]}"; do
-    id="${s%%:*}"
+  for id in $(for s in "${SPACES[@]}"; do echo "${s%%:*}"; done) "$INSTANCE_REPO"; do
     fapi GET "/repos/$ORG/$id" >/dev/null || fapi POST "/orgs/$ORG/repos" \
       "{\"name\":\"$id\",\"auto_init\":true,\"default_branch\":\"main\",\"private\":false}" >/dev/null
   done
-  # "demo" reads all spaces, "writer" reads all and writes the playground.
+  # "demo" reads all repositories, "writer" reads all and writes the playground
+  # (not the instance repository: visitors must not change the instance theme).
   local readers writers
   readers=$(ensure_team readers read true)
   writers=$(ensure_team writers write false)
@@ -214,27 +217,34 @@ ensure_team() {  # ensure_team NAME PERMISSION ALL_REPOS → prints the team id
 
 # --- content -----------------------------------------------------------------
 
-# Push demo/<space>/ as the new state of main (only if something changed).
+# Push demo/<space>/ and deploy/demo/instance/ as the new state of main (only
+# if something changed).
 seed() {
-  say "Content: demo/* → Forgejo"
+  say "Content: demo/* and deploy/demo/instance → Forgejo"
   local tmp id token; tmp=$(mktemp -d); token="$(env_get F451_FORGEJO_TOKEN)"
   local base; base="$(forgejo_local | sed "s|http://|http://$ADMIN_USER:$token@|")"
   for s in "${SPACES[@]}"; do
     id="${s%%:*}"
-    git clone -q "$base/$ORG/$id.git" "$tmp/$id"
-    find "$tmp/$id" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
-    cp -R "$REPO/demo/$id/." "$tmp/$id/"
-    if [ -n "$(git -C "$tmp/$id" status --porcelain)" ]; then
-      git -C "$tmp/$id" add -A
-      git -C "$tmp/$id" -c user.name="$ADMIN_USER" -c user.email="$ADMIN_USER@$GIT_HOST" \
-        commit -qm "Demo content from demo/$id ($(git -C "$REPO" rev-parse --short HEAD))"
-      git -C "$tmp/$id" push -q origin main
-      echo "  ✓ $id"
-    else
-      echo "  = $id"
-    fi
+    seed_repo "$id" "demo/$id"
   done
+  seed_repo "$INSTANCE_REPO" "deploy/demo/instance"
   rm -rf "$tmp"
+}
+
+seed_repo() {  # seed_repo REPO SOURCE_DIR (relative to $REPO); uses $tmp and $base from seed
+  local id="$1" src="$2"
+  git clone -q "$base/$ORG/$id.git" "$tmp/$id"
+  find "$tmp/$id" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+  cp -R "$REPO/$src/." "$tmp/$id/"
+  if [ -n "$(git -C "$tmp/$id" status --porcelain)" ]; then
+    git -C "$tmp/$id" add -A
+    git -C "$tmp/$id" -c user.name="$ADMIN_USER" -c user.email="$ADMIN_USER@$GIT_HOST" \
+      commit -qm "Demo content from $src ($(git -C "$REPO" rev-parse --short HEAD))"
+    git -C "$tmp/$id" push -q origin main
+    echo "  ✓ $id"
+  else
+    echo "  = $id"
+  fi
 }
 
 # Close open reviews and delete draft branches (nightly reset).
