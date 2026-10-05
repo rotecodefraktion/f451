@@ -47,7 +47,8 @@ import { OfflineRecoveryDialog } from './offline-recovery-dialog'
 import { RawEditor, type RawEditorHandle } from './raw-editor'
 import { ResetRecoveryDialog } from './reset-recovery-dialog'
 import { SaveTemplateDialog } from './save-template-dialog'
-import { StatusBar } from './status-bar'
+import { SaveState, StatusBar } from './status-bar'
+import { StatusBarBottom } from '../status-bar-bottom'
 import { TitleField } from './title-field'
 import { WysiwygEditor, type WysiwygEditorHandle } from './wysiwyg-editor'
 
@@ -75,6 +76,9 @@ export interface EditorRootProps {
    *  Fail-Soft wie überall sonst bei diesem Feature: `MetadataPanel` rendert
    *  dann einfach nichts (kein Formular, keine Regression). */
   metadataSchema: MetadataSchema | null
+  /** Frame switch `--status-bar: bottom` (f451#60), read by `edit/page.tsx`:
+   *  the save state also shows in the bottom status bar. */
+  statusBarBottom?: boolean
 }
 
 /** Startmodus-Entscheidung: `canEdit:false` (nicht abbildbare Syntax, z. B.
@@ -152,6 +156,7 @@ interface EditorSessionProps {
    *  im Dialog (s. `evaluateOfflineRecovery`-Kopfkommentar, Regel 4). */
   offlineRecovery: { content: string; savedAt: string; foreignBranch: boolean } | null
   onDismissOfflineRecovery: () => void
+  statusBarBottom: boolean
 }
 
 /**
@@ -178,6 +183,7 @@ function EditorSession({
   onDismissResetRecovery,
   offlineRecovery,
   onDismissOfflineRecovery,
+  statusBarBottom,
 }: EditorSessionProps) {
   const { t } = useT()
   const router = useRouter()
@@ -1091,6 +1097,13 @@ function EditorSession({
         onClose={handleCloseSaveTemplateDialog}
         onSubmit={handleSaveAsTemplateSubmit}
       />
+      {/* `--status-bar: bottom`: the save state moves to the foot of `.main`
+          (CSS hides the copy in `.statusbar` outside the phone). */}
+      {statusBarBottom ? (
+        <StatusBarBottom>
+          <SaveState saveStatus={saveStatus} savedAt={savedAt} />
+        </StatusBarBottom>
+      ) : null}
     </div>
   )
 }
@@ -1116,7 +1129,7 @@ function EditorSession({
  * unterscheiden. Jeder andere Fehlerstatus fällt auf dieselbe Fehlerkarte MIT
  * Retry zurück (nie eine leere Seite ohne Erklärung).
  */
-export function EditorRoot({ pageId, space, title, metadataSchema }: EditorRootProps) {
+export function EditorRoot({ pageId, space, title, metadataSchema, statusBarBottom = false }: EditorRootProps) {
   const { t } = useT()
   const [state, setState] = useState<LoadState>({ status: 'loading' })
   // Unmount-Guard (Task-2-Review-Fund): ein `mounted`-Flag statt eines
@@ -1326,6 +1339,7 @@ export function EditorRoot({ pageId, space, title, metadataSchema }: EditorRootP
       onDismissResetRecovery={dismissResetRecovery}
       offlineRecovery={offlineRecovery}
       onDismissOfflineRecovery={dismissOfflineRecovery}
+      statusBarBottom={statusBarBottom}
     />
   )
 }

@@ -2,6 +2,7 @@ import type { Classification } from '@f451/markdown'
 import { Breadcrumb } from './breadcrumb'
 import { PageBody } from './page-body'
 import { ReadingPosition } from './reading-position'
+import { StatusBarBottom } from './status-bar-bottom'
 import { UnarchiveButton } from './unarchive-button'
 import { dropDuplicateTitle } from '../lib/drop-duplicate-title'
 import { getT } from '../lib/i18n/server.js'
@@ -164,8 +165,40 @@ export async function PageView({ data }: { data: PageData }) {
   // Frame switch `--page-head` (f451#60): `title` puts the frontmatter title
   // as h1 into the frame (`.doc-head` + `.metaline`); `toolbar` keeps the
   // running head, toolbar and subbar of 1.2.5. Only the reading view switches.
-  const { pageHead } = await getFrame({ hasTree: true })
+  // `--status-bar: bottom` adds the status bar at the foot of `.main`.
+  const { pageHead, statusBar } = await getFrame({ hasTree: true })
   const titleMode = pageHead === 'title'
+
+  // Workflow status chip — in the head (`.toolbar`/`.doc-head`) and, with the
+  // status bar on, again in the status bar.
+  const statusChip =
+    workflow?.state === 'review' ? (
+      <span className="chip review">
+        {CLOCK_ICON}
+        {t('read.status.review')}
+      </span>
+    ) : workflow?.state === 'working' ? (
+      <span className="chip working">
+        {EDIT_ICON}
+        {t('read.status.draft')}
+      </span>
+    ) : data.archived ? (
+      <span className="chip archived">
+        {ARCHIVE_ICON}
+        {t('read.status.archived')}
+      </span>
+    ) : (
+      <span className="chip released">
+        {CHECK_ICON}
+        {t('read.status.released')}
+      </span>
+    )
+
+  const updatedItem = (
+    <span>
+      {t('read.subbar.updated')} <b>{formatUpdatedAt(data.updatedAt, locale)}</b>
+    </span>
+  )
 
   // Status chip(s) and actions — carried by `.toolbar` or by `.doc-head`.
   const statusAndActions = (
@@ -178,34 +211,12 @@ export async function PageView({ data }: { data: PageData }) {
           {t(`read.classification.${data.classification}`)}
         </span>
       ) : null}
-      {workflow?.state === 'review' ? (
-        <span className="chip review">
-          {CLOCK_ICON}
-          {t('read.status.review')}
-        </span>
-      ) : workflow?.state === 'working' ? (
-        <span className="chip working">
-          {EDIT_ICON}
-          {t('read.status.draft')}
-        </span>
-      ) : data.archived ? (
-        <>
-          <span className="chip archived">
-            {ARCHIVE_ICON}
-            {t('read.status.archived')}
-          </span>
-          {/* „Aus Archiv holen" (Feature „Unarchive"): der „Bearbeiten"-Link
-              unten ist bei einer archivierten Seite ausgeblendet — ohne
-              diesen Button käme niemand mehr in den Editor, um `archived`
-              zu entfernen. */}
-          <UnarchiveButton pageId={data.id} />
-        </>
-      ) : (
-        <span className="chip released">
-          {CHECK_ICON}
-          {t('read.status.released')}
-        </span>
-      )}
+      {statusChip}
+      {/* „Aus Archiv holen" (Feature „Unarchive"): der „Bearbeiten"-Link
+          unten ist bei einer archivierten Seite ausgeblendet — ohne diesen
+          Button käme niemand mehr in den Editor, um `archived` zu entfernen.
+          Only when the archived chip is the one shown (no draft/review). */}
+      {workflow === null && data.archived ? <UnarchiveButton pageId={data.id} /> : null}
       {!data.archived ? (
         <a className="btn primary" href={wikiPageEditHref(data.space, data.id)}>
           {EDIT_ICON}
@@ -218,9 +229,7 @@ export async function PageView({ data }: { data: PageData }) {
   // Updated / space / version — carried by `.subbar` or by `.metaline`.
   const metaItems = (
     <>
-      <span>
-        {t('read.subbar.updated')} <b>{formatUpdatedAt(data.updatedAt, locale)}</b>
-      </span>
+      {updatedItem}
       <span>
         {t('read.subbar.space')} <b>{data.space}</b>
       </span>
@@ -379,6 +388,15 @@ export async function PageView({ data }: { data: PageData }) {
       <div className="body">
         <PageBody html={titleMode ? dropDuplicateTitle(data.html, data.title) : data.html} />
       </div>
+
+      {statusBar ? (
+        <StatusBarBottom>
+          {statusChip}
+          {updatedItem}
+          {/* Same source as the running head: server-side section slugs. */}
+          <ReadingPosition slugs={sections} />
+        </StatusBarBottom>
+      ) : null}
     </main>
   )
 }
