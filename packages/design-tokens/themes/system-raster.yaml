@@ -44,6 +44,11 @@ base:
   code-header: 'on'
   rail-blocks: 'plain'
   list-marker: 'dash'
+  topbar: 'off'
+  page-head: 'title'
+  pane-controls: 'edges'
+  rail-scroll: 'sticky'
+  status-bar: 'off'
 light:
   color-bg: '#ffffff'
   color-bg-raised: '#f6f6f3'

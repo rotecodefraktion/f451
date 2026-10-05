@@ -77,15 +77,23 @@ const SOURCES: readonly Source[] = [
  * explicitly, the default values included, so a copy of a template shows every
  * switch. Rotecodefraktion is the construction the application had before
  * 1.2.5 (framed table, no card rule, bar TOC, no tree guides, plain rail,
- * disc markers) with the demo theme's colours and typefaces.
+ * disc markers) and the frame of 1.2.5 (top bar, toolbar page head, edge
+ * controls, rail scrolling on its own, no status bar) with the demo theme's
+ * colours and typefaces. The five frame switches (structure spec 2) differ
+ * between templates, so none of them is in SHARED.
  */
 const SHARED = { 'table-style': 'framed', 'card-top-rule': 'off', 'heading-depth': 'top', 'toc-style': 'bar', 'tree-guides': 'off' }
 const SWITCHES: Record<string, Record<string, string>> = {
-  fokus:            { ...SHARED, 'callout-style': 'box', 'button-primary': 'accent', 'chip-style': 'filled',       'heading-number': 'none',    'code-header': 'on',  'rail-blocks': 'plain', 'list-marker': 'disc' },
-  'klar-warm':      { ...SHARED, 'callout-style': 'box', 'button-primary': 'accent', 'chip-style': 'filled',       'heading-number': 'none',    'code-header': 'on',  'rail-blocks': 'cards', 'list-marker': 'disc' },
-  'system-raster':  { ...SHARED, 'callout-style': 'bar', 'button-primary': 'accent', 'chip-style': 'marker',       'heading-number': 'none',    'code-header': 'on',  'rail-blocks': 'plain', 'list-marker': 'dash' },
-  werkbank:         { ...SHARED, 'callout-style': 'box', 'button-primary': 'accent', 'chip-style': 'outline-caps', 'heading-number': 'none',    'code-header': 'on',  'rail-blocks': 'cards', 'list-marker': 'dash' },
-  rotecodefraktion: { ...SHARED, 'callout-style': 'bar', 'button-primary': 'ink',    'chip-style': 'outline-caps', 'heading-number': 'numeral', 'code-header': 'off', 'rail-blocks': 'plain', 'list-marker': 'disc' },
+  fokus:            { ...SHARED, 'callout-style': 'box', 'button-primary': 'accent', 'chip-style': 'filled',       'heading-number': 'none',    'code-header': 'on',  'rail-blocks': 'plain', 'list-marker': 'disc',
+                      topbar: 'off', 'page-head': 'title',   'pane-controls': 'edges',  'rail-scroll': 'sticky', 'status-bar': 'off' },
+  'klar-warm':      { ...SHARED, 'callout-style': 'box', 'button-primary': 'accent', 'chip-style': 'filled',       'heading-number': 'none',    'code-header': 'on',  'rail-blocks': 'cards', 'list-marker': 'disc',
+                      topbar: 'on',  'page-head': 'title',   'pane-controls': 'topbar', 'rail-scroll': 'sticky', 'status-bar': 'off' },
+  'system-raster':  { ...SHARED, 'callout-style': 'bar', 'button-primary': 'accent', 'chip-style': 'marker',       'heading-number': 'none',    'code-header': 'on',  'rail-blocks': 'plain', 'list-marker': 'dash',
+                      topbar: 'off', 'page-head': 'title',   'pane-controls': 'edges',  'rail-scroll': 'sticky', 'status-bar': 'off' },
+  werkbank:         { ...SHARED, 'callout-style': 'box', 'button-primary': 'accent', 'chip-style': 'outline-caps', 'heading-number': 'none',    'code-header': 'on',  'rail-blocks': 'cards', 'list-marker': 'dash',
+                      topbar: 'on',  'page-head': 'toolbar', 'pane-controls': 'topbar', 'rail-scroll': 'own',    'status-bar': 'bottom' },
+  rotecodefraktion: { ...SHARED, 'callout-style': 'bar', 'button-primary': 'ink',    'chip-style': 'outline-caps', 'heading-number': 'numeral', 'code-header': 'off', 'rail-blocks': 'plain', 'list-marker': 'disc',
+                      topbar: 'on',  'page-head': 'toolbar', 'pane-controls': 'edges',  'rail-scroll': 'own',    'status-bar': 'off' },
 }
 
 type Mode = 'light' | 'dark'

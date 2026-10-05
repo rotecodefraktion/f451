@@ -48,7 +48,12 @@ export const builtinThemeData: readonly { slug: string; file: ThemeFile }[] = [
         "tree-guides": "off",
         "code-header": "on",
         "rail-blocks": "plain",
-        "list-marker": "disc"
+        "list-marker": "disc",
+        "topbar": "off",
+        "page-head": "title",
+        "pane-controls": "edges",
+        "rail-scroll": "sticky",
+        "status-bar": "off"
       },
       "light": {
         "color-bg": "#ffffff",
@@ -134,7 +139,12 @@ export const builtinThemeData: readonly { slug: string; file: ThemeFile }[] = [
         "tree-guides": "off",
         "code-header": "on",
         "rail-blocks": "cards",
-        "list-marker": "disc"
+        "list-marker": "disc",
+        "topbar": "on",
+        "page-head": "title",
+        "pane-controls": "topbar",
+        "rail-scroll": "sticky",
+        "status-bar": "off"
       },
       "light": {
         "color-bg": "#f6f1ea",
@@ -232,7 +242,12 @@ export const builtinThemeData: readonly { slug: string; file: ThemeFile }[] = [
         "tree-guides": "off",
         "code-header": "on",
         "rail-blocks": "plain",
-        "list-marker": "dash"
+        "list-marker": "dash",
+        "topbar": "off",
+        "page-head": "title",
+        "pane-controls": "edges",
+        "rail-scroll": "sticky",
+        "status-bar": "off"
       },
       "light": {
         "color-bg": "#ffffff",
@@ -319,7 +334,12 @@ export const builtinThemeData: readonly { slug: string; file: ThemeFile }[] = [
         "tree-guides": "off",
         "code-header": "on",
         "rail-blocks": "cards",
-        "list-marker": "dash"
+        "list-marker": "dash",
+        "topbar": "on",
+        "page-head": "toolbar",
+        "pane-controls": "topbar",
+        "rail-scroll": "own",
+        "status-bar": "bottom"
       },
       "light": {
         "color-bg": "#ffffff",
@@ -387,7 +407,12 @@ export const builtinThemeData: readonly { slug: string; file: ThemeFile }[] = [
         "tree-guides": "off",
         "code-header": "off",
         "rail-blocks": "plain",
-        "list-marker": "disc"
+        "list-marker": "disc",
+        "topbar": "on",
+        "page-head": "toolbar",
+        "pane-controls": "edges",
+        "rail-scroll": "own",
+        "status-bar": "off"
       },
       "light": {
         "color-bg": "#faf8f5",
