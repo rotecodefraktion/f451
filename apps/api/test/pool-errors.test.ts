@@ -1,5 +1,7 @@
 import { EventEmitter } from 'node:events'
+import pg from 'pg'
 import { describe, expect, it, vi } from 'vitest'
+import { createDb } from '../src/db/client.js'
 import { attachPoolErrorHandler } from '../src/db/pool-errors.js'
 
 /**
@@ -57,5 +59,20 @@ describe('Pool-Fehlerbehandlung', () => {
 
     expect(() => pool.emit('error', 'kaputt')).not.toThrow()
     expect(error).toHaveBeenCalledTimes(1)
+  })
+
+  it('createDb attaches the handler to its own pool (tests, migrate CLI)', async () => {
+    // Unreachable target; pg.Pool connects lazily, so nothing is dialled here.
+    const error = vi.fn()
+    const handle = createDb('postgres://nobody@127.0.0.1:1/none', { error })
+    try {
+      expect(handle.pool).toBeInstanceOf(pg.Pool)
+      const pool = handle.pool as pg.Pool
+      expect(pool.listenerCount('error')).toBeGreaterThanOrEqual(1)
+      expect(() => pool.emit('error', adminShutdown())).not.toThrow()
+      expect(error).toHaveBeenCalledTimes(1)
+    } finally {
+      await handle.close()
+    }
   })
 })
