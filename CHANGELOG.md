@@ -6,7 +6,7 @@ All notable changes to f451. The format follows
 to the HTTP API, the MCP tools, the page format or the configuration only come
 with a new major version.
 
-## [1.2.6] — 2026-10-XX
+## [1.2.6] — 2026-10-05
 
 No breaking changes to the API, the MCP tools, the page format or the
 configuration. **The default frame changes:** without a theme, f451 now shows
