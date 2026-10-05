@@ -46,6 +46,7 @@ export type TokenGroup =
   | 'Maß, Raster, Dichte'
   | 'Linien, Radien, Bedienelemente'
   | 'Fokus und Bewegung'
+  | 'Bausteine'
   | 'Anzeigeschalter'
   | 'Diagramme'
 
@@ -65,8 +66,13 @@ export type TokenGroup =
  * eine Sandbox-Richtlinie). Ein Wurzelwert im Stylesheet erweckte den Eindruck,
  * eine Farbänderung wirke auf vorhandene Diagramme; sie wirkt ausschließlich
  * auf neu erzeugte.
+ *
+ * `attribute` heißt: Das Token ist ein Bauart-Schalter (Gruppe „Bausteine").
+ * Es erzeugt keine CSS-Variable, sondern ein `data-<name>`-Attribut am
+ * `<html>` (nur bei Abweichung von Editorial, `toAttributes` in theme.ts);
+ * die Bausteine verzweigen darauf per Attributselektor.
  */
-export type TokenEmit = 'css' | 'component' | 'generator'
+export type TokenEmit = 'css' | 'component' | 'generator' | 'attribute'
 
 /**
  * Wertgrammatik und Grenzen eines setzbaren Tokens.
@@ -647,52 +653,6 @@ export const catalog = {
     emit: 'css',
   },
 
-  /**
-   * Gliederungsnummerierung der Überschriften — ZWEI Tokens, nicht eines.
-   *
-   * Gewünscht sind drei Einstellungen: aus, nur die obersten Kapitel (Vorgabe,
-   * so zeigt es der Entwurf), oder hierarchisch über alle Ebenen (1., 1.1,
-   * 1.1.1). Ein einzelnes Inhalts-Token käme damit nur aus, wenn `counters(sec,
-   * '.')` an einer h3 die Kette „1.1" liefern könnte. Kann es hier nicht: Die
-   * Verschachtelung der CSS-Zähler folgt der DOM-Verschachtelung, und im
-   * Lesekörper stehen h2, h3 und h4 als GESCHWISTER nebeneinander (kein
-   * `<section>`-Baum). Eine Zählerinstanz, die ein Geschwister aufmacht, ersetzt
-   * die vorige auf derselben Ebene, statt sich in sie zu schachteln —
-   * `counters()` gäbe also auch dort nur eine einzige Zahl aus. Die Ebenen
-   * brauchen deshalb je einen eigenen Zählernamen, und damit steht der INHALT
-   * je Ebene fest (`61-lese.css`).
-   *
-   * Was bleibt, ist genau die Unterscheidung, die die Einstellung braucht:
-   * WELCHE Ebenen ihre Ziffer zeigen. Deshalb ein Inhalts-Token für die
-   * oberste Ebene (dessen `none` zugleich das Ganze abschaltet) und ein
-   * Sichtbarkeits-Token für die Unterebenen. Die drei Einstellungen sind die
-   * drei zulässigen Paare:
-   *
-   *   aus              --heading-number: none            --heading-number-sub: none
-   *   oberste Ebene    --heading-number: counter(sec) '.'  --heading-number-sub: none
-   *   hierarchisch     --heading-number: counter(sec) '.'  --heading-number-sub: inline-block
-   */
-  '--heading-number': {
-    level: 'structure',
-    group: 'Satzdetails',
-    role: 'Gliederungsziffer der Hauptkapitel: Inhalt der hängenden Ziffer, oder none für keine Nummerierung',
-    settable: true,
-    range: { kind: 'choice', values: ['none', "counter(sec) '.'"] },
-    emit: 'css',
-    addedAfterMockup:
-      'Der Entwurf verdrahtet die Ziffer fest (.prose h2::before { content: counter(sec) "." }). Erst die Einstellung „Gliederungsnummerierung" macht daraus einen Wert.',
-  },
-  '--heading-number-sub': {
-    level: 'structure',
-    group: 'Satzdetails',
-    role: 'Gliederungsziffern der Unterkapitel (h3, h4): inline-block zeigt sie hierarchisch an, none verbirgt sie',
-    settable: true,
-    range: { kind: 'choice', values: ['none', 'inline-block'] },
-    emit: 'css',
-    addedAfterMockup:
-      'Der Entwurf nummeriert nur die Hauptkapitel; die hierarchische Variante ist nach der Abnahme dazugekommen.',
-  },
-
   '--measure': {
     level: 'structure',
     group: 'Maß, Raster, Dichte',
@@ -866,16 +826,18 @@ export const catalog = {
     level: 'structure',
     group: 'Maß, Raster, Dichte',
     role: 'Breite der Marginalie. Korridor 160–320px: schmal genug, dass die Randspalte vor dem Satz abbricht, breit genug für ein lesbares Wort.',
-    settable: true,
-    range: { kind: 'length', units: ['px'], min: 160, max: 320 },
+    settable: false,
+    lockReason:
+      'Randnotiz-Baustein noch nicht gebaut (rotecodefraktion/f451#63, Fußnoten als Randnotizen) — der Wert hätte keine Wirkung. Wird mit dem Baustein wieder frei.',
     emit: 'css',
   },
   '--layout-note-gap': {
     level: 'structure',
     group: 'Maß, Raster, Dichte',
     role: 'Abstand zwischen Satz und Marginalie. Korridor 0–2rem: Er verschiebt nur die Randspalte, nie den Satz.',
-    settable: true,
-    range: { kind: 'length', units: ['rem'], min: 0, max: 2 },
+    settable: false,
+    lockReason:
+      'Randnotiz-Baustein noch nicht gebaut (rotecodefraktion/f451#63, Fußnoten als Randnotizen) — der Wert hätte keine Wirkung. Wird mit dem Baustein wieder frei.',
     emit: 'css',
   },
   '--layout-note-x': {
@@ -1033,6 +995,117 @@ export const catalog = {
     settable: true,
     range: { kind: 'easing' },
     emit: 'css',
+  },
+
+  // ---- Bausteine (12) — Bauart-Schalter, 2026-10-04-theming-struktur-1 ----
+  '--table-style': {
+    level: 'structure',
+    group: 'Bausteine',
+    role: 'Tabelle im Lesetext: open ohne Rahmen mit Tintenlinie unter dem Kopf, framed mit Rahmen, Rundung und getöntem Kopf',
+    settable: true,
+    range: { kind: 'choice', values: ['open', 'framed'] },
+    emit: 'attribute',
+    addedAfterMockup: 'Der Entwurf baut die Tabelle offen; die vier anderen Entwürfe und die Anwendung vor 1.2.5 rahmen sie.',
+  },
+  '--callout-style': {
+    level: 'structure',
+    group: 'Bausteine',
+    role: 'Hinweisblock: bar nur mit linkem Balken, box als umrandeter Kasten',
+    settable: true,
+    range: { kind: 'choice', values: ['bar', 'box'] },
+    emit: 'attribute',
+    addedAfterMockup: 'Der Entwurf baut den Hinweisblock fest als Balken; Fokus, Klar & Warm und Werkbank zeigen den Kasten.',
+  },
+  '--card-top-rule': {
+    level: 'structure',
+    group: 'Bausteine',
+    role: 'Karte und Dialog: on mit 2-px-Tintenlinie oben, off ohne',
+    settable: true,
+    range: { kind: 'choice', values: ['on', 'off'] },
+    emit: 'attribute',
+    addedAfterMockup: 'Der Entwurf gibt Karte und Dialog eine Oberlinie; die anderen Entwürfe und die Anwendung vor 1.2.5 nicht.',
+  },
+  '--button-primary': {
+    level: 'structure',
+    group: 'Bausteine',
+    role: 'Primärknopf: ink in Textfarbe, accent in Akzentfarbe mit Akzent-Kontrastschrift',
+    settable: true,
+    range: { kind: 'choice', values: ['ink', 'accent'] },
+    emit: 'attribute',
+    addedAfterMockup: 'Der Entwurf setzt den Primärknopf fest in Tinte; die vier anderen Entwürfe in Akzent.',
+  },
+  '--chip-style': {
+    level: 'structure',
+    group: 'Bausteine',
+    role: 'Statusmarke: outline-caps mit Versalien und Kontur, filled gefüllt in Gemischtschreibung, marker mit Formmarke statt Zeichen',
+    settable: true,
+    range: { kind: 'choice', values: ['outline-caps', 'filled', 'marker'] },
+    emit: 'attribute',
+    addedAfterMockup: 'Der Entwurf kennt nur die Versalienmarke; gefüllte Marke (Fokus, Klar & Warm) und Formmarke (System/Raster) kommen aus den anderen Entwürfen.',
+  },
+  '--heading-number': {
+    level: 'structure',
+    group: 'Bausteine',
+    role: 'Gliederungsziffer der Kapitelüberschriften: numeral zeigt sie, none verbirgt sie',
+    settable: true,
+    range: { kind: 'choice', values: ['numeral', 'none'] },
+    emit: 'attribute',
+    addedAfterMockup:
+      'Der Entwurf verdrahtet die Ziffer fest (.prose h2::before { content: counter(sec) "." }). Erst die Einstellung „Gliederungsnummerierung" macht daraus einen Wert; seit 1.2.5 ein Schalter statt eines CSS-Werts.',
+  },
+  '--heading-depth': {
+    level: 'structure',
+    group: 'Bausteine',
+    role: 'Tiefe der Gliederungsziffern: top nur an Hauptkapiteln (h2), all auch an h3 und h4',
+    settable: true,
+    range: { kind: 'choice', values: ['top', 'all'] },
+    emit: 'attribute',
+    addedAfterMockup: 'Der Entwurf nummeriert nur die Hauptkapitel; die hierarchische Variante ist nach der Abnahme dazugekommen (vormals --heading-number-sub).',
+  },
+  '--toc-style': {
+    level: 'structure',
+    group: 'Bausteine',
+    role: 'Inhaltsverzeichnis der Leiste: numbered-progress mit Kapitelnummern und Fortschrittslinie, bar als Liste an einem Balken',
+    settable: true,
+    range: { kind: 'choice', values: ['numbered-progress', 'bar'] },
+    emit: 'attribute',
+    addedAfterMockup: 'Der Entwurf nummeriert das Inhaltsverzeichnis und führt eine Fortschrittslinie; die anderen Entwürfe und die Anwendung vor 1.2.5 zeigen den Balken.',
+  },
+  '--tree-guides': {
+    level: 'structure',
+    group: 'Bausteine',
+    role: 'Seitenbaum: on mit Führungslinien je Einrückungsstufe, off ohne',
+    settable: true,
+    range: { kind: 'choice', values: ['on', 'off'] },
+    emit: 'attribute',
+    addedAfterMockup: 'Der Entwurf zeichnet Führungslinien im Baum; die anderen Entwürfe und die Anwendung vor 1.2.5 nicht.',
+  },
+  '--code-header': {
+    level: 'structure',
+    group: 'Bausteine',
+    role: 'Codeblock: on zeigt eine Kopfzeile mit der Sprache, off keine',
+    settable: true,
+    range: { kind: 'choice', values: ['off', 'on'] },
+    emit: 'attribute',
+    addedAfterMockup: 'Der Entwurf zeigt Codeblöcke ohne Kopf; Fokus, Klar & Warm und Werkbank tragen eine Kopfzeile.',
+  },
+  '--rail-blocks': {
+    level: 'structure',
+    group: 'Bausteine',
+    role: 'Blöcke der Info-Leiste: rules durch Haarlinien getrennt, plain als Abschnitte ohne Rahmen und Linien, cards als Karten',
+    settable: true,
+    range: { kind: 'choice', values: ['rules', 'plain', 'cards'] },
+    emit: 'attribute',
+    addedAfterMockup: 'Der Entwurf trennt die Leistenblöcke durch Haarlinien; die Anwendung vor 1.2.5 setzt sie schlicht, Klar & Warm und Werkbank als Karten.',
+  },
+  '--list-marker': {
+    level: 'structure',
+    group: 'Bausteine',
+    role: 'Aufzählungszeichen im Lesetext: disc Punkt, dash Gedankenstrich',
+    settable: true,
+    range: { kind: 'choice', values: ['disc', 'dash'] },
+    emit: 'attribute',
+    addedAfterMockup: 'Der Entwurf lässt dem Browser den Punkt; System/Raster und Werkbank setzen den Gedankenstrich.',
   },
 
   // ---- Anzeigeschalter (2) — Zustände, keine Werte ------------------------

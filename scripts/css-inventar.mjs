@@ -60,6 +60,26 @@ function werte(eigenschaft) {
   return [...alles.matchAll(re)].map((m) => m[1].trim())
 }
 
+/**
+ * `var(--_<name>, <fallback>)` -> `<fallback>`. The building-block switches read
+ * a private property (prefix `--_`) with the old value as fallback; that
+ * indirection is not a new value, so it must not count as a distinct one.
+ * Only a value that is entirely one such call is unwrapped; `var()` nested in
+ * the fallback stays as is.
+ */
+function ohneSchalter(wert) {
+  const m = wert.match(/^var\(--_[\w-]+,\s*([\s\S]*)\)$/)
+  if (!m) return wert
+  // The closing paren must belong to the opening `var(`, not to a later call.
+  const ab = wert.slice(3)
+  let tiefe = 0
+  for (let i = 0; i < ab.length; i++) {
+    if (ab[i] === '(') tiefe++
+    else if (ab[i] === ')' && --tiefe === 0 && i < ab.length - 1) return wert
+  }
+  return m[1].trim()
+}
+
 // ── Klassennamen: CSS gegen Markup ─────────────────────────────────────────
 const cssKlassen = new Map()
 for (const [datei, src] of quellen) {
@@ -171,12 +191,12 @@ const toteKlassen = [...cssKlassen.keys()]
   .sort()
 
 // ── Kennzahlen ─────────────────────────────────────────────────────────────
-const radien = [...new Set(werte('border-radius'))]
+const radien = [...new Set(werte('border-radius').map(ohneSchalter))]
 const radienLiterale = radien.filter((v) => !v.startsWith('var(') && !v.startsWith('calc('))
-const schatten = [...new Set(werte('box-shadow'))]
-const schriftgrade = [...new Set(werte('font-size'))]
+const schatten = [...new Set(werte('box-shadow').map(ohneSchalter))]
+const schriftgrade = [...new Set(werte('font-size').map(ohneSchalter))]
 const schriftgradePx = schriftgrade.filter((v) => /^-?[\d.]+px$/.test(v))
-const zeilenabstaende = [...new Set(werte('line-height'))]
+const zeilenabstaende = [...new Set(werte('line-height').map(ohneSchalter))]
 const schriftschnitte = [...new Set(werte('font-weight'))]
 const schnittZahlen = schriftschnitte.filter((v) => /^\d+$/.test(v))
 const wichtig = fundstellen(/!important/)
@@ -323,8 +343,10 @@ const tabelle = [
   ['Regelblöcke', regelbloecke, null, null],
   ['Distinkte Klassennamen im CSS', cssKlassen.size, null, null],
   ['Klassennamen ohne Markup-Fundstelle', toteKlassen.length, 0, 0],
-  ['Distinkte Kantenradien', radien.length, 6, 10],
-  ['davon Zahlenliterale', radienLiterale.length, 2, 4],
+  // Editorial card/dialog top rule needs square top corners, `0 0 var(--radius-md) var(--radius-md)` (structure spec 1).
+  ['Distinkte Kantenradien', radien.length, 6, 11],
+  // The Editorial card's square top corners `0 0 var(--radius-md) var(--radius-md)` start with a number and count as a literal, like the callout's `0 var(--radius-md) var(--radius-md) 0` (structure spec 1).
+  ['davon Zahlenliterale', radienLiterale.length, 2, 5],
   ['999px (Pillenform als Literal)', pille999.length, 0, 0],
   ['transform: scale an einer Marke', skaliert.length, 0, 0],
   ['Distinkte Schattenwerte', schatten.length, 5, 6],
@@ -343,7 +365,8 @@ const tabelle = [
   ['Selektor setzt dieselbe Eigenschaft zweimal (1 Datei)', doppeltInDatei.length, 0, 0],
   ['… dasselbe über Baustein und Ansicht hinweg', doppeltUeberDateien.length, 0, 0],
   ['Grundblock + eigene Ergänzung (gewollt)', ergaenzend.length, null, null],
-  ['Inline-Stile in JSX', inlineStile.length, 5, 31],
+  // The tree's depth padding moved into CSS (31 -> 29).
+  ['Inline-Stile in JSX', inlineStile.length, 5, 29],
 ]
 
 let ueberAbgenommen = 0

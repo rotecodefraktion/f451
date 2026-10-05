@@ -625,12 +625,13 @@
   border-bottom: 2px solid var(--color-border);
 }
 /* ── Gliederungsnummerierung ───────────────────────────────────────────────
-   Drei Einstellungen, gesteuert über zwei Tokens aus dem Design-Template
-   (`packages/design-tokens`, Gruppe „Satzdetails"):
+   Three settings, driven by two switches of the catalog group "Bausteine"
+   (`packages/design-tokens`), which arrive as attributes on `<html>` or on the
+   preview stage and feed two private properties:
 
-     aus            --heading-number: none              --heading-number-sub: none
-     oberste Ebene  --heading-number: counter(sec) '.'  --heading-number-sub: none   (Vorgabe)
-     hierarchisch   --heading-number: counter(sec) '.'  --heading-number-sub: inline-block
+     off            data-heading-number="none"                               --_hn-content: none             --_hn-sub-display: none
+     top level      data-heading-number="numeral" data-heading-depth="top"   --_hn-content: counter(sec) '.' --_hn-sub-display: none   (Editorial)
+     hierarchical   data-heading-number="numeral" data-heading-depth="all"   --_hn-content: counter(sec) '.' --_hn-sub-display: inline-block
 
    Warum ZWEI Tokens und nicht eines mit `counters(sec, '.')`: Die
    Verschachtelung der CSS-Zähler folgt der DOM-Verschachtelung, und h2, h3, h4
@@ -640,7 +641,7 @@
    auch dann nur „2" aus, nie „1.1". Die Ebenen brauchen deshalb je einen
    eigenen Zählernamen (`sec`/`subsec`/`subsubsec`), und damit steht der Inhalt
    je Ebene hier fest; einstellbar bleibt, WELCHE Ebenen ihre Ziffer zeigen.
-   Das Inhalts-Token der obersten Ebene schaltet mit `none` zugleich alles ab.
+   `data-heading-number="none"` switches off every level at once.
 
    `:not(:empty)` ist der Fehlerfix (Screenshot des Auftraggebers: „2." und „3."
    standen allein vor zwei Anhang-Karten): Die Pipeline liefert für eine leere
@@ -653,6 +654,17 @@
    Im Editor sind leere Überschriften nicht `:empty` (ProseMirror setzt einen
    Platzhalter-`<br>`); dort trägt die Zeile, die man gerade tippt, ihre Ziffer
    von Anfang an — genau richtig, sie ist ja eine Überschrift in Arbeit. */
+/* --heading-number / --heading-depth (Bausteine): `numeral` shows the chapter
+   numeral, `none` hides it; `top` numbers h2 only, `all` also h3/h4. Until 1.2.5
+   these were the CSS-valued tokens --heading-number / --heading-number-sub; the
+   private properties keep that mechanism, the carriers feed it. */
+[data-heading-number="numeral"] { --_hn-content: counter(sec) '.'; }
+[data-heading-number="none"] { --_hn-content: none; --_hn-sub-display: none; }
+[data-heading-depth="top"] { --_hn-sub-display: none; }
+[data-heading-depth="all"] { --_hn-sub-display: inline-block; }
+/* `none` must beat `all` on the same carrier: the carrier sets both properties,
+   and the later rule wins at equal specificity — keep this order. */
+[data-heading-number="none"][data-heading-depth="all"] { --_hn-sub-display: none; }
 .page-body h2:not(:empty) {
   counter-increment: sec;
   counter-reset: subsec subsubsec;
@@ -679,7 +691,7 @@
    Mediävalziffer ist. Die Hängebreite steckt in `--hang-w`, damit der
    Review-Diff sie auf 0 stellen kann (s. Dateiende). */
 .page-body h2:not(:empty)::before {
-  content: var(--heading-number);
+  content: var(--_hn-content, counter(sec) '.');
   display: inline-block;
   /* Im TEXTFLUSS, nicht hängend: Auf Wunsch des Auftraggebers steht die Ziffer
      unmittelbar vor dem Titel, an derselben Stelle, an der eine von Hand in den
@@ -702,17 +714,17 @@
    folgen ihrer eigenen Ebene: „1.1" bzw. „1.1.1" (ohne Schlusspunkt, der Punkt
    trennt), Versalhöhe der jeweiligen Überschrift nach derselben Rechnung wie
    `--text-hang` (`--text-lg`/`--text-md` × `--cap-ratio`) und `--weight-strong`
-   wie h3/h4 selbst. `display` ist der Schalter: `none` verbirgt die Ziffer
-   samt Kasten, in der Voreinstellung „oberste Ebene" bleiben die Unterkapitel
-   also unnummeriert und ungerückt. */
+   wie h3/h4 selbst. `display` is the switch (`--_hn-sub-display`, fed by
+   `data-heading-depth`): `none` hides the numeral and its box, so with the
+   Editorial value `top` the sub-levels stay unnumbered and unindented. */
 .page-body :is(h3, h4):not(:empty)::before {
-  /* Rückfallwert `none`, obwohl das Token immer erzeugt wird: Fehlt es einmal
-     (fremdes Theme, alter Wurzelblock), wäre `display` ungültig und fiele auf
-     `inline` zurück — die Unterebenen bekämen ihre Ziffern ungefragt und ohne
-     Hängung. Der Rückfall hält den abgenommenen Entwurf als sicheren Zustand.
-     Die h2-Ziffer braucht das nicht: Dort erzeugt ein fehlendes Token gar
-     keinen Inhalt, und das ist bereits die harmlose Seite. */
-  display: var(--heading-number-sub, none);
+  /* `--_hn-sub-display` is set only by a carrier (`data-heading-number` /
+     `data-heading-depth`). Without one — no deviation from Editorial, so no
+     attribute — the fallback `none` is the Editorial value `top`: sub-levels
+     stay unnumbered. `inline-block` comes from `data-heading-depth="all"`,
+     `none` from `="top"`, from `data-heading-number="none"` and from the
+     review-diff override at the end of the file. */
+  display: var(--_hn-sub-display, none);
   margin-right: var(--space-3);
   white-space: nowrap;
   font-family: var(--font-text);
@@ -867,6 +879,14 @@
   margin: 0 0 var(--rhythm);
   padding-left: var(--space-6);
 }
+/* --list-marker (Bausteine): `dash` (Editorial, System/Raster, Werkbank) or `disc`
+   (the browser's — Fokus, Klar & Warm, the application before 1.2.5). A string marker, so indentation and alignment stay
+   the browser's; task lists keep `list-style: none`. */
+[data-list-marker="dash"] { --_list-marker: '– '; }
+[data-list-marker="disc"] { --_list-marker: disc; }
+.page-body ul:not(.contains-task-list) {
+  list-style-type: var(--_list-marker, '– ');
+}
 .page-body li {
   /* Entwurf `.prose li`: Abstand nach unten `--space-2`; der Zeilenabstand ist
      der des Satzes (`--leading-text`), nicht mehr das engere Literal 1.55 —
@@ -924,6 +944,27 @@
   line-height: var(--leading-code);
   font-variant-numeric: tabular-nums lining-nums;
 }
+/* --code-header (Bausteine): `off` (Editorial) = bare block; `on` = a header strip
+   naming the language (Fokus/Klar & Warm/Werkbank). The language comes from the
+   markdown pipeline as data-lang (packages/markdown/src/code-lang.ts); a block
+   without a language shows no strip whatever the switch says. The negative
+   margins pull the strip to the block's edges (`pre` has
+   `padding: var(--space-3) var(--space-4)`). */
+[data-code-header="off"] { --_code-head: none; }
+[data-code-header="on"] { --_code-head: block; }
+.page-body pre[data-lang]::before,
+.te-pv-stage pre[data-lang]::before {
+  content: attr(data-lang);
+  display: var(--_code-head, none);
+  margin: calc(-1 * var(--space-3)) calc(-1 * var(--space-4)) var(--space-3);
+  padding: var(--space-1) var(--space-4);
+  border-bottom: 1px solid var(--code-line);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--leading-ui);
+  color: var(--color-text-muted);
+  text-transform: lowercase;
+}
 .page-body pre code {
   font-family: var(--font-mono);
   font-size: inherit;
@@ -942,6 +983,30 @@
    hellsten Hairline-Stufe (`--line-inset`) und Zebra nur noch als HOVER
    (statt der bisherigen dauerhaften `nth-child(even)`-Streifen — der Handoff
    zeigt eine ruhige, weiße Tabelle). */
+/* --table-style (Bausteine): `open` (Editorial) = no frame, a 2-px ink rule under
+   the head, a strong hairline under the last row, no head tint; `framed` = 1-px
+   frame with radius and a tinted head (the application before 1.2.5, the four
+   other mockups). The overflow container and the sticky first column stay.
+   Cell padding: `open` has no left inset and a right gap of `--space-4`
+   (`--_tb-cell-x` / `--_tb-cell-r`), `framed` keeps the symmetric 18px. */
+[data-table-style="open"] {
+  --_tb-frame: 0;
+  --_tb-radius: 0;
+  --_tb-head-bg: transparent;
+  --_tb-head-rule: var(--rule-strong) solid var(--color-text);
+  --_tb-last-rule: var(--rule-hair) solid var(--color-border-strong);
+  --_tb-cell-x: 0;
+  --_tb-cell-r: var(--space-4);
+}
+[data-table-style="framed"] {
+  --_tb-frame: 1px solid var(--color-border);
+  --_tb-radius: var(--radius-lg);
+  --_tb-head-bg: var(--panel-2);
+  --_tb-head-rule: 1px solid var(--color-border-hair);
+  --_tb-last-rule: 0;
+  --_tb-cell-x: 18px;
+  --_tb-cell-r: 18px;
+}
 .page-body table {
   display: block;
   width: max-content;
@@ -949,8 +1014,8 @@
   overflow-x: auto;
   border-collapse: collapse;
   margin: var(--space-2) 0 var(--space-5);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border: var(--_tb-frame, 0);
+  border-radius: var(--_tb-radius, 0);
   /* Erscheinungsbild 2026: die ZELLINHALTE gehören zum Satz (Spec „Schriftwahl":
      kein Grotesk-Element mitten im Satzspiegel) und stehen deshalb im
      Serifensatz, mit Tabellen-/Versalziffern, damit Zahlenspalten untereinander
@@ -975,12 +1040,12 @@
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   color: var(--color-text-muted);
-  background: var(--panel-2);
-  padding: 11px 18px;
-  border-bottom: 1px solid var(--color-border-hair);
+  background: var(--_tb-head-bg, transparent);
+  padding: 11px var(--_tb-cell-r, var(--space-4)) 11px var(--_tb-cell-x, 0);
+  border-bottom: var(--_tb-head-rule, var(--rule-strong) solid var(--color-text));
 }
 .page-body tbody td {
-  padding: 11px 18px;
+  padding: 11px var(--_tb-cell-r, var(--space-4)) 11px var(--_tb-cell-x, 0);
   border-bottom: 1px solid var(--color-border-hair);
   vertical-align: top;
 }
@@ -994,7 +1059,7 @@
   font-weight: var(--weight-medium);
 }
 .page-body tbody tr:last-child td {
-  border-bottom: 0;
+  border-bottom: var(--_tb-last-rule, var(--rule-hair) solid var(--color-border-strong));
 }
 .page-body tbody tr:hover {
   background: var(--panel-2);
@@ -1244,15 +1309,17 @@
       Deshalb im Diff keine Ziffer und keine Hängung. Die Überschrift behält
       ihre Grundlinie und ihren Unterstrich; der Diff verschiebt sich nicht.
 
-      Abgeschaltet wird über die TOKENS, nicht über eine `content: none`-Regel
-      auf `h2::before`: Custom Properties erben in die Hülle hinein und gelten
-      damit für alle Ebenen auf einmal (auch für die hierarchisch nummerierten
-      h3/h4) — und zwar ohne Spezifitätswettlauf mit den Regeln oben, die seit
-      dem `:not(:empty)`-Fix eine Klasse mehr wiegen. */
+      Switched off through the private properties of the heading-number
+      switches, not through a `content: none` rule on `h2::before`: the wrapper
+      is a nearer carrier than `<html>`, so its values win whatever
+      `data-heading-number` / `data-heading-depth` say, for all levels at once
+      (including hierarchically numbered h3/h4) — and without a specificity
+      race against the rules above, which weigh one class more since the
+      `:not(:empty)` fix. */
 .page-body :where(.dchange, .rbody) {
   --hang-w: 0px;
-  --heading-number: none;
-  --heading-number-sub: none;
+  --_hn-content: none;
+  --_hn-sub-display: none;
 }
 
 

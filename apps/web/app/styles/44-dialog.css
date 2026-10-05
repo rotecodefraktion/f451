@@ -65,7 +65,10 @@
 dialog {
   padding: 0;
   border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-lg);
+  /* --card-top-rule (Bausteine): the carrier rules live in 43-flaeche.css next
+     to the card; the fallback is the Editorial value `on`. */
+  border-top: var(--_dialog-top, var(--rule-strong) solid var(--color-text));
+  border-radius: var(--_dialog-radius, 0 0 var(--radius-lg) var(--radius-lg));
   background: var(--color-bg);
   color: var(--color-text);
   box-shadow: var(--shadow-md);

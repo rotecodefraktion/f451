@@ -53,17 +53,33 @@
    einer Linie (editorial.html:1100-1113); der heutige `--shadow-sm` bleibt
    bis H1 wirksam, weil `60-chrome-raster.css` später steht.
 
-   Nicht übernommen: die `--rule-strong`-Kopflinie des Entwurfs
-   (`border-top` in Textfarbe + `border-radius: 0 0 md md`). Sie brächte
-   einen zweiten Radienwert in diese Datei und ist eine Gestaltungszutat der
-   Leseansicht, keine Zusage des Bausteins — sie gehört zu Etappe 3, wenn
-   der Satzspiegel steht.
+   Since 1.2.5 the mockup's `--rule-strong` top rule is the Editorial value
+   of the switch `--card-top-rule` (below); `off` keeps the hairline card.
    ========================================================================= */
+/* --card-top-rule (Bausteine): `on` (Editorial) = a 2-px ink rule on top of card
+   and dialog, square top corners; `off` = hairline all round (the application
+   before 1.2.5, the four other mockups). `dialog` in 44-dialog.css reads the
+   same carrier properties. */
+[data-card-top-rule="on"] {
+  --_card-top: var(--rule-strong) solid var(--color-text);
+  --_card-radius: 0 0 var(--radius-md) var(--radius-md);
+  --_dialog-top: var(--rule-strong) solid var(--color-text);
+  --_dialog-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+/* The dialog gets its own top value: its frame is `--color-border-strong`, not
+   the card's `--color-border`, and `off` must keep it as it was. */
+[data-card-top-rule="off"] {
+  --_card-top: var(--rule-hair) solid var(--color-border);
+  --_card-radius: var(--radius-md);
+  --_dialog-top: var(--rule-hair) solid var(--color-border-strong);
+  --_dialog-radius: var(--radius-lg);
+}
 .card {
   padding: var(--space-5);
   background: var(--color-bg);
   border: var(--rule-hair) solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-top: var(--_card-top, var(--rule-strong) solid var(--color-text));
+  border-radius: var(--_card-radius, 0 0 var(--radius-md) var(--radius-md));
 }
 
 /* Rahmenlose Variante: dieselbe Karte ohne Umrandung, Radius und Schatten —
@@ -143,6 +159,24 @@
    Fundstellen unformatiert dastehen zu lassen. H4 hat alle elf auf
    `callout error` umgeschrieben; der Klassenname kommt im Markup nicht mehr
    vor, der Alias ist gestrichen. */
+/* Switch pattern (Bausteine), valid for every switch in this file: one rule per
+   value sets private `--_…` properties on the carrier (`<html>` or the preview
+   stage — hence no `html` prefix, the nearer carrier wins by inheritance); the
+   block reads them with the Editorial value as `var()` fallback. A carrier value
+   references only catalog tokens, never a property the block sets on itself.
+
+   --callout-style: `bar` (Editorial) = left marker bar only; `box` = framed box
+   with a thick left edge (Fokus/Klar & Warm/Werkbank). */
+[data-callout-style="bar"] {
+  --_co-border-w: 0 0 0 var(--rule-marker);
+  --_co-signal-mix: 100%;
+  --_co-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+[data-callout-style="box"] {
+  --_co-border-w: var(--rule-hair) var(--rule-hair) var(--rule-hair) var(--space-1);
+  --_co-signal-mix: 45%;
+  --_co-radius: var(--radius-md);
+}
 .callout {
   /* Neutralton: `--color-text-muted`, nicht `--color-border-strong` wie im
      Entwurf. Unsere `--color-border-strong` liegt bei 8 % Text über der
@@ -152,8 +186,16 @@
   --callout-wash: var(--color-bg-raised);
   padding: var(--space-4) var(--space-5);
   background: var(--callout-wash);
-  border-left: var(--rule-marker) solid var(--callout-signal);
-  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  border-style: solid;
+  border-width: var(--_co-border-w, 0 0 0 var(--rule-marker));
+  /* The mix is computed HERE, where --callout-signal exists; the carrier only
+     hands down the percentage. */
+  border-color: color-mix(
+    in srgb,
+    var(--callout-signal) var(--_co-signal-mix, 100%),
+    var(--color-border)
+  );
+  border-radius: var(--_co-radius, 0 var(--radius-md) var(--radius-md) 0);
   color: var(--color-text);
 }
 /* Randabstände der Kinder gehören dem Kasten, nicht dem Text darin. */

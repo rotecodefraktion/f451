@@ -6,6 +6,39 @@ All notable changes to f451. The format follows
 to the HTTP API, the MCP tools, the page format or the configuration only come
 with a new major version.
 
+## [1.2.5] — 2026-10-05
+
+No breaking changes to the API, the MCP tools, the page format or the
+configuration. **The default look changes:** without a theme, f451 now shows
+the Editorial reference design (open tables, card top rules, dash list
+markers, numbered table of contents, tree guide lines, hairlines between rail
+blocks). The construction of 1.2.0 lives on as the built-in template
+`rotecodefraktion` — `use: rotecodefraktion` in `_meta/theme.yaml` plus your
+own colours keeps it.
+
+### Added
+- Group **Bausteine** with twelve choice tokens (`table-style`,
+  `callout-style`, `card-top-rule`, `button-primary`, `chip-style`,
+  `heading-number`, `heading-depth`, `toc-style`, `tree-guides`,
+  `code-header`, `rail-blocks`, `list-marker`); deviations from Editorial are
+  rendered as `data-<name>` attributes on `<html>` (`GET /api/theme/resolved`
+  → `attributes`), never as custom properties.
+- The five built-in templates carry the construction of their mockups and set
+  all twelve switches explicitly.
+- Settings page: **Adopt template** replaces the draft with the chosen
+  template; **Save as template …** embeds the chosen template instead of dropping
+  it; translated labels for switch values.
+- Code blocks carry `data-lang`; `code-header: on` shows the language.
+
+### Changed
+- `heading-number` is a switch (`numeral` | `none`); `heading-number-sub` is
+  replaced by `heading-depth` (`top` | `all`). Old files are read in the new
+  form with a `value_migrated` warning and rewritten on save.
+- Ending the program preview reloads the page (switch attributes cannot be
+  restored client-side).
+- `layout-note-w` and `layout-note-gap` are locked until margin notes exist
+  (#63); they had no effect since 1.2.0.
+
 ## [1.2.0] — 2026-10-03
 
 No breaking changes. Without `F451_INSTANCE_CONFIG` and without theme files,

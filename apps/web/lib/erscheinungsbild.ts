@@ -7,10 +7,21 @@
  */
 
 export type Modus = 'light' | 'dark'
+/** The stored shape: custom properties per mode, plus the full switch set as attribute names → values. */
+export interface Ueberschreibungen {
+  light: Record<string, string>
+  dark: Record<string, string>
+  attributes: Record<string, string>
+}
 
 const MODI: Modus[] = ['light', 'dark']
 
-const leer = (): Record<Modus, Record<string, string>> => ({ light: {}, dark: {} })
+const ATTRIBUT_NAME = /^[a-z][a-z0-9-]{0,40}$/
+const ATTRIBUT_WERT = /^[a-z0-9-]{1,40}$/
+/** Attributes `<html>` carries for other purposes; a stored switch must never overwrite them. */
+const RESERVIERT = new Set(['theme', 'nav', 'rail', 'altlasten'])
+
+const leer = (): Ueberschreibungen => ({ light: {}, dark: {}, attributes: {} })
 
 /**
  * Raw localStorage value -> overrides per mode.
@@ -20,7 +31,7 @@ const leer = (): Record<Modus, Record<string, string>> => ({ light: {}, dark: {}
  * with a broken entry. Anything not readable as a string is dropped; the rest
  * stays.
  */
-export function leseUeberschreibungen(roh: string | null): Record<Modus, Record<string, string>> {
+export function leseUeberschreibungen(roh: string | null): Ueberschreibungen {
   if (!roh) return leer()
   let geparst: unknown
   try {
@@ -38,6 +49,16 @@ export function leseUeberschreibungen(roh: string | null): Record<Modus, Record<
       if (typeof wert === 'string') werte[modus][name] = wert
     }
   }
+  // Switch attributes go onto <html> as `data-<name>`: only names and values of the
+  // switch grammar pass, so a tampered entry cannot set arbitrary attributes.
+  const attribute = (geparst as Record<string, unknown>).attributes
+  if (typeof attribute === 'object' && attribute !== null && !Array.isArray(attribute)) {
+    for (const [name, wert] of Object.entries(attribute)) {
+      if (typeof wert === 'string' && ATTRIBUT_NAME.test(name) && ATTRIBUT_WERT.test(wert) && !RESERVIERT.has(name)) {
+        werte.attributes[name] = wert
+      }
+    }
+  }
   return werte
 }
 
@@ -48,7 +69,7 @@ export function leseUeberschreibungen(roh: string | null): Record<Modus, Record<
  * set from before the personal theme — the appearance page offers to take it over.
  */
 export function schreibeUeberschreibungen(
-  werte: Record<Modus, Record<string, string>>,
+  werte: Ueberschreibungen,
   opts: { preview?: boolean } = {},
 ): string {
   return JSON.stringify(opts.preview ? { ...werte, preview: true } : werte)

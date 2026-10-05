@@ -87,7 +87,9 @@ export async function Rail({
           <h4>{t('read.rail.toc')}</h4>
           <ul className="toc">
             {tocEntries.map((h) => (
-              <li key={h.slug}>
+              // `data-sub` marks entries below the top level: they take no
+              // chapter number under `toc-style: numbered-progress` (60-chrome-leiste.css).
+              <li key={h.slug} data-sub={h.depth > 2 ? '' : undefined}>
                 <a
                   href={`#${h.slug}`}
                   style={{

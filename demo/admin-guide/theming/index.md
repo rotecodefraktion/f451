@@ -64,6 +64,7 @@ base:
   font-text: "'Source Serif 4', Georgia, serif"
   density: 1.05
   measure: 70ch
+  chip-style: filled      # a building-block switch, see below
 light:
   color-accent: '#0b5fa5'
   shadow-md: 0 18px 48px #1c1a171f
@@ -92,11 +93,40 @@ settable only inside a **corridor**:
 | `--measure-wide` | 80–120 ch, and at least `--measure` |
 | `--layout-nav-w`, `--layout-rail-w` | 200–360 px |
 | `--layout-gutter` | 0.5–3 rem |
-| `--layout-note-w` | 160–320 px |
-| `--layout-note-gap`, `--layout-sheet-max` | 0–2 rem, 480–960 px |
+| `--layout-sheet-max` | 480–960 px |
 | `--control-h` | 44–64 px (upwards only; 44 px is the target-size promise) |
 
+`--layout-note-w` and `--layout-note-gap` are locked until margin notes exist ([#63](https://github.com/rotecodefraktion/f451/issues/63)).
+
 Breakpoints stay fixed. Diagrams keep using the catalog values.
+
+## Building blocks
+
+Twelve tokens of the group **Bausteine** switch how a block is built rather
+than how it is coloured. They take one of a fixed set of words and never
+reach the stylesheet: a value that differs from Editorial becomes a
+`data-<name>` attribute on the page root. The defaults are the Editorial
+reference design; the construction f451 had before 1.2.5 is the built-in
+template **rotecodefraktion** (see below).
+
+| Token | Values (Editorial first) | Block |
+|---|---|---|
+| `table-style` | `open`, `framed` | table: ink rule under the head, or a framed, rounded box |
+| `callout-style` | `bar`, `box` | callout: left bar only, or a framed box |
+| `card-top-rule` | `on`, `off` | 2-px ink rule on top of cards and dialogs |
+| `button-primary` | `ink`, `accent` | primary button in text colour or in accent |
+| `chip-style` | `outline-caps`, `filled`, `marker` | status chip: small caps with outline, filled, or with a square marker |
+| `heading-number` | `numeral`, `none` | chapter numerals in the reading view |
+| `heading-depth` | `top`, `all` | numerals on h2 only, or also on h3/h4 |
+| `toc-style` | `numbered-progress`, `bar` | table of contents numbered with a progress line, or hanging on a bar |
+| `tree-guides` | `on`, `off` | guide lines along the page tree's nesting |
+| `code-header` | `off`, `on` | a header strip naming the language on code blocks |
+| `rail-blocks` | `rules`, `plain`, `cards` | blocks of the info rail separated by hairlines, plain, or as cards |
+| `list-marker` | `dash`, `disc` | bullet of unordered lists |
+
+Files from before 1.2.5 that set `heading-number: counter(sec) '.'` or
+`heading-number-sub` are read in the new form with a warning and rewritten on
+the next save.
 
 ## Templates
 
@@ -110,8 +140,25 @@ allowed; the references then apply without one and the settings page shows
 
 Five templates ship with f451 and appear as built-in in the instance
 library: **fokus**, **klar-warm**, **system-raster**, **werkbank** and
-**rotecodefraktion**. They cannot be overwritten or deleted. Only the token
-values of the original mockups are taken; their layout differences are not.
+**rotecodefraktion**. They cannot be overwritten or deleted. They carry the token values **and** the
+building-block switches of their mockups; every built-in sets all twelve
+switches explicitly. **rotecodefraktion** is the construction f451 had before
+1.2.5 with the demo theme's colours — `use: rotecodefraktion` plus your own
+colours keeps that look.
+
+## Derive your own template from a built-in one
+
+Built-ins cannot be edited, but they can be copied: on the appearance page
+choose the scope (instance or space), pick the built-in in **Template**,
+press **Adopt template** — the template's values replace the draft's, the template
+selection is cleared — change what you like, then **Save as template …**
+with a name and slug. The new file in `_meta/themes/` holds everything the
+built-in set, the twelve switches included, and no `use`. **Save as
+template …** always embeds the chosen template this way, so a template saved
+from "Fokus plus two colours" really contains Fokus.
+
+Rotecodefraktion, the demo theme, is exactly such a template: the
+construction f451 had before 1.2.5 with its own colours and typefaces.
 
 ## Contrast thresholds
 
