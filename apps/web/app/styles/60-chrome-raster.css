@@ -69,6 +69,14 @@
   grid-template-rows: minmax(0, 1fr);
   height: calc(100vh - 56px);
 }
+/* Without a top bar (`--topbar: off`, `app/shell.tsx`) the grid takes the full
+   window height. Not on the phone: there the top bar stays (`topbar-phone`,
+   `60-chrome-topbar.css`) and `66-telefon.css` sets the height. */
+@media not all and (max-width: 699px) and (pointer: coarse) {
+  .shell.shell-no-topbar {
+    height: 100vh;
+  }
+}
 .shell > * {
   grid-column: 3;
   grid-row: 1;
@@ -275,6 +283,44 @@
   }
 }
 
+/* ---- Magnifier on the left edge (`--topbar: off`) ----
+   Without a top bar the search field sits in the tree head; with the tree
+   closed it is gone, so the left edge carries a magnifier below the grip that
+   opens the search dialog (`app/pane-edges.tsx`). Shown only while the tree is
+   closed — an absent control, not a visually hidden one: with the tree open
+   the field in its head is the way to the search. 44 × 44 px, own tab stop. */
+.pane-edge--stack {
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-2);
+}
+.pane-search {
+  display: none;
+  place-items: center;
+  flex: none;
+  width: var(--control-h);
+  height: var(--control-h);
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+:root[data-nav='off'] .pane-search {
+  display: grid;
+}
+.pane-search:hover {
+  color: var(--color-text);
+  border-color: var(--color-border);
+  background: var(--color-surface-hover);
+}
+.pane-search svg {
+  width: 16px;
+  height: 16px;
+}
+
 /* ---- Rail-lose Seiten (Schema/Report/Vorlagen/Space-Index) ----
    `.main.full` brauchte früher `grid-column: 2 / -1`, weil die dritte Spalte
    fest bemaßt war und ohne Rail als toter Raum stehen blieb. Mit `auto`-Spuren
@@ -417,6 +463,88 @@
 .tree .head .newpage-trigger {
   margin-left: auto;
   flex: none;
+}
+
+/* ---- Tree chrome without a top bar (`--topbar: off`, `app/shell.tsx`) ----
+   Head: brand + space switcher, then the search field, above `.head`. Foot:
+   language, light/dark, account, directly above the attribution. The menus of
+   the switchers anchor to their row and span its width — anchored at their
+   button, the 220px menus would overflow the narrow tree, whose
+   `overflow-y: auto` clips them. The foot menus open upwards. */
+.tree-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-4) var(--space-2);
+}
+.tree-head-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.tree-head-row > .app {
+  min-width: 0;
+  color: var(--color-text-muted);
+  font-weight: var(--weight-display);
+  font-size: var(--text-xs);
+  border-left: 1px solid var(--color-border-strong);
+  padding-left: var(--space-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tree-head-row .space-switcher {
+  position: static;
+  flex: 0 1 auto;
+}
+.tree-head-row .space-switcher-menu {
+  left: 0;
+  right: 0;
+  min-width: 0;
+}
+.search.search-field {
+  flex: none;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  background: var(--color-bg);
+  border-color: var(--color-border);
+}
+.tree-foot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  /* Takes the free height of the tree column, so the row sits with the
+     attribution at the bottom edge; the attribution's own auto margin then
+     has nothing left to share (see `.tree-foot + .attribution`). */
+  margin-top: auto;
+  padding: var(--space-5) var(--space-3) 0;
+}
+.tree-foot + .attribution {
+  margin-top: 0;
+}
+.tree-foot .lang-switcher,
+.tree-foot .account {
+  position: static;
+}
+.tree-foot .lang-switcher-menu,
+.tree-foot .account-menu {
+  top: auto;
+  bottom: calc(100% + var(--space-2));
+  left: var(--space-3);
+  right: var(--space-3);
+  min-width: 0;
+}
+/* On the phone the top bar stays (`topbar-phone`), so the rows are not shown
+   there — the controls exist once on screen. */
+@media (max-width: 699px) and (pointer: coarse) {
+  .tree-head,
+  .tree-foot {
+    display: none;
+  }
 }
 .grp {
   font-size: var(--text-2xs);

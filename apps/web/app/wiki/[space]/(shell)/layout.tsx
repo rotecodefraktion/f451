@@ -19,7 +19,7 @@ import {
   wikiSpaceHref,
   wikiTemplatesHref,
 } from '../../../../lib/urls'
-import { Shell } from '../../../shell'
+import { Shell, type TreeChrome } from '../../../shell'
 
 interface SpaceSummary {
   id: string
@@ -190,11 +190,15 @@ export default async function SpaceLayout({ children, params }: SpaceLayoutProps
   }
 
   const pageCount = countPages(tree)
-  const sidebar = (
+  // A function of the tree chrome: without a top bar the Shell hands over the
+  // head row (brand, space, search) and the foot row (language, light/dark,
+  // account); with a top bar `chrome` is null.
+  const sidebar = (chrome: TreeChrome | null) => (
     // `id="pane-nav"` ist das Ziel des `aria-controls` am linken Daumenregister
     // (`app/pane-edges.tsx`) — der Schalter, der diese Leiste ein- und
     // ausklappt.
     <nav className="tree" id="pane-nav" aria-label={t('sidebar.treeAriaLabel', { space: space.name })}>
+      {chrome?.head}
       <div className="head">
         <span className="sq">{space.name.charAt(0).toUpperCase() || '?'}</span>
         <div>
@@ -279,12 +283,13 @@ export default async function SpaceLayout({ children, params }: SpaceLayoutProps
           <span className="sub">{t('sidebar.tools.shortcuts.desc')}</span>
         </ToolTrigger>
       </div>
+      {chrome?.foot}
       <Attribution />
     </nav>
   )
 
   return (
-    <Shell space={space.name} spaces={spaces} currentSpaceId={spaceId} avatar={avatar} sidebar={sidebar}>
+    <Shell space={space.name} spaces={spaces} currentSpaceId={spaceId} avatar={avatar} sidebar={sidebar} hasTree>
       {children}
     </Shell>
   )

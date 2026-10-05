@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { openSearch } from '../components/search-dialog'
 import { useT } from '../lib/i18n/provider.js'
 
 /** Schlüssel in `localStorage`. MUSS mit `NO_FLASH_PANES` in `layout.tsx`
@@ -76,7 +77,14 @@ function writeRoot(next: PaneState) {
  * Tastenkürzel ersetzen das nicht — ein modifikatorloses Einzeltastenkürzel ist
  * eine Abkürzung, kein Zugang.
  */
-export function PaneEdges() {
+export interface PaneEdgesProps {
+  /** Without a top bar the left edge also carries a magnifier that opens the
+   *  search dialog; CSS shows it only while the tree is closed
+   *  (`:root[data-nav='off']`), because then the tree head's search field is gone. */
+  searchOnEdge?: boolean
+}
+
+export function PaneEdges({ searchOnEdge = false }: PaneEdgesProps) {
   const { t } = useT()
   // Erster Render MUSS zum Server-HTML passen (sonst Hydration-Fehler), also
   // „beide offen"; der Effekt unten holt sofort den echten Zustand aus den
@@ -130,7 +138,7 @@ export function PaneEdges() {
 
   return (
     <>
-      <div className="pane-edge pane-edge--nav">
+      <div className={searchOnEdge ? 'pane-edge pane-edge--nav pane-edge--stack' : 'pane-edge pane-edge--nav'}>
         <button
           type="button"
           className="pane-toggle pane-toggle--nav"
@@ -143,6 +151,21 @@ export function PaneEdges() {
           <span className="t">{t('shell.panes.nav.label')}</span>
           <kbd aria-hidden="true">[</kbd>
         </button>
+        {searchOnEdge ? (
+          <button
+            type="button"
+            className="pane-search"
+            aria-label={t('shell.panes.search.label')}
+            title={t('shell.panes.search.title')}
+            aria-haspopup="dialog"
+            onClick={openSearch}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-3.2-3.2" strokeLinecap="round" />
+            </svg>
+          </button>
+        ) : null}
       </div>
 
       <div className="pane-edge pane-edge--rail">
