@@ -6,6 +6,29 @@ All notable changes to f451. The format follows
 to the HTTP API, the MCP tools, the page format or the configuration only come
 with a new major version.
 
+## [1.2.7] — 2026-10-XX
+
+No breaking changes to the API, the MCP tools, the page format or the
+configuration.
+
+### Added
+- Theme stylesheet: `_meta/theme.css` in the instance repository and in each
+  space repository, plus WOFF2 fonts under `_meta/fonts/`. Checked on upload
+  and on read (`css_import`, `css_url`, `css_forbidden`, `css_too_large`,
+  `css_not_text`); no design checks. Linked after `F451_CUSTOM_STYLESHEET`:
+  instance, then space.
+- Routes `GET /api/theme/stylesheet`, `GET /api/theme/fonts/:name`, the same
+  under `/api/spaces/:space/theme/`, and `PUT`/`DELETE` on the stylesheet.
+- Settings page: **Stylesheet** strip for instance and space (upload, remove,
+  fonts) and the query `?ohne-stylesheet` to view the page without it.
+- `stylesheets` in `GET /api/theme/resolved`.
+
+### Documentation
+- Template guides: "Create your own template" and "Theme stylesheet" in the
+  Admin Guide, the new developer page *Theme templates*, the appearance pages
+  of the User Guide checked against 1.2.6, `deploy/BETRIEB.md` on operator
+  versus theme stylesheet.
+
 ## [1.2.6] — 2026-10-05
 
 No breaking changes to the API, the MCP tools, the page format or the
