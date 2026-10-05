@@ -16,6 +16,7 @@ import {
   setBrandName,
   setUse,
   setValue,
+  templateState,
   type EditorData,
   type EditorRow,
   type LibraryEntry,
@@ -120,6 +121,7 @@ export function ThemeEditor({ scopes, data, thresholdStrip, templates }: ThemeEd
   const libraryEntries = useMemo(() => library ?? [], [library])
   const groups = useMemo(() => buildGroups(data, draft, libraryEntries), [data, draft, libraryEntries])
   const assessment = useMemo(() => assess(data, draft, libraryEntries), [data, draft, libraryEntries])
+  const templateInfo = useMemo(() => templateState(data, draft, libraryEntries), [data, draft, libraryEntries])
   const states = useMemo(() => tokenStates(assessment), [assessment])
   const jumpTargets = useMemo(() => firstRows(groups, states), [groups, states])
   // Unsaved edits — a brand upload refreshes the page and would drop them, so it asks first.
@@ -508,6 +510,7 @@ export function ThemeEditor({ scopes, data, thresholdStrip, templates }: ThemeEd
           current={assessment.template}
           draft={draft}
           busy={busy !== null}
+          state={templateInfo}
           onUse={(use) => setDraft((d) => setUse(d, use))}
           onAdopt={() => setDraft((d) => (assessment.template ? adoptTemplate(d, assessment.template) : d))}
           onLibraryChanged={reloadLibrary}

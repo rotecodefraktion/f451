@@ -146,6 +146,47 @@ export function draftChain(data: EditorData, draft: ThemeFile, templates: readon
   }
 }
 
+export type InheritedTemplate =
+  | { kind: 'template'; name: string; source: LayerSource }
+  | { kind: 'custom'; source: LayerSource }
+  | { kind: 'default' }
+
+export interface TemplateState {
+  /** the draft: a resolving `use`, own values without one, or nothing */
+  own: 'template' | 'custom' | 'none'
+  ownTemplate: LibraryEntry | null
+  /** what applies under the scope — the topmost scope in `belowLayers` */
+  inherited: InheritedTemplate
+}
+
+const hasValues = (sections: Partial<Record<ValueMode, object | undefined>>): boolean =>
+  SECTIONS.some((m) => Object.keys(sections[m] ?? {}).length > 0)
+
+/**
+ * Which template applies, for the select and the line beneath it. `belowLayers`
+ * arrive expanded (`[template, own]` per scope), so the topmost scope is every
+ * trailing layer of the last layer's source: a template layer among them names
+ * the template — even with own values on top, like `own` for the draft — else
+ * any value there is "own settings", else the Editorial default applies.
+ */
+export function templateState(data: EditorData, draft: ThemeFile, templates: readonly LibraryEntry[]): TemplateState {
+  const ownTemplate = draft.use ? (findTemplate(draft.use, data.scope.kind, templates) ?? null) : null
+  const own = ownTemplate ? 'template' : !draft.use && hasValues(draft) ? 'custom' : 'none'
+
+  const layers = data.belowLayers
+  const source = layers[layers.length - 1]?.source
+  let inherited: InheritedTemplate = { kind: 'default' }
+  if (source !== undefined) {
+    let start = layers.length
+    while (start > 0 && layers[start - 1]!.source === source) start--
+    const top = layers.slice(start)
+    const slug = top.find((l) => l.template !== undefined)?.template
+    if (slug !== undefined) inherited = { kind: 'template', name: templateEntryFor(slug, source, templates)?.name ?? slug, source }
+    else if (top.some(hasValues)) inherited = { kind: 'custom', source }
+  }
+  return { own, ownTemplate, inherited }
+}
+
 // ---- Rows and groups --------------------------------------------------------
 
 export type ValueMode = Mode | 'base'
@@ -379,13 +420,12 @@ function orderedSection(values: Record<string, string>): Record<string, string> 
 /**
  * "Vorlage übernehmen": the whole template replaces the draft's sections — own
  * values in `base`, `light` and `dark` are dropped, a section the template lacks
- * is removed, `use` is cleared. `name` and `brand` of the draft stay (they belong
- * to the level, not the template). A draft change like any other; nothing is
- * saved until the user saves.
+ * is removed. `use` stays, so the select keeps showing the template the values
+ * came from. `name` and `brand` of the draft stay (they belong to the level, not
+ * the template). A draft change like any other; nothing is saved until the user saves.
  */
 export function adoptTemplate(draft: ThemeFile, template: LibraryEntry): ThemeFile {
   const next: ThemeFile = { ...draft }
-  delete next.use
   for (const mode of SECTIONS) {
     const section = orderedSection(template.file[mode] ?? {})
     if (Object.keys(section).length > 0) next[mode] = section

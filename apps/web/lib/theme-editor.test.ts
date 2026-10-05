@@ -25,6 +25,7 @@ import {
   setUse,
   setValue,
   templateFile,
+  templateState,
   type EditorData,
   type EditorRow,
   type LibraryEntry,
@@ -336,7 +337,7 @@ describe('templates (use)', () => {
     expect(templateFile(draft, 'Neu', null)).toEqual({ name: 'Neu', light: { 'color-accent': '#123456' } })
   })
 
-  it('adoptTemplate replaces the sections with the template, keeps name and brand, clears use', () => {
+  it('adoptTemplate replaces the sections with the template, keeps name, brand and use', () => {
     const draft: ThemeFile = {
       name: 'Alt',
       use: 'fokus',
@@ -347,6 +348,7 @@ describe('templates (use)', () => {
     const adopted = adoptTemplate(draft, fokus)
     expect(adopted).toEqual({
       name: 'Alt',
+      use: 'fokus',
       brand: { name: 'X' },
       base: { 'font-sans': 'Hanken Grotesk, sans-serif', 'chip-style': 'filled' },
       light: { 'color-bg': '#ffffff', 'color-accent': '#0000ff' },
@@ -355,6 +357,44 @@ describe('templates (use)', () => {
     expect(Object.keys(adopted.base!)).toEqual(['font-sans', 'chip-style'])
     expect(draft.use).toBe('fokus')
     expect(draft.light).toEqual({ 'color-accent': '#123456' })
+  })
+
+  describe('templateState', () => {
+    const instanceOnly: EditorData = { ...editorData(), scope: { kind: 'instance' }, belowLayers: [], below: resolveTheme([]) }
+    const over = (belowLayers: ThemeLayer[]): EditorData => ({ ...editorData(), belowLayers, below: resolveTheme(belowLayers) })
+
+    it('own: template when `use` resolves, custom for values without `use`, none otherwise', () => {
+      const s = templateState(editorData(), { use: 'fokus', light: { 'color-accent': '#123456' } }, library)
+      expect(s.own).toBe('template')
+      expect(s.ownTemplate?.name).toBe('Fokus Space')
+      expect(templateState(editorData(), { light: { 'color-accent': '#123456' } }, library)).toMatchObject({ own: 'custom', ownTemplate: null })
+      expect(templateState(editorData(), { name: 'X', brand: { name: 'Y' } }, library).own).toBe('none')
+      expect(templateState(editorData(), { use: 'nope', light: { 'color-accent': '#123456' } }, library).own).toBe('none')
+    })
+
+    it('keeps showing the template after adopting it', () => {
+      expect(templateState(editorData(), adoptTemplate({ use: 'instance/fokus' }, library[1]!), library).own).toBe('template')
+    })
+
+    it('inherited: the Editorial default without layers below', () => {
+      expect(templateState(instanceOnly, {}, library).inherited).toEqual({ kind: 'default' })
+    })
+
+    it('inherited: the template of the scope below, named from the library, the slug as fallback', () => {
+      // expanded as the API sends it: [template, own] of the instance
+      const layers: ThemeLayer[] = [
+        { source: 'instance', template: 'fokus', light: { '--color-accent': INSTANCE_FOKUS } },
+        { source: 'instance', light: { '--color-bg': '#ffffff' } },
+      ]
+      expect(templateState(over(layers), {}, library).inherited).toEqual({ kind: 'template', name: 'Fokus Instanz', source: 'instance' })
+      expect(templateState(over(layers), {}, []).inherited).toEqual({ kind: 'template', name: 'fokus', source: 'instance' })
+      expect(templateState(over([layers[0]!, { source: 'instance' }]), {}, library).inherited.kind).toBe('template')
+    })
+
+    it('inherited: own settings of the scope below, or the default when it sets nothing', () => {
+      expect(templateState(over([instanceLayer]), {}, library).inherited).toEqual({ kind: 'custom', source: 'instance' })
+      expect(templateState(over([{ source: 'instance' }]), {}, library).inherited).toEqual({ kind: 'default' })
+    })
   })
 
   it('embedTemplate puts the template under the own values, clears use, keeps brand', () => {

@@ -193,6 +193,14 @@ export const settings = {
     template: {
       label: 'Vorlage',
       none: 'keine',
+      noneCustom: 'Eigene Einstellungen (keine Vorlage)',
+      instanceDefault: 'Es gilt die Vorgabe Editorial.',
+      underneath: 'Darunter gilt: {what}',
+      underneathTemplate: 'Vorlage „{name}“ ({source})',
+      underneathCustom: 'eigene Einstellungen ({source})',
+      underneathDefault: 'Vorgabe Editorial',
+      sourceInstance: 'Instanz',
+      sourceSpace: 'Space',
       groupSpace: 'Dieser Space',
       groupInstance: 'Instanz',
       builtin: '{name} (mitgeliefert)',
@@ -207,7 +215,7 @@ export const settings = {
       saveAsHint: 'Gespeichert werden die Werte der gewählten Vorlage und dieses Entwurfs — ohne Vorlagen-Auswahl und ohne Marke.',
       adopt: 'Vorlage übernehmen',
       adoptHint:
-        'Ersetzt die Werte dieses Entwurfs durch die der gewählten Vorlage und leert die Vorlagen-Auswahl. Gespeichert wird erst beim Speichern.',
+        'Ersetzt die Werte dieses Entwurfs durch die der gewählten Vorlage; die Vorlage bleibt ausgewählt. Gespeichert wird erst beim Speichern.',
       nameLabel: 'Name',
       slugLabel: 'Kürzel (Dateiname)',
       slugHint: 'a–z, 0–9 und Bindestrich, höchstens 40 Zeichen',
