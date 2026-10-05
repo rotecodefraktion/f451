@@ -226,6 +226,8 @@ export const builtinThemeData: readonly { slug: string; file: ThemeFile }[] = [
         "space-7": "3rem",
         "space-8": "4rem",
         "space-9": "6rem",
+        "space-10": "8rem",
+        "space-11": "8rem",
         "radius-sm": "0.125rem",
         "radius-md": "0.125rem",
         "radius-lg": "0.125rem",

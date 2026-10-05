@@ -36,6 +36,11 @@
  * A `radius-pill` above its maximum is clamped to it — "fully round" is what
  * 999px means. Other out-of-range values stay dropped.
  *
+ * After extraction the `--space-*` scale is kept monotonic (rule
+ * `space-monotonic`): a mockup that sets the lower steps above the defaults of
+ * the steps it does not set (System / Raster: `space-9: 6rem` over the default
+ * `space-10: 4.5rem`) gets the higher steps raised — see `keepScaleMonotonic`.
+ *
  * Dark starts from the light root values: the light blocks select `:root`,
  * which also matches in dark mode, so a theme value the dark block does not
  * override is the one a reader sees in dark (System / Raster: `shadow-sm: none`).
@@ -46,6 +51,7 @@ import {
   catalog,
   checkValue,
   tokenNames,
+  tokens,
   type ThemeFile,
   type TokenMeta,
   type TokenName,
@@ -282,6 +288,47 @@ function clampPill(name: string, range: TokenRange, value: string): string | nul
   return `${range.max}${m[2]}`
 }
 
+/**
+ * Raises `--space-1 … --space-11` where the effective scale (template value,
+ * else the shipped default) would decrease. A step below its predecessor gets
+ * the predecessor times the default ratio of the two steps, rounded to three
+ * decimals, clamped to the catalog maximum, and never below the predecessor.
+ * Steps in a unit other than the predecessor's are left alone, as `checkRules`
+ * does.
+ */
+function keepScaleMonotonic(base: Map<string, string>, adjusted: Set<string>): void {
+  const defaults = tokens.structure as Record<string, string>
+  let prev: { n: number; unit: string } | null = null
+  let prevDefault: number | null = null
+  for (let i = 1; i <= 11; i++) {
+    const name = `--space-${i}`
+    const own = base.get(name)
+    const def = QUANTITY.exec(defaults[name] ?? '')
+    const eff = QUANTITY.exec(own ?? defaults[name] ?? '')
+    const defN = def ? Number(def[1]) : null
+    if (!eff) {
+      prev = null
+      prevDefault = defN
+      continue
+    }
+    let n = Number(eff[1])
+    const unit = eff[2]!
+    if (prev && prev.unit === unit && n < prev.n) {
+      const ratio = defN !== null && prevDefault !== null && prevDefault > 0 ? defN / prevDefault : 1
+      let next = Number((prev.n * ratio).toFixed(3))
+      const range = (catalog[name as TokenName] as TokenMeta).range
+      if (range?.kind === 'length' && next > range.max) next = range.max
+      if (next < prev.n) next = prev.n
+      const value = `${next}${unit}`
+      base.set(name, value)
+      adjusted.add(`base.space-${i}: ${own ?? `default ${defaults[name]}`} raised to ${value} (space-monotonic)`)
+      n = next
+    }
+    prev = { n, unit }
+    prevDefault = defN
+  }
+}
+
 // ---- Catalog filter --------------------------------------------------------
 
 interface Extracted {
@@ -344,6 +391,8 @@ function extract(source: Source): Extracted {
       kept[section].set(name, check.value)
     }
   }
+
+  keepScaleMonotonic(kept.base, adjusted)
 
   // Switches after the extracted values; `kept` is keyed by the full token name.
   const switches = SWITCHES[source.slug] ?? {}

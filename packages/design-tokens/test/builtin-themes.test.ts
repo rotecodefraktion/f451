@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { builtinTemplates } from '../src/builtin-themes.js'
 import { catalog, tokenNames } from '../src/catalog.js'
 import { checkContrast, DEFAULT_THRESHOLDS } from '../src/contrast.js'
-import { resolveTheme } from '../src/theme.js'
+import { checkRules, resolveTheme } from '../src/theme.js'
 import { parseThemeFile } from '../src/theme-file.js'
 
 const SLUGS = ['fokus', 'klar-warm', 'system-raster', 'werkbank', 'rotecodefraktion']
@@ -37,6 +37,11 @@ describe('built-in theme templates', () => {
       it(`runs the contrast check (${below} below threshold, ${belowAA} below AA of ${findings.length} pairs)`, () => {
         expect(Array.isArray(findings)).toBe(true)
         expect(findings.length).toBeGreaterThan(0)
+      })
+
+      it('passes the cross-token rules on the resolved set', () => {
+        const violations = checkRules(resolveTheme([{ ...parsed.layer, source: 'instance' }]))
+        expect(violations.map((v) => `${template.slug}: ${v.rule} — ${v.message}`)).toEqual([])
       })
 
       it('sets every building-block switch explicitly', () => {
