@@ -44,6 +44,15 @@
   background: var(--color-bg);
   border-bottom: 1px solid var(--color-border);
 }
+/* `--topbar: off` (`app/shell.tsx`): the bar is rendered for the phone only,
+   whose layout stays the same for every frame switch; above the phone
+   threshold its controls sit in the tree head and foot instead
+   (`.tree-head`/`.tree-foot`, `60-chrome-raster.css`). */
+@media not all and (max-width: 699px) and (pointer: coarse) {
+  .topbar.topbar-phone {
+    display: none;
+  }
+}
 .brand {
   display: flex;
   align-items: center;

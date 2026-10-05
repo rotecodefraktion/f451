@@ -6,6 +6,22 @@ All notable changes to f451. The format follows
 to the HTTP API, the MCP tools, the page format or the configuration only come
 with a new major version.
 
+## [1.2.6] — 2026-10-05
+
+No breaking changes to the API, the MCP tools, the page format or the
+configuration. **The default frame changes:** without a theme, f451 now shows
+the Editorial frame (no top bar, a title row instead of the toolbar, an info
+rail as tall as its content). The frame of 1.2.5 lives on in the built-in
+template `rotecodefraktion` — `use: rotecodefraktion` keeps it.
+
+### Added
+- Group **Rahmen** with five choice tokens (`topbar`, `page-head`,
+  `pane-controls`, `rail-scroll`, `status-bar`); the five built-in templates
+  set all five explicitly.
+- Filter field in the page tree ("Filter pages"; Escape clears).
+- Bottom status bar (`status-bar: bottom`).
+- `switches` in `GET /api/theme/resolved`.
+
 ## [1.2.5] — 2026-10-05
 
 No breaking changes to the API, the MCP tools, the page format or the

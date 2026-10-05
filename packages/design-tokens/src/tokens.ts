@@ -223,6 +223,15 @@ const designStructure: StructureValues = {
   '--rail-blocks': 'rules',
   '--list-marker': 'dash',
 
+  // Frame switches (group „Rahmen"): the Editorial frame — no top bar, title
+  // row, edge grips, sticky rail, no status bar. The 1.2.5 frame lives on in
+  // the templates "rotecodefraktion" and "werkbank".
+  '--topbar': 'off',
+  '--page-head': 'title',
+  '--pane-controls': 'edges',
+  '--rail-scroll': 'sticky',
+  '--status-bar': 'off',
+
   '--measure': '68ch',
   '--measure-wide': '96ch',
   '--measure-full': '100%',

@@ -2,9 +2,12 @@ import type { Classification } from '@f451/markdown'
 import { Breadcrumb } from './breadcrumb'
 import { PageBody } from './page-body'
 import { ReadingPosition } from './reading-position'
+import { StatusBarBottom } from './status-bar-bottom'
 import { UnarchiveButton } from './unarchive-button'
+import { takeLeadHeading } from '../lib/lead-heading'
 import { getT } from '../lib/i18n/server.js'
 import { buildBreadcrumb, formatUpdatedAt, sectionSlugs } from '../lib/page-view'
+import { getFrame } from '../lib/resolved-theme'
 import { wikiPageEditHref, wikiPageReleaseHref, wikiPageReviewHref, wikiPageVersionsHref } from '../lib/urls'
 
 /** Eine Überschrift der Seite (Shape aus `GET /api/pages/:id`, Feld `headings`). */
@@ -159,104 +162,161 @@ export async function PageView({ data }: { data: PageData }) {
   const hasLockNotice = !!(workflow?.lock && !workflow.lock.mine)
   const isStrictlyConfidential = data.classification === 'strictly-confidential'
   const hasNotices = hasFrontmatterIssue || hasBrokenLinks || hasDraftNotice || isStrictlyConfidential
+  // Frame switch `--page-head` (f451#60): `title` puts the frontmatter title
+  // as h1 into the frame (`.doc-head` + `.metaline`); `toolbar` keeps the
+  // running head, toolbar and subbar of 1.2.5. Only the reading view switches.
+  // `--status-bar: bottom` adds the status bar at the foot of `.main`.
+  const { pageHead, statusBar } = await getFrame({ hasTree: true })
+  const titleMode = pageHead === 'title'
+  // Title mode: a leading `# Heading` of the body becomes the title row and
+  // leaves the body (never two h1); without one the frontmatter title is used.
+  const { headingHtml, rest: bodyHtml } = titleMode
+    ? takeLeadHeading(data.html)
+    : { headingHtml: null, rest: data.html }
+
+  // Workflow status chip — in the head (`.toolbar`/`.doc-head`) and, with the
+  // status bar on, again in the status bar.
+  const statusChip =
+    workflow?.state === 'review' ? (
+      <span className="chip review">
+        {CLOCK_ICON}
+        {t('read.status.review')}
+      </span>
+    ) : workflow?.state === 'working' ? (
+      <span className="chip working">
+        {EDIT_ICON}
+        {t('read.status.draft')}
+      </span>
+    ) : data.archived ? (
+      <span className="chip archived">
+        {ARCHIVE_ICON}
+        {t('read.status.archived')}
+      </span>
+    ) : (
+      <span className="chip released">
+        {CHECK_ICON}
+        {t('read.status.released')}
+      </span>
+    )
+
+  const updatedItem = (
+    <span>
+      {t('read.subbar.updated')} <b>{formatUpdatedAt(data.updatedAt, locale)}</b>
+    </span>
+  )
+
+  // Status chip(s) and actions — carried by `.toolbar` or by `.doc-head`.
+  const statusAndActions = (
+    <>
+      {data.classification ? (
+        <span
+          className={`chip classification ${CLASSIFICATION_CHIP[data.classification]}`}
+          title={t('read.classification.hint')}
+        >
+          {t(`read.classification.${data.classification}`)}
+        </span>
+      ) : null}
+      {statusChip}
+      {/* „Aus Archiv holen" (Feature „Unarchive"): der „Bearbeiten"-Link
+          unten ist bei einer archivierten Seite ausgeblendet — ohne diesen
+          Button käme niemand mehr in den Editor, um `archived` zu entfernen.
+          Only when the archived chip is the one shown (no draft/review). */}
+      {workflow === null && data.archived ? <UnarchiveButton pageId={data.id} /> : null}
+      {!data.archived ? (
+        <a className="btn primary" href={wikiPageEditHref(data.space, data.id)}>
+          {EDIT_ICON}
+          {t('read.edit')}
+        </a>
+      ) : null}
+    </>
+  )
+
+  // Updated / space / version — carried by `.subbar` or by `.metaline`.
+  const metaItems = (
+    <>
+      {updatedItem}
+      <span>
+        {t('read.subbar.space')} <b>{data.space}</b>
+      </span>
+      {/* Versionsanzeige (Seitenversionierung Etappe 1, Task 8): nur wenn der
+          Space versioniert ist UND eine Version bekannt ist (nie
+          freigegeben → `data.version` fehlt trotz `versioning:true`). Der
+          "geändert seit"-Hinweis daneben zeigt, dass seit der Freigabe
+          direkt (an der Freigabe vorbei) committet wurde. */}
+      {data.versioning && data.version ? (
+        <>
+          {/* Etappe 2: die Nummer führt zur Versionsliste. */}
+          <a
+            className="subbar-version"
+            href={wikiPageVersionsHref(data.space, data.id)}
+            title={t('read.subbar.versionsLink')}
+          >
+            {t('read.subbar.version', { version: data.version })}
+          </a>
+          {data.latestRelease ? (
+            <a className="subbar-version" href={wikiPageReleaseHref(data.space, data.id, data.latestRelease)}>
+              {t('read.releases.subbarLink', { version: data.latestRelease })}
+            </a>
+          ) : null}
+          {data.changedSinceRelease ? (
+            <span className="subbar-changed" title={t('read.subbar.changedSinceHint')}>
+              {t('read.subbar.changedSince', { version: data.version })}
+            </span>
+          ) : null}
+        </>
+      ) : null}
+    </>
+  )
 
   return (
     <main className="main">
-      {/* Kolumnentitel (Erscheinungsbild 2026, Etappe 3; Entwurf `.runhead` in
-          `docs/design/mockups-2026/editorial.html`, Spec-Abschnitt
-          „Kolumnentitel"): Brotkrumenpfad und Positionsanzeige — sonst nichts.
-          Der Pfad stand bis hierher in der `.toolbar` und teilte die Zeile mit
-          Statusmarke und „Bearbeiten"; die Statusmarke/Aktion bleiben dort (sie
-          sind das Pendant zur `.doc__meta`-Zeile des Entwurfs), der Pfad zieht
-          in seine eigene Zeile. Die Leisten-Schalter gehören ausdrücklich NICHT
-          hierher — sie stehen als Daumenregister in den Außenspalten des
-          Rasters (`app/pane-edges.tsx`, `styles/60-chrome-raster.css`). */}
-      <div className="runhead">
-        <Breadcrumb crumbs={crumbs} ariaLabel={t('read.breadcrumbAriaLabel')} />
-        <ReadingPosition slugs={sections} />
-      </div>
+      {titleMode ? (
+        <>
+          {/* Title row (spec "`--page-head: title` und das h1"): the frame
+              renders the body's leading h1 (`lib/lead-heading.ts`) or, without
+              one, the frontmatter title as h1, status and actions on the same
+              row. `headingHtml` comes from the body HTML, which the markdown
+              pipeline has already sanitized — injecting it here is as safe as
+              rendering the body. The meta line below is a <div>, not a <p>: the
+              breadcrumb is a <nav>, which a <p> must not contain. The section
+              position of the running head is not shown in this mode. */}
+          <header className="doc-head">
+            {headingHtml !== null ? (
+              <h1 className="doc-head__title" dangerouslySetInnerHTML={{ __html: headingHtml }} />
+            ) : (
+              <h1 className="doc-head__title">{data.title}</h1>
+            )}
+            <div className="doc-head__actions">{statusAndActions}</div>
+          </header>
+          <div className="metaline">
+            <Breadcrumb crumbs={crumbs} ariaLabel={t('read.breadcrumbAriaLabel')} />
+            {metaItems}
+          </div>
+        </>
+      ) : (
+        <>
+          {/* Kolumnentitel (Erscheinungsbild 2026, Etappe 3; Entwurf `.runhead` in
+              `docs/design/mockups-2026/editorial.html`, Spec-Abschnitt
+              „Kolumnentitel"): Brotkrumenpfad und Positionsanzeige — sonst nichts.
+              Der Pfad stand bis hierher in der `.toolbar` und teilte die Zeile mit
+              Statusmarke und „Bearbeiten"; die Statusmarke/Aktion bleiben dort (sie
+              sind das Pendant zur `.doc__meta`-Zeile des Entwurfs), der Pfad zieht
+              in seine eigene Zeile. Die Leisten-Schalter gehören ausdrücklich NICHT
+              hierher — sie stehen als Daumenregister in den Außenspalten des
+              Rasters (`app/pane-edges.tsx`, `styles/60-chrome-raster.css`). */}
+          <div className="runhead">
+            <Breadcrumb crumbs={crumbs} ariaLabel={t('read.breadcrumbAriaLabel')} />
+            <ReadingPosition slugs={sections} />
+          </div>
 
-      <div className="toolbar">
-        <span className="grow" />
-        {data.classification ? (
-          <span
-            className={`chip classification ${CLASSIFICATION_CHIP[data.classification]}`}
-            title={t('read.classification.hint')}
-          >
-            {t(`read.classification.${data.classification}`)}
-          </span>
-        ) : null}
-        {workflow?.state === 'review' ? (
-          <span className="chip review">
-            {CLOCK_ICON}
-            {t('read.status.review')}
-          </span>
-        ) : workflow?.state === 'working' ? (
-          <span className="chip working">
-            {EDIT_ICON}
-            {t('read.status.draft')}
-          </span>
-        ) : data.archived ? (
-          <>
-            <span className="chip archived">
-              {ARCHIVE_ICON}
-              {t('read.status.archived')}
-            </span>
-            {/* „Aus Archiv holen" (Feature „Unarchive"): der „Bearbeiten"-Link
-                unten ist bei einer archivierten Seite ausgeblendet — ohne
-                diesen Button käme niemand mehr in den Editor, um `archived`
-                zu entfernen. */}
-            <UnarchiveButton pageId={data.id} />
-          </>
-        ) : (
-          <span className="chip released">
-            {CHECK_ICON}
-            {t('read.status.released')}
-          </span>
-        )}
-        {!data.archived ? (
-          <a className="btn primary" href={wikiPageEditHref(data.space, data.id)}>
-            {EDIT_ICON}
-            {t('read.edit')}
-          </a>
-        ) : null}
-      </div>
+          <div className="toolbar">
+            <span className="grow" />
+            {statusAndActions}
+          </div>
 
-      <div className="subbar">
-        <span>
-          {t('read.subbar.updated')} <b>{formatUpdatedAt(data.updatedAt, locale)}</b>
-        </span>
-        <span>
-          {t('read.subbar.space')} <b>{data.space}</b>
-        </span>
-        {/* Versionsanzeige (Seitenversionierung Etappe 1, Task 8): nur wenn der
-            Space versioniert ist UND eine Version bekannt ist (nie
-            freigegeben → `data.version` fehlt trotz `versioning:true`). Der
-            "geändert seit"-Hinweis daneben zeigt, dass seit der Freigabe
-            direkt (an der Freigabe vorbei) committet wurde. */}
-        {data.versioning && data.version ? (
-          <>
-            {/* Etappe 2: die Nummer führt zur Versionsliste. */}
-            <a
-              className="subbar-version"
-              href={wikiPageVersionsHref(data.space, data.id)}
-              title={t('read.subbar.versionsLink')}
-            >
-              {t('read.subbar.version', { version: data.version })}
-            </a>
-            {data.latestRelease ? (
-              <a className="subbar-version" href={wikiPageReleaseHref(data.space, data.id, data.latestRelease)}>
-                {t('read.releases.subbarLink', { version: data.latestRelease })}
-              </a>
-            ) : null}
-            {data.changedSinceRelease ? (
-              <span className="subbar-changed" title={t('read.subbar.changedSinceHint')}>
-                {t('read.subbar.changedSince', { version: data.version })}
-              </span>
-            ) : null}
-          </>
-        ) : null}
-      </div>
+          <div className="subbar">{metaItems}</div>
+        </>
+      )}
 
       {hasNotices ? (
         <div className="notices">
@@ -338,8 +398,17 @@ export async function PageView({ data }: { data: PageData }) {
       ) : null}
 
       <div className="body">
-        <PageBody html={data.html} />
+        <PageBody html={bodyHtml} />
       </div>
+
+      {statusBar ? (
+        <StatusBarBottom>
+          {statusChip}
+          {updatedItem}
+          {/* Same source as the running head: server-side section slugs. */}
+          <ReadingPosition slugs={sections} />
+        </StatusBarBottom>
+      ) : null}
     </main>
   )
 }

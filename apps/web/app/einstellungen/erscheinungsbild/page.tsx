@@ -11,7 +11,7 @@ import { getT } from '../../../lib/i18n/server'
 import { getMe } from '../../../lib/session'
 import type { EditorData, LibraryEntry } from '../../../lib/theme-editor'
 import { editorApiPath, libraryApiPath, pickScope, type ThemeScopes } from '../../../lib/theme-editor-view'
-import { Shell } from '../../shell'
+import { Shell, type TreeChrome } from '../../shell'
 
 /**
  * Appearance: the theme editor of the instance or of one space (July spec
@@ -123,8 +123,9 @@ export default async function ErscheinungsbildPage({
     )
   }
 
-  const sidebar = (
+  const sidebar = (chrome: TreeChrome | null) => (
     <nav className="tree" aria-label={t('settings.appearance.navAriaLabel')}>
+      {chrome?.head}
       <div className="head">
         <span className="sq">E</span>
         <div>
@@ -140,6 +141,7 @@ export default async function ErscheinungsbildPage({
           {t('settings.appearance.navItem')}
         </a>
       </div>
+      {chrome?.foot}
       <Attribution />
     </nav>
   )
@@ -148,6 +150,7 @@ export default async function ErscheinungsbildPage({
     <Shell
       space={t('settings.appearance.shellSpace')}
       sidebar={sidebar}
+      hasTree
       avatar={<AccountMenu displayName={me.displayName} />}
     >
       <main className="main doc-pad">

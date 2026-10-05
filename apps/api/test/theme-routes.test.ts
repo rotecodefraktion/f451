@@ -107,6 +107,21 @@ describe('theme routes', () => {
     await app.close()
   })
 
+  it('GET /api/theme/resolved carries every switch value as switches, defaults included', async () => {
+    const app = appWithTheme('name: Switches\nbase:\n  status-bar: bottom\n')
+    const res = await app.inject({ method: 'GET', url: '/api/theme/resolved' })
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expect(Object.keys(body.switches)).toHaveLength(17)
+    // set by the theme
+    expect(body.switches['status-bar']).toBe('bottom')
+    // defaults
+    expect(body.switches.topbar).toBe('off')
+    expect(body.switches['page-head']).toBe('title')
+    expect(body.switches['chip-style']).toBe('outline-caps')
+    await app.close()
+  })
+
   it('anonymous requests (no cookie) get 200 on both routes while auth is on', async () => {
     const app = appWithTheme(THEME_FILE)
     for (const url of ['/api/theme', '/api/theme/resolved']) {

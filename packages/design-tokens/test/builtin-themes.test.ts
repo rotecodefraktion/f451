@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { builtinTemplates } from '../src/builtin-themes.js'
 import { catalog, tokenNames } from '../src/catalog.js'
 import { checkContrast, DEFAULT_THRESHOLDS } from '../src/contrast.js'
-import { resolveTheme } from '../src/theme.js'
+import { checkRules, resolveTheme } from '../src/theme.js'
 import { parseThemeFile } from '../src/theme-file.js'
 
 const SLUGS = ['fokus', 'klar-warm', 'system-raster', 'werkbank', 'rotecodefraktion']
@@ -39,9 +39,14 @@ describe('built-in theme templates', () => {
         expect(findings.length).toBeGreaterThan(0)
       })
 
+      it('passes the cross-token rules on the resolved set', () => {
+        const violations = checkRules(resolveTheme([{ ...parsed.layer, source: 'instance' }]))
+        expect(violations.map((v) => `${template.slug}: ${v.rule} — ${v.message}`)).toEqual([])
+      })
+
       it('sets every building-block switch explicitly', () => {
         const switches = tokenNames.filter((n) => catalog[n].emit === 'attribute').map((n) => n.slice(2))
-        expect(switches).toHaveLength(12)
+        expect(switches).toHaveLength(17)
         for (const key of switches) expect(template.file.base?.[key], key).toBeDefined()
       })
     })
@@ -56,5 +61,15 @@ describe('built-in theme templates', () => {
     expect(by.werkbank).toMatchObject({ ...common, 'callout-style': 'box', 'button-primary': 'accent', 'chip-style': 'outline-caps', 'heading-number': 'none', 'code-header': 'on', 'rail-blocks': 'cards', 'list-marker': 'dash' })
     // Rotecodefraktion = the construction the application had before 1.2.5
     expect(by.rotecodefraktion).toMatchObject({ ...common, 'callout-style': 'bar', 'button-primary': 'ink', 'chip-style': 'outline-caps', 'heading-number': 'numeral', 'code-header': 'off', 'rail-blocks': 'plain', 'list-marker': 'disc' })
+  })
+
+  it('carries the frame of its mockup', () => {
+    const by = Object.fromEntries(builtinTemplates().map((t) => [t.slug, t.file.base ?? {}]))
+    expect(by.fokus).toMatchObject({ topbar: 'off', 'page-head': 'title', 'pane-controls': 'edges', 'rail-scroll': 'sticky', 'status-bar': 'off' })
+    expect(by['klar-warm']).toMatchObject({ topbar: 'on', 'page-head': 'title', 'pane-controls': 'topbar', 'rail-scroll': 'sticky', 'status-bar': 'off' })
+    expect(by['system-raster']).toMatchObject({ topbar: 'off', 'page-head': 'title', 'pane-controls': 'edges', 'rail-scroll': 'sticky', 'status-bar': 'off' })
+    expect(by.werkbank).toMatchObject({ topbar: 'on', 'page-head': 'toolbar', 'pane-controls': 'topbar', 'rail-scroll': 'own', 'status-bar': 'bottom' })
+    // Rotecodefraktion = the frame of 1.2.5
+    expect(by.rotecodefraktion).toMatchObject({ topbar: 'on', 'page-head': 'toolbar', 'pane-controls': 'edges', 'rail-scroll': 'own', 'status-bar': 'off' })
   })
 })

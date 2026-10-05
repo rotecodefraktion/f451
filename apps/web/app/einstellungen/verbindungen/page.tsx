@@ -7,7 +7,7 @@ import { DisconnectButton } from '../../../components/disconnect-button'
 import { apiFetch } from '../../../lib/api'
 import { getT } from '../../../lib/i18n/server'
 import { getMe } from '../../../lib/session'
-import { Shell } from '../../shell'
+import { Shell, type TreeChrome } from '../../shell'
 
 const PROVIDERS: Array<{ id: 'forgejo' | 'github'; label: string }> = [
   { id: 'forgejo', label: 'Forgejo' },
@@ -66,8 +66,9 @@ export default async function VerbindungenPage({
     initialTokens = []
   }
 
-  const sidebar = (
+  const sidebar = (chrome: TreeChrome | null) => (
     <nav className="tree" aria-label={t('settings.connections.navAriaLabel')}>
+      {chrome?.head}
       <div className="head">
         <span className="sq">E</span>
         <div>
@@ -83,12 +84,18 @@ export default async function VerbindungenPage({
           {t('settings.appearance.navItem')}
         </a>
       </div>
+      {chrome?.foot}
       <Attribution />
     </nav>
   )
 
   return (
-    <Shell space={t('settings.connections.shellSpace')} sidebar={sidebar} avatar={<AccountMenu displayName={me.displayName} />}>
+    <Shell
+      space={t('settings.connections.shellSpace')}
+      sidebar={sidebar}
+      hasTree
+      avatar={<AccountMenu displayName={me.displayName} />}
+    >
       {/* `.doc-pad` (60-chrome-raster.css) statt des Inline-Stils
           `padding: var(--space-6) var(--space-7)` — die Werte sind wörtlich
           gleich (`--content-pad-x` IST `var(--space-7)`). H4 hatte den Wechsel

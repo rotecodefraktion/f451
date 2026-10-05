@@ -1,14 +1,23 @@
 import { BrandMark } from '../components/brand-mark'
 import type { ReactNode } from 'react'
-import { SearchDialog } from '../components/search-dialog'
+import { SearchDialog, SearchTrigger } from '../components/search-dialog'
 import { ShortcutsDialog } from '../components/shortcuts-dialog'
 import { SpaceSwitcher, type SpaceSwitcherSpace } from '../components/space-switcher'
 import { getT } from '../lib/i18n/server.js'
-import { getBrand } from '../lib/resolved-theme.js'
+import { getBrand, getFrame } from '../lib/resolved-theme.js'
 import { LangSwitcher } from './lang-switcher.js'
+import { PaneBarToggle } from './pane-bar-toggle'
 import { PaneEdges } from './pane-edges'
 import { PhoneBar } from './phone-bar'
 import { ThemeToggle } from './theme-toggle'
+
+/** The top bar controls as two rows of the tree when the top bar is off. */
+export interface TreeChrome {
+  /** Brand + space switcher, then the search field — above the tree's `.head`. */
+  head: ReactNode
+  /** Language, light/dark, account — directly above `<Attribution>`. */
+  foot: ReactNode
+}
 
 export interface ShellProps {
   /**
@@ -29,8 +38,16 @@ export interface ShellProps {
   currentSpaceId?: string
   /** Avatar-/Login-Slot rechts in der Topbar. Wird von Task 2 aus /api/me befüllt. */
   avatar?: ReactNode
-  /** Linke Spalte: Seitenbaum. Soll eine eigene `.tree`-Struktur liefern (Task 3). */
-  sidebar?: ReactNode
+  /**
+   * Linke Spalte: Seitenbaum. Soll eine eigene `.tree`-Struktur liefern (Task 3).
+   * As a function it receives the tree chrome: `null` while the top bar is
+   * shown, otherwise the head and foot rows the tree renders (above its `.head`
+   * and directly above `<Attribution>`).
+   */
+  sidebar?: ReactNode | ((chrome: TreeChrome | null) => ReactNode)
+  /** The page renders a tree that places the `TreeChrome` slots. Only then may
+   *  the theme switch the top bar off (`frameShape`). */
+  hasTree?: boolean
   /**
    * Inhalts-Grid-Kinder (mittlere + rechte Spalte). Die Seite liefert selbst
    * ihr `<main className="main">` und — sofern vorhanden — ihr
@@ -64,49 +81,116 @@ export interface ShellProps {
  * Such-Insel (`<SearchDialog>`: Topbar-Trigger + ⌘K-Dialog in einer
  * Komponente, siehe components/search-dialog.tsx).
  */
-export async function Shell({ space, spaces, currentSpaceId, avatar, sidebar, children, variant = 'default' }: ShellProps) {
+export async function Shell({
+  space,
+  spaces,
+  currentSpaceId,
+  avatar,
+  sidebar,
+  hasTree = false,
+  children,
+  variant = 'default',
+}: ShellProps) {
   const { locale, t } = await getT()
   // Brand of the instance/space (addendum §5): the logo replaces the f451 mark,
   // the name the word. Same per-request call as the root layout.
   const brand = await getBrand()
+  const frame = await getFrame({ hasTree })
+  // `--pane-controls: topbar` (frameShape guarantees the top bar is there):
+  // the pane switches sit in the top bar instead of the edge grips. The graph
+  // view has no panes, so it gets neither.
+  const barPanes = variant !== 'graph' && frame.paneControls === 'topbar'
+
+  const brandBlock = (
+    <div className="brand">
+      <a className="brand-home" href="/wiki" aria-label={t('shell.topbar.homeAriaLabel')}>
+        {brand?.logoUrl ? (
+          <img src={brand.logoUrl} alt={brand.name ?? 'f451'} className="brand-logo" />
+        ) : (
+          <span className="mark">
+            <BrandMark />
+          </span>
+        )}
+        <span className="brand-wort">{brand?.name ?? 'f451'}</span>
+      </a>
+    </div>
+  )
+  // Bewusst AUSSERHALB von `.brand` (das per `overflow: hidden` seinen Inhalt
+  // beschneidet): der `SpaceSwitcher` öffnet ein absolut positioniertes
+  // Dropdown, das sonst am `.brand`-Rand geclippt würde (Bugfix
+  // „Space-Switcher-Dropdown geclippt").
+  const spaceControl =
+    spaces && spaces.length >= 2 ? (
+      <SpaceSwitcher spaces={spaces} currentSpaceId={currentSpaceId} />
+    ) : space ? (
+      <span className="app">{space}</span>
+    ) : null
+
+  // Without a top bar (structure spec 2) brand, space and search move into the
+  // tree head, language, light/dark and account into the tree foot.
+  const chrome: TreeChrome | null = frame.topbar
+    ? null
+    : {
+        head: (
+          <div className="tree-head">
+            <div className="tree-head-row">
+              {brandBlock}
+              {spaceControl}
+            </div>
+            <SearchTrigger variant="field" />
+          </div>
+        ),
+        foot: (
+          <div className="tree-foot">
+            <LangSwitcher locale={locale} />
+            <ThemeToggle />
+            {avatar}
+          </div>
+        ),
+      }
+
   return (
     <>
-      <header className="topbar">
-        <div className="brand">
-          <a className="brand-home" href="/wiki" aria-label={t('shell.topbar.homeAriaLabel')}>
-            {brand?.logoUrl ? (
-              <img src={brand.logoUrl} alt={brand.name ?? 'f451'} className="brand-logo" />
-            ) : (
-              <span className="mark">
-                <BrandMark />
-              </span>
-            )}
-            <span className="brand-wort">{brand?.name ?? 'f451'}</span>
-          </a>
-        </div>
-        {/* Bewusst AUSSERHALB von `.brand` (das per `overflow: hidden` seinen
-            Inhalt beschneidet, s. globals.css): der `SpaceSwitcher` öffnet ein
-            absolut positioniertes Dropdown, das sonst am `.brand`-Rand
-            geclippt würde (Bugfix „Space-Switcher-Dropdown geclippt"). Als
-            eigenes Topbar-Geschwister bleibt es layoutmäßig gleichwertig zum
-            bisherigen `.brand .app`-Platz (beide tragen die `.app`-Klasse samt
-            deren `border-left`-Trenner, s. `.topbar > .app`-Regel). */}
-        {spaces && spaces.length >= 2 ? (
-          <SpaceSwitcher spaces={spaces} currentSpaceId={currentSpaceId} />
-        ) : space ? (
-          <span className="app">{space}</span>
-        ) : null}
-        <div className="grow" />
-        <SearchDialog />
-        {/* Nur der Dialog, ohne sichtbaren Auslöser — geöffnet wird er per `?`
-            oder per CustomEvent aus der Werkzeugliste der linken Leiste. Er
-            hängt hier, weil er auf JEDER Seite der Schale erreichbar sein
-            muss (s. components/shortcuts-dialog.tsx). */}
-        <ShortcutsDialog />
-        <LangSwitcher locale={locale} />
-        <ThemeToggle />
-        {avatar}
-      </header>
+      {frame.topbar ? (
+        <header className="topbar">
+          {brandBlock}
+          {spaceControl}
+          <div className="grow" />
+          {/* Pane switches around the search, in reading order: the tree's
+              switch left of it, the info sidebar's right of it. */}
+          {barPanes ? <PaneBarToggle pane="nav" shortcuts /> : null}
+          <SearchDialog />
+          {barPanes ? <PaneBarToggle pane="rail" /> : null}
+          {/* Nur der Dialog, ohne sichtbaren Auslöser — geöffnet wird er per `?`
+              oder per CustomEvent aus der Werkzeugliste der linken Leiste. Er
+              hängt hier, weil er auf JEDER Seite der Schale erreichbar sein
+              muss (s. components/shortcuts-dialog.tsx). */}
+          <ShortcutsDialog />
+          <LangSwitcher locale={locale} />
+          <ThemeToggle />
+          {avatar}
+        </header>
+      ) : (
+        <>
+          {/* The phone layout is unchanged for every frame switch: below the
+              phone threshold this bar is shown and the tree chrome rows are
+              hidden; above it the reverse (`60-chrome-topbar.css`). Its search
+              field fires the open event, so the dialog below exists once. */}
+          <header className="topbar topbar-phone">
+            {brandBlock}
+            {spaceControl}
+            <div className="grow" />
+            <SearchTrigger />
+            <LangSwitcher locale={locale} />
+            <ThemeToggle />
+            {avatar}
+          </header>
+          {/* Both dialogs outside the header: a dialog inside a `display: none`
+              ancestor would not show even in the top layer. */}
+          <SearchDialog trigger={false} />
+          <ShortcutsDialog />
+        </>
+      )}
 
       {/* Fünf-Spalten-Raster (Erscheinungsbild 2026): Daumenregister links ·
           Seitenbaum · Dokument · Info-Leiste · Daumenregister rechts. Die
@@ -117,9 +201,23 @@ export async function Shell({ space, spaces, currentSpaceId, avatar, sidebar, ch
           `data-rail` am `<html>`-Element (s. `pane-edges.tsx`).
           Die Graph-Ansicht hat weder Seitenbaum noch Info-Leiste — dort gäbe
           es nichts zu schalten, also auch kein Register. */}
-      <div className={variant === 'graph' ? 'shell shell-graph' : 'shell'}>
-        {variant === 'graph' ? null : <PaneEdges />}
-        {sidebar}
+      {/* Every class string is spelled out in full: `pnpm css:inventar` only
+          finds class names that appear literally inside `className`. */}
+      <div
+        className={
+          variant === 'graph'
+            ? 'shell shell-graph'
+            : frame.topbar
+              ? barPanes
+                ? 'shell shell-bar-panes'
+                : 'shell'
+              : barPanes
+                ? 'shell shell-no-topbar shell-bar-panes'
+                : 'shell shell-no-topbar'
+        }
+      >
+        {variant === 'graph' || barPanes ? null : <PaneEdges searchOnEdge={!frame.topbar} />}
+        {typeof sidebar === 'function' ? sidebar(chrome) : sidebar}
         {children}
       </div>
       {/* Nur unter der Telefon-Schwelle sichtbar (#64/#66, `66-telefon.css`). */}

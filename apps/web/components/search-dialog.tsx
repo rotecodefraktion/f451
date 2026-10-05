@@ -22,6 +22,47 @@ type Status = 'idle' | 'loading' | 'done' | 'error'
 
 const DEBOUNCE_MS = 250
 
+/** Event on `document` that opens the search dialog from anywhere (tool list,
+ *  tree head, edge magnifier) — the dialog lives in another subtree. */
+export const OPEN_SEARCH_EVENT = 'f451:open-search'
+
+export function openSearch() {
+  document.dispatchEvent(new CustomEvent(OPEN_SEARCH_EVENT))
+}
+
+export interface SearchTriggerProps {
+  /** `bar`: the top bar field; `field`: full-width field in the tree head. */
+  variant?: 'bar' | 'field'
+  /** Defaults to firing `OPEN_SEARCH_EVENT`. */
+  onClick?: () => void
+}
+
+/** The search field look-alike that opens the dialog. */
+export function SearchTrigger({ variant = 'bar', onClick }: SearchTriggerProps) {
+  const { t } = useT()
+  return (
+    <button
+      type="button"
+      className={variant === 'field' ? 'search search-field' : 'search'}
+      onClick={onClick ?? openSearch}
+      aria-haspopup="dialog"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+        <circle cx="11" cy="11" r="7" />
+        <path d="m20 20-3.2-3.2" strokeLinecap="round" />
+      </svg>
+      <span className="ph">{t('shell.search.placeholder')}</span>
+      <span className="short">{t('shell.search.short')}</span>
+      <span className="kbd">⌘K</span>
+    </button>
+  )
+}
+
+export interface SearchDialogProps {
+  /** `false` renders the dialog only; triggers elsewhere open it through `openSearch()`. */
+  trigger?: boolean
+}
+
 /**
  * Topbar-Suchfeld + ⌘K-Suchdialog als EINE Client-Insel (Shell bleibt Server
  * Component, siehe app/shell.tsx — Task 1 Review-Prinzip: Client-Inseln so
@@ -43,7 +84,7 @@ const DEBOUNCE_MS = 250
  * `<script>`) landen dadurch immer als sichtbarer Text, nie als ausgeführtes
  * Markup (siehe dortige Tests).
  */
-export function SearchDialog() {
+export function SearchDialog({ trigger = true }: SearchDialogProps = {}) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
@@ -75,8 +116,8 @@ export function SearchDialog() {
     function onOpenRequest() {
       setOpen(true)
     }
-    document.addEventListener('f451:open-search', onOpenRequest)
-    return () => document.removeEventListener('f451:open-search', onOpenRequest)
+    document.addEventListener(OPEN_SEARCH_EVENT, onOpenRequest)
+    return () => document.removeEventListener(OPEN_SEARCH_EVENT, onOpenRequest)
   }, [])
 
   // React-`open`-State <-> natives Dialog-Element synchron halten.
@@ -192,15 +233,7 @@ export function SearchDialog() {
       {/* Topbar-Trigger: Phase 1 (`shell.search`-Namespace). Der Dialog-Inhalt
           selbst (Placeholder/Status-Texte weiter unten) ist Phase 4
           (`search`-Namespace, s. `lib/i18n/messages/de/search.ts`). */}
-      <button type="button" className="search" onClick={() => setOpen(true)} aria-haspopup="dialog">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-          <circle cx="11" cy="11" r="7" />
-          <path d="m20 20-3.2-3.2" strokeLinecap="round" />
-        </svg>
-        <span className="ph">{t('shell.search.placeholder')}</span>
-        <span className="short">{t('shell.search.short')}</span>
-        <span className="kbd">⌘K</span>
-      </button>
+      {trigger ? <SearchTrigger onClick={() => setOpen(true)} /> : null}
 
       <dialog ref={dialogRef} className="search-dialog" aria-label={t('search.dialogAriaLabel')} onClick={onBackdropClick}>
         <div className="search-dialog-input-row">

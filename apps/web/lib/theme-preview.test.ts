@@ -1,4 +1,4 @@
-import { catalog, resolveTheme, tokens, type ThemeTokenName } from '@f451/design-tokens'
+import { ATTRIBUTE_TOKENS, catalog, resolveTheme, tokens, type ThemeTokenName } from '@f451/design-tokens'
 import { describe, expect, it } from 'vitest'
 import {
   currentMode,
@@ -91,14 +91,14 @@ describe('overrideNames', () => {
 describe('switch attributes in the previews', () => {
   it('programOverrides carries the full switch set, defaults included', () => {
     const over = programOverrides(resolveTheme([{ source: 'user', base: { '--chip-style': 'marker' } }]))
-    expect(Object.keys(over.attributes)).toHaveLength(12)
+    expect(Object.keys(over.attributes)).toHaveLength(ATTRIBUTE_TOKENS.length)
     expect(over.attributes['chip-style']).toBe('marker')
     expect(over.attributes['callout-style']).toBe('bar')
   })
 
   it('previewAttributes prefixes data- and carries every switch', () => {
     const attrs = previewAttributes(defaults)
-    expect(Object.keys(attrs)).toHaveLength(12)
+    expect(Object.keys(attrs)).toHaveLength(ATTRIBUTE_TOKENS.length)
     expect(attrs['data-list-marker']).toBe('dash')
   })
 

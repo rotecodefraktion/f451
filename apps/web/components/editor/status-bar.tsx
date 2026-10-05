@@ -155,6 +155,48 @@ function relativeLabel(savedAtIso: string, now: number, t: T): string {
 }
 
 /**
+ * Save state of the editor (`.saved`: dot or warning sign plus label). Lives
+ * in the editor's `.statusbar`; with the frame switch `--status-bar: bottom`
+ * the editor renders a second copy in the bottom status bar and CSS hides the
+ * top one outside the phone (`styles/61-lese.css`).
+ */
+export function SaveState({ saveStatus, savedAt }: { saveStatus: AutosaveStatus; savedAt: string | null }) {
+  const { t } = useT()
+  const [, setTick] = useState(0)
+
+  // Die relative Zeitangabe („vor Xs") muss auch ohne neue Save-Events weiterlaufen.
+  useEffect(() => {
+    if (!savedAt) return
+    const id = setInterval(() => setTick((t) => t + 1), 1000)
+    return () => clearInterval(id)
+  }, [savedAt])
+
+  // Phase 4b Task 2 (Spec §9): Wortlaut für den selbstheilenden `offline`-
+  // Zustand ist VERBINDLICH exakt („—" ist der Gedankenstrich U+2014, kein
+  // Bindestrich) — der Autosave puffert lokal weiter und schiebt automatisch
+  // nach, sobald der Server wieder erreichbar ist (kein Nutzer-Handeln nötig,
+  // anders als beim `error`-Endzustand unten).
+  const savedLabel =
+    saveStatus === 'saving'
+      ? t('editor.statusBar.saving')
+      : saveStatus === 'offline'
+        ? t('editor.statusBar.offline')
+        : saveStatus === 'error'
+          ? t('editor.statusBar.error')
+          : savedAt
+            ? t('editor.statusBar.savedAt', { relative: relativeLabel(savedAt, Date.now(), t) })
+            : t('editor.statusBar.notSavedYet')
+  const isWarn = saveStatus === 'error' || saveStatus === 'offline'
+
+  return (
+    <span className={saveStatus === 'error' ? 'saved error' : saveStatus === 'offline' ? 'saved offline' : 'saved'}>
+      {isWarn ? WARN_ICON : <span className="sdot" />}
+      {savedLabel}
+    </span>
+  )
+}
+
+/**
  * Statuszeile des Editors (`.statusbar`, Mockup `docs/design/mockups/editor.html`).
  * Seit Phase 2d Task 6 MIT „Review anfordern" (zwischen `.saved` und `.discard`,
  * Mockup-Position) und dem „Auf letzte Freigabe zurücksetzen"-Menüeintrag —
@@ -187,15 +229,7 @@ export function StatusBar({
 }: StatusBarProps) {
   const { t } = useT()
   const [menuOpen, setMenuOpen] = useState(false)
-  const [, setTick] = useState(0)
   const rootRef = useRef<HTMLSpanElement>(null)
-
-  // Die relative Zeitangabe („vor Xs") muss auch ohne neue Save-Events weiterlaufen.
-  useEffect(() => {
-    if (!savedAt) return
-    const id = setInterval(() => setTick((t) => t + 1), 1000)
-    return () => clearInterval(id)
-  }, [savedAt])
 
   useEffect(() => {
     if (!menuOpen) return
@@ -249,22 +283,6 @@ export function StatusBar({
     }
   }
 
-  // Phase 4b Task 2 (Spec §9): Wortlaut für den selbstheilenden `offline`-
-  // Zustand ist VERBINDLICH exakt („—" ist der Gedankenstrich U+2014, kein
-  // Bindestrich) — der Autosave puffert lokal weiter und schiebt automatisch
-  // nach, sobald der Server wieder erreichbar ist (kein Nutzer-Handeln nötig,
-  // anders als beim `error`-Endzustand unten).
-  const savedLabel =
-    saveStatus === 'saving'
-      ? t('editor.statusBar.saving')
-      : saveStatus === 'offline'
-        ? t('editor.statusBar.offline')
-        : saveStatus === 'error'
-          ? t('editor.statusBar.error')
-          : savedAt
-            ? t('editor.statusBar.savedAt', { relative: relativeLabel(savedAt, Date.now(), t) })
-            : t('editor.statusBar.notSavedYet')
-  const isWarn = saveStatus === 'error' || saveStatus === 'offline'
   // Deaktiviert, während bereits gespeichert wird (kein Doppel-Save) ODER
   // nichts zu speichern ansteht (`idle` — pristine bzw. gerade erst
   // erfolgreich gespeichert). `error`/`offline`/`dirty` bleiben aktiv (dort
@@ -292,10 +310,7 @@ export function StatusBar({
         {EDIT_ICON}
         {t('editor.statusBar.draftBadge')}
       </span>
-      <span className={saveStatus === 'error' ? 'saved error' : saveStatus === 'offline' ? 'saved offline' : 'saved'}>
-        {isWarn ? WARN_ICON : <span className="sdot" />}
-        {savedLabel}
-      </span>
+      <SaveState saveStatus={saveStatus} savedAt={savedAt} />
       {/* Sekundäre Aktion (Muster „Verwerfen" unten, die Grundform `.btn`): „Review
           anfordern" bleibt die einzige `.btn.primary` der Statuszeile —
           „Speichern" ist ein Post-1-Komfort-Zusatz neben dem ohnehin

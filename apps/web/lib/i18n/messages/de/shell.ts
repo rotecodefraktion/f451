@@ -28,6 +28,11 @@ export const shell = {
       label: 'Info-Leiste',
       title: 'Info-Leiste ein- und ausklappen (Taste ] )',
     },
+    /** Magnifier on the left edge without a top bar, while the tree is closed. */
+    search: {
+      label: 'Suchen',
+      title: 'Suchen (⌘K)',
+    },
   },
   // Telefon-Leiste (#66, Variante B): nur unter 700 px bei Fingerbedienung.
   // Attribution required by the f451 License (see LICENSE.md, "Attribution").
