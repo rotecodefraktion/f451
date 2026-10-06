@@ -334,6 +334,43 @@ describe('markdownToDoc', () => {
     })
   })
 
+  describe('GFM footnotes', () => {
+    it('reference keeps the source label, definition carries the normalised identifier', () => {
+      const doc = markdownToDoc('Text[^A].\n\n[^a]: Note.\n')
+      expect(doc.toJSON().content).toEqual([
+        {
+          type: 'paragraph',
+          content: [
+            { type: 'text', text: 'Text' },
+            { type: 'footnoteReference', attrs: { label: 'A', identifier: 'a' } },
+            { type: 'text', text: '.' },
+          ],
+        },
+        {
+          type: 'footnoteDefinition',
+          attrs: { label: 'a', identifier: 'a' },
+          content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Note.' }] }],
+        },
+      ])
+    })
+
+    it('a two-paragraph definition becomes two paragraphs', () => {
+      const doc = markdownToDoc('Text[^long].\n\n[^long]: First.\n\n    Second.\n')
+      const definition = doc.toJSON().content[1]
+      expect(definition.type).toBe('footnoteDefinition')
+      expect(definition.content).toEqual([
+        { type: 'paragraph', content: [{ type: 'text', text: 'First.' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: 'Second.' }] },
+      ])
+    })
+
+    it('a reference without definition converts without throwing', () => {
+      const doc = markdownToDoc('Text[^missing].\n')
+      expect(doc.type.name).toBe('doc')
+      expect(() => doc.check()).not.toThrow()
+    })
+  })
+
   describe('UnsupportedMarkdownError', () => {
     it('wirft für rohes HTML (Typ + Zeile)', () => {
       let caught: unknown
@@ -359,16 +396,16 @@ describe('markdownToDoc', () => {
       expect((caught as InstanceType<typeof UnsupportedMarkdownError>).nodeType).toBe('html')
     })
 
-    it('wirft für Fußnoten-Referenz (Typ + Zeile)', () => {
+    it('throws for a reference link (type + line)', () => {
       let caught: unknown
       try {
-        markdownToDoc('Text mit Fußnote[^1].\n\n[^1]: Die Fußnote.')
+        markdownToDoc('[a][b]\n\n[b]: /target')
       } catch (err) {
         caught = err
       }
       expect(caught).toBeInstanceOf(UnsupportedMarkdownError)
       const err = caught as InstanceType<typeof UnsupportedMarkdownError>
-      expect(err.nodeType).toBe('footnoteReference')
+      expect(err.nodeType).toBe('linkReference')
       expect(err.line).toBe(1)
     })
 
@@ -381,16 +418,15 @@ describe('markdownToDoc', () => {
 
   describe('collectUnsupported', () => {
     it('liefert ALLE Befunde eines Dokuments statt beim ersten zu werfen', () => {
-      const tree = parseMarkdownTree('<div>a</div>\n\nText[^1] mit Fußnote.\n\n[^1]: Erklärung.')
+      const tree = parseMarkdownTree('<div>a</div>\n\nSee [a][b] and ![c][d].\n\n[b]: /x\n[d]: /y.png')
       const findings = collectUnsupported(tree)
-      expect(findings).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ type: 'html' }),
-          expect.objectContaining({ type: 'footnoteReference' }),
-          expect.objectContaining({ type: 'footnoteDefinition' }),
-        ]),
-      )
-      expect(findings).toHaveLength(3)
+      expect(findings.map((f) => f.type).sort()).toEqual([
+        'definition',
+        'definition',
+        'html',
+        'imageReference',
+        'linkReference',
+      ])
     })
 
     it('liefert eine leere Liste für ein vollständig unterstütztes Dokument', () => {

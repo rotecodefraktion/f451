@@ -6,6 +6,29 @@ All notable changes to f451. The format follows
 to the HTTP API, the MCP tools, the page format or the configuration only come
 with a new major version.
 
+## [1.2.9] — 2026-10-06
+
+No breaking changes to the API, the MCP tools, the page format or the
+configuration. Footnotes stay standard GFM.
+
+### Added
+- Footnotes in the WYSIWYG editor: a reference is a superscript number, a
+  definition a bordered block where it stands in the source. Insert one with
+  the slash menu item **Footnote**, the toolbar button, or ⌘⇧F (Ctrl+Shift+F
+  on Windows and Linux): the reference gets the next free number and an empty
+  definition is appended at the end of the page, with the cursor in it.
+- Clicking a reference jumps to its definition; clicking the definition's
+  label jumps back to the first reference.
+
+### Changed
+- Pages with footnotes open in the visual editor again instead of Markdown
+  mode.
+
+### Known limitations
+- Labels are not renamed in the WYSIWYG mode; use the Markdown mode for word
+  labels such as `[^reboot]`. A deleted reference leaves its definition in
+  place, and definitions without references are not rendered on the page.
+
 ## [1.2.8] — 2026-10-06
 
 No breaking changes to the API, the MCP tools, the page format or the
@@ -30,8 +53,8 @@ configuration. Footnotes stay standard GFM (`Text[^1]` … `[^1]: Note`).
   definitions as note blocks.
 
 ### Known limitations
-- The editor still opens pages with footnotes in Markdown (source) mode only;
-  WYSIWYG support for footnotes is a separate issue.
+- In 1.2.8 the editor opens pages with footnotes in Markdown (source) mode
+  only; WYSIWYG support for footnotes was added in 1.2.9.
 
 ## [1.2.7] — 2026-10-06
 

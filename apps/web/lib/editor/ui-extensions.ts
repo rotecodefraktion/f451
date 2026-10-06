@@ -10,6 +10,7 @@ import { WikiLinkPopup } from '../../components/editor/wiki-link-popup.js'
 import { mediaHref } from '../urls.js'
 import { diagramKind, type DiagramKind } from './diagram.js'
 import { diagramVersion, subscribeDiagramVersions } from './diagram-versions.js'
+import { insertFootnoteInto, supportsFootnotes } from './footnotes.js'
 import { classifyPaste } from './paste-rules.js'
 import { filterSlashItems, type SlashItem } from './slash-items.js'
 import { TableGuard, type TableGuardOptions } from './table-guard.js'
@@ -123,6 +124,7 @@ export function uiExtensions(pageId: string, options: UiExtensionsOptions = {}):
     TableGuard.configure({ onCellOverflow: options.onCellOverflow }),
     ImageUploadTrigger.configure({ onTrigger: options.onRequestImagePicker }),
     DiagramCreateTrigger.configure({ onTrigger: options.onCreateDiagram }),
+    FootnoteCommands,
     slashCommandExtension(t),
     wikiLinkAutocompleteExtension(space, searchPages, t),
     mediaPasteAndDropExtension(options.onUploadFiles, options.onFilesSkipped),
@@ -243,6 +245,42 @@ const ImageUploadTrigger = Extension.create<ImageUploadTriggerOptions>({
           this.options.onTrigger?.()
           return true
         },
+    }
+  },
+})
+
+// --- `editor.commands.insertFootnote()` (f451#82) — shared by toolbar button, slash
+// item and `Mod-Shift-f`. The transaction logic lives in `footnotes.ts` so it can be
+// tested on a plain EditorState ----------------------------------------------------
+
+declare module '@tiptap/core' {
+  interface Commands<ReturnType> {
+    footnoteCommands: {
+      /** Inserts a footnote reference at the selection, appends its definition
+       *  at the document end and moves the cursor into it. */
+      insertFootnote: () => ReturnType
+    }
+  }
+}
+
+const FootnoteCommands = Extension.create({
+  name: 'footnoteCommands',
+
+  addCommands() {
+    return {
+      insertFootnote:
+        () =>
+        ({ tr, dispatch }) => {
+          // Dry run (`editor.can()`): only answer, never touch the shared `tr`.
+          if (!dispatch) return supportsFootnotes(tr.doc)
+          return insertFootnoteInto(tr)
+        },
+    }
+  },
+
+  addKeyboardShortcuts() {
+    return {
+      'Mod-Shift-f': () => this.editor.commands.insertFootnote(),
     }
   },
 })

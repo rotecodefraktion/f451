@@ -18,7 +18,7 @@ const t: T = (key, params) => translate(de, key, params)
 describe('filterSlashItems', () => {
   it('liefert bei leerer Query alle Items', () => {
     const items = filterSlashItems('', t)
-    expect(items.length).toBe(19) // Phase 3e: +draw.io +Excalidraw
+    expect(items.length).toBe(20) // Phase 3e: +draw.io +Excalidraw; f451#82: +footnote
     expect(items.map((item) => item.id)).toEqual([
       'heading1',
       'heading2',
@@ -39,6 +39,7 @@ describe('filterSlashItems', () => {
       'drawio',
       'excalidraw',
       'video',
+      'footnote',
     ])
   })
 
@@ -93,6 +94,7 @@ describe('filterSlashItems', () => {
       'draw.io-Diagramm',
       'Excalidraw',
       'Video',
+      'Fußnote',
     ])
   })
 })

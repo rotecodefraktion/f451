@@ -81,9 +81,11 @@ export interface EditorRootProps {
   statusBarBottom?: boolean
 }
 
-/** Startmodus-Entscheidung: `canEdit:false` (nicht abbildbare Syntax, z. B.
- *  rohes HTML/Fußnoten) erzwingt den Roh-Text-Modus, sonst startet der
- *  WYSIWYG-Modus (`@f451/editor` README, Abschnitt „Validierungs-Vertrag"). */
+/** Start mode decision: `canEdit:false` (syntax the editor cannot represent,
+ *  e.g. raw HTML) forces raw text mode, otherwise WYSIWYG mode starts
+ *  (`@f451/editor` README, section "Validierungs-Vertrag"). Footnotes are no
+ *  longer a reason for raw mode since f451#82 — the editor has its own nodes
+ *  for references and definitions. */
 type StartMode = 'wysiwyg' | 'raw'
 
 type LoadState =

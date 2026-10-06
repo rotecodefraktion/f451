@@ -72,6 +72,8 @@ Was läuft:
   dieselbe Validierung — verweigert mit Begründung, warnt vor stiller
   Normalisierung, oder wechselt direkt (drei Ausgänge, s.
   [apps/web/README.md](../apps/web/README.md) Abschnitt „Moduswechsel-Regeln").
+  Fußnoten unterstützt der WYSIWYG-Editor seit 1.2.9; Seiten mit Fußnoten
+  öffnen wieder visuell.
 - **Autosave** (30 s Debounce, ⌘S/Moduswechsel/Verlassen flushen sofort),
   **409-Konflikt-Dialog** (kein stilles Überschreiben) und ein **Soft-Lock**
   (Besitz userId-basiert, 2-min-TTL, Heartbeat, „Trotzdem bearbeiten" für den

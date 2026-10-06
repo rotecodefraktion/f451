@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { getEditorSchema } from '../src/index.js'
 import { markdownToDoc } from '../src/from-markdown.js'
 import { docToMarkdown } from '../src/to-markdown.js'
+import { footnoteIdentifier } from '../src/footnote-label.js'
 
 // --- Tests für docToMarkdown (ProseMirror -> mdast -> Markdown) ---------------------
 //
@@ -355,5 +356,43 @@ describe('docToMarkdown', () => {
       )
       expect(docToMarkdown(d)).toBe('> [!NOTE]\n> [[betrieb/monitoring]] siehe dort.\n')
     })
+  })
+
+  describe('GFM footnotes', () => {
+    it('reference and definition serialise with their labels as given', () => {
+      const d = doc(
+        schema.node('paragraph', null, [
+          schema.text('Text'),
+          schema.node('footnoteReference', { label: 'A', identifier: 'a' }),
+          schema.text('.'),
+        ]),
+        schema.node('footnoteDefinition', { label: 'a', identifier: 'a' }, [
+          schema.node('paragraph', null, [schema.text('Note.')]),
+        ]),
+      )
+      expect(docToMarkdown(d)).toBe('Text[^A].\n\n[^a]: Note.\n')
+    })
+
+    it('nodes without identifier (editor-created) still serialise', () => {
+      const d = doc(
+        schema.node('paragraph', null, [schema.text('Claim'), schema.node('footnoteReference', { label: 'Reboot' })]),
+        schema.node('footnoteDefinition', { label: 'reboot' }, [
+          schema.node('paragraph', null, [schema.text('First.')]),
+          schema.node('paragraph', null, [schema.text('Second.')]),
+        ]),
+      )
+      expect(docToMarkdown(d)).toBe('Claim[^Reboot]\n\n[^reboot]: First.\n\n    Second.\n')
+    })
+  })
+})
+
+describe('footnoteIdentifier (mdast normalisation)', () => {
+  it.each([
+    ['1', '1'],
+    ['A', 'a'],
+    ['  Long   Note ', 'long note'],
+    ['a\tb\nc', 'a b c'],
+  ])('%j -> %j', (label, identifier) => {
+    expect(footnoteIdentifier(label)).toBe(identifier)
   })
 })

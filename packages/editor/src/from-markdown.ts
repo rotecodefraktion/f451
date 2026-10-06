@@ -15,7 +15,7 @@ import { getEditorSchema } from './index.js'
 // Architektur: zwei kleine Handler-Maps (Block-Ebene, Inline-Ebene) statt einer
 // Riesen-switch-Kaskade — jeder mdast-Knotentyp hat genau eine Zeile Dispatch plus eine
 // eigene, kleine Konvertierungsfunktion. Beide Dispatcher prüfen VOR dem Lookup auf die
-// fünf bekannten nicht abbildbaren Knotentypen (assertSupported) und werfen dort hart
+// bekannten nicht abbildbaren Knotentypen (UNSUPPORTED_TYPES) (assertSupported) und werfen dort hart
 // (UnsupportedMarkdownError) — die Fehlerprüfung läuft also in derselben Traversierung,
 // die auch den Baum aufbaut (kein zweiter Durchlauf nötig). collectUnsupported (unten)
 // ist eine SEPARATE, nicht werfende Traversierung für Aufrufer, die (wie Task 5) eine
@@ -43,6 +43,8 @@ interface MdNode {
   checked?: boolean | null
   align?: ReadonlyArray<'left' | 'center' | 'right' | null>
   data?: { alias?: string }
+  identifier?: string
+  label?: string | null
   children?: MdNode[]
   position?: { start?: { line?: number } }
 }
@@ -55,7 +57,7 @@ interface MdRootLike {
 // --- Fehlerbild: nicht abbildbare mdast-Knoten --------------------------------------
 
 /** Wird geworfen, wenn markdownToDoc auf einen mdast-Knotentyp trifft, der sich nicht
- *  auf das Editor-Schema abbilden lässt (rohes HTML, Fußnoten, Referenz-Definitionen/
+ *  auf das Editor-Schema abbilden lässt (rohes HTML, Referenz-Definitionen/
  *  -Bilder/-Links). Trägt den Knotentyp und — sofern die mdast-Position vorhanden ist —
  *  die Zeile, damit der Aufrufer (Task 5) dem Nutzer eine konkrete Fundstelle zeigen
  *  kann. Wird IMMER geworfen, nie still verschluckt. */
@@ -83,8 +85,6 @@ export interface UnsupportedFinding {
 
 const UNSUPPORTED_TYPES = new Set([
   'html',
-  'footnoteDefinition',
-  'footnoteReference',
   'definition',
   'imageReference',
   'linkReference',
@@ -268,6 +268,15 @@ const blockHandlers: Record<string, BlockHandler> = {
   ],
   thematicBreak: (_node, schema) => [schema.node('horizontalRule')],
   table: convertTable,
+  // The definition stays at its source position (mdast keeps document order); the
+  // label keeps the source spelling, the identifier links it to its references.
+  footnoteDefinition: (node, schema) => [
+    schema.node(
+      'footnoteDefinition',
+      { label: node.label ?? node.identifier ?? '', identifier: node.identifier ?? null },
+      nonEmptyBlockContent(convertBlockChildren(node.children, schema), schema),
+    ),
+  ],
 }
 
 // --- Inline-Ebene ----------------------------------------------------------------------
@@ -350,6 +359,12 @@ const inlineHandlers: Record<string, InlineHandler> = {
     ]
   },
   wikiLink: convertWikiLink,
+  footnoteReference: (node, schema) => [
+    schema.node('footnoteReference', {
+      label: node.label ?? node.identifier ?? '',
+      identifier: node.identifier ?? null,
+    }),
+  ],
 }
 
 // --- Öffentliche API -------------------------------------------------------------------
