@@ -18,6 +18,8 @@ export interface ResolvedThemeResponse {
   attributes?: Record<string, string>
   /** Every switch with its resolved value, defaults included (structure spec 2). */
   switches?: Record<string, string>
+  /** URLs of the theme stylesheets that apply, instance then space (f451#61). */
+  stylesheets?: string[]
 }
 
 /**

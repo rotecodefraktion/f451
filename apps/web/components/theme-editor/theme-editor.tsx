@@ -43,6 +43,7 @@ import { ComponentPreview } from './component-preview'
 import { endProgramPreview, ProgramPreview } from './program-preview'
 import { ScopeSelector } from './scope-selector'
 import { StatusBar, type ActionStatus } from './status-bar'
+import { StylesheetStrip } from './stylesheet-strip'
 import { TemplateSelect } from './template-select'
 import { GroupSection } from './token-group'
 import { fieldKey } from './token-row'
@@ -529,6 +530,17 @@ export function ThemeEditor({ scopes, data, thresholdStrip, templates }: ThemeEd
             dirty={dirty}
             resolved={assessment.resolved}
             onName={(name) => setDraft((d) => setBrandName(d, name))}
+          />
+        )}
+        {/* "Stylesheet" (f451#61): instance and space only — the API sends `null` for the user scope. */}
+        {isUser || !data.stylesheet ? null : (
+          <StylesheetStrip
+            key={`stylesheet-${scopeParam(data.scope)}`}
+            scope={data.scope}
+            stylesheet={data.stylesheet}
+            canWrite={data.canWrite}
+            busy={busy !== null}
+            dirty={dirty}
           />
         )}
         {groups.map((group) => (

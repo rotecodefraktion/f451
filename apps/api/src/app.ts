@@ -43,6 +43,7 @@ import { registerSearchRoutes } from './routes/search.js'
 import { registerTemplatesRoutes } from './routes/templates.js'
 import { registerThemeRoutes } from './routes/theme.js'
 import { registerBrandRoutes } from './routes/brand.js'
+import { registerThemeStylesheetRoutes } from './routes/theme-stylesheet.js'
 import { registerMeThemeRoutes } from './routes/me-theme.js'
 import { registerThemeEditorRoutes } from './routes/theme-editor.js'
 import { registerThemeContrastRoutes } from './routes/theme-contrast.js'
@@ -493,7 +494,12 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
           || path === '/api/theme/resolved'
           || path === '/api/brand/logo'
           || path === '/api/brand/favicon'
-          || /^\/api\/spaces\/[^/]+\/brand\/logo$/.test(path))
+          || /^\/api\/spaces\/[^/]+\/brand\/logo$/.test(path)
+          // The theme stylesheet and its fonts (f451#61), likewise; the space routes check read access.
+          || path === '/api/theme/stylesheet'
+          || /^\/api\/theme\/fonts\/[^/]+$/.test(path)
+          || /^\/api\/spaces\/[^/]+\/theme\/stylesheet$/.test(path)
+          || /^\/api\/spaces\/[^/]+\/theme\/fonts\/[^/]+$/.test(path))
         && (req.method === 'GET' || req.method === 'HEAD')
       ) {
         return
@@ -681,6 +687,15 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
   })
   // Brand files (Stage 8): GETs public like the theme reads; PUT/DELETE only with auth.
   registerBrandRoutes(app, {
+    providerRegistry: opts.providerRegistry,
+    instanceConfig: opts.instanceConfig,
+    spaces: opts.spaces,
+    access,
+    canWrite,
+    getUserProvider: userProvider,
+  })
+  // Theme stylesheet and fonts (f451#61): GETs public like the brand files; PUT/DELETE only with auth.
+  registerThemeStylesheetRoutes(app, {
     providerRegistry: opts.providerRegistry,
     instanceConfig: opts.instanceConfig,
     spaces: opts.spaces,

@@ -13,6 +13,7 @@ import { loadContrastConfig } from '../theme/contrast-config.js'
 import { instancePseudoSpace, loadInstanceTheme } from '../theme/instance-theme.js'
 import { layersOf, type LibraryScope } from '../theme/library.js'
 import { loadSpaceTheme } from '../theme/space-theme.js'
+import { loadFontSet, loadStylesheetState, type StylesheetScope } from '../theme/stylesheet.js'
 import { loadUserTheme } from '../theme/user-theme.js'
 import type { ThemeDeps } from './theme.js'
 
@@ -43,6 +44,33 @@ const errorSchema = {
   type: 'object',
   properties: { status: { type: 'string' }, reason: { type: 'string' } },
   required: ['status', 'reason'],
+} as const
+
+/** The scope's theme stylesheet for the settings strip (f451#61); `null` for the user scope. */
+const stylesheetSchema = {
+  type: ['object', 'null'],
+  properties: {
+    status: { type: 'string', enum: ['ok', 'too_large', 'invalid', 'missing', 'unreadable'] },
+    bytes: { type: ['integer', 'null'] },
+    sha: { type: ['string', 'null'] },
+    problems: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: { code: { type: 'string' }, line: { type: 'integer' }, message: { type: 'string' } },
+        required: ['code', 'line', 'message'],
+      },
+    },
+    fonts: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: { name: { type: 'string' }, bytes: { type: ['integer', 'null'] }, ok: { type: 'boolean' } },
+        required: ['name', 'bytes', 'ok'],
+      },
+    },
+  },
+  required: ['status', 'bytes', 'sha', 'problems', 'fonts'],
 } as const
 
 const scopesSchema = {
@@ -105,6 +133,7 @@ const editorSchema = {
         note: { type: ['string', 'null'] },
         findings: { type: 'array', items: objectSchema },
         rules: { type: 'array', items: objectSchema },
+        stylesheet: stylesheetSchema,
       },
       required: [
         'scope',
@@ -121,6 +150,7 @@ const editorSchema = {
         'note',
         'findings',
         'rules',
+        'stylesheet',
       ],
     },
     400: errorSchema,
@@ -129,6 +159,37 @@ const editorSchema = {
 } as const
 
 type EditorScope = { kind: 'user' } | { kind: 'instance' } | { kind: 'space'; id: string; name: string }
+
+interface EditorStylesheet {
+  status: 'ok' | 'too_large' | 'invalid' | 'missing' | 'unreadable'
+  bytes: number | null
+  sha: string | null
+  problems: { code: string; line: number; message: string }[]
+  fonts: { name: string; bytes: number | null; ok: boolean }[]
+}
+
+/**
+ * State of `_meta/theme.css` and the fonts under `_meta/fonts/` of one scope,
+ * from the same cached loaders that serve them (`theme/stylesheet.ts`). The font
+ * set has real sizes: the listing carries none, so the loader reads the files —
+ * once per 5-minute cache window, shared with the font route.
+ */
+async function editorStylesheet(
+  deps: ThemeDeps,
+  scope: StylesheetScope,
+  log: FastifyRequest['log'],
+): Promise<EditorStylesheet> {
+  const [state, fonts] = await Promise.all([loadStylesheetState(deps, scope, log), loadFontSet(deps, scope, log)])
+  const hasFile = state.status === 'ok' || state.status === 'too_large' || state.status === 'invalid'
+  return {
+    status: state.status,
+    bytes: hasFile ? state.bytes : null,
+    sha: hasFile ? state.sha : null,
+    problems:
+      state.status === 'invalid' ? state.problems.map((p) => ({ code: p.code, line: p.line, message: p.message })) : [],
+    fonts: fonts.map((f) => ({ name: f.name, bytes: f.size, ok: f.problem === null })),
+  }
+}
 
 export function registerThemeEditorRoutes(app: FastifyInstance, deps: ThemeDeps): void {
   /** The personal theme scope needs the database and a session user (not an API token). */
@@ -201,6 +262,8 @@ export function registerThemeEditorRoutes(app: FastifyInstance, deps: ThemeDeps)
         let ownScope: LibraryScope
         let belowLayers: ThemeLayer[]
         let canWrite: boolean
+        // "Meine Einstellungen" has no stylesheet (a user has no repository).
+        let stylesheetScope: StylesheetScope | null = null
 
         if (kind === 'user') {
           if (!deps.db || !userScopeAvailable(req)) {
@@ -221,6 +284,7 @@ export function registerThemeEditorRoutes(app: FastifyInstance, deps: ThemeDeps)
           ownScope = { kind: 'instance' }
           belowLayers = []
           canWrite = await mayWrite(userId, instancePseudoSpace(cfg))
+          stylesheetScope = { kind: 'instance' }
         } else {
           if (!spaceId) {
             return reply.code(400).send({ status: 'invalid', reason: 'scope=space needs a space parameter.' })
@@ -236,6 +300,7 @@ export function registerThemeEditorRoutes(app: FastifyInstance, deps: ThemeDeps)
           ownScope = { kind: 'space', space }
           belowLayers = instanceLayers
           canWrite = await mayWrite(userId, space)
+          stylesheetScope = { kind: 'space', space }
         }
 
         const below = resolveTheme(belowLayers)
@@ -243,6 +308,7 @@ export function registerThemeEditorRoutes(app: FastifyInstance, deps: ThemeDeps)
           ? resolveTheme([...belowLayers, ...(await layersOf(deps, own, ownScope, req.log))])
           : below
         const contrast = await loadContrastConfig(deps, req.log)
+        const stylesheet = stylesheetScope ? await editorStylesheet(deps, stylesheetScope, req.log) : null
 
         return {
           scope,
@@ -259,6 +325,7 @@ export function registerThemeEditorRoutes(app: FastifyInstance, deps: ThemeDeps)
           note: contrast.note,
           findings: checkContrast(resolved, contrast.thresholds),
           rules: checkRules(resolved),
+          stylesheet,
         }
       },
     )

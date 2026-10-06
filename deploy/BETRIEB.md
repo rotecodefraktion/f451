@@ -120,6 +120,18 @@ weiter, `web` wiederum proxyt `/api`/`/auth`/`/admin`/`/media` intern an `api`
 | `F451_IMPRINT_URL`, `F451_PRIVACY_URL` | nein (für öffentliche Instanzen in DE faktisch ja) | — | Links to the legal notice and privacy policy, shown next to the attribution notice on every page including sign-in. |
 | `F451_CUSTOM_STYLESHEET` | nein | — | Same-origin path of an extra stylesheet loaded after f451's own CSS (base colour/font tokens, self-hosted `@font-face`). Serve it from the reverse proxy; example `deploy/demo/theme/`. |
 
+**Operator stylesheet vs. theme stylesheet.** `F451_CUSTOM_STYLESHEET` is the
+operator's file: a path on your own host, delivered by the reverse proxy,
+changed by redeploying. The *theme stylesheet* is `_meta/theme.css` (plus
+`_meta/fonts/*.woff2`) in the instance repository and in each space repository:
+it lives in Git, is served by the api under `/api/theme/stylesheet` and
+`/api/spaces/:space/theme/stylesheet`, is checked (no `@import`, restricted
+`url()`, at most 256 KB) and changes with a push or an upload on the settings
+page. Both can be used at once. The page loads the operator file first, then
+the instance's, then the space's, so the repository files win. If a theme
+stylesheet breaks the settings page, open it with `?ohne-stylesheet`. Details:
+Admin Guide, page *Theming*.
+
 ### Web (`deploy/wiki/docker-compose.yml`, Service `web`, BUILD-Zeit)
 
 | Variable | Pflicht | Default | Wirkung |

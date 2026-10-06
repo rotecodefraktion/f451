@@ -5,6 +5,7 @@ import { parse as parseYaml } from 'yaml'
 import type { SpaceConfig } from '../spaces/config.js'
 import { invalidateBrand, spaceBrandKey } from './brand-cache.js'
 import { invalidateLibrary, spaceLibraryKey } from './library-cache.js'
+import { invalidateStylesheet, spaceStylesheetKey } from './stylesheet-cache.js'
 
 /** Path of the theme file in a space repo (next to `_meta/schema.yaml`). */
 export const SPACE_THEME_PATH = '_meta/theme.yaml'
@@ -86,12 +87,13 @@ export async function loadSpaceTheme(
   return theme
 }
 
-/** Drops the cached theme, library (`_meta/themes/*`) and brand logo of one space;
- *  the next read for it goes to the repo again. */
+/** Drops the cached theme, library (`_meta/themes/*`), brand logo, stylesheet and
+ *  fonts of one space; the next read for it goes to the repo again. */
 export function invalidateSpaceTheme(spaceId: string): void {
   cache.delete(spaceId)
   invalidateLibrary(spaceLibraryKey(spaceId))
   invalidateBrand(spaceBrandKey(spaceId))
+  invalidateStylesheet(spaceStylesheetKey(spaceId))
 }
 
 /** Drops every cached space theme (e.g. after a contrast threshold change, Stage 4). */
