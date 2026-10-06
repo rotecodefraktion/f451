@@ -97,8 +97,31 @@ export function ComponentPreview({ resolved }: ComponentPreviewProps) {
         {/* Reading text: hanging number, paragraph in the measure, margin note, table, code. */}
         <div className="page-body">
           <h2>{t('settings.appearance.preview.sampleHeading')}</h2>
-          <p>{t('settings.appearance.preview.sampleParagraph')}</p>
-          <aside className="te-pv-note">{t('settings.appearance.preview.marginalNote')}</aside>
+          {/* Footnote in both forms of `--marginalia` (f451#63), the markup of
+              `placeFootnotes` and of GFM; `65-theme-editor.css` hides the one
+              the stage's `data-marginalia` does not choose. */}
+          <div className="note-host">
+            <aside className="note" role="note">
+              <a className="note__label">1</a> {t('settings.appearance.preview.sampleNoteText')}
+            </aside>
+            <p>
+              {t('settings.appearance.preview.sampleParagraph')}
+              <sup>
+                <a>1</a>
+              </sup>
+            </p>
+          </div>
+          <section className="footnotes" data-footnotes="">
+            <p className="footnotes-title"></p>
+            <ol>
+              <li>
+                <p>
+                  {t('settings.appearance.preview.sampleNoteText')}{' '}
+                  <a className="data-footnote-backref">↩</a>
+                </p>
+              </li>
+            </ol>
+          </section>
           <table>
             <thead>
               <tr>

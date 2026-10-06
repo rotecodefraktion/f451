@@ -827,18 +827,16 @@ export const catalog = {
     level: 'structure',
     group: 'Maß, Raster, Dichte',
     role: 'Breite der Marginalie. Korridor 160–320px: schmal genug, dass die Randspalte vor dem Satz abbricht, breit genug für ein lesbares Wort.',
-    settable: false,
-    lockReason:
-      'Randnotiz-Baustein noch nicht gebaut (rotecodefraktion/f451#63, Fußnoten als Randnotizen) — der Wert hätte keine Wirkung. Wird mit dem Baustein wieder frei.',
+    settable: true,
+    range: { kind: 'length', units: ['rem'], min: 10, max: 20 },
     emit: 'css',
   },
   '--layout-note-gap': {
     level: 'structure',
     group: 'Maß, Raster, Dichte',
     role: 'Abstand zwischen Satz und Marginalie. Korridor 0–2rem: Er verschiebt nur die Randspalte, nie den Satz.',
-    settable: false,
-    lockReason:
-      'Randnotiz-Baustein noch nicht gebaut (rotecodefraktion/f451#63, Fußnoten als Randnotizen) — der Wert hätte keine Wirkung. Wird mit dem Baustein wieder frei.',
+    settable: true,
+    range: { kind: 'length', units: ['rem'], min: 0, max: 2 },
     emit: 'css',
   },
   '--layout-note-x': {
@@ -998,7 +996,7 @@ export const catalog = {
     emit: 'css',
   },
 
-  // ---- Bausteine (12) — Bauart-Schalter, 2026-10-04-theming-struktur-1 ----
+  // ---- Bausteine (13) — Bauart-Schalter, 2026-10-04-theming-struktur-1 ----
   '--table-style': {
     level: 'structure',
     group: 'Bausteine',
@@ -1107,6 +1105,16 @@ export const catalog = {
     range: { kind: 'choice', values: ['disc', 'dash'] },
     emit: 'attribute',
     addedAfterMockup: 'Der Entwurf lässt dem Browser den Punkt; System/Raster und Werkbank setzen den Gedankenstrich.',
+  },
+  '--marginalia': {
+    level: 'structure',
+    group: 'Bausteine',
+    role: 'Fußnoten im Lesetext: margin als Randnotiz neben dem Absatz (in schmaler Spalte darunter), list als Fußnotenliste am Seitenende',
+    settable: true,
+    range: { kind: 'choice', values: ['margin', 'list'] },
+    emit: 'attribute',
+    addedAfterMockup:
+      'Der Entwurf setzt Randnotizen; Markdown hat dafür nur GFM-Fußnoten, deren Ort der Schalter bestimmt. System/Raster, Werkbank und die Anwendung vor 1.2.5 lassen sie am Ende.',
   },
 
   // ---- Rahmen (5) — Rahmenschalter, 2026-10-05-theming-struktur-2 ---------

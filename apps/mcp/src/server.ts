@@ -39,6 +39,7 @@ function createServer(): McpServer {
         'Schreiben läuft immer über den Review-Workflow und nie direkt auf die veröffentlichte Fassung: ' +
         'create_page oder edit_page legt einen Draft an, update_page_draft schreibt weitere Änderungen, ' +
         'request_review eröffnet die Review, release_page veröffentlicht. ' +
+        'GFM-Fußnoten (`Text[^1]` … `[^1]: Notiz`) werden unterstützt und als Randnotizen dargestellt. ' +
         'Beim Bearbeiten gilt ein SHA-Vertrag — den `baseSha` aus der jeweils letzten Antwort ' +
         'unverändert in den nächsten Schreibaufruf übernehmen; bei einem Konflikt (409) den ' +
         'mitgelieferten currentSha/currentContent als neue Basis nehmen. ' +

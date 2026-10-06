@@ -6,6 +6,33 @@ All notable changes to f451. The format follows
 to the HTTP API, the MCP tools, the page format or the configuration only come
 with a new major version.
 
+## [1.2.8] — 2026-10-06
+
+No breaking changes to the API, the MCP tools, the page format or the
+configuration. Footnotes stay standard GFM (`Text[^1]` … `[^1]: Note`).
+
+### Added
+- Margin notes from footnotes: with the new building-block switch
+  `marginalia: margin` (Editorial, Fokus, Klar & Warm) a footnote sits in the
+  margin next to the paragraph with its first reference; in a column narrower
+  than 32 rem, and on the phone, below that paragraph. The number in the text
+  jumps to the note and back.
+- `marginalia: list` (System / Raster, Werkbank, Rotecodefraktion): a styled
+  footnote list at the end of the page. Footnotes with more than one
+  paragraph, a list or a code block always go to this list.
+
+### Changed
+- `layout-note-w` (10–20 rem) and `layout-note-gap` (0–2 rem) are settable
+  again; they were locked since 1.2.5.
+
+### Fixed
+- The review diff shows footnote references as superscript numbers and
+  definitions as note blocks.
+
+### Known limitations
+- The editor still opens pages with footnotes in Markdown (source) mode only;
+  WYSIWYG support for footnotes is a separate issue.
+
 ## [1.2.7] — 2026-10-06
 
 No breaking changes to the API, the MCP tools, the page format or the

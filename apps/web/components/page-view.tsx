@@ -1,4 +1,4 @@
-import type { Classification } from '@f451/markdown'
+import { placeFootnotes, type Classification } from '@f451/markdown'
 import { Breadcrumb } from './breadcrumb'
 import { PageBody } from './page-body'
 import { ReadingPosition } from './reading-position'
@@ -7,7 +7,8 @@ import { UnarchiveButton } from './unarchive-button'
 import { takeLeadHeading } from '../lib/lead-heading'
 import { getT } from '../lib/i18n/server.js'
 import { buildBreadcrumb, formatUpdatedAt, sectionSlugs } from '../lib/page-view'
-import { getFrame } from '../lib/resolved-theme'
+import { placesFootnotes } from '../lib/footnotes-mode'
+import { getFrame, getSwitches } from '../lib/resolved-theme'
 import { wikiPageEditHref, wikiPageReleaseHref, wikiPageReviewHref, wikiPageVersionsHref } from '../lib/urls'
 
 /** Eine Überschrift der Seite (Shape aus `GET /api/pages/:id`, Feld `headings`). */
@@ -170,9 +171,12 @@ export async function PageView({ data }: { data: PageData }) {
   const titleMode = pageHead === 'title'
   // Title mode: a leading `# Heading` of the body becomes the title row and
   // leaves the body (never two h1); without one the frontmatter title is used.
-  const { headingHtml, rest: bodyHtml } = titleMode
+  const { headingHtml, rest: leadlessHtml } = titleMode
     ? takeLeadHeading(data.html)
     : { headingHtml: null, rest: data.html }
+  // Switch `--marginalia` (f451#63): `margin` moves single-paragraph notes
+  // next to their paragraph; `list` keeps the GFM end list as stored.
+  const bodyHtml = placesFootnotes(await getSwitches()) ? placeFootnotes(leadlessHtml) : leadlessHtml
 
   // Workflow status chip — in the head (`.toolbar`/`.doc-head`) and, with the
   // status bar on, again in the status bar.

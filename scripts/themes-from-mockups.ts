@@ -90,15 +90,15 @@ const SOURCES: readonly Source[] = [
  */
 const SHARED = { 'table-style': 'framed', 'card-top-rule': 'off', 'heading-depth': 'top', 'toc-style': 'bar', 'tree-guides': 'off' }
 const SWITCHES: Record<string, Record<string, string>> = {
-  fokus:            { ...SHARED, 'callout-style': 'box', 'button-primary': 'accent', 'chip-style': 'filled',       'heading-number': 'none',    'code-header': 'on',  'rail-blocks': 'plain', 'list-marker': 'disc',
+  fokus:            { ...SHARED, 'callout-style': 'box', 'button-primary': 'accent', 'chip-style': 'filled',       'heading-number': 'none',    'code-header': 'on',  'rail-blocks': 'plain', 'list-marker': 'disc', marginalia: 'margin',
                       topbar: 'off', 'page-head': 'title',   'pane-controls': 'edges',  'rail-scroll': 'sticky', 'status-bar': 'off' },
-  'klar-warm':      { ...SHARED, 'callout-style': 'box', 'button-primary': 'accent', 'chip-style': 'filled',       'heading-number': 'none',    'code-header': 'on',  'rail-blocks': 'cards', 'list-marker': 'disc',
+  'klar-warm':      { ...SHARED, 'callout-style': 'box', 'button-primary': 'accent', 'chip-style': 'filled',       'heading-number': 'none',    'code-header': 'on',  'rail-blocks': 'cards', 'list-marker': 'disc', marginalia: 'margin',
                       topbar: 'on',  'page-head': 'title',   'pane-controls': 'topbar', 'rail-scroll': 'sticky', 'status-bar': 'off' },
-  'system-raster':  { ...SHARED, 'callout-style': 'bar', 'button-primary': 'accent', 'chip-style': 'marker',       'heading-number': 'none',    'code-header': 'on',  'rail-blocks': 'plain', 'list-marker': 'dash',
+  'system-raster':  { ...SHARED, 'callout-style': 'bar', 'button-primary': 'accent', 'chip-style': 'marker',       'heading-number': 'none',    'code-header': 'on',  'rail-blocks': 'plain', 'list-marker': 'dash',   marginalia: 'list',
                       topbar: 'off', 'page-head': 'title',   'pane-controls': 'edges',  'rail-scroll': 'sticky', 'status-bar': 'off' },
-  werkbank:         { ...SHARED, 'callout-style': 'box', 'button-primary': 'accent', 'chip-style': 'outline-caps', 'heading-number': 'none',    'code-header': 'on',  'rail-blocks': 'cards', 'list-marker': 'dash',
+  werkbank:         { ...SHARED, 'callout-style': 'box', 'button-primary': 'accent', 'chip-style': 'outline-caps', 'heading-number': 'none',    'code-header': 'on',  'rail-blocks': 'cards', 'list-marker': 'dash',   marginalia: 'list',
                       topbar: 'on',  'page-head': 'toolbar', 'pane-controls': 'topbar', 'rail-scroll': 'own',    'status-bar': 'bottom' },
-  rotecodefraktion: { ...SHARED, 'callout-style': 'bar', 'button-primary': 'ink',    'chip-style': 'outline-caps', 'heading-number': 'numeral', 'code-header': 'off', 'rail-blocks': 'plain', 'list-marker': 'disc',
+  rotecodefraktion: { ...SHARED, 'callout-style': 'bar', 'button-primary': 'ink',    'chip-style': 'outline-caps', 'heading-number': 'numeral', 'code-header': 'off', 'rail-blocks': 'plain', 'list-marker': 'disc',   marginalia: 'list',
                       topbar: 'on',  'page-head': 'toolbar', 'pane-controls': 'edges',  'rail-scroll': 'own',    'status-bar': 'off' },
 }
 

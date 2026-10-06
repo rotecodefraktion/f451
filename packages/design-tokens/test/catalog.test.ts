@@ -64,6 +64,7 @@ describe('Katalog gegen den Referenzentwurf', () => {
       '--code-header',
       '--rail-blocks',
       '--list-marker',
+      '--marginalia',
       // Frame switches (2026-10-05-theming-struktur-2): the mockup hard-wires
       // one frame; the switch makes it a value.
       '--topbar',
@@ -101,7 +102,7 @@ describe('Katalog gegen den Referenzentwurf', () => {
       '--diagram-font-family',
       '--diagram-font-size',
     ])
-    expect(tokenNames).toHaveLength(149)
+    expect(tokenNames).toHaveLength(150)
   })
 
   it('teilt sie auf die Ebenen der Token-Architektur auf', () => {
@@ -110,7 +111,7 @@ describe('Katalog gegen den Referenzentwurf', () => {
     // Diagramm-Tokens (Theme 21 + 12 Farben, Struktur 70 + 14 Maße).
     expect(namesOfLevel('theme')).toHaveLength(33)
     expect(namesOfLevel('derived')).toHaveLength(13)
-    expect(namesOfLevel('structure')).toHaveLength(101)
+    expect(namesOfLevel('structure')).toHaveLength(102)
     expect(namesOfLevel('switch')).toHaveLength(2)
   })
 
@@ -130,7 +131,7 @@ describe('Katalog gegen den Referenzentwurf', () => {
       'Maß, Raster, Dichte': 27,
       'Linien, Radien, Bedienelemente': 11,
       'Fokus und Bewegung': 4,
-      Bausteine: 12,
+      Bausteine: 13,
       Rahmen: 5,
       Anzeigeschalter: 2,
       Diagramme: 26,
@@ -142,17 +143,18 @@ describe('Katalog gegen den Referenzentwurf', () => {
 })
 
 describe('Positivliste der Themefähigkeit', () => {
-  it('hält die Bilanz 137 setzbar / 12 gesperrt', () => {
+  it('hält die Bilanz 140 setzbar / 10 gesperrt', () => {
     // 84 aus dem Entwurf, dazu die beiden Nachträge der
     // Gliederungsnummerierung und der Diagrammrahmen — alle drei setzbar,
     // denn genau das ist ihr Zweck. Ebenso die 26 Diagramm-Tokens: Der Sinn
     // des Hausstils als Token ist, dass ein Betreiber ihn ändern kann, ohne
     // dass jemand Code anfasst (Nutzergeschichte 17). Dazu die neun
     // Korridor-Tokens (Zeilenlänge, Rasterbreiten, Bedienelementhöhe): setzbar
-    // nur innerhalb ihrer `range`.
+    // nur innerhalb ihrer `range`. Since 1.2.8 (f451#63) also the margin-note
+    // width and gap, and the --marginalia switch.
     const setzbar = tokenNames.filter((n) => catalog[n].settable)
-    expect(setzbar).toHaveLength(137)
-    expect(tokenNames.length - setzbar.length).toBe(12)
+    expect(setzbar).toHaveLength(140)
+    expect(tokenNames.length - setzbar.length).toBe(10)
   })
 
   it('every switch is a settable structure choice emitted as attribute', () => {
@@ -170,6 +172,7 @@ describe('Positivliste der Themefähigkeit', () => {
       '--code-header',
       '--rail-blocks',
       '--list-marker',
+      '--marginalia',
       '--topbar',
       '--page-head',
       '--pane-controls',
@@ -207,8 +210,6 @@ describe('Positivliste der Themefähigkeit', () => {
         '--layout-app-w',
         '--layout-edge-w',
         '--layout-hang',
-        '--layout-note-gap',
-        '--layout-note-w',
         '--layout-note-x',
         '--measure-full',
         '--space-0',

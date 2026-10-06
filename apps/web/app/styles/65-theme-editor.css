@@ -454,17 +454,14 @@
   background: var(--color-surface-hover);
 }
 
-/* Margin note: no block of its own exists yet; drawn at the note column's
-   width from the catalog (`--layout-note-w`). */
-.te-pv-note {
-  max-width: var(--layout-note-w);
-  margin: var(--space-0) var(--space-0) var(--rhythm);
-  padding-left: var(--space-3);
-  border-left: var(--rule-hair) solid var(--color-border-strong);
-  font-family: var(--font-sans);
-  font-size: var(--text-xs);
-  line-height: var(--leading-ui);
-  color: var(--color-text-muted);
+/* Footnote sample (f451#63): both forms stand in the markup, the stage's
+   `data-marginalia` picks one. In `list` only the note goes — the paragraph
+   with its reference stays, as it does on a real page. */
+.te-pv-stage[data-marginalia="list"] .note-host .note {
+  display: none;
+}
+.te-pv-stage[data-marginalia="margin"] .footnotes {
+  display: none;
 }
 
 /* Code lines with numbers in the gutter colour. */

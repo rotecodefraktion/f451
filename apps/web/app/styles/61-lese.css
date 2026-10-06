@@ -604,6 +604,16 @@
    `--tracking-*`, Gewichte `--weight-*`, Zeilenlänge `--measure`,
    Satzrhythmus `--rhythm`, Hängebreite `--layout-hang`.
    ------------------------------------------------------------------------- */
+/* Registered as a length (Editorial mockup, catalog `--layout-note-x`): only
+   then is the `ch` of `--measure` resolved where it is declared (`.page-body`)
+   and inherited as a fixed length — unregistered, the margin note would
+   resolve it in its own, smaller font. The initial value must be absolute;
+   `.page-body` overrides it at once. */
+@property --layout-note-x {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 0px;
+}
 .page-body {
   /* Serifensatz und Lesegröße aus dem Entwurf: `--text-md` ist die
      Fließtextstufe (fluid), `--leading-text` der Leseabstand. Bis hierher
@@ -625,6 +635,13 @@
   counter-reset: sec;
   /* Breite der Hängung; im Review-Diff auf 0 gesetzt, s. Ende der Datei. */
   --hang-w: var(--layout-hang);
+  /* Margin notes (f451#63): the reading text is the container the note
+     measures against (column, not window), and the start of the note column
+     is computed here, in the reading text's font, so `--measure` in `ch`
+     means the text's ch — see `@property --layout-note-x` above. */
+  container-type: inline-size;
+  container-name: doc;
+  --layout-note-x: calc(var(--measure) + var(--layout-note-gap));
 }
 .page-body > :first-child {
   margin-top: 0;
@@ -1383,6 +1400,98 @@
   height: 100%;
   border: 0;
   display: block;
+}
+
+/* ── Footnotes (switch `--marginalia`, f451#63) ────────────────────────────
+   `margin`: `placeFootnotes` (`packages/markdown/src/footnotes.ts`) wraps the
+   block holding the reference in `.note-host` and puts the note before it as
+   `aside.note`. Editorial mockup `.note`: the note floats right, directly next
+   to the text and not at the outer edge — its right margin is whatever is left
+   after the measure and the note column; when the column narrows it falls to
+   zero and the text flows round the note as in a book. Below a 32rem column
+   the note runs in the flow under its block (measured on the column, not the
+   window). `.note-host` itself keeps the `.page-body > *` width step; the
+   block inside keeps its own margins (bottom only, as every paragraph). */
+.page-body .note-host {
+  position: relative;
+}
+.page-body .note {
+  float: right;
+  clear: right;
+  width: var(--layout-note-w);
+  max-width: var(--layout-note-w);
+  margin: var(--space-1) 0 var(--space-5) var(--layout-note-gap);
+  margin-right: max(var(--space-0), calc(100% - var(--layout-note-x) - var(--layout-note-w)));
+  /* The exclusion area is the whole box with rule, padding and left gap: the
+     text must end before the rule, not run up to the note text. */
+  shape-outside: margin-box;
+  padding-left: var(--space-3);
+  border-left: var(--rule-hair) solid var(--color-border-strong);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  line-height: var(--leading-ui);
+  color: var(--color-text-muted);
+}
+.page-body .note__label {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-strong);
+  color: var(--color-accent);
+  margin-right: var(--space-1);
+  text-decoration: none;
+}
+.page-body .note:target {
+  background: var(--color-bg-sunken);
+}
+@container doc (max-width: 32rem) {
+  .page-body .note-host {
+    display: flex;
+    flex-direction: column;
+  }
+  /* Flex items do not collapse margins: the block keeps a small gap to its
+     note, the note takes over the paragraph rhythm to what follows. */
+  .page-body .note-host > :not(.note) {
+    margin-bottom: var(--space-3);
+  }
+  .page-body .note {
+    float: none;
+    order: 1;
+    width: auto;
+    max-width: var(--measure);
+    margin: 0 0 var(--rhythm);
+  }
+}
+
+/* `list` (and notes with block content in either mode): the GFM end list.
+   Its title is an empty `p.footnotes-title`; the text follows the interface
+   language via `--label-footnotes` (`app/layout.tsx`), like the alert titles.
+   The title is a `p`, so the heading counters (h2–h4) never see it. */
+.page-body .footnotes {
+  margin-top: var(--space-8);
+  padding-top: var(--space-4);
+  border-top: var(--rule-hair) solid var(--color-border);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  max-width: var(--measure);
+}
+.page-body .footnotes-title {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+.page-body .footnotes-title::before {
+  content: var(--label-footnotes);
+}
+.page-body .footnotes ol {
+  padding-left: var(--layout-hang);
+}
+.page-body .footnotes li p {
+  margin: 0 0 var(--space-2);
+}
+.page-body a.data-footnote-backref {
+  text-decoration: none;
+  color: var(--color-text-muted);
 }
 
 /* =========================================================================

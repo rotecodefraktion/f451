@@ -52,6 +52,11 @@ export async function getBrand(): Promise<ResolvedBrand | null> {
   return (await getResolvedTheme())?.brand ?? null
 }
 
+/** The resolved switches of the current request; empty when the theme could not be loaded. */
+export async function getSwitches(): Promise<Record<string, string>> {
+  return (await getResolvedTheme())?.switches ?? {}
+}
+
 /** The frame of the current request; Editorial defaults when the theme could not be loaded. */
 export async function getFrame(opts: { hasTree: boolean }): Promise<FrameShape> {
   return frameShape((await getResolvedTheme())?.switches, opts)

@@ -216,6 +216,29 @@ describe('diffMarkdown: mdLines (diffLines über das volle Dokument, inkl. Front
   })
 })
 
+describe('diffMarkdown: footnotes (blocks are rendered one by one)', () => {
+  it('an added block with a reference shows a fn-ref marker instead of literal [^1]', () => {
+    const diff = diffMarkdown('Intro.\n', 'Intro.\n\nAdded with a note.[^1]\n\n[^1]: The note text.\n')
+    expect(diff.blocks.map((b) => b.kind)).toEqual(['same', 'added', 'added'])
+    expect(diff.blocks[1].html).toContain('<sup class="fn-ref">1</sup>')
+    expect(diff.blocks[1].html).not.toContain('[^1]')
+  })
+
+  it('an added definition block renders .fn-def with its text', () => {
+    const diff = diffMarkdown('Intro.\n', 'Intro.\n\nAdded with a note.[^1]\n\n[^1]: The note text.\n')
+    const html = diff.blocks[2].html
+    expect(html).toContain('<div class="fn-def"><sup>1</sup>')
+    expect(html).toContain('The note text.')
+  })
+
+  it('a removed definition block renders .fn-def with its text', () => {
+    const diff = diffMarkdown('Intro.\n\n[^1]: Gone note.\n', 'Intro.\n')
+    expect(diff.blocks.map((b) => b.kind)).toEqual(['same', 'removed'])
+    expect(diff.blocks[1].html).toContain('<div class="fn-def"><sup>1</sup>')
+    expect(diff.blocks[1].html).toContain('Gone note.')
+  })
+})
+
 describe('diffMarkdown: opts.resolveLink/resolveImage', () => {
   it('wird für same/added/removed-Blöcke verwendet (nicht für den Wort-Diff, der die Quelle zeigt)', () => {
     const diff = diffMarkdown('Intro.\n', 'Intro.\n\nSiehe [[ziel]].\n', {

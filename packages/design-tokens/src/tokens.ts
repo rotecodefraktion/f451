@@ -222,6 +222,7 @@ const designStructure: StructureValues = {
   '--code-header': 'off',
   '--rail-blocks': 'rules',
   '--list-marker': 'dash',
+  '--marginalia': 'margin',
 
   // Frame switches (group „Rahmen"): the Editorial frame — no top bar, title
   // row, edge grips, sticky rail, no status bar. The 1.2.5 frame lives on in

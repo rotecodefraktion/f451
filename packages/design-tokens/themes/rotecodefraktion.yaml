@@ -18,6 +18,7 @@ base:
   code-header: 'off'
   rail-blocks: 'plain'
   list-marker: 'disc'
+  marginalia: 'list'
   topbar: 'on'
   page-head: 'toolbar'
   pane-controls: 'edges'
