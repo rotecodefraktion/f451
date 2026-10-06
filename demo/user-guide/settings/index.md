@@ -8,7 +8,8 @@ lang: en
 
 # Settings
 
-The account menu (your avatar, top right) opens **Settings**. Two pages live
+The account menu (your avatar, top right in the top bar; at the foot of the
+page tree when the theme has no top bar) opens **Settings**. Two pages live
 there: **Connections** for the Git accounts and tokens that act as you, and
 **Appearance** for how f451 looks — for you, for a space or for the whole
 installation.

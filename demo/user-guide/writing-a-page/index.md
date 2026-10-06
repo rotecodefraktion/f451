@@ -25,18 +25,26 @@ open its draft. For a new page you choose a **Title**, a **Parent page**
 (the current page or the space root), and optionally a **Template** to
 start from (see [[templates-and-metadata]]).
 
+If the theme uses the title row (see [[reading-and-navigating]]), a
+`# heading` at the very start of the body is shown as the page's title and
+does not appear again in the body; without one, the frontmatter `title` is
+used.
+
 Creating a draft creates a branch behind the scenes — you do not need to
 know anything about Git to work with it.
 
 ## 2. Write
 
-The editor autosaves as you go; the status bar shows **Saving …** and
-then **Last saved …**, or **Not saved yet** for a brand-new draft. You
+The editor autosaves as you go; the editor's own status bar (not the
+page-reading status bar at the bottom of the page, which shows status and
+section) shows **Saving …** and then **Last saved …**, or **Not saved
+yet** for a brand-new draft. With the bottom status bar switched on, the
+save status appears there. You
 can also save explicitly with **Save (⌘S)**. If the connection drops,
 your changes are kept locally in the browser until it comes back —
 nothing is silently lost.
 
-From the same status bar you can **Discard** the draft, **Reset to last
+From the editor's status bar you can **Discard** the draft, **Reset to last
 release**, go **Back to reading view**, **Save as template …**, or
 **Export as Markdown**. **Delete page** removes the page from the
 repository entirely.

@@ -25,15 +25,36 @@ The field at the top of the list, **Filter pages**, narrows the tree as you
 type: only pages whose title contains the text stay visible, together with
 the folders above them. Press **Escape** to clear the field.
 
-Without a top bar (the default look), search, space switcher, language,
-theme and account sit at the top and bottom of the page tree instead; when
-the tree is closed, a magnifier on the left edge opens the search.
+Without a top bar (the default Editorial look), brand, space switcher and
+search sit at the top of the page tree; language, light/dark and account at
+its foot. When the tree is closed, a magnifier on the left edge opens the
+search; **⌘K** always does. The templates Klar & Warm, Werkbank and
+Rotecodefraktion have a top bar, and so do pages without a tree, such as the
+graph.
 
 ## Breadcrumbs and the running position
 
 Every page shows its breadcrumb trail above the title, so you always
 know which space and which parent page you are under. While you scroll
 a long page, a running indicator shows which section you are in.
+
+## Title row
+
+With the frame switch **page head: title**, the page starts with a title
+row. If the page's body begins with a `# heading`, that heading becomes the
+title and leaves the body; otherwise the title from the frontmatter is
+used.
+
+## Pane toggles and status bar
+
+With **pane controls: top bar**, the buttons that open and close the page
+tree and the info panel sit in the top bar instead of on the panels' edges.
+This needs the top bar to be on.
+
+With **status bar: bottom**, a bar at the foot of the page shows the status
+chip, **Updated** and **Section x of y**. It is hidden on a phone. (In the
+editor, the bottom bar shows the save status instead; see
+[[writing-a-page]].)
 
 ## The info panel
 

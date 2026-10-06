@@ -50,6 +50,18 @@ from `packages/design-tokens`. See [[markdown-and-editor]] for the
 package's counterpart on the content side, and [[extending]] for the steps
 to add a token.
 
+### Switches, frame and theme stylesheets
+
+Building-block and frame switches reach the page as `data-<name>` attributes
+on `<html>` (only values that differ from Editorial); the stylesheets branch on
+them. The frame switches change markup: `frameShape(switches, { hasTree })` in
+`apps/web/lib/frame-shape.ts` decides from the resolved `switches` whether the
+layout renders the top bar, the title row (leading `#` heading or frontmatter
+title), the status bar and the page tree's filter and search field. Pages
+without a tree always get the top bar. The root layout also links the theme
+stylesheets (`stylesheets` from the resolved theme) after
+`F451_CUSTOM_STYLESHEET`. Details in [[theme-templates]].
+
 > [!NOTE]
 > `packages/design-tokens/src/catalog.ts` separates *values* (`tokens.ts`)
 > from *description* (`catalog.ts`: which settings-page group a token

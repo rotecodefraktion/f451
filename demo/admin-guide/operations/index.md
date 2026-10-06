@@ -38,6 +38,14 @@ reindexes just one. The response reports success or failure per space —
 > network/fetch panel with the session cookie present), not from a bare
 > terminal.
 
+## Theme caches
+
+The api caches themes, templates, thresholds, brand files, theme stylesheets
+and fonts for 5 minutes. A save through the api and a webhook push that
+touches one of these files empty the cache; without a webhook, a change made
+directly in Git shows up after at most five minutes. Details are on the
+[[theming]] page, section *Caches*.
+
 ## Troubleshooting playbook
 
 | Symptom | Likely cause |

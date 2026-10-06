@@ -10,8 +10,10 @@ lang: en
 
 ## Search
 
-Press **⌘K** (Ctrl+K on Windows/Linux) anywhere, or pick **Search** from
-a space's sidebar, to open the search dialog. Start typing to search
+Press **⌘K** (Ctrl+K on Windows/Linux) anywhere, use the search field at
+the top of the page tree (in themes with a top bar: the field in the top
+bar), or pick **Search** from a space's sidebar, to open the search
+dialog. When the tree is closed, the magnifier on the left edge opens it. Start typing to search
 full text across the spaces you have access to; results update as you
 type.
 
