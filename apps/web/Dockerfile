@@ -27,6 +27,11 @@ COPY --from=build /repo/apps/web/.next/standalone ./
 COPY --from=build /repo/apps/web/.next/static ./apps/web/.next/static
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
+# Release version shown in the attribution notice (components/attribution.tsx),
+# read at runtime. Declared in this stage, not the build stage: ARG/ENV do not
+# cross stages, and a new version then does not invalidate the build cache.
+ARG F451_VERSION=dev
+ENV F451_VERSION=$F451_VERSION
 EXPOSE 3000
 USER node
 CMD ["node", "apps/web/server.js"]

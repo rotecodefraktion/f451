@@ -324,6 +324,9 @@ maintenance() {  # on | off
 
 deploy() {
   say "Build, migrate, start"
+  # Release version for the attribution notice: the latest tag on main, else "dev".
+  F451_VERSION="$(git -C "$REPO" describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || true)"
+  export F451_VERSION="${F451_VERSION:-dev}"
   compose build web api mcp
   compose up -d postgres forgejo caddy
   maintenance on
