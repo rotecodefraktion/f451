@@ -327,6 +327,7 @@ deploy() {
   # Release version for the attribution notice: the latest tag on main, else "dev".
   F451_VERSION="$(git -C "$REPO" describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || true)"
   export F451_VERSION="${F451_VERSION:-dev}"
+  say "Version $F451_VERSION"
   compose build web api mcp
   compose up -d postgres forgejo caddy
   maintenance on
@@ -357,7 +358,9 @@ case "${1:-}" in
       "$READER_USER" "$(env_get DEMO_READER_PASSWORD)" "$WRITER_USER" "$(env_get DEMO_WRITER_PASSWORD)" "$WRITABLE_SPACE"
     ;;
   update)
-    git -C "$REPO" fetch -q origin main
+    # --tags: the release tag is pushed after its commit; a fetch that already has the
+    # commit does not auto-follow the tag, and the attribution notice would say "dev".
+    git -C "$REPO" fetch -q --tags origin main
     deployed="$(cat "$(dirname "$DEMO_ENV")/deployed-commit" 2>/dev/null || true)"
     target="$(git -C "$REPO" rev-parse origin/main)"
     if [ "$deployed" = "$target" ] && [ "${2:-}" != "--force" ]; then exit 0; fi

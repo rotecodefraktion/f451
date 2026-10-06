@@ -101,7 +101,7 @@ export default async function Home({ searchParams }: HomeProps) {
         ))}
         {note ? <SignInNote text={note} /> : null}
         <p className="foot">{t('settings.login.foot')}</p>
-        <Attribution />
+        <Attribution legal />
       </div>
     </main>
   )

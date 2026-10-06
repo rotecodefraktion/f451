@@ -9,10 +9,11 @@ import { AUTHOR_SITE_LABEL, AUTHOR_SITE_URL, F451_REPO_URL } from '../lib/attrib
  * page, so it is visible wherever people work.
  *
  * Operators add their legal notice and privacy policy with F451_IMPRINT_URL /
- * F451_PRIVACY_URL (runtime env); both appear right below, on every page that
- * shows the notice — including the public sign-in page.
+ * F451_PRIVACY_URL (runtime env). Where the shell renders, they are icon
+ * buttons next to the light/dark toggle (`LegalLinks`); only the sign-in page,
+ * which has no top bar, passes `legal` to show them as text links right below.
  */
-export async function Attribution() {
+export async function Attribution({ legal: showLegal = false }: { legal?: boolean } = {}) {
   const { t } = await getT()
   // Build argument of the web image (apps/web/Dockerfile); "dev" marks an
   // unreleased build and is shown as well, so operators can tell.
@@ -34,7 +35,7 @@ export async function Attribution() {
         {AUTHOR_SITE_LABEL}
       </a>
     </p>
-    {legal.length > 0 ? (
+    {showLegal && legal.length > 0 ? (
       <p className="attribution legal">
         {legal.map((l, i) => (
           <span key={l.href}>
