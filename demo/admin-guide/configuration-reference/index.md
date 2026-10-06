@@ -34,6 +34,16 @@ the instance repository, which holds `_meta/theme.yaml`, `_meta/themes/`,
 as `F451_GLOBAL_TEMPLATES`, and its provider must also be used by a space in
 `F451_SPACES`. Invalid JSON fails at startup. See [[theming]].
 
+| Variable | Required when | Default |
+|---|---|---|
+| `F451_CUSTOM_STYLESHEET` | The operator wants one CSS file for the whole installation | — (none) |
+
+`F451_CUSTOM_STYLESHEET` is the path of a CSS file on the host that runs the
+web container. It is linked in the `<head>` **before** the instance and space
+theme stylesheets, so those can override it; `?ohne-stylesheet` leaves it in
+place. Like them it is not checked. See [[theming]], section *Theme
+stylesheet*, and `deploy/BETRIEB.md`.
+
 ## Sign-in (OIDC)
 
 See [[sign-in-options]], [[entra-id]], [[forgejo-identity-provider]].

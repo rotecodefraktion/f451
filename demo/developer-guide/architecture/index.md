@@ -82,14 +82,17 @@ future routes.
 Instance and space themes are files, not rows: `_meta/theme.yaml`,
 `_meta/themes/<slug>.yaml`, `_meta/brand/` in the space repository, and in
 the instance repository named by `F451_INSTANCE_CONFIG` also
-`_meta/contrast.yaml`. The api reads them with a five-minute cache that
-writes and webhook pushes empty.
+`_meta/contrast.yaml`. Either repository may also hold `_meta/theme.css` (the
+theme stylesheet) and `_meta/fonts/` (its WOFF2 fonts). The api reads them
+with a five-minute cache that writes and webhook pushes empty.
 
 One resolver in `packages/design-tokens` turns a list of levels (default,
 instance, space, user) into the full token set, with an origin per token, the
 derived colours and the contrast check. The shipped default and the layout's
-inline `<style>` go through the same code, so there is no second way for
-values to become CSS; see [[web-frontend]].
+inline `<style>` go through the same code, so theme values have one way to
+become CSS; see [[web-frontend]]. The theme stylesheet is the deliberate
+second way: free CSS, checked only for forbidden constructs and without any
+design checks.
 
 The single exception to "nothing lives only in the database" is
 `user_settings`: the personal theme, one row per user. A user has no

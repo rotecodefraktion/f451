@@ -49,8 +49,19 @@ A switch is a catalog token with `range: { kind: 'choice', values: […] }` and
 A switch creates **no CSS variable**. `toAttributes(resolved)` returns a
 `data-<name>` attribute for every switch whose value differs from Editorial
 (the first value of `values`); `GET /api/theme/resolved` delivers them as
-`attributes`, the root layout writes them on `<html>`. The settings page's
-preview carrier does the same on the preview element.
+`attributes` (only the deviations) and as `switches` (the full set, which the
+Server Components read for the frame); the root layout writes `attributes` on
+`<html>`. The settings page's preview carrier does the same on the preview
+element.
+
+**Migration.** Files from before 1.2.5 are read in the new form:
+`heading-number: counter(sec) '.'` becomes `numeral`, and `heading-number-sub`
+becomes `heading-depth`, each with the warning `value_migrated`; the next save
+writes the new form.
+
+**Locked.** `layout-note-w` and `layout-note-gap` are locked until margin
+notes exist ([#63](https://github.com/rotecodefraktion/f451/issues/63)); a
+file that sets them is rejected on save and ignored on read.
 
 The stylesheets branch on the attribute and follow one pattern: one rule per
 value sets **private `--_…` custom properties** on the carrier; the block
@@ -121,6 +132,25 @@ Built-in templates are generated, not written by hand.
 
 Built-ins cannot be overwritten or deleted through the api; their slugs are
 reserved.
+
+## Adopting and saving templates in the settings page
+
+The pure functions live in `apps/web/lib/theme-editor.ts`, so they are testable
+without the page:
+
+- `adoptTemplate(draft, template)` replaces the draft's `base`, `light` and
+  `dark` values with the template's. `use` stays, so the template remains
+  selected; it works for built-in and own templates alike.
+- `embedTemplate(draft, template)` merges the template under the draft's own
+  values and drops `use` — a template saved from "Fokus plus two colours" really
+  contains Fokus.
+- `templateFile(draft, name, template)` builds the file for **Save as
+  template …**: `embedTemplate` if a template is chosen, then `name`, with no
+  `use` and no `brand`.
+- `templateState(data, draft, templates)` says what applies, for the select and
+  the line below it: the draft's own template, "Own settings (no template)",
+  and "Underneath" — template "X" (instance), own settings (instance), or the
+  Editorial default, taken from `data.belowLayers`.
 
 ## Theme stylesheet
 

@@ -197,15 +197,26 @@ colours keeps that look.
 
 Built-ins cannot be edited, but they can be copied: on the appearance page
 choose the scope (instance or space), pick the built-in in **Template**,
-press **Adopt template** — the template's values replace the draft's, the template
-selection is cleared — change what you like, then **Save as template …**
+press **Adopt template** — the template's base, light and dark values replace
+the draft's and the template stays selected (this works for any template,
+built-in or your own) — change what you like, then **Save as template …**
 with a name and slug. The new file in `_meta/themes/` holds everything the
-built-in set, the twelve switches included, and no `use`. **Save as
+built-in set, the twelve switches included, and no `use` and no brand. **Save as
 template …** always embeds the chosen template this way, so a template saved
 from "Fokus plus two colours" really contains Fokus.
 
 Rotecodefraktion, the demo theme, is exactly such a template: the
 construction f451 had before 1.2.5 with its own colours and typefaces.
+
+## Upgrading to 1.2.5–1.2.7
+
+From 1.2.5 on, the default look and, from 1.2.6, the default frame follow the
+Editorial mockup: an instance without a theme of its own looks different after
+the update (no top bar, new building blocks). To keep the earlier look, put
+`use: rotecodefraktion` into `_meta/theme.yaml`, plus your own colours if you
+had any. Old values are migrated on read (see *Building blocks*); no manual
+step is needed. 1.2.7 adds the theme stylesheet; nothing changes for
+repositories without a `_meta/theme.css`.
 
 ## Create your own template
 
@@ -306,7 +317,8 @@ The CSP is unchanged: everything is served same-origin from `/api`.
 The stylesheet also applies to the appearance page and to the
 building-block preview. If a file breaks the page you would use to remove it,
 open `/einstellungen/erscheinungsbild?ohne-stylesheet`: the view leaves out
-all theme stylesheets (the strip links it as "Show without stylesheet"). Then
+the instance and space stylesheets (the strip links it as "Show without
+stylesheet"); the operator stylesheet `F451_CUSTOM_STYLESHEET` stays. Then
 press **Remove stylesheet**, or fix the file in Git.
 
 ## Contrast thresholds
@@ -340,7 +352,9 @@ thresholds:
 note: Raised after the tints were remixed in Q4.
 ```
 
-Allowed range is 1.5–7.0 per role; there is no "off". `note` is free text up
+On the appearance page the thresholds block (**Prüfschärfe**) is collapsed by
+default; it opens by itself only when thresholds are lowered. Allowed range is
+1.5–7.0 per role; there is no "off". `note` is free text up
 to 500 characters, shown next to the values as text. Thresholds apply to the
 whole instance and cannot be set per space — otherwise the most careless
 space would set the standard. Lowering a threshold turns a refused save into
