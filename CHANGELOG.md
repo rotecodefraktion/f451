@@ -6,6 +6,14 @@ All notable changes to f451. The format follows
 to the HTTP API, the MCP tools, the page format or the configuration only come
 with a new major version.
 
+## [1.2.10] — 2026-10-07
+
+### Fixed
+- Wikilinks resolve by page id first, as the editor stores them (`[[my-settings]]`);
+  until now a nested page was only found by its root-relative path or its title, so
+  links to pages below the first folder level were reported as unresolvable. A
+  reindex (`POST /admin/reindex`) or the next push rebuilds the affected pages.
+
 ## [1.2.9] — 2026-10-06
 
 No breaking changes to the API, the MCP tools, the page format or the
