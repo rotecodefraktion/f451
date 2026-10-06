@@ -48,7 +48,7 @@ const isAside = (n: N) => n.tagName === 'aside' && classes(n).includes('note')
 const isHost = (n: N) => n.tagName === 'div' && classes(n).includes('note-host')
 
 describe('renderHtml: GFM footnote section', () => {
-  const fixture = readFileSync(new URL('./fixtures/footnotes.md', import.meta.url), 'utf8')
+  const fixture = readFileSync(new URL('./fixtures/canonical/footnotes.md', import.meta.url), 'utf8')
   const root = tree(render(fixture))
 
   it('renders an empty p.footnotes-title inside section[data-footnotes] and no h2', () => {

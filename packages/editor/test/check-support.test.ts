@@ -86,7 +86,7 @@ describe('checkEditorSupport', () => {
   })
 
   it('Kombination: unsupported + frontmatter gleichzeitig -> canEdit false, beide Findings vorhanden', () => {
-    const markdown = '---\ntags: kein-array\n---\nText mit Fußnote[^1].\n\n[^1]: Erklärung.\n'
+    const markdown = '---\ntags: kein-array\n---\n<div>x</div>\n'
     const report = checkEditorSupport(markdown)
 
     expect(report.canEdit).toBe(false)
@@ -94,11 +94,10 @@ describe('checkEditorSupport', () => {
     expect(report.findings).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ kind: 'frontmatter' }),
-        expect.objectContaining({ kind: 'unsupported', nodeType: 'footnoteReference' }),
-        expect.objectContaining({ kind: 'unsupported', nodeType: 'footnoteDefinition' }),
+        expect.objectContaining({ kind: 'unsupported', nodeType: 'html' }),
       ]),
     )
-    expect(report.findings).toHaveLength(3)
+    expect(report.findings).toHaveLength(2)
   })
 
   it('Dokument mit Frontmatter ohne Fehler und kanonischem Body: keine Findings', () => {

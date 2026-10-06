@@ -65,15 +65,16 @@ Eingaben werden dabei **normalisiert** (nicht verworfen):
 
 ## Nicht unterstützte Syntax
 
-Diese fünf mdast-Knotentypen lassen sich nicht auf das Editor-Schema abbilden
-(`markdownToDoc` wirft, `checkEditorSupport` meldet sie als `unsupported`):
+These mdast node types cannot be mapped onto the editor schema
+(`markdownToDoc` throws, `checkEditorSupport` reports them as `unsupported`):
 
-- rohes HTML (Block **und** Inline, `html`)
-- Fußnoten-Referenzen (`footnoteReference`)
-- Fußnoten-Definitionen (`footnoteDefinition`)
-- Referenz-Definitionen (`[label]: /url`, `definition`)
-- Referenz-Links/-Bilder (`[Text][label]`/`![Alt][label]`, `linkReference`/
+- raw HTML (block **and** inline, `html`)
+- reference definitions (`[label]: /url`, `definition`)
+- reference links/images (`[Text][label]`/`![Alt][label]`, `linkReference`/
   `imageReference`)
+
+GFM footnotes (`[^label]` and `[^label]: …`) are supported since 1.2.9 as the
+`footnoteReference` and `footnoteDefinition` nodes.
 
 Ein Dokument mit einem dieser Konstrukte kann weiterhin im **Roh-Text-Modus**
 bearbeitet werden — nur der WYSIWYG-Moduswechsel wird verweigert (s. u.).
@@ -112,7 +113,7 @@ interface SupportFinding {
 
 | `kind`          | Bedeutung                                                                              | `canEdit` | `canonicalBody` |
 | --------------- | --------------------------------------------------------------------------------------- | --------- | ---------------- |
-| `unsupported`   | Rohes HTML, Fußnoten, Referenz-Links/-Bilder/-Definitionen — nicht abbildbar.            | `false`   | nie gesetzt       |
+| `unsupported`   | Raw HTML, reference links/images/definitions — cannot be mapped (footnotes are supported since 1.2.9). | `false`   | nie gesetzt       |
 | `normalization` | Roundtrip verändert Bytes (andere Bullets, Setext-Headings, …), aber alles ist abbildbar. | `true`    | gesetzt           |
 | `frontmatter`   | Schemafehler aus `parsePage` (z. B. `"tags: muss eine Liste von Strings sein"`).         | `true`    | nie gesetzt       |
 
