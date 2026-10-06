@@ -83,7 +83,9 @@ files are public, because the layout needs them before sign-in.
 | `GET` / `PUT` / `DELETE /api/theme` | Instance theme with origin per token |
 | `GET` / `PUT` / `DELETE /api/spaces/:space/theme` | Space theme |
 | `GET` / `PUT` / `DELETE /api/me/theme` | Personal theme. Session only — API tokens get `403`. `?format=yaml` exports; `PUT` with `Content-Type: application/yaml` imports. Without a stored theme `GET` answers `200` with an empty one. |
-| `GET /api/theme/resolved?space=` | The finished chain (default, instance, space, user) plus `brand`. Without a session the user level is missing, without `space` the space level. |
+| `GET /api/theme/resolved?space=` | The finished chain (default, instance, space, user). Fields: `css`, `origin` (per token), `brand`, `layers`, `attributes` (the switches that deviate from Editorial), `switches` (the full set) and `stylesheets` (URLs of the theme stylesheets, in order). Without a session the user level is missing, without `space` the space level. |
+| `GET` / `PUT` / `DELETE /api/theme/stylesheet`, `/api/spaces/:space/theme/stylesheet` | Theme stylesheet (`_meta/theme.css`). `GET` is public (`text/css`, ETag); `PUT` (body: CSS) and `DELETE` commit with the caller's account; a rule violation answers `422` with `errors[]` (code, line) |
+| `GET /api/theme/fonts/:name`, `/api/spaces/:space/theme/fonts/:name` | A WOFF2 font from `_meta/fonts/`; added through Git only |
 | `GET /api/theme/scopes` | The scopes the caller may view or write |
 | `GET /api/theme/editor?scope=` | What the settings page needs for one scope |
 | `GET` / `PUT` / `DELETE /api/theme/contrast` | Contrast thresholds, instance only |

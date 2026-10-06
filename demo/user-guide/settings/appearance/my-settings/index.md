@@ -44,12 +44,29 @@ loads such a file and saves it as your theme. If this browser still holds
 adjustments from before personal themes existed, the page offers once to
 take them over.
 
-You can take a built-in template over into your own settings with **Adopt
-template** (it replaces your current values) and download the result as a complete YAML file.
+You can take any template over into your own settings — a built-in one or
+one of your own — with **Adopt template**. It replaces the base, light and
+dark values of your draft with the template's and **keeps the template
+selected**, so you can then change values one by one and download the
+result as a complete YAML file.
 
-Below the **Template** list a line "Underneath: …" says what your values
-lie on: a template (with its origin, instance or space), the instance's or
-space's own settings, or the Editorial default.
+The **Template** list always shows what applies: the selected template, or
+"Own settings (no template)". Below it a line "Underneath: …" says what
+your values lie on: a template (with its origin, instance or space), the
+instance's or space's own settings, or the Editorial default.
+
+## Building blocks and frame
+
+Besides colours, sizes and fonts, the page offers **switches** that choose
+between ready-made variants: twelve **building-block** switches (table
+style, callout style, card top rule, primary button, chip style, heading
+numbers and depth, table-of-contents style, tree guides, code header, rail
+blocks, list marker) and the **frame** switches in the group **Rahmen**.
+The table of building blocks is in the Admin Guide, page *Theming*.
+
+Frame switches change the page's structure, so they take effect only after
+you have saved. One rule connects two of them: **pane controls in the top
+bar** need the top bar to be on; otherwise saving is rejected.
 
 ## Reset
 

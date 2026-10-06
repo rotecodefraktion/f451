@@ -23,8 +23,9 @@ Instance and space themes are files in their repositories
 (`_meta/theme.yaml`). Saving there writes with your linked account and
 needs **push right** on that repository. Without it the scope is read
 only. **Remove theme** deletes the theme file of the instance; in a space
-the button reads **Reset to instance theme** and does the same for the
-space's file, so the space shows the instance's look again.
+the button reads **Reset to instance theme** and deletes the space's
+`_meta/theme.yaml`, so the space shows the instance's look again. A note
+on the page tells you when the space has a theme of its own.
 For an instance or space theme, a colour below the contrast threshold
 blocks saving; see [[contrast]].
 
@@ -33,15 +34,33 @@ blocks saving; see [[contrast]].
 The **Template** list above the table starts you from a ready-made set:
 the five built-in ones (fokus, klar-warm, system-raster, werkbank,
 rotecodefraktion), those of the instance, and in a space those of the
-space. Your own values lie on top of the template. **Adopt template**
-replaces your draft's values with the template's and clears the selection, so you
-can change them one by one; **Save as template …** stores the chosen
-template's values together with yours (not in My settings). The line
-"Underneath: …" under the list names what your draft lies on. The group
-**Rahmen** takes effect only after saving.
+space. Your own values lie on top of the template. The list always shows
+what applies: the selected template or "Own settings (no template)", and a
+line "Underneath: …" names what your draft lies on — template "X"
+(instance), own settings (instance), or the Editorial default.
+
+To start from a template and change it:
+
+1. Choose the template in the **Template** list.
+2. Press **Adopt template**. It replaces the draft's base, light and dark
+   values with the template's and **keeps the template selected**; this
+   works for any template, built-in or your own.
+3. Change values row by row, then **Save**.
+
+To keep your result as a template of its own:
+
+1. Choose the template your values should lie on.
+2. Press **Save as template …** and give it a name. The saved file embeds
+   the chosen template's values under yours; it has no `use:` and no brand.
+   (Not available in My settings.)
 
 A template can then be used from the theme with `use:`; how to create and
-apply your own is described in the Admin Guide, page *Theming*.
+apply your own is described in the Admin Guide, page *Theming*. The group
+**Rahmen** takes effect only after saving.
+
+Without a theme of its own, an instance shows the **Editorial default**
+(no top bar, see [[reading-and-navigating]]). For the look before 1.2.5
+choose the template `rotecodefraktion`.
 
 ## Stylesheet
 
@@ -53,7 +72,10 @@ valid or missing). **Upload stylesheet** and **Remove stylesheet** change the
 file; fonts come only through Git. A file that breaks the rules is not
 loaded, and the strip lists the problems with their line. The stylesheet
 applies to every page, this one and the building-block preview included; if
-it breaks the page, **Show without stylesheet** opens it without. Your
+it breaks the page, **Show without stylesheet** opens it without; you can
+also add `?ohne-stylesheet` to the address yourself
+(`/einstellungen/erscheinungsbild?ohne-stylesheet`). The operator's own
+stylesheet stays in place. Your
 personal settings have no stylesheet.
 
 ## Brand

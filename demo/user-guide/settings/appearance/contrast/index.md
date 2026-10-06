@@ -43,3 +43,7 @@ The report is the complete list of values below AA, for everyone who can
 change them — and the basis for an accessibility statement. The
 thresholds themselves are set by the instance operator (Admin Guide, page
 *Theming*).
+
+In the instance and space themes the block with the thresholds
+(**Prüfschärfe**) is collapsed by default. It opens by itself only when the
+thresholds have been lowered.

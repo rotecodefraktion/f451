@@ -44,6 +44,23 @@ the same underlying file. See [[editor-reference]].
 The editor keeps your changes locally in the browser until the
 connection comes back, so nothing you typed is lost.
 
+**Where is the top bar?**
+The default Editorial look has none: brand, space switcher and search sit
+at the top of the page tree, language, light/dark and account at its foot.
+Templates such as Klar & Warm, Werkbank and Rotecodefraktion bring the top
+bar back, and pages without a tree (the graph) always have it. See
+[[reading-and-navigating]].
+
+**A stylesheet broke the page — how do I remove it?**
+Open `/einstellungen/erscheinungsbild?ohne-stylesheet`. The settings page
+then loads without the instance and space stylesheets, and you can remove
+the faulty one under **Stylesheet**. See [[instance-and-space]].
+
+**Why does a frame change only show after saving?**
+Frame switches (top bar, page head, pane controls, status bar) change the
+structure of the page, which the live preview cannot swap. Save, and the
+page appears with the new frame. See [[my-settings]].
+
 **Can an AI agent publish changes on its own?**
 An agent writes through the same review workflow as a person — it can
 create and edit drafts and request a review, but whether it may also
