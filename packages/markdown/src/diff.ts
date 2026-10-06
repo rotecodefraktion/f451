@@ -149,7 +149,8 @@ const diffSanitizeSchema: SanitizeSchema = (() => {
     tr: [...withMergedClassNames(attrs.tr, ['row-add']), 'dataDiff'],
     span: [...withMergedClassNames(attrs.span, ['cellflag']), 'dataDiff'],
     pre: [...withMergedClassNames(attrs.pre, ['diff-frontmatter', 'rm', 'add'])],
-    div: [...withMergedClassNames(attrs.div, ['diff-frontmatter'])],
+    div: [...withMergedClassNames(attrs.div, ['diff-frontmatter', 'fn-def'])],
+    sup: [...withMergedClassNames(attrs.sup, ['fn-ref'])],
   }
   return base
 })()
@@ -184,6 +185,72 @@ function escapeHtml(text: string): string {
  *  den Block-LCS und die Eingabe für `renderHtml`/den Wort-Diff. */
 function canonicalBlockString(node: unknown): string {
   return stringifyMarkdown({ type: 'root', children: [node] } as MdastRoot)
+}
+
+// --- Rendering a single block (footnotes) -------------------------------------------
+//
+// Blocks are rendered one by one, so a `[^1]` reference has no definition in its own
+// document (renders as literal text) and a definition block renders empty. Blocks that
+// contain footnote nodes are therefore rendered differently: each reference becomes a
+// private-use placeholder text, the block goes through `renderHtml` as usual, and the
+// placeholders are then replaced by `<sup class="fn-ref">LABEL</sup>`. A top-level
+// definition renders its children as a small document inside
+// `<div class="fn-def"><sup>LABEL</sup> …</div>`. Placeholders instead of mdast `html`
+// nodes because `renderHtml`'s page sanitizer would drop the diff-only classes; the
+// result goes through `sanitizeFragment` (diff schema) like the other hand-built HTML.
+// Labels are escaped before insertion.
+
+interface FootnoteMdNode {
+  type: string
+  identifier?: string
+  label?: string | null
+  children?: unknown[]
+}
+
+const FN_REF_PLACEHOLDER = /(\d+)/g
+
+function containsFootnote(node: unknown): boolean {
+  const n = node as FootnoteMdNode
+  if (n.type === 'footnoteReference' || n.type === 'footnoteDefinition') return true
+  return Array.isArray(n.children) && n.children.some(containsFootnote)
+}
+
+function footnoteLabel(node: FootnoteMdNode): string {
+  return node.label ?? node.identifier ?? ''
+}
+
+/** Returns a copy of `node` with every footnoteReference replaced by a placeholder
+ *  text node; the labels are collected in `labels` (placeholder index = array index). */
+function replaceFootnoteRefs(node: unknown, labels: string[]): unknown {
+  const n = node as FootnoteMdNode
+  if (n.type === 'footnoteReference') {
+    labels.push(footnoteLabel(n))
+    return { type: 'text', value: `${labels.length - 1}` }
+  }
+  if (!Array.isArray(n.children)) return node
+  return { ...n, children: n.children.map((child) => replaceFootnoteRefs(child, labels)) }
+}
+
+function renderBlockHtml(node: BlockNode, renderOpts: RenderOptions): string {
+  if (!containsFootnote(node)) return renderHtml(canonicalBlockString(node), renderOpts)
+
+  const labels: string[] = []
+  const replaced = replaceFootnoteRefs(node, labels) as FootnoteMdNode
+  let html: string
+  if (replaced.type === 'footnoteDefinition') {
+    const inner = renderHtml(
+      stringifyMarkdown({ type: 'root', children: replaced.children ?? [] } as MdastRoot),
+      renderOpts,
+    )
+    html = `<div class="fn-def"><sup>${escapeHtml(footnoteLabel(replaced))}</sup> ${inner}</div>`
+  } else {
+    html = renderHtml(canonicalBlockString(replaced), renderOpts)
+  }
+  html = html.replace(FN_REF_PLACEHOLDER, (match, index: string) => {
+    const label = labels[Number(index)]
+    return label === undefined ? match : `<sup class="fn-ref">${escapeHtml(label)}</sup>`
+  })
+  return sanitizeFragment(html)
 }
 
 // --- Block-LCS -----------------------------------------------------------------------
@@ -351,7 +418,7 @@ function injectTableDiffAttributes(html: string, rowPlans: readonly RowPlan[]): 
 }
 
 function buildTableCellDiffHtml(oldTable: TableNode, newTable: TableNode, renderOpts: RenderOptions): string {
-  const rendered = renderHtml(canonicalBlockString(newTable), renderOpts)
+  const rendered = renderBlockHtml(newTable, renderOpts)
   const rowPlans = buildRowPlans(extractTableCellStrings(oldTable), extractTableCellStrings(newTable))
   return sanitizeFragment(injectTableDiffAttributes(rendered, rowPlans))
 }
@@ -385,8 +452,8 @@ function buildChangedBlocks(oldNode: BlockNode, newNode: BlockNode, renderOpts: 
     return [{ kind: 'changed', html: buildTableCellDiffHtml(oldNode as TableNode, newNode as TableNode, renderOpts) }]
   }
   return [
-    { kind: 'removed', html: renderHtml(canonicalBlockString(oldNode), renderOpts) },
-    { kind: 'added', html: renderHtml(canonicalBlockString(newNode), renderOpts) },
+    { kind: 'removed', html: renderBlockHtml(oldNode, renderOpts) },
+    { kind: 'added', html: renderBlockHtml(newNode, renderOpts) },
   ]
 }
 
@@ -412,10 +479,10 @@ function appendGapBlocks(
     out.push(...buildChangedBlocks(oldNodes[oldStart + k], newNodes[newStart + k], renderOpts))
   }
   for (let k = pairCount; k < oldCount; k++) {
-    out.push({ kind: 'removed', html: renderHtml(canonicalBlockString(oldNodes[oldStart + k]), renderOpts) })
+    out.push({ kind: 'removed', html: renderBlockHtml(oldNodes[oldStart + k], renderOpts) })
   }
   for (let k = pairCount; k < newCount; k++) {
-    out.push({ kind: 'added', html: renderHtml(canonicalBlockString(newNodes[newStart + k]), renderOpts) })
+    out.push({ kind: 'added', html: renderBlockHtml(newNodes[newStart + k], renderOpts) })
   }
 }
 
@@ -477,7 +544,7 @@ export function diffMarkdown(oldMd: string, newMd: string, opts: DiffMarkdownOpt
   let prevNew = 0
   for (const [oi, ni] of matches) {
     appendGapBlocks(draftBlocks, oldNodes, newNodes, prevOld, oi, prevNew, ni, renderOpts)
-    draftBlocks.push({ kind: 'same', html: renderHtml(newStrings[ni], renderOpts) })
+    draftBlocks.push({ kind: 'same', html: renderBlockHtml(newNodes[ni], renderOpts) })
     prevOld = oi + 1
     prevNew = ni + 1
   }
