@@ -109,6 +109,14 @@ describe('placeFootnotes', () => {
     expect(findAll(root, isRef).every((ref) => has(ref, 'ariaDescribedBy'))).toBe(true)
   })
 
+  it('keeps the original number on a note that stays in the list (li value)', () => {
+    const html = render('A[^x] B[^1] C[^y]\n\n[^x]: short.\n[^1]: first.\n\n    second.\n[^y]: short too.\n')
+    const out = placeFootnotes(html)
+    expect(out).toContain('<li id="user-content-fn-1" value="2">')
+    expect(out).not.toContain('value="1"')
+    expect(out).not.toContain('value="3"')
+  })
+
   it('creates one aside for two references to the same note; both refs keep their href', () => {
     const root = tree(placeFootnotes(render('First.[^1]\n\nSecond.[^1]\n\n[^1]: Shared.\n')))
     expect(findAll(root, isAside)).toHaveLength(1)
