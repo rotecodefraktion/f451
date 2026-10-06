@@ -72,6 +72,9 @@ export class LinkResolver {
   #resolveWikilink(rawTarget: string): string | null {
     const target = stripAnchor(rawTarget).trim()
     if (target.length === 0) return null
+    // The page id first: the editor stores ids in wikilinks (user guide, "Wikilinks"),
+    // and only root-level pages have a path equal to their id. Then path, then title.
+    if (this.#ids.has(target)) return target
     const cleaned = target.replace(/^\.?\//, '').replace(/\/+$/, '')
     const pathKey = cleaned.endsWith('/index.md') || cleaned === 'index.md'
       ? cleaned
