@@ -216,6 +216,18 @@ export function EditorToolbar({ editor, linkPopoverOpen, onOpenLinkPopover, onCl
             <path d="M3 10h18M3 15h18M9 4v16M15 4v16" strokeLinecap="round" />
           </svg>
         </button>
+        {/* Same command as the slash item and ⌘⇧F (`ui-extensions.ts#FootnoteCommands`). */}
+        <button
+          type="button"
+          className="tb"
+          title={t('editor.toolbar.footnoteTitle')}
+          onClick={() => editor.chain().focus().insertFootnote().run()}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path d="M3 19h9" strokeLinecap="round" />
+            <path d="M16.5 6.5 18.5 4.5v7M16.5 11.5h4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
         {/* Öffnet den Datei-Dialog über denselben Custom-Command wie das Slash-Item
             „Bild/Datei" (`editor.commands.triggerImageUpload()`, s.
             lib/editor/ui-extensions.ts#ImageUploadTrigger) — akzeptiert Bilder UND

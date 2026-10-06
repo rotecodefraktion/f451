@@ -103,6 +103,13 @@ const ICONS: Record<string, ReactNode> = {
       <path d="m4 18 5-5 4 4 3-3 4 4" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
+  // Superscript "1" above a text baseline — same glyph as the toolbar button.
+  footnote: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+      <path d="M3 19h9" strokeLinecap="round" />
+      <path d="M16.5 6.5 18.5 4.5v7M16.5 11.5h4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
 }
 
 function iconFor(id: string): ReactNode {
