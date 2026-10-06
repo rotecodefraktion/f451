@@ -1080,6 +1080,11 @@
 .attribution a:hover {
   color: var(--color-text);
 }
+/* Release version after "f451" (F451_VERSION; "dev" = unreleased build). */
+.attribution-version {
+  font-size: inherit;
+  color: var(--color-text-muted);
+}
 /* Legal links (F451_IMPRINT_URL / F451_PRIVACY_URL) directly below. */
 .attribution.legal {
   margin-top: calc(-1 * var(--space-2));
