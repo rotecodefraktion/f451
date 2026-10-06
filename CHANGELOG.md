@@ -6,7 +6,7 @@ All notable changes to f451. The format follows
 to the HTTP API, the MCP tools, the page format or the configuration only come
 with a new major version.
 
-## [1.2.7] — 2026-10-XX
+## [1.2.7] — 2026-10-06
 
 No breaking changes to the API, the MCP tools, the page format or the
 configuration.
