@@ -5,7 +5,7 @@ import { PreviewBanner } from '../components/theme-editor/preview-banner'
 import { LocaleProvider } from '../lib/i18n/provider.js'
 import { getT } from '../lib/i18n/server.js'
 import { getBrand, getResolvedTheme } from '../lib/resolved-theme.js'
-import { themeAttributes, themeStyleText } from '../lib/theme-style.js'
+import { SKIP_THEME_CSS_HEADER, themeAttributes, themeStyleText, themeStylesheetLinks } from '../lib/theme-style.js'
 // Ein einziger Stil-Einstieg: `globals.css` ist nur noch die @import-Liste
 // (s. Kopfkommentar dort). Die Graph-Ansicht stand bis Teilschritt H5 des
 // Bausteinsystem-Umbaus als zweiter Import daneben und damit hinter allem in
@@ -155,6 +155,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // (Next's file convention) stays the icon.
   const faviconUrl = resolvedTheme?.brand?.faviconUrl ?? null
   const switchAttributes = themeAttributes(resolvedTheme?.attributes)
+  // Theme stylesheets of the instance and the space repo (f451#61), after the
+  // operator stylesheet. The middleware sets `x-f451-skip-theme-css` for
+  // `/einstellungen/erscheinungsbild?ohne-stylesheet`, so a broken file cannot
+  // make the page unusable on which it is removed.
+  const themeStylesheets = themeStylesheetLinks(resolvedTheme?.stylesheets, {
+    skip: requestHeaders.get(SKIP_THEME_CSS_HEADER) === '1',
+  })
   return (
     <html
       lang={locale}
@@ -179,6 +186,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         {/* After the built-in tokens (globals.css), before the operator stylesheet. */}
         {themeCss ? <style id="f451-theme" dangerouslySetInnerHTML={{ __html: themeCss }} /> : null}
         {customStylesheet?.startsWith('/') ? <link rel="stylesheet" href={customStylesheet} /> : null}
+        {themeStylesheets.map((href) => (
+          <link key={href} rel="stylesheet" href={href} />
+        ))}
         {faviconUrl ? <link rel="icon" type="image/svg+xml" href={faviconUrl} /> : null}
       </head>
       <body>

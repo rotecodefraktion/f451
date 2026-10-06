@@ -9,7 +9,9 @@ lang: en
 # Theming: instance and space themes, templates, brand, contrast thresholds
 
 A theme changes **token values** — colours, fonts, spacing, radii, shadows,
-density. It never changes layout rules or adds CSS. Themes are plain YAML
+density — and switches between fixed constructions. The theme file itself
+never adds CSS rules; an optional [theme stylesheet](#theme-stylesheet) does,
+without any design checks. Themes are plain YAML
 files in Git, so rights, history and review come from the repository: whoever
 may push to the repo may change the theme, and `git log` tells you who
 changed the red.
@@ -47,9 +49,11 @@ administrator" is, as everywhere in f451, whoever may push to this repo.
 | `_meta/themes/<slug>.yaml` | Instance templates (`slug`: `a–z`, `0–9`, `-`, at most 40 characters) |
 | `_meta/contrast.yaml` | Contrast thresholds, instance-wide |
 | `_meta/brand/logo.svg`, `_meta/brand/favicon.svg` | Logo and favicon |
+| `_meta/theme.css`, `_meta/fonts/*.woff2` | Theme stylesheet and its fonts |
 
-A space repository may carry `_meta/theme.yaml`, `_meta/themes/` and
-`_meta/brand/logo.svg` — the same files, minus contrast and favicon.
+A space repository may carry `_meta/theme.yaml`, `_meta/themes/`,
+`_meta/brand/logo.svg`, `_meta/theme.css` and `_meta/fonts/` — the same
+files, minus contrast and favicon.
 
 ## The theme file
 
@@ -203,6 +207,108 @@ from "Fokus plus two colours" really contains Fokus.
 Rotecodefraktion, the demo theme, is exactly such a template: the
 construction f451 had before 1.2.5 with its own colours and typefaces.
 
+## Create your own template
+
+A template is one YAML file; there are two ways to get it into `_meta/themes/`.
+
+**Via Git.** Write `_meta/themes/<slug>.yaml` in the instance repo (templates
+for every space) or in a space repo (templates for that space). The format is
+the theme file above, with `name:` and the values; the slug is `a–z`, `0–9`,
+`-`, at most 40 characters. Do not set `use:` — a template may not use another
+one. Copy the full set of a built-in template if you want to start from it
+(see the previous section). The files `_meta/theme.css` and `_meta/fonts/`
+belong to the repository's theme, not to a single template: a template does
+not carry them, and `use:` does not pull them in.
+
+**Via the settings page.** Choose the scope (instance or space), pick a
+built-in or existing template in **Template**, press **Adopt template**,
+adjust values and switches, then **Save as template …** with a name and slug.
+The page commits `_meta/themes/<slug>.yaml` with your linked account. The
+line under the list, "Underneath: …", tells you what the draft lies on.
+
+**Using a template.** In `_meta/theme.yaml` of the instance or a space:
+
+```yaml
+use: house-style            # a template of the same repo
+# or, in a space theme:
+use: instance/house-style   # a template of the instance repo
+```
+
+Your values in the file lie on top of the template. In a space, a theme with
+no `use:` inherits from the instance as usual.
+
+**Falling back to the instance.** In a space, **Reset to instance theme**
+deletes the space's `_meta/theme.yaml`; the space then shows the instance
+theme again. Its own templates stay in `_meta/themes/`.
+
+## Theme stylesheet
+
+For anything tokens and switches cannot express, an instance or a space may
+carry its own CSS file. It is the greatest freedom and the least safety net:
+**f451 checks no design promises** — no contrast measurement, no frame rules.
+Whoever writes the file is responsible for how the pages look.
+
+Put it at `_meta/theme.css` in the instance repo and/or a space repo. There
+is no pointer in `theme.yaml`: file present means active. Alternatively use
+the **Stylesheet** strip on the appearance page (instance and space scope),
+which uploads and removes the file with your linked account. The strip also
+shows size, version and the fonts. Personal settings have no stylesheet.
+
+### Fonts
+
+Fonts are WOFF2 files under `_meta/fonts/`, added through Git only. Reference
+them relatively from the CSS:
+
+```css
+@font-face {
+  font-family: 'Haus Serif';
+  src: url(fonts/haus-serif-regular.woff2) format('woff2');
+  font-display: swap;
+}
+```
+
+| Limit | Value |
+|---|---|
+| File name | `[a-z0-9-]{1,40}.woff2` |
+| Content | real WOFF2 (starts with `wOF2`), otherwise the font answers 404 and is marked "invalid" |
+| Per file | at most 1 MB |
+| Per repository | at most 4 MB in total |
+
+When serving, f451 points every `url(fonts/<name>.woff2)` at the font route of
+the same scope. An unknown name stays as it is and does not load (404) —
+that does not block the rest of the file.
+
+### Rules
+
+| Rule | Code |
+|---|---|
+| At most 256 KB | `css_too_large` |
+| No `@import` | `css_import` |
+| `url()` only with `data:` or relative `fonts/<name>.woff2` (no `https://…`, no `/api/…`) | `css_url` |
+| None of `expression(`, `behavior:`, `-moz-binding`, `javascript:` (case and CSS escapes ignored) | `css_forbidden` |
+
+An upload that breaks a rule is answered with `422`, each problem with its
+code, line and reason; nothing is committed (an empty or non-text body is
+`css_not_text`). A file that reached the repo by `git push` anyway is
+**ignored on read** with a log warning; the strip shows the codes and lines,
+or "too large".
+
+### Order
+
+The `<head>` links, in this order: the operator stylesheet
+(`F451_CUSTOM_STYLESHEET`, see `deploy/BETRIEB.md`), then the instance's
+`theme.css`, then the space's. Later wins, so a repository can override the
+operator's file. A space without its own file shows the instance file only.
+The CSP is unchanged: everything is served same-origin from `/api`.
+
+### A broken file
+
+The stylesheet also applies to the appearance page and to the
+building-block preview. If a file breaks the page you would use to remove it,
+open `/einstellungen/erscheinungsbild?ohne-stylesheet`: the view leaves out
+all theme stylesheets (the strip links it as "Show without stylesheet"). Then
+press **Remove stylesheet**, or fix the file in Git.
+
 ## Contrast thresholds
 
 Every save is checked against the fully resolved set, per mode. Thresholds
@@ -253,8 +359,8 @@ licence and stays regardless of the brand name.
 
 ## Caches
 
-The api caches the instance theme, space themes, templates, thresholds and
-brand files for **5 minutes**. The cache is emptied when a save goes through
+The api caches the instance theme, space themes, templates, thresholds,
+brand files, theme stylesheets and fonts for **5 minutes**. The cache is emptied when a save goes through
 the api, and when a webhook push touches one of the files above — so a change
 made directly in Forgejo or GitHub shows up right away if the webhook is
 configured (see [[spaces-and-git-providers]]), otherwise after at most five

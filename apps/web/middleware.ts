@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { spaceFromPath } from './lib/space-from-path'
+import { SKIP_THEME_CSS_HEADER, SKIP_THEME_CSS_PARAM, SKIP_THEME_CSS_PATH } from './lib/theme-style'
 
 const SPACE_HEADER = 'x-f451-space'
 
@@ -94,6 +95,14 @@ export function middleware(request: NextRequest): NextResponse {
   const space = spaceFromPath(request.nextUrl.pathname)
   if (space !== null) requestHeaders.set(SPACE_HEADER, encodeURIComponent(space))
   else requestHeaders.delete(SPACE_HEADER)
+  // `?ohne-stylesheet` on the appearance page: the root layout leaves out the
+  // theme stylesheets (f451#61). Same rule as above — always set or removed.
+  const { pathname, searchParams } = request.nextUrl
+  if (pathname === SKIP_THEME_CSS_PATH && searchParams.has(SKIP_THEME_CSS_PARAM)) {
+    requestHeaders.set(SKIP_THEME_CSS_HEADER, '1')
+  } else {
+    requestHeaders.delete(SKIP_THEME_CSS_HEADER)
+  }
 
   const response = NextResponse.next({ request: { headers: requestHeaders } })
   // RESPONSE-Header: die CSP, die der Browser tatsächlich durchsetzt.

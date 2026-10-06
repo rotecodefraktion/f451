@@ -56,6 +56,7 @@ function editorData(): EditorData {
     note: null,
     findings: checkContrast(below),
     rules: [],
+    stylesheet: null,
   }
 }
 

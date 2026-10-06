@@ -37,6 +37,8 @@ understand how the pieces fit together, and add something to it.
   design tokens
 - [[markdown-and-editor]] — the Markdown pipeline and the editor that has
   to stay in sync with it
+- [[theme-templates]] — layers and `use`, switches, cross-token rules, adding
+  a built-in template, the theme stylesheet
 
 ## Contributing
 
