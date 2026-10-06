@@ -116,6 +116,47 @@ function paneControlsNeedTopbar(resolved: ResolvedTheme): RuleViolation[] {
   ]
 }
 
+/** Root font size the corridors convert `rem` with. */
+const REM_PX = 16
+
+/**
+ * Margin-note width: 160–320 px (f451#63). Accepts `px` and `rem`; any other
+ * unit or a `var()`/`calc()` is left alone (see the file comment).
+ */
+function noteWidthCorridor(resolved: ResolvedTheme): RuleViolation[] {
+  if (resolved.base['--layout-note-w'] === undefined) return []
+  const m = measureOf(resolved, '--layout-note-w')
+  if (!m) return []
+  const px = m.unit === 'px' ? m.n : m.unit === 'rem' ? m.n * REM_PX : null
+  if (px === null || (px >= 160 && px <= 320)) return []
+  return [
+    {
+      rule: 'note-w-corridor',
+      tokens: ['--layout-note-w'],
+      message: `${describe(resolved, '--layout-note-w')} is outside the corridor 160–320px (10–20rem)`,
+    },
+  ]
+}
+
+/**
+ * Gap between text and margin note: 0–2 rem (f451#63). Accepts `rem` and
+ * `px`; a `var(--space-N)` (the default) and any other unit are left alone.
+ */
+function noteGapCorridor(resolved: ResolvedTheme): RuleViolation[] {
+  if (resolved.base['--layout-note-gap'] === undefined) return []
+  const m = measureOf(resolved, '--layout-note-gap')
+  if (!m) return []
+  const rem = m.unit === 'rem' ? m.n : m.unit === 'px' ? m.n / REM_PX : null
+  if (rem === null || (rem >= 0 && rem <= 2)) return []
+  return [
+    {
+      rule: 'note-gap-corridor',
+      tokens: ['--layout-note-gap'],
+      message: `${describe(resolved, '--layout-note-gap')} is outside the corridor 0–2rem`,
+    },
+  ]
+}
+
 /** Cross-token rules on the resolved set; empty = ok. */
 export function checkRules(resolved: ResolvedTheme): RuleViolation[] {
   return [
@@ -123,5 +164,7 @@ export function checkRules(resolved: ResolvedTheme): RuleViolation[] {
     ...weightGap(resolved),
     ...measureOrder(resolved),
     ...paneControlsNeedTopbar(resolved),
+    ...noteWidthCorridor(resolved),
+    ...noteGapCorridor(resolved),
   ]
 }

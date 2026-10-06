@@ -338,6 +338,19 @@ del.rm {
   padding: 0 2px;
 }
 
+/* Footnotes in the diff (`packages/markdown/src/diff.ts`, f451#63): a
+   reference becomes `<sup class="fn-ref">`, a definition block
+   `<div class="fn-def">` — set like a margin note, but in the flow. */
+.fn-ref {
+  font-size: var(--text-xs);
+}
+.fn-def {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  border-left: var(--rule-hair) solid var(--color-border-strong);
+  padding-left: var(--space-3);
+}
+
 /* Aufklappbarer "Entfernt"-Block */
 .removed {
   margin: 0 0 var(--space-4);

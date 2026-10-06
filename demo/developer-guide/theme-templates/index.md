@@ -41,8 +41,10 @@ in a space theme).
 A switch is a catalog token with `range: { kind: 'choice', values: […] }` and
 `emit: 'attribute'`. Two groups, both in `catalog.ts`:
 
-- **Bausteine** (12): how a block is built — `table-style`, `callout-style`,
-  `chip-style`, …
+- **Bausteine** (13): how a block is built — `table-style`, `callout-style`,
+  `chip-style`, …, and `marginalia` (`margin` | `list`): footnotes as margin
+  notes or as an end list. Built-ins: `margin` for Editorial, Fokus and
+  Klar & Warm; `list` for System / Raster, Werkbank and Rotecodefraktion.
 - **Rahmen** (5): the page frame — `topbar`, `page-head`, `pane-controls`,
   `rail-scroll`, `status-bar`. Several change markup, not only styling.
 
@@ -59,9 +61,10 @@ element.
 becomes `heading-depth`, each with the warning `value_migrated`; the next save
 writes the new form.
 
-**Locked.** `layout-note-w` and `layout-note-gap` are locked until margin
-notes exist ([#63](https://github.com/rotecodefraktion/f451/issues/63)); a
-file that sets them is rejected on save and ignored on read.
+**Note tokens.** `layout-note-w` (10–20 rem) and `layout-note-gap` (0–2 rem)
+were locked from 1.2.5 until margin notes arrived in 1.2.8
+([#63](https://github.com/rotecodefraktion/f451/issues/63)); they are
+corridor tokens again and only take effect with `marginalia: margin`.
 
 The stylesheets branch on the attribute and follow one pattern: one rule per
 value sets **private `--_…` custom properties** on the carrier; the block
@@ -111,7 +114,7 @@ Built-in templates are generated, not written by hand.
    `scripts/themes-from-mockups.ts` (`slug`, `name`, `path`). The script reads
    the token **values** from the file.
 2. **`SWITCHES` entry.** Construction cannot be read from values: add the slug
-   to `SWITCHES` with **all 17 switches** set explicitly, defaults included
+   to `SWITCHES` with **all 18 switches** set explicitly, defaults included
    (so a copy of the template shows every switch). Take shared values from
    `SHARED`; the five frame switches differ per template.
    If the mockup sets the lower `--space-*` steps above the defaults,

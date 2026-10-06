@@ -242,6 +242,26 @@ function rehypeHeadingIds() {
   }
 }
 
+// --- hast transform: empty footnote label ---------------------------------------------
+//
+// The visible label text follows the UI language, not the page language: it comes from
+// CSS (`::before` with an i18n custom property), like the alert titles. remark-rehype
+// cannot emit an empty label itself (`footnoteLabel: ''` falls back to 'Footnotes'),
+// hence this step. Matches the section by `dataFootnotes`, never by the label element.
+
+function rehypeEmptyFootnoteLabel() {
+  return (tree: any): void => {
+    visit(tree, 'element', (node: any) => {
+      if (node.tagName !== 'section' || node.properties?.dataFootnotes === undefined) return
+      for (const child of node.children ?? []) {
+        if (child.type === 'element' && child.tagName === 'p' && child.properties?.id === 'footnote-label') {
+          child.children = []
+        }
+      }
+    })
+  }
+}
+
 // --- Sanitize-Schema: Default (GitHub-Stil) + die von diesem Rendering erzeugten Extras -
 
 type AttributeEntry = string | [string, ...Array<string | number | boolean | RegExp | null | undefined>]
@@ -280,7 +300,9 @@ export const baseSanitizeSchema: SanitizeSchema = (() => {
   // Default-Schema prefixt id/name via clobberPrefix ('user-content-') zum Schutz vor
   // DOM-Clobbering. Heading-IDs müssen aber exakt dem slugify-Ergebnis entsprechen,
   // damit sie mit den ToC-Slugs aus parsePage übereinstimmen.
-  base.clobber = (base.clobber ?? []).filter((name) => name !== 'id')
+  // aria-describedby references an id; since ids are no longer prefixed, prefixing the
+  // reference would make it point nowhere (GFM footnote refs -> `#footnote-label`).
+  base.clobber = (base.clobber ?? []).filter((name) => name !== 'id' && name !== 'ariaDescribedBy')
   const attrs = (base.attributes ?? {}) as Record<string, AttributeEntry[]>
   base.attributes = {
     ...base.attributes,
@@ -314,7 +336,8 @@ export const baseSanitizeSchema: SanitizeSchema = (() => {
       // ungeprüft in einer src-URL.
       'dataVideoId',
     ],
-    p: [...withMergedClassNames(attrs.p, ['alert-title'])],
+    // footnotes-title: label of the GFM footnote section (text comes from CSS).
+    p: [...withMergedClassNames(attrs.p, ['alert-title', 'footnotes-title'])],
     img: [...withMergedClassNames(attrs.img, ['yt-thumb']), 'loading'],
     // Code header (theming structure 1): rehypeCodeLang sets data-lang on <pre>.
     pre: [...(attrs.pre ?? []), 'dataLang'],
@@ -346,8 +369,15 @@ export function renderHtml(markdown: string, opts: RenderOptions): string {
     .use(remarkResolveLinks, opts)
     .use(remarkAlerts)
     .use(remarkYoutubeEmbeds)
-    .use(remarkRehype, { allowDangerousHtml: true })
+    // Footnote label as a <p>, not an <h2>: no heading id rewrite (refs keep pointing
+    // at #footnote-label). Its text is emptied by rehypeEmptyFootnoteLabel below.
+    .use(remarkRehype, {
+      allowDangerousHtml: true,
+      footnoteLabelTagName: 'p',
+      footnoteLabelProperties: { className: ['footnotes-title'] },
+    })
     .use(rehypeRaw)
+    .use(rehypeEmptyFootnoteLabel)
     .use(rehypeMinifyWhitespace)
     .use(rehypeHeadingIds)
     .use(rehypeCodeLang)

@@ -130,6 +130,11 @@ export const read = {
   youtube: {
     play: 'Video abspielen (YouTube)',
   },
+  // Title of the GFM end list (empty `p.footnotes-title`, filled via
+  // `--label-footnotes`, f451#63).
+  footnotes: {
+    title: 'Fußnoten',
+  },
   // Vollbild für Bilder und Diagramme bei Fingerbedienung (#67).
   lightbox: {
     ariaLabel: 'Bild im Vollbild',

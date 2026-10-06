@@ -141,6 +141,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     '--label-alert-warning': JSON.stringify(t('read.alerts.warning')),
     '--label-alert-caution': JSON.stringify(t('read.alerts.caution')),
     '--label-youtube-play': JSON.stringify(t('read.youtube.play')),
+    '--label-footnotes': JSON.stringify(t('read.footnotes.title')),
   } as React.CSSProperties
   // Operator stylesheet (F451_CUSTOM_STYLESHEET), loaded after f451's own CSS,
   // e.g. an instance's colours and self-hosted typefaces. Same-origin paths

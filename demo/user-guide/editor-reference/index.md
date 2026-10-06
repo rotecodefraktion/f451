@@ -1,7 +1,7 @@
 ---
 id: editor-reference
 title: Editor reference
-description: Formatting, wikilinks, callouts, images and diagrams in the editor.
+description: Formatting, wikilinks, callouts, footnotes, images and diagrams in the editor.
 tags: [guide, editor, reference]
 lang: en
 ---
@@ -59,6 +59,44 @@ Callouts are GitHub-style alert blocks, available for **Note**, **Tip**,
 > [!WARNING]
 > A risk to be aware of before proceeding.
 ```
+
+## Footnotes and margin notes
+
+Footnotes are standard GitHub-flavoured Markdown. Put a reference in the
+text and the definition anywhere in the page, usually at the end:
+
+```
+Kernel updates need a reboot.[^reboot]
+
+[^reboot]: Live patching covers security fixes only, not new features.
+```
+
+The label can be a number or a word; the page numbers the notes in the order
+of their first reference. A definition with more than one paragraph indents
+the following paragraphs by four spaces:
+
+```
+[^rollback]: Keep the previous kernel installed.
+
+    The boot menu lists it as a fallback entry.
+```
+
+Where the note appears depends on the theme:
+
+- **Margin note** (Editorial, Fokus, Klar & Warm): the note sits in the margin
+  next to the paragraph with its first reference.
+- **Footnote list** (System / Raster, Werkbank, Rotecodefraktion): the notes
+  form a list at the end of the page.
+
+A note whose definition has more than one paragraph, or contains a list or a
+code block, always goes to the list at the end of the page. In a narrow
+column, and on the phone, a margin note sits below its paragraph instead.
+The number in the text jumps to the note; the number at the note jumps back.
+
+> [!NOTE]
+> The editor opens a page with footnotes in **Markdown** mode only; the
+> WYSIWYG mode does not support footnotes yet. The review diff shows them as
+> numbers and note blocks.
 
 ## Images
 

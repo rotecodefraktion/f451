@@ -99,14 +99,18 @@ settable only inside a **corridor**:
 | `--layout-gutter` | 0.5–3 rem |
 | `--layout-sheet-max` | 480–960 px |
 | `--control-h` | 44–64 px (upwards only; 44 px is the target-size promise) |
+| `--layout-note-w` | 10–20 rem (width of a margin note) |
+| `--layout-note-gap` | 0–2 rem (gap between text and margin note) |
 
-`--layout-note-w` and `--layout-note-gap` are locked until margin notes exist ([#63](https://github.com/rotecodefraktion/f451/issues/63)).
+The two note tokens were locked from 1.2.5 until margin notes arrived in
+1.2.8 ([#63](https://github.com/rotecodefraktion/f451/issues/63)); they only
+take effect with `marginalia: margin`.
 
 Breakpoints stay fixed. Diagrams keep using the catalog values.
 
 ## Building blocks
 
-Twelve tokens of the group **Bausteine** switch how a block is built rather
+Thirteen tokens of the group **Bausteine** switch how a block is built rather
 than how it is coloured. They take one of a fixed set of words and never
 reach the stylesheet: a value that differs from Editorial becomes a
 `data-<name>` attribute on the page root. The defaults are the Editorial
@@ -127,6 +131,13 @@ template **rotecodefraktion** (see below).
 | `code-header` | `off`, `on` | a header strip naming the language on code blocks |
 | `rail-blocks` | `rules`, `plain`, `cards` | blocks of the info rail separated by hairlines, plain, or as cards |
 | `list-marker` | `dash`, `disc` | bullet of unordered lists |
+| `marginalia` | `margin`, `list` | footnotes as margin notes next to their paragraph, or as a footnote list at the end of the page |
+
+`marginalia` per built-in template: `margin` for Editorial, Fokus and
+Klar & Warm; `list` for System / Raster, Werkbank and Rotecodefraktion. A
+footnote with more than one paragraph (or a list or code block) always stays
+in the end list, and in a column narrower than 32 rem a margin note sits
+below its paragraph.
 
 Files from before 1.2.5 that set `heading-number: counter(sec) '.'` or
 `heading-number-sub` are read in the new form with a warning and rewritten on
@@ -188,7 +199,7 @@ allowed; the references then apply without one and the settings page shows
 Five templates ship with f451 and appear as built-in in the instance
 library: **fokus**, **klar-warm**, **system-raster**, **werkbank** and
 **rotecodefraktion**. They cannot be overwritten or deleted. They carry the token values **and** the
-building-block switches of their mockups; every built-in sets all twelve
+building-block switches of their mockups; every built-in sets all thirteen
 switches explicitly. **rotecodefraktion** is the construction f451 had before
 1.2.5 with the demo theme's colours — `use: rotecodefraktion` plus your own
 colours keeps that look.
@@ -201,7 +212,7 @@ press **Adopt template** — the template's base, light and dark values replace
 the draft's and the template stays selected (this works for any template,
 built-in or your own) — change what you like, then **Save as template …**
 with a name and slug. The new file in `_meta/themes/` holds everything the
-built-in set, the twelve switches included, and no `use` and no brand. **Save as
+built-in set, the thirteen switches included, and no `use` and no brand. **Save as
 template …** always embeds the chosen template this way, so a template saved
 from "Fokus plus two colours" really contains Fokus.
 
