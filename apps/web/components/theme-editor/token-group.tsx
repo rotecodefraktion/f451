@@ -1,5 +1,6 @@
 'use client'
 
+import { Fragment } from 'react'
 import { useT } from '../../lib/i18n/provider'
 import type { EditorGroup } from '../../lib/theme-editor'
 import type { TokenStates } from '../../lib/theme-editor-view'
@@ -52,14 +53,20 @@ export function GroupSection({
         </button>
       </div>
       {group.rows.map((row) => (
-        <TokenRow
-          key={row.name}
-          row={row}
-          messages={messages.get(row.name) ?? []}
-          state={states.errors.has(row.name) ? 'error' : states.warnings.has(row.name) ? 'warning' : null}
-          overriding={overriding.has(row.name)}
-          {...rowProps}
-        />
+        <Fragment key={row.name}>
+          <TokenRow
+            row={row}
+            messages={messages.get(row.name) ?? []}
+            state={states.errors.has(row.name) ? 'error' : states.warnings.has(row.name) ? 'warning' : null}
+            overriding={overriding.has(row.name)}
+            {...rowProps}
+          />
+          {/* The footnote placement is decided on the server (f451#63), so the
+              program preview cannot show a change before it is saved. */}
+          {row.name === '--marginalia' ? (
+            <p className="te-template-note">{t('settings.appearance.marginaliaNote')}</p>
+          ) : null}
+        </Fragment>
       ))}
     </details>
   )

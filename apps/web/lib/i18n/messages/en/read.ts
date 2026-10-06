@@ -114,6 +114,9 @@ export const read: Messages['read'] = {
   youtube: {
     play: 'Play video (YouTube)',
   },
+  footnotes: {
+    title: 'Footnotes',
+  },
   lightbox: {
     ariaLabel: 'Image in full screen',
     close: 'Close',
