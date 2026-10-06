@@ -43,6 +43,7 @@ base:
   code-header: 'on'
   rail-blocks: 'plain'
   list-marker: 'disc'
+  marginalia: 'margin'
   topbar: 'off'
   page-head: 'title'
   pane-controls: 'edges'

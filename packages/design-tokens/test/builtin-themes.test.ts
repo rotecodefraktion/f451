@@ -46,7 +46,7 @@ describe('built-in theme templates', () => {
 
       it('sets every building-block switch explicitly', () => {
         const switches = tokenNames.filter((n) => catalog[n].emit === 'attribute').map((n) => n.slice(2))
-        expect(switches).toHaveLength(17)
+        expect(switches).toHaveLength(18)
         for (const key of switches) expect(template.file.base?.[key], key).toBeDefined()
       })
     })
@@ -55,12 +55,12 @@ describe('built-in theme templates', () => {
   it('carries the construction of its mockup', () => {
     const by = Object.fromEntries(builtinTemplates().map((t) => [t.slug, t.file.base ?? {}]))
     const common = { 'table-style': 'framed', 'card-top-rule': 'off', 'heading-depth': 'top', 'toc-style': 'bar', 'tree-guides': 'off' }
-    expect(by.fokus).toMatchObject({ ...common, 'callout-style': 'box', 'button-primary': 'accent', 'chip-style': 'filled', 'heading-number': 'none', 'code-header': 'on', 'rail-blocks': 'plain', 'list-marker': 'disc' })
-    expect(by['klar-warm']).toMatchObject({ ...common, 'callout-style': 'box', 'button-primary': 'accent', 'chip-style': 'filled', 'heading-number': 'none', 'code-header': 'on', 'rail-blocks': 'cards', 'list-marker': 'disc' })
-    expect(by['system-raster']).toMatchObject({ ...common, 'callout-style': 'bar', 'button-primary': 'accent', 'chip-style': 'marker', 'heading-number': 'none', 'code-header': 'on', 'rail-blocks': 'plain', 'list-marker': 'dash' })
-    expect(by.werkbank).toMatchObject({ ...common, 'callout-style': 'box', 'button-primary': 'accent', 'chip-style': 'outline-caps', 'heading-number': 'none', 'code-header': 'on', 'rail-blocks': 'cards', 'list-marker': 'dash' })
+    expect(by.fokus).toMatchObject({ ...common, 'callout-style': 'box', 'button-primary': 'accent', 'chip-style': 'filled', 'heading-number': 'none', 'code-header': 'on', 'rail-blocks': 'plain', 'list-marker': 'disc', marginalia: 'margin' })
+    expect(by['klar-warm']).toMatchObject({ ...common, 'callout-style': 'box', 'button-primary': 'accent', 'chip-style': 'filled', 'heading-number': 'none', 'code-header': 'on', 'rail-blocks': 'cards', 'list-marker': 'disc', marginalia: 'margin' })
+    expect(by['system-raster']).toMatchObject({ ...common, 'callout-style': 'bar', 'button-primary': 'accent', 'chip-style': 'marker', 'heading-number': 'none', 'code-header': 'on', 'rail-blocks': 'plain', 'list-marker': 'dash', marginalia: 'list' })
+    expect(by.werkbank).toMatchObject({ ...common, 'callout-style': 'box', 'button-primary': 'accent', 'chip-style': 'outline-caps', 'heading-number': 'none', 'code-header': 'on', 'rail-blocks': 'cards', 'list-marker': 'dash', marginalia: 'list' })
     // Rotecodefraktion = the construction the application had before 1.2.5
-    expect(by.rotecodefraktion).toMatchObject({ ...common, 'callout-style': 'bar', 'button-primary': 'ink', 'chip-style': 'outline-caps', 'heading-number': 'numeral', 'code-header': 'off', 'rail-blocks': 'plain', 'list-marker': 'disc' })
+    expect(by.rotecodefraktion).toMatchObject({ ...common, 'callout-style': 'bar', 'button-primary': 'ink', 'chip-style': 'outline-caps', 'heading-number': 'numeral', 'code-header': 'off', 'rail-blocks': 'plain', 'list-marker': 'disc', marginalia: 'list' })
   })
 
   it('carries the frame of its mockup', () => {

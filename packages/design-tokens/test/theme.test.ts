@@ -143,6 +143,23 @@ describe('checkRules', () => {
     )
     expect(ok).toEqual([])
   })
+
+  it('keeps --layout-note-w within 160–320px (f451#63)', () => {
+    const rules = (value: string) =>
+      checkRules(resolveTheme([{ source: 'instance', base: { '--layout-note-w': value } }])).map((v) => v.rule)
+    expect(rules('100px')).toContain('note-w-corridor')
+    expect(rules('200px')).not.toContain('note-w-corridor')
+    expect(rules('25rem')).toContain('note-w-corridor')
+    expect(rules('15rem')).not.toContain('note-w-corridor')
+  })
+
+  it('keeps --layout-note-gap within 0–2rem (f451#63)', () => {
+    const rules = (value: string) =>
+      checkRules(resolveTheme([{ source: 'instance', base: { '--layout-note-gap': value } }])).map((v) => v.rule)
+    expect(rules('3rem')).toContain('note-gap-corridor')
+    expect(rules('1rem')).not.toContain('note-gap-corridor')
+    expect(rules('var(--space-6)')).not.toContain('note-gap-corridor')
+  })
 })
 
 describe('toCssDeclarations', () => {
@@ -169,8 +186,9 @@ describe('toCssDeclarations', () => {
 })
 
 describe('toAttributes / attributeValues', () => {
-  it('lists the seventeen switches', () => {
-    expect(ATTRIBUTE_TOKENS).toHaveLength(17)
+  it('lists the eighteen switches', () => {
+    expect(ATTRIBUTE_TOKENS).toHaveLength(18)
+    expect(ATTRIBUTE_TOKENS).toContain('--marginalia')
     expect(ATTRIBUTE_TOKENS).toContain('--chip-style')
     expect(ATTRIBUTE_TOKENS).toContain('--pane-controls')
   })
@@ -193,7 +211,7 @@ describe('toAttributes / attributeValues', () => {
 
   it('attributeValues carries every switch, defaults included', () => {
     const values = attributeValues(resolveTheme([{ source: 'space', base: { '--list-marker': 'disc' } }]))
-    expect(Object.keys(values)).toHaveLength(17)
+    expect(Object.keys(values)).toHaveLength(18)
     expect(values['list-marker']).toBe('disc')
     expect(values['callout-style']).toBe('bar')
   })

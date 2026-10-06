@@ -46,6 +46,7 @@ base:
   code-header: 'on'
   rail-blocks: 'plain'
   list-marker: 'dash'
+  marginalia: 'list'
   topbar: 'off'
   page-head: 'title'
   pane-controls: 'edges'
