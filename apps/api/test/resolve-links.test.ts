@@ -33,6 +33,25 @@ describe('LinkResolver: Titel-Kollisionen (F3)', () => {
   })
 })
 
+describe('LinkResolver: wikilink by page id', () => {
+  const resolver = new LinkResolver([
+    { id: 'settings', path: 'settings/index.md', title: 'Settings' },
+    { id: 'my-settings', path: 'settings/appearance/my-settings/index.md', title: 'My settings' },
+    { id: 'contrast', path: 'settings/appearance/contrast/index.md', title: 'Contrast' },
+  ])
+
+  it('resolves a nested page by its id, not only by root path or title', () => {
+    expect(resolver.resolve('my-settings', 'wikilink', 'settings/appearance/index.md')).toBe('my-settings')
+    expect(resolver.resolve('contrast#aa', 'wikilink', 'settings/appearance/my-settings/index.md')).toBe('contrast')
+  })
+
+  it('still resolves root-level pages by path and any page by title', () => {
+    expect(resolver.resolve('settings', 'wikilink', 'x/index.md')).toBe('settings')
+    expect(resolver.resolve('My settings', 'wikilink', 'x/index.md')).toBe('my-settings')
+    expect(resolver.resolve('missing', 'wikilink', 'x/index.md')).toBeNull()
+  })
+})
+
 describe('buildResolveImage', () => {
   // Bug (Live-Betrieb): Seiten ohne explizite Frontmatter-`id` bekommen die
   // Fallback-Id `path:<space>/<datei>` (siehe `index-space.ts`, Formel
