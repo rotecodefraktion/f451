@@ -201,6 +201,15 @@ function buildItems(t: T): readonly SlashItemDef[] {
         editor.chain().focus().insertContent({ type: 'youtubeEmbed', attrs: { url } }).run()
       },
     },
+    {
+      id: 'footnote',
+      label: t('editor.slashItems.footnote.label'),
+      hint: t('editor.slashItems.footnote.hint'),
+      keywords: 'fußnote footnote anmerkung randnotiz',
+      // Reference at the cursor, definition at the document end — see
+      // `ui-extensions.ts#FootnoteCommands` / `footnotes.ts#insertFootnoteInto`.
+      run: (editor) => editor.chain().focus().insertFootnote().run(),
+    },
   ]
 }
 

@@ -92,8 +92,13 @@ export function placeFootnotes(html: string): string {
   const wrappers = new Set<HElement>()
   const movedIds = new Set<string>()
 
-  for (const li of [...ol.children]) {
-    if (!isElement(li, 'li') || typeof li.properties.id !== 'string') continue
+  // Ordinal of every note before anything moves: the numbers in the text are fixed,
+  // so a note that stays in the list must keep its number (`<li value>`).
+  const items = ol.children.filter((child): child is HElement => isElement(child, 'li'))
+  items.forEach((li, index) => { li.properties.value = index + 1 })
+
+  for (const li of items) {
+    if (typeof li.properties.id !== 'string') continue
     const noteId = li.properties.id
     const paragraph = singleParagraph(li)
     if (!paragraph) continue
@@ -146,6 +151,10 @@ export function placeFootnotes(html: string): string {
   }
 
   if (movedIds.size === 0) return html
+  // No gaps: the untouched list numbers itself.
+  if (ol.children.filter((child) => isElement(child, 'li')).length === items.length) {
+    for (const li of items) delete li.properties.value
+  }
 
   if (!ol.children.some((child) => isElement(child, 'li'))) {
     removeNode(root, section)

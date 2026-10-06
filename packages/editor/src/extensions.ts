@@ -21,6 +21,8 @@ import Strike from '@tiptap/extension-strike'
 import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table'
 import Text from '@tiptap/extension-text'
 import { Alert } from './nodes/alert.js'
+import { FootnoteDefinition } from './nodes/footnote-definition.js'
+import { FootnoteReference } from './nodes/footnote-reference.js'
 import { EditorImage } from './nodes/image.js'
 import { WikiLink } from './nodes/wiki-link.js'
 import { YoutubeEmbed } from './nodes/youtube-embed.js'
@@ -138,5 +140,9 @@ export function editorExtensions(): Extensions {
     Alert,
     WikiLink,
     YoutubeEmbed,
+
+    // GFM footnotes (since 1.2.9): inline reference atom + block definition ----------
+    FootnoteReference,
+    FootnoteDefinition,
   ]
 }

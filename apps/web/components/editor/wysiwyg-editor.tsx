@@ -3,10 +3,12 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useReducer, useRef, useState } from 'react'
 import type { Editor } from '@tiptap/react'
 import { EditorContent, useEditor } from '@tiptap/react'
+import { NodeSelection, TextSelection } from '@tiptap/pm/state'
 import { docToMarkdown, markdownToDoc } from '@f451/editor'
 import { searchPages, UploadError, uploadMedia } from '../../lib/editor/client-api'
 import { diagramPath, diagramSlug, type DiagramKind } from '../../lib/editor/diagram'
 import { bumpDiagramVersion } from '../../lib/editor/diagram-versions'
+import { findDefinition, findFirstReference } from '../../lib/editor/footnotes'
 import { uiExtensions } from '../../lib/editor/ui-extensions'
 import { initialUploadQueueState, skippedFilesNotice, uploadQueueReducer } from '../../lib/editor/upload-queue'
 import { DrawioDialog } from './drawio-dialog'
@@ -285,6 +287,36 @@ export const WysiwygEditor = forwardRef<WysiwygEditorHandle, WysiwygEditorProps>
           event.preventDefault()
           event.stopPropagation()
           setLinkPopoverOpen(true)
+          return true
+        }
+        return false
+      },
+      // Footnotes (f451#82): a click on a reference jumps to the start of its
+      // definition; a click on a definition's own box (padding/label area, not
+      // its content) jumps back to the first reference.
+      handleClick: (view, pos, event) => {
+        const target = event.target instanceof Element ? event.target : null
+        if (!target) return false
+        const { doc } = view.state
+
+        const ref = target.closest('sup.fn-ref')
+        if (ref && view.dom.contains(ref)) {
+          const label = ref.getAttribute('data-footnote-ref') ?? ''
+          const node = doc.nodeAt(pos)
+          const identifier = node?.type.name === 'footnoteReference' ? (node.attrs.identifier as string | null) : null
+          const defPos = findDefinition(doc, label, identifier)
+          if (defPos === null) return false
+          // `near` from inside the definition lands at the start of its first textblock.
+          const selection = TextSelection.near(doc.resolve(defPos + 1))
+          view.dispatch(view.state.tr.setSelection(selection).scrollIntoView())
+          return true
+        }
+
+        if (target.matches('div.fn-def')) {
+          const label = target.getAttribute('data-footnote-def') ?? ''
+          const refPos = findFirstReference(doc, label)
+          if (refPos === null) return false
+          view.dispatch(view.state.tr.setSelection(NodeSelection.create(doc, refPos)).scrollIntoView())
           return true
         }
         return false

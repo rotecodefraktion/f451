@@ -101,6 +101,7 @@ export const editor = {
     taskListTitle: 'Aufgabenliste',
     tableTitle: 'Tabelle einfügen',
     imageTitle: 'Bild oder Datei einfügen',
+    footnoteTitle: 'Fußnote einfügen (⌘⇧F)',
     wordCount: '{count} Wörter · {minutes} Min',
     linkPopover: {
       ariaLabel: 'Link einfügen',
@@ -144,6 +145,7 @@ export const editor = {
     video: { label: 'Video', hint: 'Einbettung per URL' },
     videoPrompt: 'YouTube-URL (wird als eigene Zeile eingebettet):',
     videoInvalid: 'Das ist keine gültige YouTube-URL (erwartet: youtube.com/watch?v=… oder youtu.be/…).',
+    footnote: { label: 'Fußnote', hint: 'Verweis im Text, Definition am Ende' },
   },
 
   modeSwitch: {

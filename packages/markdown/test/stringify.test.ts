@@ -10,6 +10,7 @@ const EXPECTED_GROUPS = [
   'blockquote-alerts.md',
   'code.md',
   'file-attachments.md',
+  'footnotes.md',
   'headings.md',
   'images-drawio.md',
   'images-excalidraw.md',

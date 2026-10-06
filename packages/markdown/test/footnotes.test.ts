@@ -48,7 +48,7 @@ const isAside = (n: N) => n.tagName === 'aside' && classes(n).includes('note')
 const isHost = (n: N) => n.tagName === 'div' && classes(n).includes('note-host')
 
 describe('renderHtml: GFM footnote section', () => {
-  const fixture = readFileSync(new URL('./fixtures/footnotes.md', import.meta.url), 'utf8')
+  const fixture = readFileSync(new URL('./fixtures/canonical/footnotes.md', import.meta.url), 'utf8')
   const root = tree(render(fixture))
 
   it('renders an empty p.footnotes-title inside section[data-footnotes] and no h2', () => {
@@ -107,6 +107,14 @@ describe('placeFootnotes', () => {
     expect(items.map((li) => li.properties?.id)).toEqual(['user-content-fn-b'])
     // The label still exists, so the refs keep describing it.
     expect(findAll(root, isRef).every((ref) => has(ref, 'ariaDescribedBy'))).toBe(true)
+  })
+
+  it('keeps the original number on a note that stays in the list (li value)', () => {
+    const html = render('A[^x] B[^1] C[^y]\n\n[^x]: short.\n[^1]: first.\n\n    second.\n[^y]: short too.\n')
+    const out = placeFootnotes(html)
+    expect(out).toContain('<li id="user-content-fn-1" value="2">')
+    expect(out).not.toContain('value="1"')
+    expect(out).not.toContain('value="3"')
   })
 
   it('creates one aside for two references to the same note; both refs keep their href', () => {

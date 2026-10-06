@@ -89,6 +89,7 @@ export const editor: Messages['editor'] = {
     taskListTitle: 'Task list',
     tableTitle: 'Insert table',
     imageTitle: 'Insert image or file',
+    footnoteTitle: 'Insert footnote (⌘⇧F)',
     wordCount: '{count} words · {minutes} min',
     linkPopover: {
       ariaLabel: 'Insert link',
@@ -132,6 +133,7 @@ export const editor: Messages['editor'] = {
     video: { label: 'Video', hint: 'Embed via URL' },
     videoPrompt: 'YouTube URL (will be embedded as its own line):',
     videoInvalid: 'That is not a valid YouTube URL (expected: youtube.com/watch?v=… or youtu.be/…).',
+    footnote: { label: 'Footnote', hint: 'Reference in the text, definition at the end' },
   },
 
   modeSwitch: {

@@ -9,8 +9,8 @@ import { docToMarkdown } from './to-markdown.js'
 // Rück-Serialisierungspfad (docToMarkdown(markdownToDoc(body))) etwas verlieren oder
 // stillschweigend verändern würde. Vertrag (Plan, verbatim):
 //
-//   - 'unsupported' (rohes HTML, Fußnoten, Referenz-Links/-Bilder/-Definitionen — die
-//     fünf Knotentypen aus from-markdown.ts#UNSUPPORTED_TYPES): der WYSIWYG-Wechsel
+//   - 'unsupported' (rohes HTML, Referenz-Links/-Bilder/-Definitionen — die
+//     Knotentypen aus from-markdown.ts#UNSUPPORTED_TYPES): der WYSIWYG-Wechsel
 //     MUSS verweigert werden (canEdit: false). Der Roh-Text-Modus bleibt davon
 //     unberührt immer möglich — checkEditorSupport entscheidet nur über den
 //     WYSIWYG-Pfad, nicht über die Bearbeitbarkeit des Dokuments insgesamt.

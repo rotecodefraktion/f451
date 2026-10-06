@@ -35,6 +35,8 @@ const EXPECTED_NODE_NAMES = [
   'alert',
   'wikiLink',
   'youtubeEmbed',
+  'footnoteReference',
+  'footnoteDefinition',
 ]
 
 const EXPECTED_MARK_NAMES = ['bold', 'italic', 'strike', 'code', 'link']

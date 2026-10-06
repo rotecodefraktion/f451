@@ -93,10 +93,17 @@ code block, always goes to the list at the end of the page. In a narrow
 column, and on the phone, a margin note sits below its paragraph instead.
 The number in the text jumps to the note; the number at the note jumps back.
 
-> [!NOTE]
-> The editor opens a page with footnotes in **Markdown** mode only; the
-> WYSIWYG mode does not support footnotes yet. The review diff shows them as
-> numbers and note blocks.
+**In the editor.** A reference is shown as a superscript number, its
+definition as a bordered block where it stands in the source (usually at the
+end). Insert a footnote with the slash menu item **Footnote**, the toolbar
+button, or ⌘⇧F (Ctrl+Shift+F on Windows and Linux): the reference gets the
+next free number and an empty definition is appended at the end of the page,
+with the cursor in it. Click a reference to jump to its definition; click the
+definition's label to jump back to the first reference. The visual editor does
+not rename labels; use the Markdown mode for word labels such as
+`[^reboot]`. A deleted reference leaves its definition in place, and
+definitions without references are not rendered on the page. The review diff
+shows footnotes as numbers and note blocks.
 
 ## Images
 

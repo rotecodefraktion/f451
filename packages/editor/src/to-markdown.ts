@@ -1,5 +1,6 @@
 import { formatImageAlt, stringifyMarkdown } from '@f451/markdown'
 import type { Mark, Node as PmNode } from 'prosemirror-model'
+import { footnoteIdentifier } from './footnote-label.js'
 
 // --- ProseMirror -> markdown (Task 4, Phase 2b) -------------------------------------
 //
@@ -39,6 +40,8 @@ interface MdNode {
   checked?: boolean
   align?: Array<'left' | 'center' | 'right' | null>
   data?: { alias?: string }
+  identifier?: string
+  label?: string
   children?: MdNode[]
 }
 
@@ -250,6 +253,11 @@ const blockHandlers: Record<string, BlockHandler> = {
   horizontalRule: () => [{ type: 'thematicBreak' }],
   image: convertImageBlock,
   youtubeEmbed: convertYoutubeEmbedBlock,
+  footnoteDefinition: (node) => {
+    const label = node.attrs.label as string
+    const identifier = (node.attrs.identifier as string | null) ?? footnoteIdentifier(label)
+    return [{ type: 'footnoteDefinition', identifier, label, children: convertBlockChildren(node) }]
+  },
 }
 
 // --- Inline-Ebene / Marks --------------------------------------------------------------
@@ -310,6 +318,13 @@ const atomInlineHandlers: Record<string, (node: PmNode) => MdNode> = {
     const target = node.attrs.target as string
     const alias = (node.attrs.alias as string | null) ?? target
     return { type: 'wikiLink', value: target, data: { alias } }
+  },
+  // stringifyMarkdown writes the label as given (associationId prefers it), so `[^A]`
+  // survives; the identifier is derived for editor-created references without one.
+  footnoteReference: (node) => {
+    const label = node.attrs.label as string
+    const identifier = (node.attrs.identifier as string | null) ?? footnoteIdentifier(label)
+    return { type: 'footnoteReference', identifier, label }
   },
 }
 
