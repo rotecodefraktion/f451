@@ -53,6 +53,12 @@
     display: none;
   }
 }
+/* The phone bar is only visible on the phone (the block above hides it
+   elsewhere), so no media query is needed: the legal icon links
+   (`components/legal-links.tsx`) stay out of it to keep it uncrowded. */
+.topbar-phone .legal-link {
+  display: none;
+}
 .brand {
   display: flex;
   align-items: center;

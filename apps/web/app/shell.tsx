@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { SearchDialog, SearchTrigger } from '../components/search-dialog'
 import { ShortcutsDialog } from '../components/shortcuts-dialog'
 import { SpaceSwitcher, type SpaceSwitcherSpace } from '../components/space-switcher'
+import { LegalLinks } from '../components/legal-links'
 import { getT } from '../lib/i18n/server.js'
 import { getBrand, getFrame } from '../lib/resolved-theme.js'
 import { LangSwitcher } from './lang-switcher.js'
@@ -144,6 +145,7 @@ export async function Shell({
           <div className="tree-foot">
             <LangSwitcher locale={locale} />
             <ThemeToggle />
+            <LegalLinks />
             {avatar}
           </div>
         ),
@@ -168,6 +170,7 @@ export async function Shell({
           <ShortcutsDialog />
           <LangSwitcher locale={locale} />
           <ThemeToggle />
+          <LegalLinks />
           {avatar}
         </header>
       ) : (
@@ -183,6 +186,7 @@ export async function Shell({
             <SearchTrigger />
             <LangSwitcher locale={locale} />
             <ThemeToggle />
+            <LegalLinks />
             {avatar}
           </header>
           {/* Both dialogs outside the header: a dialog inside a `display: none`
