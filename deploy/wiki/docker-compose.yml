@@ -20,6 +20,8 @@ services:
         # Nur setzen (absolute Origin), um den Proxy zu umgehen; dann muss die CSP
         # (middleware.ts) genau diese Origin erlauben — sie spiegelt den Wert.
         NEXT_PUBLIC_DRAWIO_URL: ${NEXT_PUBLIC_DRAWIO_URL:-}
+        # Release version shown in the attribution notice; "dev" = unreleased build.
+        F451_VERSION: ${F451_VERSION:-dev}
     environment:
       # LAUFZEIT: die SSR-Server-Components (lib/api.ts) lesen process.env.API_URL
       # direkt für Server-zu-Server-Aufrufe (NICHT über die Rewrites) — fehlt das,

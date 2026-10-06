@@ -38,6 +38,9 @@ jobs:
           labels: |
             org.opencontainers.image.title=f451-${{ matrix.app }}
             org.opencontainers.image.licenses=LicenseRef-f451-1.1
+      # Tag without the leading "v" (v1.2.7 -> 1.2.7) for the web image's attribution notice.
+      - id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
       - uses: docker/build-push-action@v6
         with:
           context: .
@@ -50,5 +53,6 @@ jobs:
             API_URL=http://api:3001
             DRAWIO_INTERNAL_URL=http://drawio:8080
             MCP_INTERNAL_URL=http://mcp:3002
+            F451_VERSION=${{ steps.version.outputs.version }}
           cache-from: type=gha,scope=${{ matrix.app }}
           cache-to: type=gha,mode=max,scope=${{ matrix.app }}
