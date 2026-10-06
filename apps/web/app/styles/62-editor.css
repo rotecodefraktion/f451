@@ -527,21 +527,28 @@
    `data-footnote-def` attribute. A click on the box itself (not its content)
    jumps back to the reference, see wysiwyg-editor.tsx#handleClick. */
 .doc .fn-def {
-  position: relative;
+  /* Grid, not absolute positioning: the label is a word as often as a number
+     (`[^reboot]`), so it gets its own column and the content follows it. */
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: var(--space-2);
   margin: 0 0 var(--rhythm);
-  padding-left: var(--space-5);
+  padding-left: var(--space-3);
   border-left: var(--rule-hair) solid var(--color-border-strong);
   font-size: var(--text-sm);
   color: var(--color-text-muted);
+}
+.doc .fn-def > * {
+  grid-column: 2;
 }
 .doc .fn-def > :last-child {
   margin-bottom: 0;
 }
 .doc .fn-def::before {
   content: attr(data-footnote-def);
-  position: absolute;
-  left: var(--space-1);
-  top: 0;
+  grid-column: 1;
+  grid-row: 1;
+  padding-top: 0.2em;
   font-family: var(--font-sans);
   font-size: var(--text-xs);
   font-weight: var(--weight-strong);
