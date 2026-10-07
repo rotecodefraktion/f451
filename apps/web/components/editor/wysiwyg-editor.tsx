@@ -14,6 +14,7 @@ import { initialUploadQueueState, skippedFilesNotice, uploadQueueReducer } from 
 import { DrawioDialog } from './drawio-dialog'
 import { EditorToolbar } from './editor-toolbar'
 import { ExcalidrawDialog } from './excalidraw-dialog'
+import { PhoneToolbar } from './phone-toolbar'
 import { useT } from '../../lib/i18n/provider'
 
 /** Ergebnis von `getMarkdownBody()` — diskriminiert, damit ein Konvertierungsfehler
@@ -141,6 +142,7 @@ export const WysiwygEditor = forwardRef<WysiwygEditorHandle, WysiwygEditorProps>
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const skippedNoticeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const phoneImageInputRef = useRef<HTMLInputElement>(null)
   // uiExtensions() (s. useMemo unten) baut die Extensions VOR `useEditor()` — zu
   // diesem Zeitpunkt existiert die Editor-Instanz noch nicht. `handleUploadFiles`
   // braucht sie aber erst beim tatsächlichen Upload (weit nach dem Mount), deshalb
@@ -398,6 +400,26 @@ export const WysiwygEditor = forwardRef<WysiwygEditorHandle, WysiwygEditorProps>
           onCloseLinkPopover={() => setLinkPopoverOpen(false)}
         />
       ) : null}
+      {editable ? (
+        <PhoneToolbar
+          editor={editor}
+          onOpenLink={() => setLinkPopoverOpen(true)}
+          onPickImage={() => phoneImageInputRef.current?.click()}
+        />
+      ) : null}
+      {/* Image picker of the phone bar (f451#2): images only and no `capture`
+          attribute, so iOS/Android offer both camera and photo library. */}
+      <input
+        ref={phoneImageInputRef}
+        type="file"
+        accept="image/*"
+        className="upload-input"
+        onChange={(event) => {
+          const file = event.target.files?.[0]
+          event.target.value = ''
+          if (file) void handleUploadFiles([file])
+        }}
+      />
       {/* Verstecktes Datei-Feld für den Upload-Flow (Toolbar-Button/Slash-Item
           „Bild/Datei", s. `openImagePicker`/`ui-extensions.ts#triggerImageUpload`) —
           akzeptiert Bilder UND die erlaubten Dokument-Anhänge (deckungsgleich mit
