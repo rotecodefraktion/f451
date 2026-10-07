@@ -41,7 +41,7 @@ sudo -u f451 DEMO_ENV=/opt/f451-demo/demo.env /opt/f451-demo/repo/deploy/demo/de
 
 cp /opt/f451-demo/repo/deploy/demo/systemd/* /etc/systemd/system/
 systemctl daemon-reload
-systemctl enable --now f451-demo-update.timer f451-demo-reset.timer f451-demo-stats.timer f451-demo-guard.timer
+systemctl enable --now f451-demo-update.timer f451-demo-reset.timer f451-demo-stats.timer f451-demo-guard.timer f451-demo-watch.timer
 ```
 
 `setup` writes all secrets into `demo.env` (Forgejo admin, service token,
@@ -66,6 +66,7 @@ footer. The privacy policy should cover the access log and statistics below —
 | `demo.sh update` | Runs every 5 min (timer). Does nothing unless `origin/main` moved; then pulls, builds, migrates, restarts, pushes `demo/*` into the spaces and reindexes. `--force` redeploys the current commit. |
 | `demo.sh reset` | Runs nightly at 03:30 (timer). Repairs the visitor accounts (password, no 2FA/tokens/keys), closes open reviews, deletes draft branches, restores all spaces to `demo/*`, reindexes. |
 | `demo.sh guard` | Runs every 5 min (timer). The visitor accounts are shared; if one no longer signs in with the password from `demo.env` (changed password, 2FA turned on), it is repaired in place — never deleted, because f451 identifies people by the Forgejo user id and Forgejo reuses freed ids. |
+| `demo.sh watch` | Runs every 5 min (timer), skipped while an update or reset runs. Restarts containers whose health check fails (the API's checks the database via `/readyz`) and warns once a day while the root disk is at or above `F451_DISK_ALERT_PERCENT` (default 80). Messages go to the journal and, with `F451_NTFY_TOPIC` set in `demo.env`, as a push message via [ntfy](https://ntfy.sh) (`F451_NTFY_URL` for a server of your own). |
 | `demo.sh status` | Container status and the deployed commit. |
 
 The Git side gets the same colours, typefaces and mark as the app
@@ -84,8 +85,14 @@ reset. IP addresses are shortened to /24 (IPv4) and /48 (IPv6) before they are
 written, cookies and credentials are dropped — unique visitors are therefore
 an estimate.
 
-Logs: `journalctl -u f451-demo-update -u f451-demo-reset -u f451-demo-stats`.
+Logs: `journalctl -u f451-demo-update -u f451-demo-reset -u f451-demo-stats -u f451-demo-watch`.
 
-Nothing here needs a backup: the demo is rebuilt from this repository.
+**Hardening.** Caddy sends HSTS (one year, no preload), `X-Content-Type-Options`
+and `Referrer-Policy` for both hosts; the app sets its own Content-Security-Policy,
+Forgejo's host only forbids framing by other sites. Request bodies are capped at
+12 MB, matching the API's upload limit (`F451_MAX_UPLOAD_MB`, default 10) and
+Forgejo's attachment limit of 10 MB.
+
+Nothing here needs a backup or a snapshot before updates: the demo is rebuilt from this repository.
 `demo.env` is the only state worth keeping (it holds the OAuth app and
 accounts); losing it means running `setup` on fresh volumes.

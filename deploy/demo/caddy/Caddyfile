@@ -4,6 +4,18 @@
 # the APP host gets the rebuilding page with 503. No reload needed — the matcher
 # checks per request. Forgejo stays reachable: a deploy never restarts it, and
 # the API's start-up discovers the OIDC issuer through this very proxy.
+# Response headers for both hosts. The app sets its own Content-Security-Policy
+# (with a per-request nonce, apps/web/middleware.ts); a second one here would be
+# intersected with it, so the app host gets none from Caddy.
+(security_headers) {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+}
+
 (maintenance) {
 	@maintenance {
 		file {
@@ -24,6 +36,12 @@
 
 {$F451_DEMO_HOST} {
 	encode zstd gzip
+	import security_headers
+	# Uploads: the API accepts F451_MAX_UPLOAD_MB (default 10) per file; the
+	# limit here leaves room for the multipart envelope.
+	request_body {
+		max_size 12MB
+	}
 	# Access log for the visitor statistics (GoAccess, `demo.sh stats`). IPs are
 	# shortened (/24, /48) and cookies/credentials dropped before anything is
 	# written; the files live in the caddy-logs volume, which no reset touches.
@@ -78,6 +96,14 @@
 
 {$F451_DEMO_GIT_HOST} {
 	encode zstd gzip
+	import security_headers
+	# Forgejo ships its own inline scripts; only framing is restricted here.
+	header Content-Security-Policy "frame-ancestors 'self'"
+	# Attachments are capped at 10 MB in Forgejo (docker-compose.demo.yml); the
+	# app pushes to Forgejo inside the network, not through this host.
+	request_body {
+		max_size 12MB
+	}
 	# Legal links in Forgejo's footer (forgejo/templates/custom/footer.tmpl).
 	redir /imprint {$F451_IMPRINT_URL}
 	redir /privacy {$F451_PRIVACY_URL}
