@@ -144,6 +144,84 @@
     opacity: 0.5;
   }
 
+  /* ---- Linked pages: list instead of graph (f451#1) ----
+     Both representations are always in the DOM; only CSS decides, so server
+     and client render the same markup. Rows reach `--control-h` (touch
+     target, #68). */
+  .rail .mini-graph {
+    display: none;
+  }
+  /* A page whose only neighbours are hierarchy or tag edges has a mini graph
+     but no list: without this the section would show a bare heading. */
+  .rail .rp:has(.mini-graph):not(:has(.linked-pages, .rel-group)) {
+    display: none;
+  }
+  .linked-pages {
+    display: block;
+  }
+  .linked-group + .linked-group {
+    margin-top: var(--space-3);
+  }
+  .linked-pages h5 {
+    margin: 0 0 var(--space-1);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-strong);
+    color: var(--color-text-muted);
+  }
+  .linked-pages ul,
+  .graph-phone-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .linked-pages li + li,
+  .graph-phone-list li + li {
+    border-top: var(--rule-hair) solid var(--color-border);
+  }
+  .linked-pages a,
+  .graph-phone-list a {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: var(--control-h);
+    color: var(--color-text);
+  }
+
+  /* Graph view: the canvas gives way to the list. The selector pair mirrors
+     `.shell.shell-graph > *` in `60-chrome-raster.css`, which would put the
+     list into a second column. */
+  .shell.shell-graph > .stage {
+    display: none;
+  }
+  .shell.shell-graph > .graph-phone {
+    display: block;
+    grid-column: 1;
+    overflow-y: auto;
+    padding: var(--space-4);
+  }
+  .graph-phone-hint {
+    margin: 0 0 var(--space-2);
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+  .graph-phone-back {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--control-h);
+    margin-bottom: var(--space-3);
+  }
+  .graph-phone-title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .graph-phone-count {
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+  }
+
   /* ---- Appearance page (theme editor, `components/theme-editor/*`) ----
      Spec addendum 2026-10-02 §7 "Telefon": the token table becomes a list —
      one token per entry, its field(s) below. Single-column grids instead of
@@ -201,6 +279,103 @@
   .te-threshold-fields {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* ---- Top bar (f451#1, mobile check at 390 px) ----
+     The shortcut hint in the search field overlapped the language switch;
+     a phone has no keyboard shortcuts. Same selector as `60-chrome-topbar.css`. */
+  .search .kbd {
+    display: none;
+  }
+  /* The space name was visually hidden by the ≤640 px rule in
+     `64-werkzeuge-einstellungen.css` (a 1 px clip), which the check reports as
+     a clipped sliver. It stays the button's accessible name, so it is not
+     removed — it gets its room back and ends in an ellipsis when the bar is
+     tight (pattern of `.tree-head-row .app-switch-label`). */
+  .app-switch-label {
+    position: static;
+    width: auto;
+    height: auto;
+    min-width: 0;
+    clip-path: none;
+    white-space: nowrap;
+  }
+  .topbar .app-switch {
+    max-width: 100%;
+  }
+
+  /* ---- Review (`components/review/*`, f451#1) ----
+     Header link: a touch target that still reads as a link. */
+  .rlink {
+    min-height: var(--control-h);
+  }
+
+  /* Tabs and legend: the legend takes its own line below the tabs and keeps
+     to it, wrapping to a second line at most instead of overflowing. */
+  .viewbar {
+    padding-inline: var(--space-4);
+  }
+  .difflegend {
+    gap: var(--space-2);
+    font-size: var(--text-2xs);
+  }
+  .difflegend span {
+    gap: var(--space-1);
+  }
+
+  /* Changed blocks without side indentation: just enough room on the left to
+     clear the marker bar. Tables and code inside keep the reading view's own
+     scroll box (`.page-body table` / `.page-body pre`, `61-lese.css`). */
+  .dchange {
+    padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  }
+
+  /* Action area: one column at full width. */
+  .actions {
+    padding-inline: var(--space-4);
+  }
+  textarea.commentbox {
+    /* Four lines of text plus the field's own padding and border. */
+    min-height: calc(4lh + 2 * var(--control-pad-y) + 2 * var(--rule-hair));
+  }
+  /* A fieldset defaults to `min-inline-size: min-content` and would push the
+     card wider than the phone. */
+  .version-bump {
+    min-inline-size: 0;
+  }
+  .version-bump label {
+    min-height: var(--control-h);
+  }
+  .act-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .act-row .btn {
+    width: 100%;
+  }
+
+  /* "Update draft" dialog as a bottom sheet at full width. Same specificity
+     as `.conflict-dialog` / `.update-strategy-dialog` in `44-dialog.css`. */
+  .update-strategy-dialog {
+    width: 100%;
+    max-width: none;
+    max-height: 85dvh;
+    margin: auto 0 0;
+    border-inline: 0;
+    border-bottom: 0;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .strategy-option .btn {
+    align-self: stretch;
+  }
+
+  /* iOS Safari zooms into any focused field whose text is below 16 px and
+     does not zoom back; at phone width the fields get 16 px. */
+  .input {
+    font-size: 1rem;
   }
 }
 

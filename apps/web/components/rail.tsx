@@ -1,10 +1,12 @@
 import type { MetadataSchema } from '@f451/markdown'
 import { Fragment } from 'react'
+import { linkedPages } from '../lib/graph/linked'
 import { miniGraphModel } from '../lib/graph/mini'
 import type { GraphData } from '../lib/graph/types'
 import { getT } from '../lib/i18n/server.js'
 import { buildMetadataView } from '../lib/metadata-view'
 import { relationLabel } from '../lib/page-view'
+import { LinkedPages } from './linked-pages'
 import { MiniGraph } from './mini-graph'
 import type { PageHeading } from './page-view'
 
@@ -69,6 +71,9 @@ export async function Rail({
   const tocEntries = headings.filter((h) => h.depth >= 2)
   const relationGroups = Object.entries(relations).filter(([, targets]) => targets.length > 0)
   const mini = miniGraph ? miniGraphModel(miniGraph, pageId) : null
+  // The phone shows these as a list instead of the mini graph (f451#1).
+  const linked = miniGraph ? linkedPages(miniGraph, pageId) : null
+  const hasLinked = linked !== null && (linked.linksTo.length > 0 || linked.linkedFrom.length > 0)
   // Schema-getriebene Zusatzfelder (Metadaten-Feature M2) — unabhängig vom
   // festen Workflow-`status` oben; ein Schema-Feld mit `key: 'status'`
   // erscheint hier als GEWÖHNLICHER, eigenständiger Eintrag mit seinem
@@ -148,10 +153,11 @@ export async function Rail({
         </dl>
       </section>
 
-      {mini !== null || relationGroups.length > 0 ? (
+      {mini !== null || relationGroups.length > 0 || hasLinked ? (
         <section className="rp">
           <h4>{t('read.rail.relatedPages')}</h4>
           {mini ? <MiniGraph model={mini} space={space} /> : null}
+          {linked && hasLinked ? <LinkedPages groups={linked} space={space} /> : null}
           {relationGroups.map(([type, targets]) => (
             <div className="rel-group" key={type}>
               <div className="rel-type">{relationLabel(t, type)}</div>

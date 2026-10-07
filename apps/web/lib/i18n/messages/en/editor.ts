@@ -254,6 +254,7 @@ export const editor: Messages['editor'] = {
 
   diagramNode: {
     editButton: 'Edit diagram',
+    phoneHint: 'Diagrams are edited on a tablet or computer.',
   },
 
   uploadQueue: {

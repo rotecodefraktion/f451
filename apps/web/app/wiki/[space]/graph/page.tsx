@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers'
 import { notFound, redirect } from 'next/navigation'
 import { AccountMenu } from '../../../../components/account-menu'
+import { GraphPhoneList } from '../../../../components/graph/graph-phone-list'
 import { GraphView } from '../../../../components/graph/graph-view'
 import { ApiError, apiFetch } from '../../../../lib/api'
 import type { GraphData } from '../../../../lib/graph/types'
@@ -54,6 +55,8 @@ export default async function GraphPage({ params }: GraphPageProps) {
         spaceName={space.name}
         spaces={spaces.map((s) => ({ id: s.id, name: s.name }))}
       />
+      {/* Phone stand-in for the canvas (f451#1); CSS shows one of the two. */}
+      <GraphPhoneList graph={graph} space={spaceId} />
     </Shell>
   )
 }
