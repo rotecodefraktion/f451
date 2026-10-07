@@ -6,6 +6,16 @@ All notable changes to f451. The format follows
 to the HTTP API, the MCP tools, the page format or the configuration only come
 with a new major version.
 
+## [Unreleased]
+
+### Demo
+- Security headers in Caddy (HSTS, `X-Content-Type-Options`, `Referrer-Policy`,
+  framing restricted on the Git host) and request size limits of 12 MB; Forgejo
+  attachments are capped at 10 MB.
+- `demo.sh watch` with `f451-demo-watch.timer`: restarts containers whose health
+  check fails (the API's now uses `/readyz`, which includes the database) and
+  warns via ntfy (`F451_NTFY_TOPIC`) when the disk reaches 80 %.
+
 ## [1.2.10] — 2026-10-07
 
 ### Fixed

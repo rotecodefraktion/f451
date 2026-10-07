@@ -10,6 +10,7 @@
 #   deploy/demo/demo.sh apply    deploy the checked-out commit (used by update)
 #   deploy/demo/demo.sh stats    update the visitor statistics at /stats/
 #   deploy/demo/demo.sh guard    recreate a visitor account that no longer signs in
+#   deploy/demo/demo.sh watch    restart unhealthy containers, warn when the disk fills
 #   deploy/demo/demo.sh status   containers and the last deployed commit
 #
 # Configuration lives OUTSIDE the repository in $DEMO_ENV (default
@@ -344,6 +345,43 @@ deploy() {
   git -C "$REPO" rev-parse HEAD > "$(dirname "$DEMO_ENV")/deployed-commit"
 }
 
+# Push message via ntfy (F451_NTFY_TOPIC in demo.env; F451_NTFY_URL defaults to
+# https://ntfy.sh). Without a topic the message only goes to the journal.
+notify() {  # notify TITLE MESSAGE
+  local topic server
+  echo "  ! $1: $2"
+  topic="$(env_get F451_NTFY_TOPIC)"
+  [ -n "$topic" ] || return 0
+  server="$(env_get F451_NTFY_URL)"
+  curl -fsS -m 10 -H "Title: $1" -H "Tags: warning" -d "$2" "${server:-https://ntfy.sh}/$topic" >/dev/null \
+    || echo "  ntfy: sending failed"
+}
+
+watch() {
+  # A deploy replaces containers on purpose; their health is not meaningful then.
+  if systemctl is-active --quiet f451-demo-update.service f451-demo-reset.service; then return 0; fi
+  # restart: unless-stopped only covers crashes; a container that runs but fails
+  # its health check (API without database, hung web) is restarted here.
+  local svc
+  for svc in $(compose ps --format '{{.Service}} {{.Health}}' | awk '$2 == "unhealthy" { print $1 }'); do
+    compose restart "$svc" >/dev/null
+    notify "f451 demo: $svc restarted" "$HOST: $svc failed its health check and was restarted."
+  done
+  # Disk: warn once a day while usage is at or above the threshold.
+  local used limit flag
+  used="$(df -P / | awk 'NR == 2 { sub("%", "", $5); print $5 }')"
+  limit="$(env_get F451_DISK_ALERT_PERCENT)"; limit="${limit:-80}"
+  flag="$(dirname "$DEMO_ENV")/disk-alerted"
+  if [ "$used" -ge "$limit" ]; then
+    if [ "$(cat "$flag" 2>/dev/null)" != "$(date +%F)" ]; then
+      notify "f451 demo: disk ${used}% full" "$HOST: / is ${used}% full (threshold ${limit}%). Try: docker system prune, docker builder prune."
+      date +%F > "$flag"
+    fi
+  else
+    rm -f "$flag"
+  fi
+}
+
 # --- commands ----------------------------------------------------------------
 
 case "${1:-}" in
@@ -380,6 +418,9 @@ case "${1:-}" in
   guard)
     guard "${2:-}"
     ;;
+  watch)
+    watch
+    ;;
   reset)
     say "Visitor accounts: repair"
     guard --force
@@ -395,7 +436,7 @@ case "${1:-}" in
     echo "deployed: $(cat "$(dirname "$DEMO_ENV")/deployed-commit" 2>/dev/null || echo -)"
     ;;
   *)
-    sed -n '4,14p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '4,15p' "$0" | sed 's/^# \{0,1\}//'
     exit 1
     ;;
 esac
