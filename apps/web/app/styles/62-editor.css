@@ -450,6 +450,27 @@
 .doc .diagram-node .diagram-edit:focus-visible {
   opacity: 1;
 }
+.doc .diagram-node .diagram-phone-hint {
+  display: none;
+}
+
+/* Phone layout (f451#1): diagrams are view-only — no edit button, a hint
+   instead, and the image does not react to taps. The threshold equals
+   PHONE_QUERY in lib/phone.ts (and app/styles/66-telefon.css). */
+@media (max-width: 699px) and (pointer: coarse) {
+  .doc .diagram-node .diagram-edit {
+    display: none;
+  }
+  .doc .diagram-node .diagram-phone-hint {
+    display: block;
+    margin-top: var(--space-1);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+  }
+  .doc .diagram-node img {
+    pointer-events: none;
+  }
+}
 
 /* Alert-Titel im Editor (Issue #22 Fix): renderHTML liefert kein statisches
    Titel-<p> mehr — ProseMirrors DOMSerializer verlangt, dass das Content-Loch (`0`)

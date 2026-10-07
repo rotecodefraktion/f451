@@ -91,6 +91,14 @@ export const read: Messages['read'] = {
     space: 'Space',
     updated: 'Updated',
     relatedPages: 'Related pages',
+    linksTo: 'Links to',
+    linkedFrom: 'Linked from',
+  },
+  graph: {
+    phoneHint: 'The graph view is available on tablets and computers.',
+    backToSpace: 'Back to the space',
+    connections_one: '{count} connection',
+    connections_other: '{count} connections',
   },
   relations: {
     depends_on: 'Depends on',

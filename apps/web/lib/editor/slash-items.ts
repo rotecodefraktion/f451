@@ -213,15 +213,21 @@ function buildItems(t: T): readonly SlashItemDef[] {
   ]
 }
 
+/** Items that open the diagram editor — hidden in the phone layout (f451#1). */
+const PHONE_HIDDEN_IDS: ReadonlySet<string> = new Set(['drawio', 'excalidraw'])
+
 /** Filtert die Item-Liste gegen die aktuelle `/`-Query (case-insensitive,
  *  Teilstring-Match gegen ein pro Item hinterlegtes Suchvokabular — NICHT nur
  *  gegen das Label, sonst würde „hin" nur „Hinweis" selbst treffen, s. Brief:
  *  „hin" → alle 5 Hinweisbox-Typen). Leere Query liefert alle Items in fester
  *  Mockup-Reihenfolge. `t` kommt von der aufrufenden Komponente (s. Modulkommentar
- *  oben) — die Items werden pro Aufruf neu gebaut (klein, kein Performance-Thema). */
-export function filterSlashItems(query: string, t: T): SlashItem[] {
+ *  oben) — die Items werden pro Aufruf neu gebaut (klein, kein Performance-Thema).
+ *  With `phone: true` the diagram items are dropped: diagrams are view-only on a
+ *  phone (f451#1), and these items would open the diagram editor. */
+export function filterSlashItems(query: string, t: T, opts?: { phone?: boolean }): SlashItem[] {
   const q = query.trim().toLowerCase()
-  const items = buildItems(t)
+  const all = buildItems(t)
+  const items = opts?.phone ? all.filter((item) => !PHONE_HIDDEN_IDS.has(item.id)) : all
   const matched = q.length === 0 ? items : items.filter((item) => item.keywords.includes(q))
   return matched.map(({ keywords: _keywords, ...item }) => item)
 }

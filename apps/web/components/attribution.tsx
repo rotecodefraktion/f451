@@ -12,6 +12,9 @@ import { AUTHOR_SITE_LABEL, AUTHOR_SITE_URL, F451_REPO_URL } from '../lib/attrib
  * F451_PRIVACY_URL (runtime env). Where the shell renders, they are icon
  * buttons next to the light/dark toggle (`LegalLinks`); only the sign-in page,
  * which has no top bar, passes `legal` to show them as text links right below.
+ * Without `legal` the text links are still rendered, marked `legal-phone`: the
+ * phone layout drops the icons from its crowded top bar and shows these instead
+ * (`66-telefon.css`), so the notice stays one tap away (Pages sheet).
  */
 export async function Attribution({ legal: showLegal = false }: { legal?: boolean } = {}) {
   const { t } = await getT()
@@ -35,8 +38,8 @@ export async function Attribution({ legal: showLegal = false }: { legal?: boolea
         {AUTHOR_SITE_LABEL}
       </a>
     </p>
-    {showLegal && legal.length > 0 ? (
-      <p className="attribution legal">
+    {legal.length > 0 ? (
+      <p className={showLegal ? 'attribution legal' : 'attribution legal legal-phone'}>
         {legal.map((l, i) => (
           <span key={l.href}>
             {i > 0 ? ' · ' : null}
