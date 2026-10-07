@@ -72,6 +72,21 @@ describe('filterSlashItems', () => {
     expect(items.find((item) => item.id === 'codeBlock')?.kbd).toBe('```')
   })
 
+  it('drops the diagram items in the phone layout (f451#1)', () => {
+    const ids = filterSlashItems('', t, { phone: true }).map((item) => item.id)
+    expect(ids).not.toContain('drawio')
+    expect(ids).not.toContain('excalidraw')
+    expect(ids).toHaveLength(18)
+  })
+
+  it('query "draw" finds nothing in the phone layout', () => {
+    expect(filterSlashItems('draw', t, { phone: true })).toEqual([])
+  })
+
+  it('query "draw" without opts contains drawio', () => {
+    expect(filterSlashItems('draw', t).map((item) => item.id)).toContain('drawio')
+  })
+
   it('deutsche Labels für alle Items', () => {
     const labels = filterSlashItems('', t).map((item) => item.label)
     expect(labels).toEqual([

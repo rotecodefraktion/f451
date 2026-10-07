@@ -266,6 +266,7 @@ export const editor = {
 
   diagramNode: {
     editButton: 'Diagramm bearbeiten',
+    phoneHint: 'Diagramme bearbeitest du auf einem Tablet oder Computer.',
   },
 
   uploadQueue: {

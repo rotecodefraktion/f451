@@ -171,6 +171,13 @@
   border: 2px solid var(--node-ring);
 }
 
+/* ---- Phone list (`components/graph/graph-phone-list.tsx`, f451#1) ----
+   The phone's stand-in for the canvas. Always in the DOM, shown only under
+   the phone threshold (`66-telefon.css`). */
+.graph-phone {
+  display: none;
+}
+
 /* ---- Bühne (Graph-Fläche) ----
    Redesign Phase 3: kein Karten-Look — die Bühne füllt ihre Grid-Spalte
    randlos aus. H5: wie bei `.minitree` trug das Markup `card` und nahm es

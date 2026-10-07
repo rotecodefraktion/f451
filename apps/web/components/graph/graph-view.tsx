@@ -8,6 +8,7 @@ import { degreeMap, hubIds, nodeVisibility, truncateLabel, visibleEdgeCount } fr
 import { statusShape } from '../../lib/graph/status-shape'
 import type { GraphData, GraphEdgeType, GraphNode, GraphNodeStatus } from '../../lib/graph/types'
 import { useT } from '../../lib/i18n/provider'
+import { isPhoneLayout } from '../../lib/phone'
 import { wikiGraphHref, wikiPageHref, wikiSpaceHref } from '../../lib/urls'
 
 export interface GraphViewProps {
@@ -124,7 +125,8 @@ export function GraphView({ graph, space, spaceName, spaces }: GraphViewProps) {
   // Absicherung erhalten (deckt sich mit dem Wortlaut, doppeltes
   // `setSelectedId(null)` ist harmlos).
   useEffect(() => {
-    if (!selected) return
+    // On the phone the canvas is hidden (`66-telefon.css`, f451#1) — nothing to focus or close.
+    if (!selected || isPhoneLayout()) return
     popRef.current?.focus()
     function onWindowKeyDown(ev: KeyboardEvent) {
       if (ev.key !== 'Escape') return
@@ -146,7 +148,8 @@ export function GraphView({ graph, space, spaceName, spaces }: GraphViewProps) {
   // des ausgewählten Knotens in eine randsichere Pixel-Position um.
   useEffect(() => {
     const el = canvasRef.current
-    if (!el) return
+    // Hidden canvas on the phone (f451#1): no size to track.
+    if (!el || isPhoneLayout()) return
     const update = () => setCanvasSize({ width: el.clientWidth, height: el.clientHeight })
     update()
     const observer = new ResizeObserver(update)

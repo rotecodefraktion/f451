@@ -103,6 +103,16 @@ export const read = {
     space: 'Space',
     updated: 'Aktualisiert',
     relatedPages: 'Verknüpfte Seiten',
+    // Phone list in place of the mini graph (`components/linked-pages.tsx`, f451#1).
+    linksTo: 'Verweist auf',
+    linkedFrom: 'Wird verwiesen von',
+  },
+  // Phone stand-in for the graph view (`components/graph/graph-phone-list.tsx`, f451#1).
+  graph: {
+    phoneHint: 'Die Graph-Ansicht gibt es auf Tablet und Computer.',
+    backToSpace: 'Zurück zum Space',
+    connections_one: '{count} Verknüpfung',
+    connections_other: '{count} Verknüpfungen',
   },
   relations: {
     depends_on: 'Hängt ab von',

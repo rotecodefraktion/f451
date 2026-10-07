@@ -161,4 +161,10 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Linked pages as a list (`components/linked-pages.tsx`, f451#1): the phone's
+   stand-in for the mini graph. Always in the DOM, shown only under the phone
+   threshold (`66-telefon.css`). */
+.linked-pages {
+  display: none;
+}
 

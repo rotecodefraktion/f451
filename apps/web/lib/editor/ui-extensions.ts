@@ -7,6 +7,7 @@ import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
 import Suggestion, { type SuggestionKeyDownProps, type SuggestionProps } from '@tiptap/suggestion'
 import { SlashMenu } from '../../components/editor/slash-menu.js'
 import { WikiLinkPopup } from '../../components/editor/wiki-link-popup.js'
+import { isPhoneLayout } from '../phone.js'
 import { mediaHref } from '../urls.js'
 import { diagramKind, type DiagramKind } from './diagram.js'
 import { diagramVersion, subscribeDiagramVersions } from './diagram-versions.js'
@@ -191,7 +192,11 @@ function imageWithMediaSrc(pageId: string, options: UiExtensionsOptions = {}, t:
         const unsubscribe = subscribeDiagramVersions((p, path) => {
           if (p === pageId && path === relSrc) setSrc()
         })
-        dom.append(img, button)
+        // Phone layout (f451#1): CSS hides the button and shows this hint instead.
+        const phoneHint = document.createElement('div')
+        phoneHint.className = 'diagram-phone-hint'
+        phoneHint.textContent = t('editor.diagramNode.phoneHint')
+        dom.append(img, button, phoneHint)
         return {
           dom,
           destroy: () => unsubscribe(),
@@ -427,7 +432,7 @@ function slashCommandExtension(t: T) {
           char: '/',
           decorationClass: 'trigger',
           shouldShow: ({ editor }) => !editor.isActive('tableCell') && !editor.isActive('tableHeader'),
-          items: ({ query }) => filterSlashItems(query, t),
+          items: ({ query }) => filterSlashItems(query, t, { phone: isPhoneLayout() }),
           command: ({ editor, range, props }) => {
             editor.chain().focus().deleteRange(range).run()
             props.run(editor)

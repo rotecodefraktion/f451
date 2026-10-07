@@ -1085,7 +1085,11 @@
   font-size: inherit;
   color: var(--color-text-muted);
 }
-/* Legal links (F451_IMPRINT_URL / F451_PRIVACY_URL) directly below. */
+/* Legal links (F451_IMPRINT_URL / F451_PRIVACY_URL) directly below. The
+   `legal-phone` copy is shown only in the phone layout (`66-telefon.css`). */
+.attribution.legal-phone {
+  display: none;
+}
 .attribution.legal {
   margin-top: calc(-1 * var(--space-2));
   padding-top: 0;
