@@ -377,6 +377,15 @@
     align-self: stretch;
   }
 
+  /* Legal notice and privacy policy leave the crowded top bar for the text
+     links under the attribution (Pages sheet, settings, graph list). */
+  .topbar .legal-link {
+    display: none;
+  }
+  .attribution.legal-phone {
+    display: block;
+  }
+
   /* iOS Safari zooms into any focused field whose text is below 16 px and
      does not zoom back; at phone width the fields get 16 px. */
   .input,

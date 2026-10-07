@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Attribution } from '../attribution'
 import { pagesByConnections } from '../../lib/graph/linked'
 import type { GraphData } from '../../lib/graph/types'
 import { getT } from '../../lib/i18n/server.js'
@@ -32,6 +33,9 @@ export async function GraphPhoneList({ graph, space }: GraphPhoneListProps) {
           </li>
         ))}
       </ul>
+      {/* The graph variant has no page tree, so the attribution and the
+          phone copy of the legal links live here. */}
+      <Attribution />
     </div>
   )
 }
