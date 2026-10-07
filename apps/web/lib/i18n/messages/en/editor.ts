@@ -118,6 +118,10 @@ export const editor: Messages['editor'] = {
     italic: 'Italic',
   },
 
+  writing: {
+    done: 'Done',
+  },
+
   slashMenu: {
     ariaLabel: 'Command menu',
     heading: 'Insert block',

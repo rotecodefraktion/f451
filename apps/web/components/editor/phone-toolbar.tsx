@@ -1,14 +1,15 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import type { Editor } from '@tiptap/react'
 import { useEditorState } from '@tiptap/react'
 import { useT } from '../../lib/i18n/provider'
 import { moreSheetItems, nextHeadingLevel, PHONE_TOOLBAR, type PhoneToolbarId } from '../../lib/editor/phone-toolbar-items'
+import { WRITING_DONE_EVENT } from '../../lib/editor/writing-mode'
+import { LinkPopover } from './editor-toolbar'
 
 export interface PhoneToolbarProps {
   editor: Editor
-  onOpenLink: () => void
   onPickImage: () => void
 }
 
@@ -26,10 +27,13 @@ function keepEditorFocus(event: React.PointerEvent) {
  * desktop `EditorToolbar` is hidden there instead. Active state via
  * `useEditorState`, same pattern as `editor-toolbar.tsx`.
  */
-export function PhoneToolbar({ editor, onOpenLink, onPickImage }: PhoneToolbarProps) {
+export function PhoneToolbar({ editor, onPickImage }: PhoneToolbarProps) {
   const { t } = useT()
   const [moreOpen, setMoreOpen] = useState(false)
+  const [linkOpen, setLinkOpen] = useState(false)
 
+  // Link fields derived as in `editor-toolbar.tsx`, so the link sheet gets the
+  // same props as the desktop popover.
   const state = useEditorState({
     editor,
     selector: ({ editor: e }) => ({
@@ -38,8 +42,31 @@ export function PhoneToolbar({ editor, onOpenLink, onPickImage }: PhoneToolbarPr
       bulletList: e.isActive('bulletList'),
       orderedList: e.isActive('orderedList'),
       heading: (e.isActive('heading') ? ((e.getAttributes('heading').level as number | undefined) ?? 0) : 0) as HeadingLevel,
+      link: e.isActive('link'),
+      linkHref: (e.getAttributes('link').href as string | undefined) ?? '',
+      selectionEmpty: e.state.selection.empty,
+      selectedText: e.state.doc.textBetween(e.state.selection.from, e.state.selection.to, ''),
     }),
   })
+
+  // "Done" in the writing header (`writing-header.tsx`): close both sheets and
+  // let go of the editor, so the keyboard closes and writing mode ends.
+  useEffect(() => {
+    function onDone() {
+      setMoreOpen(false)
+      setLinkOpen(false)
+      editor.commands.blur()
+    }
+    window.addEventListener(WRITING_DONE_EVENT, onDone)
+    return () => window.removeEventListener(WRITING_DONE_EVENT, onDone)
+  }, [editor])
+
+  function closeLink() {
+    setLinkOpen(false)
+    // Submit and remove already refocus the editor; cancel leaves the focus in
+    // the unmounting input, which would end writing mode.
+    if (!editor.isFocused) editor.commands.focus()
+  }
 
   function cycleHeading() {
     const level = nextHeadingLevel(state.heading)
@@ -51,12 +78,18 @@ export function PhoneToolbar({ editor, onOpenLink, onPickImage }: PhoneToolbarPr
     heading: cycleHeading,
     bold: () => editor.chain().focus().toggleBold().run(),
     code: () => editor.chain().focus().toggleCode().run(),
-    link: onOpenLink,
+    link: () => {
+      setMoreOpen(false)
+      setLinkOpen((open) => !open)
+    },
     bulletList: () => editor.chain().focus().toggleBulletList().run(),
     orderedList: () => editor.chain().focus().toggleOrderedList().run(),
     image: onPickImage,
     undo: () => editor.chain().focus().undo().run(),
-    more: () => setMoreOpen((open) => !open),
+    more: () => {
+      setLinkOpen(false)
+      setMoreOpen((open) => !open)
+    },
   }
 
   const pressed: Partial<Record<PhoneToolbarId, boolean>> = {
@@ -93,7 +126,7 @@ export function PhoneToolbar({ editor, onOpenLink, onPickImage }: PhoneToolbarPr
               className={`tb${id === 'bold' ? ' b' : ''}${id === 'code' ? ' mono' : ''}${isOn ? ' on' : ''}`}
               aria-label={t(`editor.phoneToolbar.${id}`)}
               aria-pressed={isOn === undefined ? undefined : isOn}
-              aria-expanded={id === 'more' ? moreOpen : undefined}
+              aria-expanded={id === 'more' ? moreOpen : id === 'link' ? linkOpen : undefined}
               onPointerDown={keepEditorFocus}
               onClick={actions[id]}
             >
@@ -123,6 +156,21 @@ export function PhoneToolbar({ editor, onOpenLink, onPickImage }: PhoneToolbarPr
               </button>
             ))
           : null}
+      </div>
+      {/* Link box as a bottom sheet above the bar; the desktop popover is
+          hidden with the `.etoolbar` in the phone layout. Mounted only while
+          open: `LinkPopover` takes the current link as its start value. */}
+      <div className="phone-link-sheet" data-open={linkOpen ? '' : undefined}>
+        {linkOpen ? (
+          <LinkPopover
+            editor={editor}
+            currentHref={state.linkHref}
+            hasLink={state.link}
+            selectedText={state.selectedText}
+            canSetLink={!state.selectionEmpty || state.link}
+            onClose={closeLink}
+          />
+        ) : null}
       </div>
     </>
   )

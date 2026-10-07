@@ -427,9 +427,10 @@
     min-height: var(--control-h);
   }
 
-  /* "More" sheet: rises from the top edge of the bar (whose height is one
-     `--control-h` row plus its hairline), scrolls on its own. */
-  html[data-writing] .phone-more-sheet[data-open] {
+  /* "More" and link sheets: rise from the top edge of the bar (whose height is
+     one `--control-h` row plus its hairline), scroll on their own. */
+  html[data-writing] .phone-more-sheet[data-open],
+  html[data-writing] .phone-link-sheet[data-open] {
     display: block;
     position: fixed;
     z-index: 45;
@@ -476,6 +477,62 @@
   .phone-more-row span {
     font-size: var(--text-xs);
     color: var(--color-text-muted);
+  }
+  /* The link box is the desktop popover (`LinkPopover`, `.menu.linkpop`) laid
+     into the sheet: in the flow and at full width instead of hanging below
+     the toolbar button. Two classes beat `.menu` (`44-dialog.css`) and
+     `.linkpop` (`62-editor.css`). */
+  .phone-link-sheet .linkpop {
+    position: static;
+    width: auto;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: none;
+  }
+
+  /* ---- Writing mode (f451#2) ----
+     `data-writing` on <html> while the editor body has focus
+     (`lib/editor/writing-mode.ts`). The page chrome and the editor's header
+     block make room; a slim writing header (save state, "Done",
+     `components/editor/writing-header.tsx`) stays at the top. The title row
+     sits outside the writing-mode focus root, so it is hidden only while
+     the body is being written in and comes back with "Done". The lock banner
+     stays: it says why the editor may be read-only. */
+  html[data-writing] .topbar,
+  html[data-writing] .phone-bar,
+  html[data-writing] .phone-scrim,
+  html[data-writing] .editor-root .statusbar,
+  html[data-writing] .editor-root .page-title-field,
+  html[data-writing] .editor-root .metadata-panel,
+  html[data-writing] .editor-root .editorfoot {
+    display: none;
+  }
+  /* Neither the top bar nor the phone bar takes height now. */
+  html[data-writing] .shell {
+    height: 100dvh;
+  }
+  html[data-writing] .writing-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    position: sticky;
+    top: 0;
+    z-index: 15;
+    min-height: var(--control-h);
+    padding: env(safe-area-inset-top) var(--space-4) 0;
+    background: var(--color-bg);
+    border-bottom: var(--rule-hair) solid var(--color-border);
+  }
+  .writing-header .grow {
+    flex: 1;
+  }
+  .writing-header .writing-done {
+    min-height: var(--control-h);
+  }
+  /* The last line can scroll above the bar and the keyboard. */
+  html[data-writing] .wysiwyg-editor .body {
+    padding-bottom: calc(var(--control-h) + var(--kb-inset, 0px) + var(--space-4));
   }
 }
 

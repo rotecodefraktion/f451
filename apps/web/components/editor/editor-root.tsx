@@ -50,6 +50,7 @@ import { SaveTemplateDialog } from './save-template-dialog'
 import { SaveState, StatusBar } from './status-bar'
 import { StatusBarBottom } from '../status-bar-bottom'
 import { TitleField } from './title-field'
+import { WritingHeader } from './writing-header'
 import { WysiwygEditor, type WysiwygEditorHandle } from './wysiwyg-editor'
 
 /** Kurzer, menschenlesbarer Grund für den WYSIWYG-Tab-Tooltip, wenn der
@@ -1010,6 +1011,8 @@ function EditorSession({
         onExportMarkdown={handleExportMarkdown}
         onDeletePage={handleDeletePage}
       />
+      {/* Phone writing mode (f451#2): shown by CSS only under `html[data-writing]`. */}
+      <WritingHeader saveStatus={saveStatus} savedAt={savedAt} />
       {lockNotice ? <LockBanner heldBy={lockNotice.heldBy} onOverride={handleOverride} /> : null}
       <TitleField
         title={titleValue}

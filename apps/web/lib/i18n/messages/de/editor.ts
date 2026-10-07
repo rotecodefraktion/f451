@@ -130,6 +130,10 @@ export const editor = {
     italic: 'Kursiv',
   },
 
+  writing: {
+    done: 'Fertig',
+  },
+
   slashMenu: {
     ariaLabel: 'Befehlsmenü',
     heading: 'Block einfügen',
