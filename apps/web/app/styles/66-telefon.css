@@ -408,7 +408,10 @@
     display: flex;
     flex-wrap: nowrap;
     align-items: center;
-    gap: var(--space-1);
+    /* No gap: nine buttons of --control-h fit a 412 px phone exactly; a
+       narrower one scrolls the row, without a visible scrollbar. */
+    gap: 0;
+    scrollbar-width: none;
     position: fixed;
     z-index: 45;
     left: 0;
@@ -422,7 +425,7 @@
     border-top: var(--rule-hair) solid var(--color-border);
   }
   .phone-toolbar .tb {
-    flex: none;
+    flex: 1 0 auto;
     min-width: var(--control-h);
     min-height: var(--control-h);
   }
