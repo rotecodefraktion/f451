@@ -379,7 +379,10 @@
 
   /* iOS Safari zooms into any focused field whose text is below 16 px and
      does not zoom back; at phone width the fields get 16 px. */
-  .input {
+  .input,
+  .mf-input,
+  .select,
+  textarea.input {
     font-size: 1rem;
   }
 }
