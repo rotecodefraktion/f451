@@ -306,8 +306,13 @@
 
   /* ---- Review (`components/review/*`, f451#1) ----
      Header link: a touch target that still reads as a link. */
-  .rlink {
+  .rlink,
+  .notice.draft > a {
     min-height: var(--control-h);
+  }
+  .notice.draft > a {
+    display: inline-flex;
+    align-items: center;
   }
 
   /* Tabs and legend: the legend takes its own line below the tabs and keeps

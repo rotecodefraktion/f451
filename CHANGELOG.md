@@ -6,6 +6,27 @@ All notable changes to f451. The format follows
 to the HTTP API, the MCP tools, the page format or the configuration only come
 with a new major version.
 
+## [1.2.12] — 2026-10-07
+
+No breaking changes to the API, the MCP tools, the page format or the
+configuration.
+
+### Added
+- Linked pages on phones: the Info sheet lists **Links to** and **Linked
+  from** instead of the mini graph.
+- Graph page on phones: the pages of the space as a list, sorted by number of
+  connections. The graph itself stays on tablets and computers.
+
+### Changed
+- Diagrams (draw.io, Excalidraw) are view-only on phones; the editor shows a
+  hint in place of the edit button, and the diagram entries are removed from
+  the slash menu on phones.
+- The review view is laid out for phones: one-column actions, a comment box,
+  and the update dialog as a bottom sheet.
+- The top bar on phones has no ⌘K hint and shortens the space name instead of
+  clipping it.
+- Form fields use 16 px text on phones, so iOS does not zoom in.
+
 ## [1.2.11] — 2026-10-07
 
 ### Demo

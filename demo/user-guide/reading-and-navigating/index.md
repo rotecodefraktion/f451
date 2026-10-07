@@ -121,9 +121,20 @@ version** link. A frozen version opens read-only:
 > the release shows *This version was changed in the repository after it was
 > frozen.* Treat its content with care.
 
-## On a phone
+## On the phone
 
-On a narrow screen the page tree and info panel move into a bottom bar
-with **Pages**, **Outline** and **Info** sections, plus a **Next**
-button that jumps straight to the next page in the tree — handy for
-reading a space end to end without hunting through the tree each time.
+A phone (a narrow screen with touch) gets its own layout: a bottom bar
+with **Pages**, **Outline**, **Info** and **Next**. The page tree and the
+info panel open as sheets from the bottom. **Next** jumps straight to the
+next page in the tree — handy for reading a space end to end.
+
+- **Linked pages.** The **Info** sheet lists the linked pages (**Links to**
+  and **Linked from**) instead of the mini graph. The graph page shows the
+  pages of the space as a list, sorted by number of connections; the graph
+  itself is available on tablets and computers.
+- **Reviews.** They work fully on the phone: read the changes, comment,
+  request changes, approve.
+- **Diagrams.** draw.io and Excalidraw diagrams are view-only on the phone.
+  They open full screen with pinch zoom. Editing them, and creating new
+  ones, is done on a tablet or computer; in the editor a hint takes the
+  place of the edit button.
