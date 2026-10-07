@@ -40,6 +40,11 @@ services:
     # No depends_on: the API discovers the OIDC issuer through Caddy
     # (https://<git host>), so Caddy must not wait for the app.
 
+  api:
+    # /readyz also checks the database; `demo.sh watch` restarts what turns unhealthy.
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/readyz"]
+
   forgejo:
     restart: unless-stopped
     volumes:
@@ -48,6 +53,9 @@ services:
       - ../demo/forgejo/templates:/data/gitea/templates:ro
     environment:
       FORGEJO__server__DOMAIN: ${F451_DEMO_GIT_HOST}
+      # Upload limits in MB (issue attachments, files uploaded in the web UI).
+      FORGEJO__attachment__MAX_SIZE: "10"
+      FORGEJO__repository_0X2E_upload__FILE_MAX_SIZE: "10"
       FORGEJO__server__LANDING_PAGE: login
       # Top-level app.ini key: four underscores = no section.
       FORGEJO____APP_NAME: f451 Git
