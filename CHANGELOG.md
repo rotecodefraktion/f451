@@ -6,7 +6,7 @@ All notable changes to f451. The format follows
 to the HTTP API, the MCP tools, the page format or the configuration only come
 with a new major version.
 
-## [Unreleased]
+## [1.2.11] — 2026-10-07
 
 ### Demo
 - Security headers in Caddy (HSTS, `X-Content-Type-Options`, `Referrer-Policy`,
