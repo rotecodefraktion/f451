@@ -30,6 +30,7 @@ import {
   clearSessionCookie,
   createSession,
   destroySession,
+  requireBrowserSession,
   requireSession,
   SESSION_COOKIE_NAME,
   COOKIE_PREFIX,
@@ -673,7 +674,9 @@ export function registerConnectRoutes(app: FastifyInstance, deps: ConnectRoutesD
       '/auth/connect/:provider',
       {
         schema: { tags: ['auth'], response: { 404: simpleErrorSchema, 429: errorSchema } },
-        preHandler: requireSession,
+        // Security F-06: linking is a browser flow — an API token (even read-only) must
+        // not start, complete or remove a provider link.
+        preHandler: requireBrowserSession,
         config: { rateLimit: { max: deps.rateLimit.max, timeWindow: deps.rateLimit.windowMs } },
       },
       async (req, reply) => {
@@ -704,7 +707,7 @@ export function registerConnectRoutes(app: FastifyInstance, deps: ConnectRoutesD
           tags: ['auth'],
           response: { 400: simpleErrorSchema, 404: simpleErrorSchema, 429: errorSchema },
         },
-        preHandler: requireSession,
+        preHandler: requireBrowserSession,
         config: { rateLimit: { max: deps.rateLimit.max, timeWindow: deps.rateLimit.windowMs } },
       },
       async (req, reply) => {
@@ -785,7 +788,7 @@ export function registerConnectRoutes(app: FastifyInstance, deps: ConnectRoutesD
           tags: ['auth'],
           response: { 204: { type: 'null' }, 404: simpleErrorSchema, 429: errorSchema },
         },
-        preHandler: requireSession,
+        preHandler: requireBrowserSession,
         config: { rateLimit: { max: deps.rateLimit.max, timeWindow: deps.rateLimit.windowMs } },
       },
       async (req, reply) => {

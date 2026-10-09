@@ -279,6 +279,22 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
     void reply.status(404).send({ status: 'not_found', reason: 'Unbekannte Route.' })
   })
 
+  // Security F-02: the router (find-my-way) decodes the path before matching, so
+  // `/%61pi/pages/x/draft` reaches `/api/pages/:id/draft`. No legitimate client
+  // percent-encodes the first segment (the web proxy rewrites `/api`, `/media` literally),
+  // so such requests are rejected outright — a second line of defence behind the session
+  // gate below, which decides on the matched route pattern. String payload for the same
+  // reason as the scope gate: it bypasses any route-specific 400 response schema.
+  app.addHook('onRequest', async (req, reply) => {
+    const rawPath = req.url.split('?', 1)[0]!
+    const firstSegment = rawPath.slice(1).split('/', 1)[0]!
+    if (!firstSegment.includes('%')) return
+    reply.header('content-type', 'application/json; charset=utf-8')
+    return reply
+      .code(400)
+      .send(JSON.stringify({ status: 'bad_request', reason: 'Percent-encoded path prefix is not allowed.' }))
+  })
+
   // Task 3 (Auth-Härtung, CSRF-Origin-Check, Spec §7): zweite Verteidigungslinie
   // NEBEN SameSite=Lax-Cookies — Lax lässt Top-Level-GET-Navigationen mit
   // Cookie durch, verhindert aber KEINE state-ändernden Requests von Seiten,
@@ -479,10 +495,17 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
     //     `protectedAdmin`-Pfade.
     //   - /media/* → Session erforderlich (dieselbe Zugriffsprüfung wie /api/pages).
     //   - /auth/* → offen (Login/Callback/Logout müssen ohne Session erreichbar
-    //     sein; Connect-Routen sichern sich selbst per requireSession).
+    //     sein; Connect-Routen sichern sich selbst per requireBrowserSession — F-06).
     //   - /webhooks, /healthz, /readyz → offen (Maschinen-Endpunkte, eigene Sicherung).
     app.addHook('onRequest', async (req, reply) => {
-      const path = req.url.split('?', 1)[0]!
+      // Security F-02: decide on the matched route pattern (e.g. `/api/pages/:id/draft`),
+      // not on the raw URL — the router decodes the path before matching, the raw string
+      // does not, so `/%61pi/...` used to slip past every prefix check. Routing has already
+      // happened when `onRequest` runs. Unmatched requests (404) have no pattern and fall
+      // back to the raw path; the encoded-prefix guard above ensures its first segment is
+      // literal, so the prefix checks see what the router saw. The exemption regexes below
+      // match the patterns as well (`[^/]+` matches `:space`/`:name`).
+      const path = req.routeOptions.url ?? req.url.split('?', 1)[0]!
       if (path === '/api/openapi.json' || path === '/api/docs' || path.startsWith('/api/docs/')) return
       if (path.startsWith('/auth/')) return
       // Theme read routes are public: anonymous readers and the sign-in page keep the look.
@@ -781,7 +804,7 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
       rateLimit: rateLimits.search,
       providerRegistry: opts.providerRegistry,
     })
-    registerBrokenLinksRoutes(app, { db, spaces: opts.spaces, access })
+    registerBrokenLinksRoutes(app, { db, spaces: opts.spaces, access, providerRegistry: opts.providerRegistry })
     registerMetadataSchemaRoutes(app, {
       spaces: opts.spaces,
       providerRegistry: opts.providerRegistry,

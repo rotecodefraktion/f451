@@ -3,7 +3,12 @@ import type { FastifyInstance } from 'fastify'
 import type { GitProvider } from '@f451/git-provider'
 import { NotFoundError } from '@f451/git-provider'
 import type { Db } from '../db/client.js'
-import { exceedsTokenLimit, requestClassification, sendTokenLimit } from '../auth/classification-gate.js'
+import {
+  draftRequestClassification,
+  exceedsTokenLimit,
+  requestClassification,
+  sendTokenLimit,
+} from '../auth/classification-gate.js'
 import type { SpaceAccess } from '../auth/permissions.js'
 import type { SpaceConfig } from '../spaces/config.js'
 import { draftBranchName } from '../drafts/branch-name.js'
@@ -174,10 +179,14 @@ export function registerMediaRoutes(app: FastifyInstance, deps: MediaDeps): void
         }
 
         // Token classification limit (#39): attachments follow their page,
-        // and a frozen copy's own class if it is stricter.
+        // and a frozen copy's own class if it is stricter; draft media also
+        // the draft's class if it is stricter (F-04).
         if (req.apiTokenMaxClassification) {
           const releaseParam = ref === 'main' ? req.query.release : undefined
-          const cls = await requestClassification(deps, pageId, releaseParam, req.log)
+          const cls =
+            ref === 'draft'
+              ? await draftRequestClassification(deps, pageId, req.log)
+              : await requestClassification(deps, pageId, releaseParam, req.log)
           if (exceedsTokenLimit(req, cls)) return sendTokenLimit(reply)
         }
 

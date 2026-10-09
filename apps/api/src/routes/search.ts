@@ -4,8 +4,7 @@ import type { SpaceAccess } from '../auth/permissions.js'
 import type { Db } from '../db/client.js'
 import type { SpaceConfig } from '../spaces/config.js'
 import type { GitProvider } from '@f451/git-provider'
-import { compareClassifications, type Classification } from '@f451/markdown'
-import { exceedsTokenLimit } from '../auth/classification-gate.js'
+import { CLASSIFICATIONS, compareClassifications, type Classification } from '@f451/markdown'
 import { loadMetadataSchema } from '../spaces/metadata-schema.js'
 
 export interface SearchDeps {
@@ -114,7 +113,6 @@ const searchSchema = {
           path: { type: 'string' },
           snippet: { type: 'string' },
           classification: { type: 'string' },
-          restricted: { type: 'boolean' },
           rank: { type: 'number' },
         },
         required: ['id', 'title', 'space', 'path', 'snippet', 'rank'],
@@ -240,6 +238,16 @@ export function registerSearchRoutes(app: FastifyInstance, deps: SearchDeps): vo
         const scopeIds = allowedSpaceIds ?? (deps.spaces ?? []).map((sp) => sp.id)
         const cls = await classificationExpression(deps, scopeIds, req.log)
         conditions.push(sql`${cls} is distinct from 'strictly-confidential'`)
+        // API tokens (#39, security finding F-03): pages above the token limit
+        // are excluded here, not merely marked afterwards — the match and the
+        // rank depend on the content, so a visible hit would let a token test
+        // content claims word by word. `null` = space without classes (open).
+        // A value outside the known classes is excluded (fail closed).
+        const limit = req.apiTokenMaxClassification
+        if (limit) {
+          const allowedClasses = CLASSIFICATIONS.filter((c) => compareClassifications(c, limit) <= 0)
+          conditions.push(sql`(${cls} is null or ${cls} in ${allowedClasses})`)
+        }
         const where = sql.join(conditions, sql` and `)
 
         const result = await deps.db.execute<SearchRow>(sql`
@@ -258,9 +266,8 @@ export function registerSearchRoutes(app: FastifyInstance, deps: SearchDeps): vo
         `)
 
         return result.rows.map((r) => {
-          const restricted = exceedsTokenLimit(req, r.classification)
           const hideSnippet =
-            restricted || (r.classification !== null && compareClassifications(r.classification, 'confidential') >= 0)
+            r.classification !== null && compareClassifications(r.classification, 'confidential') >= 0
           return {
             id: r.id,
             title: r.title,
@@ -269,7 +276,6 @@ export function registerSearchRoutes(app: FastifyInstance, deps: SearchDeps): vo
             snippet: hideSnippet ? '' : r.snippet,
             rank: Number(r.rank),
             ...(r.classification ? { classification: r.classification } : {}),
-            ...(restricted ? { restricted: true } : {}),
           }
         })
       },

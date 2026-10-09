@@ -1,6 +1,7 @@
 import { and, eq } from 'drizzle-orm'
-import type { FastifyInstance } from 'fastify'
+import type { FastifyInstance, FastifyRequest } from 'fastify'
 import type { GitProvider } from '@f451/git-provider'
+import { exceedsTokenLimit } from '../auth/classification-gate.js'
 import type { SpaceAccess } from '../auth/permissions.js'
 import type { Db } from '../db/client.js'
 import { pages } from '../db/schema.js'
@@ -144,16 +145,21 @@ async function maybeEnrich(
  * `/graph/space/{s}` — projektweit einheitlich.
  */
 /**
- * Security classifications (#39): strictly confidential pages are not listed
- * as neighbours of other pages (the rail's "related pages" reads this route).
- * The page itself (`centerId`) keeps its own graph.
+ * Pages of a space (`ref='main'`) that space-wide listings must leave out:
+ * strictly confidential ones always (#39, the same rule as search and the
+ * page graph), and for an API token every page above its limit
+ * (`exceedsTokenLimit`, security finding F-05). Without `req` only the
+ * strictly-confidential rule applies. `keepId` is never hidden (the page
+ * graph's centre). Empty when the space has no classes.
  */
-async function strictlyConfidentialIds(
-  deps: GraphDeps,
+export async function hiddenPageIds(
+  deps: { db: Db; providerRegistry?: (space: SpaceConfig) => GitProvider },
   space: SpaceConfig,
-  centerId: string,
+  req: FastifyRequest | undefined,
   log: { warn: (obj: unknown, msg: string) => void },
+  keepId?: string,
 ): Promise<Set<string>> {
+  if (!deps.providerRegistry) return new Set()
   const schema = await loadMetadataSchema({ providerRegistry: deps.providerRegistry }, space, 'main', log)
   const settings = schema.classification
   if (!settings) return new Set()
@@ -161,16 +167,13 @@ async function strictlyConfidentialIds(
     .select({ id: pages.id, frontmatter: pages.frontmatter })
     .from(pages)
     .where(and(eq(pages.spaceId, space.id), eq(pages.ref, 'main')))
-  return new Set(
-    rows
-      .filter((r) => r.id !== centerId)
-      .filter(
-        (r) =>
-          effectiveClassification((r.frontmatter as PageFrontmatter).classification, settings) ===
-          'strictly-confidential',
-      )
-      .map((r) => r.id),
-  )
+  const hidden = new Set<string>()
+  for (const r of rows) {
+    if (r.id === keepId) continue
+    const cls = effectiveClassification((r.frontmatter as PageFrontmatter).classification, settings)
+    if (cls === 'strictly-confidential' || (req && exceedsTokenLimit(req, cls))) hidden.add(r.id)
+  }
+  return hidden
 }
 
 function withoutNodes(graph: GraphData, hidden: Set<string>): GraphData {
@@ -214,8 +217,11 @@ export function registerGraphRoutes(app: FastifyInstance, deps: GraphDeps): void
         if (types && 'invalid' in types) {
           return reply.code(400).send({ status: 'bad_request', reason: `Unbekannter Kantentyp "${types.invalid}".` })
         }
-        const graph = await buildSpaceGraph(deps.db, spaceId, types ?? DEFAULT_TYPES)
-        return maybeEnrich(deps, space, req.user?.id, graph, req.log)
+        const spaceGraph = await buildSpaceGraph(deps.db, spaceId, types ?? DEFAULT_TYPES)
+        // Security finding F-05: same rule as search and the page graph, plus
+        // the token limit — hidden pages lose their node and every edge.
+        const hidden = await hiddenPageIds(deps, space, req, req.log)
+        return maybeEnrich(deps, space, req.user?.id, withoutNodes(spaceGraph, hidden), req.log)
       },
     )
 
@@ -273,7 +279,12 @@ export function registerGraphRoutes(app: FastifyInstance, deps: GraphDeps): void
           depth = Number(rawDepth)
         }
         const spaceGraph = await buildSpaceGraph(deps.db, space.id, types ?? DEFAULT_TYPES)
-        const hidden = await strictlyConfidentialIds(deps, space, id, req.log)
+        // Security classifications (#39): strictly confidential pages are not
+        // listed as neighbours of other pages (the rail's "related pages" reads
+        // this route), and an API token does not see neighbours above its
+        // limit either (the gate only checks the centre page). The page
+        // itself (`id`) keeps its own graph.
+        const hidden = await hiddenPageIds(deps, space, req, req.log, id)
         const graph = neighborhood(withoutNodes(spaceGraph, hidden), id, depth)
         return maybeEnrich(deps, space, req.user?.id, graph, req.log)
       },
