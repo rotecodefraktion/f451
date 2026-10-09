@@ -138,3 +138,22 @@ next page in the tree — handy for reading a space end to end.
   They open full screen with pinch zoom. Editing them, and creating new
   ones, is done on a tablet or computer; in the editor a hint takes the
   place of the edit button.
+
+### Writing on the phone
+
+Tapping into the text starts writing mode: the page chrome steps aside. A
+slim header shows the save state and **Done**; below it a formatting bar
+offers heading, bold, code, link, lists, image or photo, undo, and **⋯** for
+more formats such as italic, table, alerts and footnote. The slash menu `/`
+works as well.
+
+- **More formats.** Blocks chosen from **⋯** are inserted after the current
+  paragraph.
+- **Done.** Closes the keyboard and brings the page back; submitting for
+  review happens from there.
+- **Image or photo.** Offers the camera and the photo library. Photos are
+  reduced to 2560 px on the long edge before upload.
+- **Switching apps or locking the phone mid-draft is safe.** f451 saves at
+  once and picks the draft up again on return. If someone else took the
+  page meanwhile, the usual lock notice appears.
+- **Diagrams** stay view-only on the phone, as described above.
