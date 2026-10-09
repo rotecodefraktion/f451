@@ -107,15 +107,18 @@ export function PhoneToolbar({ editor, onPickImage }: PhoneToolbarProps) {
   // so the item command runs as is. Italic has no slash item — the sheet adds it.
   const sheetRows: Array<{ id: string; label: string; hint?: string; run: () => void }> = [
     { id: 'italic', label: t('editor.phoneToolbar.italic'), run: () => editor.chain().focus().toggleItalic().run() },
-    // Block entries insert at the selection like the slash menu does at the
-    // caret; with text selected they would replace it, so the selection is
-    // collapsed to its end first (italic above works on the selection).
+    // The slash menu runs at a caret, usually on an empty line. From the sheet
+    // the selection may hold text or sit mid-paragraph: blocks are inserted
+    // after the current block instead of replacing or splitting it; the
+    // footnote reference goes to the end of the selection (italic above works
+    // on the selection itself).
     ...moreSheetItems(t).map((item) => ({
       id: item.id,
       label: item.label,
       hint: item.hint,
       run: () => {
-        editor.commands.setTextSelection(editor.state.selection.to)
+        const { $to, to } = editor.state.selection
+        editor.commands.setTextSelection(item.id === 'footnote' ? to : $to.end())
         item.run(editor)
       },
     })),
