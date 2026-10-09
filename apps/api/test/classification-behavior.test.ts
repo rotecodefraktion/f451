@@ -7,8 +7,11 @@ import { buildApp } from '../src/app.js'
 import { createClassificationGate } from '../src/auth/classification-gate.js'
 import { createDb, type Db } from '../src/db/client.js'
 import { indexSpace } from '../src/indexer/index-space.js'
+import { registerBrokenLinksRoutes } from '../src/routes/broken-links.js'
+import { registerGraphRoutes } from '../src/routes/graph.js'
 import { registerMediaRoutes } from '../src/routes/media.js'
 import { registerPagesRoutes } from '../src/routes/pages.js'
+import { registerSearchRoutes } from '../src/routes/search.js'
 import { registerVersionRoutes } from '../src/routes/versions.js'
 import type { SpaceConfig } from '../src/spaces/config.js'
 import { clearMetadataSchemaCache } from '../src/spaces/metadata-schema.js'
@@ -39,9 +42,17 @@ describe.sequential('classification behaviour', () => {
     provider = new ForgejoProvider({ baseUrl: forgejo.baseUrl, token: forgejo.token })
     repo = await forgejo.createRepo('classified')
     await write(provider, repo, '_meta/schema.yaml', 'classification:\n  default: internal\n')
-    await write(provider, repo, 'open/index.md', page('open', null, 'Kernel notes. See [[strict]] and [[conf]].'))
-    await write(provider, repo, 'conf/index.md', page('conf', 'confidential', 'Kernel secrets for the team.'))
-    await write(provider, repo, 'strict/index.md', page('strict', 'strictly-confidential', 'Kernel crown jewels. See [[open]].'))
+    await write(provider, repo, 'open/index.md', page('open', null, 'Kernel notes. See [[strict]] and [[conf]]. Also [[missing-open]].'))
+    await write(provider, repo, 'conf/index.md', page('conf', 'confidential', 'Kernel secrets for the team. See [[missing-conf]].'))
+    await write(
+      provider,
+      repo,
+      'strict/index.md',
+      page('strict', 'strictly-confidential', 'Kernel crown jewels. See [[open]] and [[missing-strict]].'),
+    )
+    // Public page for the token-limit listings (F-03/F-05); links only to
+    // `conf`, so it stays out of `open`'s depth-1 neighbourhood.
+    await write(provider, repo, 'pub/index.md', page('pub', 'public', 'Public notes. See [[conf]] and [[missing-pub]].'))
     await provider.writeFileBinary(repo, 'conf/_media/plan.png', Buffer.from('conf-png'), { branch: 'main', message: 'm' })
     // A frozen release of `open` from a time it was still confidential.
     await write(
@@ -149,6 +160,92 @@ describe.sequential('classification behaviour', () => {
       const ok = await a.inject({ method: 'GET', url: '/api/pages/open/releases/1.0.0', headers: { 'x-limit': 'confidential' } })
       expect(ok.statusCode).toBe(200)
       expect(ok.json().html).toContain('Old secret')
+      await a.close()
+    })
+
+    /** Minimal app: search, graph and broken links, the token limit from a header. */
+    function listingApp() {
+      const a = Fastify()
+      a.decorateRequest('user', null)
+      a.decorateRequest('apiTokenMaxClassification', null)
+      a.addHook('onRequest', async (req) => {
+        const limit = req.headers['x-limit']
+        req.apiTokenMaxClassification = typeof limit === 'string' ? (limit as Classification) : null
+      })
+      const deps = { db, spaces: [space], providerRegistry: () => provider }
+      registerSearchRoutes(a, { ...deps, rateLimit: { max: 1000, windowMs: 60_000 } })
+      registerGraphRoutes(a, deps)
+      registerBrokenLinksRoutes(a, deps)
+      return a
+    }
+
+    type Hit = { id: string }
+    type Graph = { nodes: Array<{ id: string }>; edges: Array<{ from: string; to: string; label: string }> }
+    type Report = Array<{ pageId: string; entries: Array<{ rawTarget: string; label: string }> }>
+
+    it('search (F-03): a page above the token limit is not a hit at all', async () => {
+      const a = listingApp()
+      await a.ready()
+      const ids = async (headers: Record<string, string>) =>
+        ((await a.inject({ method: 'GET', url: '/api/search?q=Kernel', headers })).json() as Hit[]).map((h) => h.id)
+
+      const internal = await ids({ 'x-limit': 'internal' })
+      expect(internal).toContain('open')
+      expect(internal).not.toContain('conf')
+      // Prefix probing must not reveal the page either.
+      const probe = await a.inject({
+        method: 'GET',
+        url: '/api/search?q=Kernel%20secr&prefix=true',
+        headers: { 'x-limit': 'internal' },
+      })
+      expect((probe.json() as Hit[]).map((h) => h.id)).not.toContain('conf')
+
+      expect(await ids({ 'x-limit': 'confidential' })).toContain('conf')
+      // Session (no token): unchanged — confidential listed, strictly confidential not.
+      const session = await ids({})
+      expect(session).toEqual(expect.arrayContaining(['open', 'conf']))
+      expect(session).not.toContain('strict')
+      await a.close()
+    })
+
+    it('space graph (F-05): no nodes or edges above the token limit or strictly confidential', async () => {
+      const a = listingApp()
+      await a.ready()
+      const graph = async (headers: Record<string, string>) =>
+        (await a.inject({ method: 'GET', url: '/api/spaces/classified/graph?types=link,relation,hierarchy,tag', headers })).json() as Graph
+
+      const pub = await graph({ 'x-limit': 'public' })
+      const pubIds = pub.nodes.map((n) => n.id)
+      expect(pubIds).toContain('pub')
+      for (const id of ['open', 'conf', 'strict']) expect(pubIds).not.toContain(id)
+      expect(pub.edges.every((e) => pubIds.includes(e.from) && pubIds.includes(e.to))).toBe(true)
+
+      // Session: strictly confidential hidden like in the page graph, the rest stays.
+      const session = await graph({})
+      const sessionIds = session.nodes.map((n) => n.id)
+      expect(sessionIds).toEqual(expect.arrayContaining(['open', 'conf', 'pub']))
+      expect(sessionIds).not.toContain('strict')
+      expect(session.edges.some((e) => e.from === 'strict' || e.to === 'strict')).toBe(false)
+      await a.close()
+    })
+
+    it('broken links (F-05): no entries from pages above the token limit or strictly confidential', async () => {
+      const a = listingApp()
+      await a.ready()
+      const report = async (headers: Record<string, string>) =>
+        a.inject({ method: 'GET', url: '/api/spaces/classified/broken-links', headers })
+
+      const pub = await report({ 'x-limit': 'public' })
+      expect(pub.statusCode).toBe(200)
+      expect((pub.json() as Report).map((r) => r.pageId)).toEqual(['pub'])
+      expect(pub.body).not.toContain('missing-conf')
+      expect(pub.body).not.toContain('missing-strict')
+
+      const session = await report({})
+      const sessionIds = (session.json() as Report).map((r) => r.pageId)
+      expect(sessionIds).toEqual(expect.arrayContaining(['open', 'conf', 'pub']))
+      expect(sessionIds).not.toContain('strict')
+      expect(session.body).not.toContain('missing-strict')
       await a.close()
     })
 

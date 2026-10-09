@@ -1,9 +1,11 @@
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
+import type { GitProvider } from '@f451/git-provider'
 import type { SpaceAccess } from '../auth/permissions.js'
 import type { Db } from '../db/client.js'
 import { edges, pages } from '../db/schema.js'
 import type { SpaceConfig } from '../spaces/config.js'
+import { hiddenPageIds } from './graph.js'
 
 export interface BrokenLinksDeps {
   db: Db
@@ -11,6 +13,9 @@ export interface BrokenLinksDeps {
   /** Zugriffsprüfer — wie bei den Pages-Routen: gesetzt ⇒ 404-statt-403
    *  (kein Existenz-Orakel), ungesetzt (kein Auth) ⇒ offen (1c-Verhalten). */
   access?: SpaceAccess
+  /** Service-account provider to read each space's `_meta/schema.yaml`
+   *  (security classifications, #39). Without it no space has classes. */
+  providerRegistry?: (space: SpaceConfig) => GitProvider
 }
 
 const errorSchema = {
@@ -118,10 +123,16 @@ export function registerBrokenLinksRoutes(app: FastifyInstance, deps: BrokenLink
           )
           .orderBy(asc(pages.path), asc(edges.type), asc(edges.rawTarget))
 
+        // Security finding F-05: link targets and labels are page content —
+        // drop source pages the page graph and search hide (strictly
+        // confidential, and for API tokens anything above the limit).
+        const hidden = await hiddenPageIds(deps, space, req, req.log)
+
         // Pro Seite gruppieren — die Zeilen kommen pfad-sortiert, die Map
         // erhält diese Reihenfolge (Insertion Order).
         const byPage = new Map<string, ReportRow>()
         for (const r of rows) {
+          if (hidden.has(r.pageId)) continue
           let row = byPage.get(r.pageId)
           if (!row) {
             row = { pageId: r.pageId, title: r.title, path: r.path, entries: [] }
