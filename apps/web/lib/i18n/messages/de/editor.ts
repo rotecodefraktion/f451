@@ -115,6 +115,25 @@ export const editor = {
     },
   },
 
+  phoneToolbar: {
+    label: 'Formatierung',
+    heading: 'Überschrift',
+    bold: 'Fett',
+    code: 'Code',
+    link: 'Link',
+    bulletList: 'Aufzählung',
+    orderedList: 'Nummerierte Liste',
+    image: 'Bild oder Foto',
+    undo: 'Rückgängig',
+    more: 'Mehr',
+    moreTitle: 'Weitere Formate',
+    italic: 'Kursiv',
+  },
+
+  writing: {
+    done: 'Fertig',
+  },
+
   slashMenu: {
     ariaLabel: 'Befehlsmenü',
     heading: 'Block einfügen',

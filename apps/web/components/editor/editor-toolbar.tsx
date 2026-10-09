@@ -258,7 +258,7 @@ function countWords(text: string): number {
   return trimmed.length === 0 ? 0 : trimmed.split(/\s+/).length
 }
 
-interface LinkPopoverProps {
+export interface LinkPopoverProps {
   editor: Editor
   currentHref: string
   hasLink: boolean
@@ -271,8 +271,9 @@ interface LinkPopoverProps {
  *  einen `[text](url)`-Link mit `text === url` (der serialisiert zwingend zur nackten
  *  Autolink-Form, s. `packages/editor/src/to-markdown.ts`) — lässt Text und URL
  *  identisch, wird stattdessen das `literal: true`-Attribut gesetzt (die
- *  Autolink-Form des Schemas, `packages/editor/src/extensions.ts:94-105`). */
-function LinkPopover({ editor, currentHref, hasLink, selectedText, canSetLink, onClose }: LinkPopoverProps) {
+ *  Autolink-Form des Schemas, `packages/editor/src/extensions.ts:94-105`).
+ *  Also rendered in the phone link sheet (`phone-toolbar.tsx`, f451#2). */
+export function LinkPopover({ editor, currentHref, hasLink, selectedText, canSetLink, onClose }: LinkPopoverProps) {
   const { t } = useT()
   const [url, setUrl] = useState(currentHref)
   const inputRef = useRef<HTMLInputElement>(null)

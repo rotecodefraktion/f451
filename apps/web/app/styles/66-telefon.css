@@ -64,8 +64,8 @@
     overflow-y: auto;
     overscroll-behavior: contain;
     border: 0;
-    border-top: var(--rule-hair) solid var(--color-border);
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    border-bottom: var(--rule-hair) solid var(--color-border);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
     box-shadow: var(--shadow-md);
     background: var(--color-bg);
     /* Geschlossen: unter die Leiste geschoben und aus dem Tabulator-Lauf. */
@@ -393,6 +393,155 @@
   .select,
   textarea.input {
     font-size: 1rem;
+  }
+
+  /* ---- Editor toolbar (f451#2) ----
+     The desktop bar (`.etoolbar`, `62-editor.css`) gives way to one row
+     below the writing header (`components/editor/phone-toolbar.tsx`).
+     It shows only in writing mode (`data-writing` on <html> while the editor
+     has focus); `--kb-inset` is the keyboard height (`lib/editor/keyboard-inset.ts`).
+     Same selector as `62-editor.css`, later in the cascade. */
+  .etoolbar {
+    display: none;
+  }
+  html[data-writing] .phone-toolbar {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    /* No gap: nine buttons of --control-h fit a 412 px phone exactly; a
+       narrower one scrolls the row, without a visible scrollbar. */
+    gap: 0;
+    scrollbar-width: none;
+    /* Directly below the writing header, not above the keyboard: iOS Safari
+       lays its form bar (˄ ˅ ✓) and the floating address bar over anything
+       placed at the bottom of the visual viewport, and a page cannot measure
+       them (f451#2, prototype test on the iPhone). */
+    position: sticky;
+    top: var(--writing-header-h);
+    z-index: 14;
+    overflow-x: auto;
+    overscroll-behavior: contain;
+    background: var(--panel-2);
+    border-bottom: var(--rule-hair) solid var(--color-border);
+  }
+  .phone-toolbar .tb {
+    flex: 1 0 auto;
+    min-width: var(--control-h);
+    min-height: var(--control-h);
+  }
+
+  /* "More" and link sheets: drop down from the bottom edge of the bar (header
+     plus one `--control-h` row and its hairline), scroll on their own.
+     `--vv-top` follows the visual viewport on iOS, where fixed elements stay
+     with the layout viewport while the keyboard scrolls the visible part. */
+  html[data-writing] .phone-more-sheet[data-open],
+  html[data-writing] .phone-link-sheet[data-open] {
+    display: block;
+    position: fixed;
+    z-index: 45;
+    left: 0;
+    right: 0;
+    top: calc(var(--vv-top, 0px) + var(--writing-header-h) + var(--control-h) + var(--rule-hair));
+    max-height: 60dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    border-top: var(--rule-hair) solid var(--color-border);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    box-shadow: var(--shadow-md);
+    background: var(--color-bg);
+  }
+  .phone-more-title {
+    padding: var(--space-3) var(--space-4) var(--space-1);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-strong);
+    color: var(--color-text-muted);
+  }
+  .phone-more-row {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    width: 100%;
+    min-height: var(--control-h);
+    padding: var(--space-2) var(--space-4);
+    border: 0;
+    background: none;
+    color: var(--color-text);
+    font: inherit;
+    text-align: left;
+  }
+  .phone-more-row + .phone-more-row {
+    border-top: var(--rule-hair) solid var(--color-border);
+  }
+  .phone-more-row b {
+    font-weight: var(--weight-strong);
+    font-size: var(--text-sm);
+  }
+  .phone-more-row span {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+  }
+  /* The link box is the desktop popover (`LinkPopover`, `.menu.linkpop`) laid
+     into the sheet: in the flow and at full width instead of hanging below
+     the toolbar button. Two classes beat `.menu` (`44-dialog.css`) and
+     `.linkpop` (`62-editor.css`). */
+  .phone-link-sheet .linkpop {
+    position: static;
+    width: auto;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: none;
+  }
+
+  /* ---- Writing mode (f451#2) ----
+     `data-writing` on <html> while the editor body has focus
+     (`lib/editor/writing-mode.ts`). The page chrome and the editor's header
+     block make room; a slim writing header (save state, "Done",
+     `components/editor/writing-header.tsx`) stays at the top. The title row
+     sits outside the writing-mode focus root, so it is hidden only while
+     the body is being written in and comes back with "Done". The lock banner
+     stays: it says why the editor may be read-only. */
+  html[data-writing] .topbar,
+  html[data-writing] .phone-bar,
+  html[data-writing] .phone-scrim,
+  html[data-writing] .editor-root .statusbar,
+  html[data-writing] .editor-root .page-title-field,
+  html[data-writing] .editor-root .metadata-panel,
+  html[data-writing] .editor-root .editorfoot {
+    display: none;
+  }
+  /* Neither the top bar nor the phone bar takes height now. */
+  html[data-writing] .shell {
+    height: 100dvh;
+  }
+  html[data-writing] {
+    --writing-header-h: calc(var(--control-h) + env(safe-area-inset-top));
+  }
+  html[data-writing] .writing-header {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    position: sticky;
+    top: 0;
+    z-index: 15;
+    min-height: var(--writing-header-h);
+    padding: env(safe-area-inset-top) var(--space-4) 0;
+    background: var(--color-bg);
+    border-bottom: var(--rule-hair) solid var(--color-border);
+  }
+  .writing-header .grow {
+    flex: 1;
+  }
+  .writing-header .writing-done {
+    min-height: var(--control-h);
+  }
+  /* The last line can scroll above the bar and the keyboard. */
+  html[data-writing] .wysiwyg-editor .body {
+    padding-bottom: calc(var(--kb-inset, 0px) + var(--space-6));
   }
 }
 

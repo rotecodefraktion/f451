@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { headers } from 'next/headers'
 import localFont from 'next/font/local'
 import { PreviewBanner } from '../components/theme-editor/preview-banner'
@@ -59,6 +59,16 @@ const jetbrainsMono = localFont({
  * `generateMetadata` statt eines statischen `metadata`-Exports, weil der
  * Titel von der per-Request ermittelten Sprache (`getLocale()`) abhängt.
  */
+/** `resizes-content`: Android Chrome shrinks the layout while the on-screen
+ *  keyboard is open, so fixed bars sit above it. iOS Safari ignores the value;
+ *  there `lib/editor/keyboard-inset.ts` follows the visual viewport. Zoom stays
+ *  allowed (no maximum-scale). */
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  interactiveWidget: 'resizes-content',
+}
+
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getT()
   // A brand name replaces "f451" in the title (addendum §5).
