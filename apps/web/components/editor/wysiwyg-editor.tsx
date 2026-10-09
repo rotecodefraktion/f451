@@ -8,6 +8,7 @@ import type { EditorView } from '@tiptap/pm/view'
 import { docToMarkdown, markdownToDoc } from '@f451/editor'
 import { searchPages, UploadError, uploadMedia } from '../../lib/editor/client-api'
 import { diagramPath, diagramSlug, type DiagramKind } from '../../lib/editor/diagram'
+import { downscaleImage, UPLOAD_LIMIT_BYTES } from '../../lib/editor/downscale-image'
 import { caretScrollDelta } from '../../lib/editor/caret-scroll'
 import { bumpDiagramVersion } from '../../lib/editor/diagram-versions'
 import { findDefinition, findFirstReference } from '../../lib/editor/footnotes'
@@ -245,7 +246,12 @@ export const WysiwygEditor = forwardRef<WysiwygEditorHandle, WysiwygEditorProps>
       const currentEditor = editorRef.current
       if (!currentEditor || files.length === 0) return
       dispatchUploadQueue({ type: 'start', count: files.length })
-      for (const file of files) {
+      // Phone photos are downscaled in the browser first (f451#2); the desktop
+      // uploads the original file as before.
+      const phone = isPhoneLayout()
+      for (const original of files) {
+        // downscaleImage returns non-images and failures unchanged; it never throws.
+        const file = phone ? await downscaleImage(original, UPLOAD_LIMIT_BYTES) : original
         try {
           const result = await uploadMedia(pageId, file, t)
           if (result.kind === 'image') {

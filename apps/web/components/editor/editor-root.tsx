@@ -23,6 +23,7 @@ import {
 import { createAutosave, type Autosave } from '../../lib/editor/autosave'
 import { clearOfflineDraft, readOfflineDraft, writeOfflineDraft } from '../../lib/editor/offline-buffer'
 import { evaluateOfflineRecovery } from '../../lib/editor/offline-recovery'
+import { resumeAction, settleHeartbeat } from '../../lib/editor/visibility-resume'
 import { archivedFromFrontmatter, classificationFromFrontmatter, titleFromFrontmatter } from '../../lib/editor/frontmatter-fields'
 import { classifySaveFailure } from '../../lib/editor/save-failure'
 import { frontmatterLineOffset, offsetFindingLines } from '../../lib/editor/frontmatter-offset'
@@ -604,6 +605,11 @@ function EditorSession({
   // unabhängig davon, ob `lockNotice` zwischendurch erneut auftaucht (Fall
   // „eigener Lock an einen anderen gefallen" — Banner zeigen, NICHT aufhören zu
   // heartbeaten, Soft-Lock blockiert nie hart).
+  // Restarts the heartbeat interval so the next regular beat is a full interval
+  // away — set by the heartbeat effect below, used after the immediate beat on
+  // returning to the page (f451#2). `null` while no heartbeat runs.
+  const restartHeartbeatIntervalRef = useRef<(() => void) | null>(null)
+
   useEffect(() => {
     if (entryGateActive) return
     let cancelled = false
@@ -621,10 +627,15 @@ function EditorSession({
     }
 
     beat()
-    const id = setInterval(beat, HEARTBEAT_INTERVAL_MS)
+    let id = setInterval(beat, HEARTBEAT_INTERVAL_MS)
+    restartHeartbeatIntervalRef.current = () => {
+      clearInterval(id)
+      id = setInterval(beat, HEARTBEAT_INTERVAL_MS)
+    }
     return () => {
       cancelled = true
       clearInterval(id)
+      restartHeartbeatIntervalRef.current = null
     }
   }, [pageId, entryGateActive])
 
@@ -672,11 +683,15 @@ function EditorSession({
   // meldet das Ergebnis über `onSaveResult` zurück — überlebt der JS-Kontext den
   // Unload (bfcache-Restore/iOS-Backgrounding), heilt sich der sonst dauerhaft
   // in `saving` hängende Zustand dadurch selbst.
-  useEffect(() => {
-    function onUnload() {
-      if (unloadHandledRef.current) return // Reentranz-Sperre, s. Kommentar oben.
-      unloadHandledRef.current = true
-      releaseLock(pageId).catch(() => {})
+  /** "Save now with keepalive" — shared by the `pagehide`/`beforeunload` path
+   *  and the `visibilitychange: hidden` path (f451#2). Saves only when
+   *  `flushNow` says something is pending (never while a conflict is open).
+   *  `opts.buffer` additionally writes the offline buffer with the content
+   *  being sent, before the request goes out — for the hidden path, where the
+   *  OS may kill the backgrounded page before the response arrives. Uses refs
+   *  only, so it stays stable and does not tear down the unload effect. */
+  const saveNowWithKeepalive = useCallback(
+    (opts: { buffer: boolean }) => {
       const shouldSave = autosaveRef.current.flushNow(Date.now())
       if (!shouldSave) return
       const read = readCurrentContentRef.current()
@@ -687,7 +702,25 @@ function EditorSession({
         autosaveRef.current.onSaveResult('error', Date.now())
         return
       }
+      if (opts.buffer) {
+        writeOfflineDraft(pageId, {
+          content: read.content,
+          baseSha: baseShaRef.current,
+          branch: draft.branch,
+          savedAt: new Date().toISOString(),
+        })
+      }
       void saveContentRef.current(read.content, baseShaRef.current, { keepalive: true })
+    },
+    [pageId, draft.branch],
+  )
+
+  useEffect(() => {
+    function onUnload() {
+      if (unloadHandledRef.current) return // Reentranz-Sperre, s. Kommentar oben.
+      unloadHandledRef.current = true
+      releaseLock(pageId).catch(() => {})
+      saveNowWithKeepalive({ buffer: false })
     }
     window.addEventListener('pagehide', onUnload)
     window.addEventListener('beforeunload', onUnload)
@@ -696,7 +729,58 @@ function EditorSession({
       window.removeEventListener('beforeunload', onUnload)
       releaseLock(pageId).catch(() => {})
     }
-  }, [pageId])
+  }, [pageId, saveNowWithKeepalive])
+
+  // App switch / phone locked mid-draft (f451#2), all layouts. `hidden`: save
+  // pending changes with keepalive and buffer them locally — the lock stays
+  // (the user is likely coming back). `visible`: one heartbeat at once instead
+  // of waiting up to a full interval, then act on `resumeAction`. Skipped
+  // while the entry gate holds the editor read-only (no heartbeat that would
+  // disturb a foreign lock, see the heartbeat effect) and once the unload path
+  // has run. `resumeInFlight` drops a second `visible` while the first beat is
+  // still under way.
+  useEffect(() => {
+    if (entryGateActive) return
+    let cancelled = false
+    let resumeInFlight = false
+
+    function onHidden() {
+      if (unloadHandledRef.current) return
+      saveNowWithKeepalive({ buffer: true })
+      bumpTick()
+    }
+
+    function onVisible() {
+      if (resumeInFlight || unloadHandledRef.current) return
+      resumeInFlight = true
+      restartHeartbeatIntervalRef.current?.()
+      void settleHeartbeat(() => heartbeatLock(pageId))
+        .then(({ result, info }) => {
+          if (cancelled) return
+          switch (resumeAction(result)) {
+            case 'notifyLocked':
+              if (info) setLockNotice({ heldBy: info.heldBy })
+              break
+            case 'none':
+              break
+          }
+        })
+        .finally(() => {
+          resumeInFlight = false
+        })
+    }
+
+    function onVisibilityChange() {
+      if (document.visibilityState === 'hidden') onHidden()
+      else if (document.visibilityState === 'visible') onVisible()
+    }
+
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => {
+      cancelled = true
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+    }
+  }, [pageId, entryGateActive, saveNowWithKeepalive, bumpTick])
 
   function handleOverride() {
     setEntryGateActive(false)
