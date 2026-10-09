@@ -3,7 +3,7 @@ import { isPhoneLayout } from '../phone'
 /**
  * Writing mode of the phone editor (f451#2): `data-writing` on <html> while the
  * editor has focus. CSS (`66-telefon.css`) uses it to swap the page chrome for
- * the formatting bar above the keyboard and the slim writing header.
+ * the formatting bar and the slim writing header at the top.
  *
  * Focus may move from the editor into the bar, its sheets or the writing header
  * without leaving writing mode — those are the "keep zone" below. The writing
@@ -16,6 +16,9 @@ import { isPhoneLayout } from '../phone'
 export const WRITING_DONE_EVENT = 'f451:writing-done'
 
 const KEEP_ZONE = '.phone-toolbar, .phone-more-sheet, .phone-link-sheet, .writing-header'
+/** Presses that must never end writing mode — the bar and its sheets, not the
+ *  writing header, whose "Done" is meant to end it. */
+const PRESS_ZONE = '.phone-toolbar, .phone-more-sheet, .phone-link-sheet'
 
 function inKeepZone(root: HTMLElement, node: EventTarget | null): boolean {
   if (!(node instanceof Element)) return false
@@ -28,6 +31,15 @@ function inKeepZone(root: HTMLElement, node: EventTarget | null): boolean {
 export function attachWritingMode(root: HTMLElement): () => void {
   const html = document.documentElement
   let frame = 0
+  // Time of the last press inside the keep zone. iOS Safari can still blur
+  // the editor on a toolbar tap; a blur right after such a press must not end
+  // writing mode (the toolbar and its open sheet would vanish). The editor's
+  // state keeps its selection, and the next command focuses it again.
+  let keepPressAt = 0
+
+  function onPointerDown(event: PointerEvent) {
+    if (event.target instanceof Element && event.target.closest(PRESS_ZONE)) keepPressAt = Date.now()
+  }
 
   function onFocusIn(event: FocusEvent) {
     if (!isPhoneLayout()) return
@@ -46,16 +58,19 @@ export function attachWritingMode(root: HTMLElement): () => void {
     // No `relatedTarget`: focus went to nothing focusable, or the browser does
     // not report the target (iOS Safari does not focus buttons on tap). Decide
     // once the focus has settled.
+    if (Date.now() - keepPressAt < 800) return
     cancelAnimationFrame(frame)
     frame = requestAnimationFrame(() => {
       if (!inKeepZone(root, document.activeElement)) html.removeAttribute('data-writing')
     })
   }
 
+  document.addEventListener('pointerdown', onPointerDown, true)
   document.addEventListener('focusin', onFocusIn)
   document.addEventListener('focusout', onFocusOut)
   return () => {
     cancelAnimationFrame(frame)
+    document.removeEventListener('pointerdown', onPointerDown, true)
     document.removeEventListener('focusin', onFocusIn)
     document.removeEventListener('focusout', onFocusOut)
     html.removeAttribute('data-writing')

@@ -15,9 +15,11 @@ export interface PhoneToolbarProps {
 
 type HeadingLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6
 
-/** Every button keeps the focus in the editor: a pointerdown that moved focus
- *  would close the on-screen keyboard. The action runs on click. */
-function keepEditorFocus(event: React.PointerEvent) {
+/** Every button keeps the focus in the editor: a press that moved focus would
+ *  close the on-screen keyboard. The action runs on click. Both events are
+ *  needed: iOS Safari moves focus on the compatibility `mousedown` even when
+ *  `pointerdown` was cancelled. */
+function keepEditorFocus(event: React.PointerEvent | React.MouseEvent) {
   event.preventDefault()
 }
 
@@ -105,7 +107,18 @@ export function PhoneToolbar({ editor, onPickImage }: PhoneToolbarProps) {
   // so the item command runs as is. Italic has no slash item — the sheet adds it.
   const sheetRows: Array<{ id: string; label: string; hint?: string; run: () => void }> = [
     { id: 'italic', label: t('editor.phoneToolbar.italic'), run: () => editor.chain().focus().toggleItalic().run() },
-    ...moreSheetItems(t).map((item) => ({ id: item.id, label: item.label, hint: item.hint, run: () => item.run(editor) })),
+    // Block entries insert at the selection like the slash menu does at the
+    // caret; with text selected they would replace it, so the selection is
+    // collapsed to its end first (italic above works on the selection).
+    ...moreSheetItems(t).map((item) => ({
+      id: item.id,
+      label: item.label,
+      hint: item.hint,
+      run: () => {
+        editor.commands.setTextSelection(editor.state.selection.to)
+        item.run(editor)
+      },
+    })),
   ]
 
   function choose(run: () => void) {
@@ -128,6 +141,7 @@ export function PhoneToolbar({ editor, onPickImage }: PhoneToolbarProps) {
               aria-pressed={isOn === undefined ? undefined : isOn}
               aria-expanded={id === 'more' ? moreOpen : id === 'link' ? linkOpen : undefined}
               onPointerDown={keepEditorFocus}
+              onMouseDown={keepEditorFocus}
               onClick={actions[id]}
             >
               {ICONS[id]}
@@ -149,6 +163,7 @@ export function PhoneToolbar({ editor, onPickImage }: PhoneToolbarProps) {
                 type="button"
                 className="phone-more-row"
                 onPointerDown={keepEditorFocus}
+                onMouseDown={keepEditorFocus}
                 onClick={() => choose(row.run)}
               >
                 <b>{row.label}</b>
