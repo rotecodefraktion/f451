@@ -54,7 +54,7 @@ export function registerReadTools(server: McpServer): void {
         'Durchsucht das f451-Wiki (Volltext) und liefert Treffer mit Seiten-ID, Titel, Space, Pfad und Textausschnitt. ' +
         'Die zurückgegebene `id` ist der Schlüssel für alle weiteren Tools (read_page, get_page_source, …). ' +
         'Optional auf Space, Tag, Relation (`ref`) oder Pfad-Präfix eingegrenzt. ' +
-        'Vertrauliche Seiten erscheinen ohne Textausschnitt; `restricted: true` heißt, das Token ist für diese Seite zu eng.',
+        'Seiten über der Klassifizierungsgrenze des Tokens erscheinen nicht in den Treffern.',
       inputSchema: {
         q: z.string().min(1).describe('Suchbegriff (Volltext).'),
         space: z.string().optional().describe('Nur in diesem Space suchen, z.B. "handbuch".'),

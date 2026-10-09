@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { getGlobalDispatcher, MockAgent, setGlobalDispatcher, type Dispatcher } from 'undici'
-import { buildApp } from '../src/app.js'
+import { buildApp, DEFAULT_RATE_LIMITS } from '../src/app.js'
 import { markNeedsReconnect } from '../src/auth/connect.js'
 import { decryptToken } from '../src/auth/crypto.js'
 import { SESSION_COOKIE_NAME, createSession } from '../src/auth/sessions.js'
@@ -57,6 +57,9 @@ describe.sequential('Provider-Kontoverknüpfung (Forgejo + GitHub OAuth)', () =>
           },
         },
       },
+      // The connect routes carry the auth rate limit (10/min per IP by default); this file
+      // already sends ten requests to some of them, so the limit is raised here.
+      rateLimits: { ...DEFAULT_RATE_LIMITS, auth: { max: 1000, windowMs: 60_000 } },
     })
     await app.ready()
   }, 120_000)
@@ -339,6 +342,71 @@ describe.sequential('Provider-Kontoverknüpfung (Forgejo + GitHub OAuth)', () =>
     it('DELETE ohne Session → 401', async () => {
       const res = await app.inject({ method: 'DELETE', url: '/auth/connect/forgejo' })
       expect(res.statusCode).toBe(401)
+    })
+  })
+
+  // Security F-06: the connect routes accept a browser session only, never an API token.
+  describe('API token on the connect routes', () => {
+    async function mintToken(sessionId: string, scope: 'read' | 'write'): Promise<string> {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/tokens',
+        cookies: { [SESSION_COOKIE_NAME]: sessionId },
+        payload: { label: 'connect-test', scope },
+      })
+      expect(res.statusCode).toBe(200)
+      return (res.json() as { token: string }).token
+    }
+
+    it('DELETE with a read-only bearer token → 403, the link stays', async () => {
+      const { userId, sessionId } = await insertUserWithSession()
+      expect((await performConnect('forgejo', sessionId)).status).toBe(302)
+      const token = await mintToken(sessionId, 'read')
+
+      const res = await app.inject({
+        method: 'DELETE',
+        url: '/auth/connect/forgejo',
+        headers: { authorization: `Bearer ${token}` },
+      })
+      expect(res.statusCode).toBe(403)
+
+      const rows = await db.select().from(providerAccounts).where(eq(providerAccounts.userId, userId))
+      expect(rows).toHaveLength(1)
+    })
+
+    it('DELETE with a write bearer token → 403 as well (browser session only)', async () => {
+      const { userId, sessionId } = await insertUserWithSession()
+      expect((await performConnect('forgejo', sessionId)).status).toBe(302)
+      const token = await mintToken(sessionId, 'write')
+
+      const res = await app.inject({
+        method: 'DELETE',
+        url: '/auth/connect/forgejo',
+        headers: { authorization: `Bearer ${token}` },
+      })
+      expect(res.statusCode).toBe(403)
+
+      const rows = await db.select().from(providerAccounts).where(eq(providerAccounts.userId, userId))
+      expect(rows).toHaveLength(1)
+    })
+
+    it('GET /auth/connect/:provider and the callback with a bearer token → 403', async () => {
+      const { sessionId } = await insertUserWithSession()
+      const token = await mintToken(sessionId, 'read')
+
+      const start = await app.inject({
+        method: 'GET',
+        url: '/auth/connect/forgejo',
+        headers: { authorization: `Bearer ${token}` },
+      })
+      expect(start.statusCode).toBe(403)
+
+      const callback = await app.inject({
+        method: 'GET',
+        url: '/auth/connect/forgejo/callback?code=x&state=y',
+        headers: { authorization: `Bearer ${token}` },
+      })
+      expect(callback.statusCode).toBe(403)
     })
   })
 })

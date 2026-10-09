@@ -21,6 +21,7 @@ import { buildResolveImage, buildResolveLink, LinkResolver, type ResolvablePage 
 import { loadMetadataSchema } from '../spaces/metadata-schema.js'
 import { classificationViolationInMarkdown, classificationViolationReply } from '../spaces/classification.js'
 import { resolveWriteContext, type DraftsDeps } from './drafts.js'
+import { draftMarkdownExceedsTokenLimit, sendTokenLimit } from '../auth/classification-gate.js'
 // Befund 3 (Final-Review): dieselbe Versionsfeld-Ermittlung wie `GET
 // /api/pages/:id` — s. Kommentar an `resolveVersionFields` in `pages.ts`.
 import { resolveVersionFields } from './pages.js'
@@ -635,6 +636,11 @@ export function registerWorkflowRoutes(app: FastifyInstance, deps: WorkflowDeps)
             // Ersatz (i. d. R. identisch mit dem PR-Ersteller).
             ctx.provider.listCommits(repo, { ref: branch, limit: 1 }),
           ])
+
+          // F-04: the diff shows the draft — judge it by its own class too.
+          if (await draftMarkdownExceedsTokenLimit(req, ctx.provider, ctx.space, draftFile.content)) {
+            return sendTokenLimit(reply)
+          }
 
           const resolver = await buildSpaceLinkResolver(deps.db, ctx.space.id)
 

@@ -6,6 +6,14 @@ All notable changes to f451. The format follows
 to the HTTP API, the MCP tools, the page format or the configuration only come
 with a new major version.
 
+## [1.2.13] — 2026-10-09
+
+### Security
+- Fixes for findings of a security review on 2026-10-09: page rendering,
+  request gates, and classification limits of API tokens in search, graph,
+  broken links and drafts. Details: #112 – #117. Updating is recommended for
+  every installation.
+
 ## [1.2.12] — 2026-10-07
 
 No breaking changes to the API, the MCP tools, the page format or the

@@ -9,6 +9,7 @@ import { NotFoundError } from '@f451/git-provider'
 import type { Db } from '../db/client.js'
 import { pages } from '../db/schema.js'
 import type { SpaceAccess } from '../auth/permissions.js'
+import { draftMarkdownExceedsTokenLimit, sendTokenLimit } from '../auth/classification-gate.js'
 import type { SpaceConfig } from '../spaces/config.js'
 import { createOrGetDraft, discardDraft, getDraft } from '../drafts/lifecycle.js'
 import { DraftConflictError, saveDraft } from '../drafts/save.js'
@@ -417,7 +418,7 @@ export function registerDraftsRoutes(app: FastifyInstance, deps: DraftsDeps): vo
         if (!ctx.ok) return reply.code(ctx.status).send(ctx.body)
 
         try {
-          return await createOrGetDraft(
+          const info = await createOrGetDraft(
             { db: deps.db },
             ctx.provider,
             ctx.space.repoRef,
@@ -425,6 +426,11 @@ export function registerDraftsRoutes(app: FastifyInstance, deps: DraftsDeps): vo
             ctx.row.path,
             req.user!.id,
           )
+          // F-04: an existing draft may carry a stricter class than main.
+          if (await draftMarkdownExceedsTokenLimit(req, ctx.provider, ctx.space, info.content)) {
+            return sendTokenLimit(reply)
+          }
+          return info
         } catch (err) {
           if (err instanceof NotFoundError) {
             // Seitendatei fehlt auf dem (ggf. gerade erst abgeleiteten) Branch —
@@ -463,6 +469,10 @@ export function registerDraftsRoutes(app: FastifyInstance, deps: DraftsDeps): vo
               .code(404)
               .send({ status: 'not_found', reason: `Kein Entwurf für Seite "${ctx.row.id}" vorhanden.` })
           }
+          // F-04: judge the draft by its own class too, not only by main's.
+          if (await draftMarkdownExceedsTokenLimit(req, ctx.provider, ctx.space, info.content)) {
+            return sendTokenLimit(reply)
+          }
           return info
         } catch (err) {
           return providerErrorReply(reply, err)
@@ -499,6 +509,10 @@ export function registerDraftsRoutes(app: FastifyInstance, deps: DraftsDeps): vo
         )
       } catch (err) {
         if (err instanceof DraftConflictError) {
+          // F-04: the 409 carries the current draft content.
+          if (await draftMarkdownExceedsTokenLimit(req, ctx.provider, ctx.space, err.currentContent)) {
+            return sendTokenLimit(reply)
+          }
           return reply.code(409).send({
             error: err.message,
             currentSha: err.currentSha,
