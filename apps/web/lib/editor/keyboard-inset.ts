@@ -13,13 +13,18 @@ export function keyboardInset(innerHeight: number, vv: { height: number; offsetT
   return Math.max(0, Math.round(innerHeight - (vv.height + vv.offsetTop)))
 }
 
-/** Sets `--kb-inset` (px) on `<html>` from `window.visualViewport` while
- *  mounted and removes it again on cleanup. No-op without a visual viewport. */
+/** Sets `--kb-inset` (keyboard height) and `--vv-top` (how far iOS has
+ *  scrolled the visual viewport, for fixed elements anchored at the top) on
+ *  `<html>` from `window.visualViewport` while mounted, and removes both on
+ *  cleanup. No-op without a visual viewport. */
 export function trackKeyboardInset(): () => void {
   if (typeof window === 'undefined' || !window.visualViewport) return () => {}
   const vv = window.visualViewport
   const root = document.documentElement
-  const update = () => root.style.setProperty('--kb-inset', `${keyboardInset(window.innerHeight, vv)}px`)
+  const update = () => {
+    root.style.setProperty('--kb-inset', `${keyboardInset(window.innerHeight, vv)}px`)
+    root.style.setProperty('--vv-top', `${Math.max(0, Math.round(vv.offsetTop))}px`)
+  }
   update()
   vv.addEventListener('resize', update)
   vv.addEventListener('scroll', update)
@@ -27,5 +32,6 @@ export function trackKeyboardInset(): () => void {
     vv.removeEventListener('resize', update)
     vv.removeEventListener('scroll', update)
     root.style.removeProperty('--kb-inset')
+    root.style.removeProperty('--vv-top')
   }
 }

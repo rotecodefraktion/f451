@@ -101,11 +101,12 @@ function scrollCaretIntoPhoneView(view: EditorView): boolean {
   const vv = window.visualViewport
   const vvTop = vv ? vv.offsetTop : 0
   const visibleBottom = vv ? vv.offsetTop + vv.height : window.innerHeight
-  // The sticky writing header covers the top of the scroll area; when the
-  // visual viewport is scrolled below it, the viewport edge is the limit.
+  // The sticky writing header and the phone toolbar below it cover the top of
+  // the scroll area; when the visual viewport is scrolled below them, the
+  // viewport edge is the limit. Nothing of ours covers the bottom any more.
   const headerBottom = document.querySelector('.writing-header')?.getBoundingClientRect().bottom ?? 0
-  const toolbarHeight = document.querySelector('.phone-toolbar')?.getBoundingClientRect().height ?? 0
-  const delta = caretScrollDelta(caret, { top: Math.max(vvTop, headerBottom), visibleBottom }, toolbarHeight)
+  const toolbarBottom = document.querySelector('.phone-toolbar')?.getBoundingClientRect().bottom ?? 0
+  const delta = caretScrollDelta(caret, { top: Math.max(vvTop, headerBottom, toolbarBottom), visibleBottom }, 0)
   if (delta !== 0) {
     const container = scrollContainerOf(view.dom)
     if (container) container.scrollBy({ top: delta })
