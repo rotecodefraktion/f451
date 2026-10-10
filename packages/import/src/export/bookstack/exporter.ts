@@ -278,8 +278,23 @@ export async function exportToBookStack(
         if (isGalleryImage(name)) images.push({ name, bytes })
         else attachments.push({ name, bytes, mime: mimeOf(name) })
       }
-      const byName = await uploadImages(bs, p.bsId, images)
-      const attachmentByName = await uploadAttachments(bs, p.bsId, attachments, opts.bookstackUrl)
+      // A file BookStack refuses is reported; the page is still exported.
+      const byName = new Map<string, string>()
+      const attachmentByName = new Map<string, string>()
+      for (const image of images) {
+        try {
+          for (const [k, v] of await uploadImages(bs, p.bsId, [image])) byName.set(k, v)
+        } catch (err) {
+          report.missingMedia.push({ pageId: p.page.pageId, ref: `${MEDIA_PREFIX}${image.name}`, reason: reasonOf(err) })
+        }
+      }
+      for (const file of attachments) {
+        try {
+          for (const [k, v] of await uploadAttachments(bs, p.bsId, [file], opts.bookstackUrl)) attachmentByName.set(k, v)
+        } catch (err) {
+          report.missingMedia.push({ pageId: p.page.pageId, ref: `${MEDIA_PREFIX}${file.name}`, reason: reasonOf(err) })
+        }
+      }
       const imageUrls = new Map([...byName].map(([name, url]) => [`${MEDIA_PREFIX}${name}`, url] as const))
       const attachmentUrls = new Map([...attachmentByName].map(([name, url]) => [`${MEDIA_PREFIX}${name}`, url] as const))
 

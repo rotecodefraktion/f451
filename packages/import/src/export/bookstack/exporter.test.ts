@@ -185,6 +185,22 @@ describe('exportToBookStack', () => {
     expect(report.brokenLinks).toBe(0)
   })
 
+  it('reports a file BookStack refuses and still exports the page', async () => {
+    const { bs } = fakeBookStack()
+    const { f451 } = fakeF451()
+    ;(f451.raw as ReturnType<typeof vi.fn>).mockImplementation(async (id: string) =>
+      id === 'p-x' ? page('X', '![a](_media/a.png)') : page(id === 'p-root' ? 'Space' : 'Ch'),
+    )
+    ;(f451.media as ReturnType<typeof vi.fn>).mockResolvedValue(new Uint8Array([1]))
+    bs.uploadImage.mockRejectedValue(new Error('The given data was invalid.'))
+
+    const report = await exportToBookStack(f451, bs, opts, () => {})
+
+    expect(report.failed).toEqual([])
+    expect(report.missingMedia).toEqual([{ pageId: 'p-x', ref: '_media/a.png', reason: 'The given data was invalid.' }])
+    expect(report.created.map((r) => r.pageId)).toContain('p-x')
+  })
+
   it('lists stale BookStack pages of the space and never deletes them', async () => {
     const { bs, store, add } = fakeBookStack()
     await exportToBookStack(fakeF451().f451, bs, opts, () => {})

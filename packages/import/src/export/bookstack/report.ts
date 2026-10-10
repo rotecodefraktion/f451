@@ -13,7 +13,8 @@ export interface ExportReport {
   /** BookStack pages of the target book tagged with the space but not part of this export. Never deleted. */
   stale: Array<{ bsId: number; name: string }>
   /** `_media/` references that f451 does not have (404); the link is left as is. */
-  missingMedia: Array<{ pageId: string; ref: string }>
+  /** Files not found in f451 (no reason) or refused by BookStack (reason). */
+  missingMedia: Array<{ pageId: string; ref: string; reason?: string }>
   /** Dry run only: the rendered HTML per page. */
   dryRunPages?: Array<{ pageId: string; name: string; html: string }>
 }
@@ -38,7 +39,7 @@ export function renderExportReport(r: ExportReport): string {
   out += section('Failed', r.failed, (f) => `${f.name} (${f.pageId}): ${f.reason}`)
   out += section('Created', r.created, page)
   out += section('Updated', r.updated, page)
-  out += section('Missing media', r.missingMedia, (m) => `${m.ref} on ${m.pageId}`)
+  out += section('Missing media', r.missingMedia, (m) => `${m.ref} on ${m.pageId}${m.reason ? `: ${m.reason}` : ''}`)
   out += section(
     'Stale BookStack pages (not deleted)',
     r.stale,
