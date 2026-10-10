@@ -12,6 +12,8 @@ export interface HtmlContext {
   space: string
   /** `_media/<name>` → BookStack image URL after upload. */
   imageUrls: Map<string, string>
+  /** `_media/<name>` → BookStack attachment URL for linked files. */
+  attachmentUrls: Map<string, string>
   /** Link target (id, path or title, as in a wikilink) → f451 page id, or
    *  null when no page of the space matches. Built from the space tree. */
   resolvePage(target: string): string | null
@@ -134,6 +136,11 @@ export function renderForBookStack(
 ): { html: string; brokenLinks: number } {
   const rendered = renderHtml(markdown, {
     resolveLink(raw) {
+      const media = raw.replace(/^\.\//, '')
+      if (media.startsWith('_media/')) {
+        const href = ctx.attachmentUrls.get(media) ?? ctx.imageUrls.get(media)
+        return href ? { href } : null
+      }
       const id = ctx.resolvePage(raw.split('#')[0]!.trim())
       if (!id) return null
       return { href: ctx.bookstackUrls.get(id) ?? f451PageUrl(ctx, id) }

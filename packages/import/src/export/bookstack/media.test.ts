@@ -105,8 +105,10 @@ describe('uploadAttachments', () => {
   it('skips names the page already has', async () => {
     const { client, calls } = fakeClient()
     const files = [{ name: 'd.pdf', bytes: bytes('pdf'), mime: 'application/pdf' }]
-    await uploadAttachments(client, 7, files)
-    await uploadAttachments(client, 7, files)
+    const first = await uploadAttachments(client, 7, files, 'https://bs/')
+    const second = await uploadAttachments(client, 7, files, 'https://bs')
     expect(calls.uploadAttachment).toBe(1)
+    expect(first.get('d.pdf')).toBe('https://bs/attachments/1')
+    expect(second.get('d.pdf')).toBe('https://bs/attachments/1')
   })
 })

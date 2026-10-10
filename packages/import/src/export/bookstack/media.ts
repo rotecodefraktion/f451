@@ -62,12 +62,22 @@ export async function uploadAttachments(
   client: MediaClient,
   bsPageId: number,
   files: Array<{ name: string; bytes: Uint8Array; mime: string }>,
-): Promise<void> {
-  if (files.length === 0) return
-  const present = new Set((await client.getAttachmentsForPage(bsPageId)).data.map((a) => a.name))
+  baseUrl: string,
+): Promise<Map<string, string>> {
+  /** name → BookStack attachment URL, for rewriting links to the file. */
+  const urls = new Map<string, string>()
+  if (files.length === 0) return urls
+  const url = (id: number) => `${baseUrl.replace(/\/+$/, '')}/attachments/${id}`
+  const present = new Map((await client.getAttachmentsForPage(bsPageId)).data.map((a) => [a.name, a.id] as const))
   for (const file of files) {
-    if (present.has(file.name)) continue
-    await client.uploadAttachment(bsPageId, file.name, file.bytes, file.mime)
-    present.add(file.name)
+    const existing = present.get(file.name)
+    if (existing !== undefined) {
+      urls.set(file.name, url(existing))
+      continue
+    }
+    const created = await client.uploadAttachment(bsPageId, file.name, file.bytes, file.mime)
+    present.set(file.name, created.id)
+    urls.set(file.name, url(created.id))
   }
+  return urls
 }

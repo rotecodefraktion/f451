@@ -7,6 +7,7 @@ const ctx: HtmlContext = {
   f451Url: 'https://f451.example',
   space: 'docs',
   imageUrls: new Map(),
+  attachmentUrls: new Map(),
   resolvePage: () => null,
 }
 
@@ -85,6 +86,16 @@ describe('renderForBookStack', () => {
     const { html } = renderForBookStack('---\ntitle: T\n---\n\nbody\n', 'p-a', ctx)
     expect(html).not.toContain('title: T')
     expect(html).toContain('body')
+  })
+})
+
+describe('links to files', () => {
+  it('point at the BookStack attachment, and a missing file counts as broken', () => {
+    const ctx2 = { ...ctx, attachmentUrls: new Map([['_media/d.pdf', 'https://bs/attachments/4']]) }
+    const r = renderForBookStack('[report](_media/d.pdf) and [gone](_media/x.zip)', 'p-a', ctx2)
+    expect(r.html).toContain('href="https://bs/attachments/4"')
+    expect(r.html).not.toContain('_media/x.zip')
+    expect(r.brokenLinks).toBe(1)
   })
 })
 
