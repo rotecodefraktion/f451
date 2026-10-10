@@ -136,6 +136,7 @@ describe('exportToBookStack', () => {
     const report = await exportToBookStack(f451, bs, opts, () => {})
 
     expect(bs.createBook).toHaveBeenCalledTimes(1)
+    expect(bs.createBook.mock.calls[0]?.[0]).toMatchObject({ name: 'Space' })
     expect(bs.createChapter).toHaveBeenCalledTimes(1)
     expect(bs.createPage).toHaveBeenCalledTimes(3)
     expect(report.created.map((p) => p.name)).toEqual(['Space', 'Ch', 'X'])

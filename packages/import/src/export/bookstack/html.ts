@@ -1,5 +1,5 @@
 import type { TreeNode } from '../../api.js'
-import { renderHtml } from '@f451/markdown'
+import { parsePage, renderHtml } from '@f451/markdown'
 import { fromHtml } from 'hast-util-from-html'
 import { toHtml } from 'hast-util-to-html'
 
@@ -134,7 +134,7 @@ export function renderForBookStack(
   _pageId: string,
   ctx: HtmlContext,
 ): { html: string; brokenLinks: number } {
-  const rendered = renderHtml(markdown, {
+  const rendered = renderHtml(withoutLeadHeading(markdown), {
     resolveLink(raw) {
       const media = raw.replace(/^\.\//, '')
       if (media.startsWith('_media/')) {
@@ -181,4 +181,17 @@ export function pageResolver(nodes: TreeNode[]): (target: string) => string | nu
     if (!t) return null
     return byId.get(t) ?? byPath.get(`${t}/index.md`) ?? byPath.get(t) ?? byTitle.get(t.toLowerCase())?.id ?? null
   }
+}
+
+/** BookStack shows the page name as the title, so a first `# Title` that
+ *  repeats it is dropped; any other first heading stays. */
+export function withoutLeadHeading(markdown: string): string {
+  const title = parsePage(markdown).title?.trim()
+  if (!title) return markdown
+  const fm = /^---\n[\s\S]*?\n---\n/.exec(markdown)
+  const head = fm ? fm[0] : ''
+  const body = markdown.slice(head.length)
+  const m = /^\s*#[ \t]+(.+?)[ \t]*#*[ \t]*(?:\n|$)/.exec(body)
+  if (!m || m[1]!.trim() !== title) return markdown
+  return head + body.slice(m[0].length)
 }

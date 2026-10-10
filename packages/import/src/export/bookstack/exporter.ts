@@ -164,8 +164,13 @@ export async function exportToBookStack(
   // 1. Plan the book from the f451 tree.
   const roots = await f451.tree(opts.space)
   const treeTitles = titles(roots)
+  // A whole space is named after its root page (the space's title), a
+  // subtree after its start page; the space id is the last resort.
+  const rootPage = roots.find((n) => n.path === 'index.md')
   const bookName =
-    opts.startPageId !== undefined ? (treeTitles.get(opts.startPageId) ?? opts.space) : opts.space
+    opts.startPageId !== undefined
+      ? (treeTitles.get(opts.startPageId) ?? opts.space)
+      : (rootPage?.title ?? opts.space)
   const book = planBook(roots, { bookName, startPageId: opts.startPageId })
   const entries: Array<{ page: ExportPage; chapterPageId: string | null }> = [
     ...book.pages.map((page) => ({ page, chapterPageId: null })),

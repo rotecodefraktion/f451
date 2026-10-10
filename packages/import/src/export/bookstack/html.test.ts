@@ -1,6 +1,6 @@
 import type { TreeNode } from '../../api.js'
 import { describe, expect, it } from 'vitest'
-import { pageResolver, renderForBookStack, type HtmlContext } from './html.js'
+import { pageResolver, renderForBookStack, withoutLeadHeading, type HtmlContext } from './html.js'
 
 const ctx: HtmlContext = {
   bookstackUrls: new Map(),
@@ -112,4 +112,18 @@ describe('pageResolver', () => {
   it('resolves a path', () => expect(resolve('ops/setup')).toBe('p-x'))
   it('resolves a title case-insensitively, shortest path first', () => expect(resolve('setup')).toBe('p-y'))
   it('returns null for an unknown target', () => expect(resolve('nope')).toBeNull())
+})
+
+describe('withoutLeadHeading', () => {
+  it('drops a first heading that repeats the title', () => {
+    expect(withoutLeadHeading('---\ntitle: Intro\n---\n\n# Intro\n\ntext\n')).toBe('---\ntitle: Intro\n---\n\ntext\n')
+  })
+  it('keeps a first heading that differs from the title', () => {
+    const md = '---\ntitle: Intro\n---\n\n# Overview\n\ntext\n'
+    expect(withoutLeadHeading(md)).toBe(md)
+  })
+  it('also drops it when the title comes from the heading itself', () => {
+    const md = '# Intro\n\ntext\n'
+    expect(renderForBookStack(md, 'p-a', ctx).html).not.toContain('<h1>')
+  })
 })
