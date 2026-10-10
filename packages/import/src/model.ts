@@ -39,6 +39,10 @@ export interface ImportTree {
   droppedHtml: Record<string, number>
   /** Drawings that stayed PNG because no draw.io container was available. */
   drawingsAsPng: string[]
+  /** Pages the adapter could not load or convert; they are not in `root`. */
+  failed: Array<{ sourceId: string; title: string; reason: string }>
+  /** Media the adapter did not download (too large, download failed). */
+  mediaSkipped: Array<{ sourceId: string; name: string; reason: string }>
 }
 
 export interface ImportTarget {

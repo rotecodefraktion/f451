@@ -145,8 +145,25 @@ describe('loadBookStackTree', () => {
       const p12 = find(tree.root, '12')
       expect(p12.media).toEqual([])
       expect(p12.markdown).toContain('https://b/uploads/images/gallery/2026/a%20b.png')
+      expect(tree.mediaSkipped).toContainEqual(expect.objectContaining({ sourceId: '12' }))
     },
     TIMEOUT,
+  )
+
+  it(
+    'records a page that fails to load and keeps the rest of the tree',
+    async () => {
+      const failing = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+        if (new URL(url).pathname === '/api/pages/13') return new Response('{}', { status: 500 })
+        return fetchImpl(input, init)
+      }) as typeof fetch
+      const tree = await loadBookStackTree(new BookStackClient(BASE, 'id', 'secret', failing), { book: '7' }, { baseUrl: BASE, drawio: null, maxBytes: MAX_BYTES })
+      expect(tree.failed).toEqual([expect.objectContaining({ sourceId: '13' })])
+      expect(find(tree.root, '12').title).toBeTruthy()
+      expect(search(tree.root, '13')).toBeNull()
+    },
+    60_000,
   )
 
   it(

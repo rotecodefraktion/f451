@@ -95,14 +95,24 @@ export async function loadBookStackTree(
   const index = new PageIndex(baseUrl)
   const plans = await planScope(client, selector, baseUrl, index)
 
-  const tree: ImportTree = { root: [], droppedHtml: {}, drawingsAsPng: [] }
+  const tree: ImportTree = { root: [], droppedHtml: {}, drawingsAsPng: [], failed: [], mediaSkipped: [] }
   const ctx: ConversionContext = { baseUrl, resolveInternalLink: (href) => index.resolve(href) }
-  const build = async (plan: Plan): Promise<ImportNode> =>
-    plan.kind === 'page'
-      ? buildPage(client, plan, ctx, index, { ...opts, baseUrl }, tree)
-      : buildFolder(plan, ctx, tree, build)
+  // A page that cannot be loaded or converted is a page error: it is recorded
+  // and left out, the rest of the tree is still imported.
+  const build = async (plan: Plan): Promise<ImportNode | null> => {
+    if (plan.kind === 'folder') return buildFolder(plan, ctx, tree, build)
+    try {
+      return await buildPage(client, plan, ctx, index, { ...opts, baseUrl }, tree)
+    } catch (e) {
+      tree.failed.push({ sourceId: String(plan.id), title: `page ${plan.id}`, reason: e instanceof Error ? e.message : String(e) })
+      return null
+    }
+  }
 
-  for (const plan of plans) tree.root.push(await build(plan))
+  for (const plan of plans) {
+    const node = await build(plan)
+    if (node) tree.root.push(node)
+  }
   return tree
 }
 
@@ -243,6 +253,8 @@ async function buildPage(
     usedNames,
   })
 
+  for (const m of collected.skipped) tree.mediaSkipped.push({ sourceId: String(page.id), ...m })
+
   const normalized = normalizeMarkdown(`# ${page.name}\n\n${collected.markdown}`)
   mergeCounts(tree.droppedHtml, normalized.dropped)
 
@@ -265,7 +277,7 @@ async function buildFolder(
   plan: Extract<Plan, { kind: 'folder' }>,
   ctx: ConversionContext,
   tree: ImportTree,
-  build: (plan: Plan) => Promise<ImportNode>,
+  build: (plan: Plan) => Promise<ImportNode | null>,
 ): Promise<ImportNode> {
   const converted = htmlToMarkdown(plan.html, ctx)
   mergeCounts(tree.droppedHtml, converted.dropped)
@@ -273,7 +285,10 @@ async function buildFolder(
   mergeCounts(tree.droppedHtml, normalized.dropped)
 
   const children: ImportNode[] = []
-  for (const child of [...plan.children].sort((a, b) => a.order - b.order)) children.push(await build(child))
+  for (const child of [...plan.children].sort((a, b) => a.order - b.order)) {
+    const node = await build(child)
+    if (node) children.push(node)
+  }
 
   const { tags, knownF451Id } = mapTags(plan.tags)
   const node: ImportNode = {
