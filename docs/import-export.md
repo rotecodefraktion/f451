@@ -1,5 +1,8 @@
 # Import and export
 
+f451 imports from BookStack as drafts with reviews, and exports a space or
+subtree to BookStack as a book (see [BookStack export](#bookstack-export)).
+
 ## What an import does
 
 An import never writes to the published version. For every source page it
@@ -93,6 +96,76 @@ skipped and failed pages (with reasons), media that were skipped, drawings kept
 as PNG, and content that has no Markdown equivalent (HTML elements, merged table cells, block content in cells). With `--dry-run`,
 the generated Markdown files are written next to it.
 
+## BookStack export
+
+### Requirements
+
+- An f451 personal access token (`f451_pat_…`) with **read** scope; the export
+  never writes to f451.
+- A BookStack API token (token ID and secret) of a user who can create and edit
+  content.
+
+### Command
+
+```
+pnpm --filter @f451/import-cli start -- export bookstack --space <space> [--page <pageId>] [--book <id>] [--dry-run] [--out <dir>]
+```
+
+The environment variables are the same as for the import.
+
+| Option | Meaning |
+|---|---|
+| `--space <space>` | Source f451 space |
+| `--page <pageId>` | Export only this page with its subpages (default: the whole space) |
+| `--book <id>` | Export into an existing book instead of creating one |
+| `--dry-run` | Do not touch BookStack; write the HTML of each page to `--out` |
+| `--out <dir>` | Directory for the report (default: current directory) |
+
+### Mapping
+
+The export root becomes a book (named after the space, or the page title with
+`--page`). The space's root page becomes the first page of the book.
+
+| f451 | BookStack |
+|---|---|
+| Export root | Book |
+| Page with children | Chapter; its own content is the chapter's first page |
+| Page without children | Page |
+| Deeper levels | Flattened into the chapter, with the path as name prefix (`B / C`) |
+
+The order follows f451. Archived pages are skipped together with their
+subpages.
+
+### Content
+
+Pages are rendered with the same pipeline as the reading view. GFM alerts become
+BookStack callouts (`NOTE` → info, `TIP` → success, `WARNING` and `IMPORTANT` →
+warning, `CAUTION` → danger).
+
+Links to exported pages point at BookStack; links to other pages of the space
+point at f451. Links that cannot be resolved become plain text and are counted
+in the report.
+
+Images go to the BookStack gallery and are de-duplicated by content hash (the
+hash is the name prefix). Diagram SVGs are uploaded as images and are not
+editable in BookStack. Other files from `_media/` become page attachments, and
+links to them point at the attachment.
+
+### Second export
+
+Every created book, chapter and page carries the tags `f451-id` and
+`f451-space`. A second export finds them and updates in place, renames
+included, instead of duplicating. Pages that carry the tags but no longer exist
+in f451 are listed as stale in the report; nothing is ever deleted.
+
+Importing an exported book back into f451 skips its pages: the `f451-id` tag is
+recognised as their origin.
+
+### Report
+
+Each run writes `export-report.md` to `--out`: created, updated and failed
+pages, stale pages, missing media and the number of broken links.
+
 ## Second import
 
 With `--update`, pages whose `source:` matches are updated through a new
@@ -110,3 +183,4 @@ removed in BookStack stay in f451.
 - Drawings without a container stay PNG.
 - Media over 10 MiB (`F451_MAX_UPLOAD_MB`) are skipped and reported.
 - HTML without a Markdown equivalent is dropped and counted in the report.
+- Export: the search for stale pages reads at most 100 tagged pages per space.

@@ -12,6 +12,9 @@ with a new major version.
 - Import core and `f451-import bookstack`: imports a BookStack shelf, book or
   page as drafts with reviews (#87, #93). See
   [docs/import-export.md](docs/import-export.md).
+- `f451-import export bookstack`: exports a space or subtree as a BookStack
+  book; a second export updates in place (#94). See
+  [docs/import-export.md](docs/import-export.md).
 
 ## [1.2.14] — 2026-10-10
 
