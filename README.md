@@ -71,6 +71,7 @@ the same content as [`demo/`](demo/) in this repository.
 - No silent overwrites: conflicts are shown, never discarded
 - Templates and a metadata schema per space
 - Diagrams with draw.io and Excalidraw, editable right inside the page
+- Import from BookStack as drafts with reviews — see [`docs/import-export.md`](docs/import-export.md)
 
 **Review instead of direct writes**
 - Draft → review → release: a draft is a branch, a review a pull request, the

@@ -193,7 +193,10 @@ async function resolveUniquePath(
   mediaDir: string,
   slugName: string,
 ): Promise<{ fullPath: string; name: string }> {
-  const dot = slugName.lastIndexOf('.')
+  // Diagram files keep their compound extension (`flow-1.drawio.svg`, not
+  // `flow.drawio-1.svg`), otherwise f451 no longer treats them as diagrams.
+  const compound = /\.(drawio|excalidraw)\.svg$/.exec(slugName)
+  const dot = compound ? compound.index : slugName.lastIndexOf('.')
   const base = slugName.slice(0, dot)
   const ext = slugName.slice(dot + 1)
 

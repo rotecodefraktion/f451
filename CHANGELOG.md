@@ -6,6 +6,13 @@ All notable changes to f451. The format follows
 to the HTTP API, the MCP tools, the page format or the configuration only come
 with a new major version.
 
+## [Unreleased]
+
+### Added
+- Import core and `f451-import bookstack`: imports a BookStack shelf, book or
+  page as drafts with reviews (#87, #93). See
+  [docs/import-export.md](docs/import-export.md).
+
 ## [1.2.14] — 2026-10-10
 
 No breaking changes to the API, the MCP tools, the page format or the

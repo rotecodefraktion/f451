@@ -1,0 +1,20 @@
+{
+  "id": 12,
+  "book_id": 7,
+  "chapter_id": 0,
+  "name": "Start",
+  "slug": "start",
+  "html": "<p>Go on: <a href=\"/books/guide/page/next\">Next</a></p><p><img src=\"/uploads/images/gallery/2026/a b.png\" alt=\"x\"></p>",
+  "markdown": "",
+  "priority": 2,
+  "draft": false,
+  "created_at": "2026-01-01T00:00:00.000000Z",
+  "updated_at": "2026-01-02T00:00:00.000000Z",
+  "created_by": 1,
+  "updated_by": 1,
+  "owned_by": 1,
+  "tags": [
+    { "name": "area", "value": "ops", "order": 0 },
+    { "name": "f451-id", "value": "p-old", "order": 1 }
+  ]
+}

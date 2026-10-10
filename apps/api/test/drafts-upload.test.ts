@@ -173,6 +173,16 @@ describe('uploadMedia (Phase 2a Task 5)', () => {
     expect(files.has('betrieb/anleitung/_media/diagramm-2.png')).toBe(true)
   })
 
+  it('collision on a diagram file keeps the compound extension', async () => {
+    const { provider } = fakeProvider()
+    const file = (): UploadedFile => ({ filename: 'flow.drawio.svg', buffer: readFileSync(`${fixturesDir}drawio.svg`) })
+
+    await uploadMedia(provider, repo, pageId, pagePath, file(), maxUploadBytes())
+    const second = await uploadMedia(provider, repo, pageId, pagePath, file(), maxUploadBytes())
+
+    expect(second.path).toBe('_media/flow-1.drawio.svg')
+  })
+
   it('slugifiziert den Dateinamen: Leerzeichen/Großschreibung/Sonderzeichen werden ersetzt', async () => {
     const { provider } = fakeProvider()
     const file: UploadedFile = { filename: 'Mein Bild (Kopie)!.png', buffer: png() }
