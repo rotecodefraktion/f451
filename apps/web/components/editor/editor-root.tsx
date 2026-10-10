@@ -351,6 +351,15 @@ function EditorSession({
           setSavedAt(result.savedAt)
           clearOfflineDraft(pageId)
           autosaveRef.current.onSaveResult('ok', Date.now())
+        } else if (result.conflict.currentContent === content) {
+          // The draft already holds exactly this content: an earlier save of
+          // ours arrived but its answer did not (iOS freezes a hidden page
+          // before the keepalive save's response is handled, f451#2). Adopt
+          // the server's revision instead of reporting a conflict with ourselves.
+          baseShaRef.current = result.conflict.currentSha
+          setSavedAt(new Date().toISOString())
+          clearOfflineDraft(pageId)
+          autosaveRef.current.onSaveResult('ok', Date.now())
         } else {
           setConflict({
             currentSha: result.conflict.currentSha,
@@ -438,6 +447,9 @@ function EditorSession({
     bumpTick()
     if (shouldSave) void performSave()
   }, [performSave, bumpTick])
+  // For effects that must not re-register when `performSave` changes.
+  const triggerFlushRef = useRef(triggerFlush)
+  triggerFlushRef.current = triggerFlush
 
   const handleDirty = useCallback(() => {
     autosaveRef.current.onChange(Date.now())
@@ -691,7 +703,7 @@ function EditorSession({
    *  OS may kill the backgrounded page before the response arrives. Uses refs
    *  only, so it stays stable and does not tear down the unload effect. */
   const saveNowWithKeepalive = useCallback(
-    (opts: { buffer: boolean }) => {
+    () => {
       const shouldSave = autosaveRef.current.flushNow(Date.now())
       if (!shouldSave) return
       const read = readCurrentContentRef.current()
@@ -701,14 +713,6 @@ function EditorSession({
         // aus Review-Fund 1, hier über die Markdown-invalid-Tür erreicht).
         autosaveRef.current.onSaveResult('error', Date.now())
         return
-      }
-      if (opts.buffer) {
-        writeOfflineDraft(pageId, {
-          content: read.content,
-          baseSha: baseShaRef.current,
-          branch: draft.branch,
-          savedAt: new Date().toISOString(),
-        })
       }
       void saveContentRef.current(read.content, baseShaRef.current, { keepalive: true })
     },
@@ -720,7 +724,7 @@ function EditorSession({
       if (unloadHandledRef.current) return // Reentranz-Sperre, s. Kommentar oben.
       unloadHandledRef.current = true
       releaseLock(pageId).catch(() => {})
-      saveNowWithKeepalive({ buffer: false })
+      saveNowWithKeepalive()
     }
     window.addEventListener('pagehide', onUnload)
     window.addEventListener('beforeunload', onUnload)
@@ -744,16 +748,48 @@ function EditorSession({
     let cancelled = false
     let resumeInFlight = false
 
+    // Hidden: a best-effort keepalive save outside the autosave state machine.
+    // On iOS the page is frozen before the answer is handled; had the machine
+    // gone to `saving`, it would stay there (or fall to `offline`) although the
+    // server has the text. The machine therefore stays `dirty`, and the return
+    // to the page reconciles (`onVisible`). The lock is not released.
     function onHidden() {
       if (unloadHandledRef.current) return
-      saveNowWithKeepalive({ buffer: true })
-      bumpTick()
+      if (autosaveRef.current.getStatus().status !== 'dirty') return
+      const read = readCurrentContentRef.current()
+      if (!read.ok) return
+      const sentSha = baseShaRef.current
+      writeOfflineDraft(pageId, {
+        content: read.content,
+        baseSha: sentSha,
+        branch: draft.branch,
+        savedAt: new Date().toISOString(),
+      })
+      void saveDraft(pageId, { content: read.content, baseSha: sentSha }, { keepalive: true })
+        .then((result) => {
+          // Only when nothing else moved the revision meanwhile.
+          if (!result.ok || baseShaRef.current !== sentSha) return
+          baseShaRef.current = result.newSha
+          setSavedAt(result.savedAt)
+          const now = readCurrentContentRef.current()
+          if (now.ok && now.content === read.content && autosaveRef.current.flushNow(Date.now())) {
+            clearOfflineDraft(pageId)
+            autosaveRef.current.onSaveResult('ok', Date.now())
+          }
+          bumpTick()
+        })
+        .catch(() => {})
     }
 
     function onVisible() {
       if (resumeInFlight || unloadHandledRef.current) return
       resumeInFlight = true
       restartHeartbeatIntervalRef.current?.()
+      // Save what is still open right away instead of waiting for the debounce:
+      // if the hidden save arrived, the server answers with our own content and
+      // `saveContent` adopts its revision; otherwise this is the save.
+      const status = autosaveRef.current.getStatus().status
+      if (status === 'dirty' || status === 'offline') triggerFlushRef.current()
       void settleHeartbeat(() => heartbeatLock(pageId))
         .then(({ result, info }) => {
           if (cancelled) return
@@ -780,7 +816,7 @@ function EditorSession({
       cancelled = true
       document.removeEventListener('visibilitychange', onVisibilityChange)
     }
-  }, [pageId, entryGateActive, saveNowWithKeepalive, bumpTick])
+  }, [pageId, entryGateActive, bumpTick, draft.branch])
 
   function handleOverride() {
     setEntryGateActive(false)
