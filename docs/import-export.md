@@ -147,8 +147,10 @@ point at f451. Links that cannot be resolved become plain text and are counted
 in the report.
 
 Images go to the BookStack gallery and are de-duplicated by content hash (the
-hash is the name prefix). Diagram SVGs are uploaded as images and are not
-editable in BookStack. Other files from `_media/` become page attachments, and
+hash is the name prefix). BookStack accepts no SVG, so every SVG is converted
+to PNG during the export. A draw.io diagram (`.drawio.svg`) becomes a BookStack
+drawing that carries the diagram source and can be edited in BookStack's
+draw.io editor; an Excalidraw diagram becomes a plain image. Other files from `_media/` become page attachments, and
 links to them point at the attachment.
 
 ### Second export
