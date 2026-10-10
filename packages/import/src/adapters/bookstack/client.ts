@@ -11,6 +11,7 @@ import type {
   BookStackAttachmentDetail,
   BookStackShelf,
   BookStackTag,
+  BookStackSearchHit,
 } from './types.js'
 
 /** BookStack's default API limit is 180 requests per minute. */
@@ -185,12 +186,87 @@ export class BookStackClient {
     return this.request<string>(`pages/${id}/export/html`, { expectText: true })
   }
 
-  async createPage(data: { book_id: number; chapter_id?: number; name: string; html: string }): Promise<BookStackPage> {
+  async createPage(data: {
+    book_id?: number
+    chapter_id?: number
+    name: string
+    html: string
+    priority?: number
+    tags?: BookStackTag[]
+  }): Promise<BookStackPage> {
     return this.request<BookStackPage>('pages', { method: 'POST', body: data })
   }
 
-  async updatePage(id: number, data: { name?: string; html?: string }): Promise<BookStackPage> {
+  async updatePage(
+    id: number,
+    data: {
+      name?: string
+      html?: string
+      priority?: number
+      tags?: BookStackTag[]
+      chapter_id?: number
+      book_id?: number
+    },
+  ): Promise<BookStackPage> {
     return this.request<BookStackPage>(`pages/${id}`, { method: 'PUT', body: data })
+  }
+
+  async createBook(data: { name: string; description_html?: string; tags?: BookStackTag[] }): Promise<BookStackBook> {
+    return this.request<BookStackBook>('books', { method: 'POST', body: data })
+  }
+
+  async updateBook(
+    id: number,
+    data: { name?: string; description_html?: string; tags?: BookStackTag[] },
+  ): Promise<BookStackBook> {
+    return this.request<BookStackBook>(`books/${id}`, { method: 'PUT', body: data })
+  }
+
+  async createChapter(data: {
+    book_id: number
+    name: string
+    description_html?: string
+    priority?: number
+    tags?: BookStackTag[]
+  }): Promise<BookStackChapter> {
+    return this.request<BookStackChapter>('chapters', { method: 'POST', body: data })
+  }
+
+  async updateChapter(
+    id: number,
+    data: { name?: string; description_html?: string; priority?: number; tags?: BookStackTag[] },
+  ): Promise<BookStackChapter> {
+    return this.request<BookStackChapter>(`chapters/${id}`, { method: 'PUT', body: data })
+  }
+
+  /** Find books, chapters and pages carrying the tag `name=value`. */
+  async searchByTag(name: string, value: string): Promise<BookStackSearchHit[]> {
+    const r = await this.request<BookStackListResponse<BookStackSearchHit>>(
+      `search?query=${encodeURIComponent(`[${name}=${value}]`)}&count=100`,
+    )
+    return r.data.map((h) => ({ id: h.id, type: h.type, name: h.name }))
+  }
+
+  /** Gallery images whose name starts with `name`. */
+  async listGalleryImages(name: string): Promise<BookStackImage[]> {
+    const r = await this.request<BookStackListResponse<BookStackImage>>(
+      // `%25` is a literal `%`, the SQL LIKE wildcard BookStack expects
+      `image-gallery?filter[name:like]=${encodeURIComponent(name)}%25`,
+    )
+    return r.data
+  }
+
+  async uploadAttachment(
+    pageId: number,
+    name: string,
+    bytes: Uint8Array,
+    mime: string,
+  ): Promise<BookStackAttachment> {
+    const form = new FormData()
+    form.append('uploaded_to', String(pageId))
+    form.append('name', name)
+    form.append('file', new File([bytes as Uint8Array<ArrayBuffer>], name, { type: mime }))
+    return this.request<BookStackAttachment>('attachments', { method: 'POST', body: form })
   }
 
   async deletePage(id: number): Promise<void> {
@@ -205,13 +281,19 @@ export class BookStackClient {
     return this.request<BookStackListResponse<BookStackImage>>(`image-gallery?filter[uploaded_to]=${pageId}&count=500`)
   }
 
-  /** Upload an image to the BookStack image gallery (multipart/form-data). */
-  async uploadImage(pageId: number, name: string, imageData: ArrayBuffer | Uint8Array<ArrayBuffer>): Promise<BookStackImage> {
+  /** Upload an image to the BookStack image gallery (multipart/form-data).
+   *  `type: 'drawio'` makes it a BookStack drawing (a PNG carrying the diagram). */
+  async uploadImage(
+    pageId: number,
+    name: string,
+    imageData: ArrayBuffer | Uint8Array<ArrayBuffer>,
+    type: 'gallery' | 'drawio' = 'gallery',
+  ): Promise<BookStackImage> {
     // Keep the filename safe for the multipart header
     const safeName = name.replace(/["\r\n]/g, '').replace(/[^\x20-\x7E]/g, '_')
     const form = new FormData()
     form.append('uploaded_to', String(pageId))
-    form.append('type', 'gallery')
+    form.append('type', type)
     form.append('name', safeName)
     form.append('image', new File([imageData], safeName, { type: guessMimeType(safeName) }))
     return this.request<BookStackImage>('image-gallery', { method: 'POST', body: form })

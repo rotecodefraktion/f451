@@ -32,6 +32,29 @@ describe('parseArgs', () => {
     expect(() => parseArgs(['export', '--book', '7', '--space', 's'])).toThrow(UsageError)
     expect(() => parseArgs(['bookstack', '--book', '7', '--space', 's', '--nope'])).toThrow(UsageError)
   })
+  it('parses an export', () => {
+    expect(parseArgs(['export', 'bookstack', '--space', 's'])).toEqual({
+      command: 'export',
+      source: 'bookstack',
+      space: 's',
+      update: false,
+      release: false,
+      dryRun: false,
+    })
+    expect(
+      parseArgs(['--', 'export', 'bookstack', '--space', 's', '--page', 'p1', '--book', '4', '--dry-run', '--out', 'o']),
+    ).toMatchObject({ command: 'export', page: 'p1', book: '4', dryRun: true, out: 'o' })
+  })
+
+  it('rejects invalid exports', () => {
+    expect(() => parseArgs(['export', 'bookstack'])).toThrow(UsageError)
+    expect(() => parseArgs(['export', 'bookstack', '--space', 's', '--book', 'x'])).toThrow(UsageError)
+    expect(() => parseArgs(['export', 'bookstack', '--space', 's', '--book', '0'])).toThrow(UsageError)
+    expect(() => parseArgs(['export', 'bookstack', '--space', 's', '--shelf', '2'])).toThrow(UsageError)
+    expect(() => parseArgs(['export', 'bookstack', '--space', 's', '--release'])).toThrow(UsageError)
+    expect(() => parseArgs(['export', 'other', '--space', 's'])).toThrow(UsageError)
+  })
+
   it('ignores the separator pnpm passes through', () => {
     expect(parseArgs(['--', 'bookstack', '--book', '7', '--space', 's']).book).toBe('7')
   })

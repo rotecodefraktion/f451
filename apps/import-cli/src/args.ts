@@ -23,13 +23,52 @@ Options:
   --dry-run           write nothing to f451; write the converted Markdown to --out
   --out <dir>         directory for the report (default: .)
 
-Environment: F451_URL, F451_TOKEN, BOOKSTACK_URL, BOOKSTACK_TOKEN_ID, BOOKSTACK_TOKEN_SECRET`
+       f451-import export bookstack --space <space> [--page <pageId>] [--book <id>] [--dry-run] [--out <dir>]
+
+Export options:
+  --page <pageId>     export only the subtree below this page
+  --book <id>         update this BookStack book (positive integer) instead of creating one
+  --dry-run           write nothing to BookStack; write the rendered HTML (<pageId>.html) to --out
+  --out <dir>         directory for the report (default: .)
+
+Environment: F451_URL, F451_TOKEN, BOOKSTACK_URL, BOOKSTACK_TOKEN_ID, BOOKSTACK_TOKEN_SECRET
+`
 
 export class UsageError extends Error {
   constructor(message: string) {
     super(`${message}\n\n${USAGE}`)
     this.name = 'UsageError'
   }
+}
+
+function parseExport(
+  values: Record<string, string | boolean | undefined>,
+  positionals: string[],
+): ParsedArgs {
+  if (positionals[1] !== 'bookstack') {
+    throw new UsageError(positionals[1] ? `unknown export target: ${positionals[1]}` : 'missing export target')
+  }
+  if (positionals.length > 2) throw new UsageError(`unexpected argument: ${positionals[2]}`)
+  for (const o of ['shelf', 'parent', 'update', 'release']) {
+    if (values[o] !== undefined) throw new UsageError(`--${o} is not valid for export`)
+  }
+  if (typeof values.space !== 'string' || !values.space) throw new UsageError('--space is required')
+  if (typeof values.book === 'string' && !/^[1-9][0-9]*$/.test(values.book)) {
+    throw new UsageError('--book must be a positive integer')
+  }
+
+  const result: ParsedArgs = {
+    command: 'export',
+    source: 'bookstack',
+    space: values.space,
+    update: false,
+    release: false,
+    dryRun: values['dry-run'] === true,
+  }
+  if (typeof values.book === 'string') result.book = values.book
+  if (typeof values.page === 'string') result.page = values.page
+  if (typeof values.out === 'string') result.out = values.out
+  return result
 }
 
 export function parseArgs(argv: string[]): ParsedArgs {
@@ -58,6 +97,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
   const { values, positionals } = parsed
 
   const command = positionals[0]
+  if (command === 'export') return parseExport(values, positionals)
   if (command !== 'bookstack') {
     throw new UsageError(command ? `unknown command: ${command}` : 'missing command')
   }
