@@ -8,6 +8,7 @@ const ctx: HtmlContext = {
   space: 'docs',
   imageUrls: new Map(),
   attachmentUrls: new Map(),
+  drawingIds: new Map(),
   resolvePage: () => null,
 }
 
@@ -96,6 +97,32 @@ describe('links to files', () => {
     expect(r.html).toContain('href="https://bs/attachments/4"')
     expect(r.html).not.toContain('_media/x.zip')
     expect(r.brokenLinks).toBe(1)
+  })
+})
+
+describe('drawings', () => {
+  const url = 'https://bs/uploads/images/drawio/abc-flow.drawio.png'
+  const ctx2 = {
+    ...ctx,
+    imageUrls: new Map([['_media/flow.drawio.svg', url]]),
+    drawingIds: new Map([[url, 7]]),
+  }
+
+  it('replaces a paragraph holding only a drawing with a drawio-diagram block', () => {
+    const { html } = renderForBookStack('![Flow](_media/flow.drawio.svg)\n', 'p-a', ctx2)
+    expect(html).toContain(`<div drawio-diagram="7"><img src="${url}" alt="Flow"></div>`)
+    expect(html).not.toContain('<p>')
+  })
+
+  it('wraps a drawing inside other content without touching the paragraph', () => {
+    const { html } = renderForBookStack('see ![Flow](_media/flow.drawio.svg) here\n', 'p-a', ctx2)
+    expect(html).toContain(`<p>see <div drawio-diagram="7"><img src="${url}" alt="Flow"></div> here</p>`)
+  })
+
+  it('leaves ordinary images alone', () => {
+    const { html } = renderForBookStack('![Pic](https://e.com/p.png)\n', 'p-a', ctx2)
+    expect(html).not.toContain('drawio-diagram')
+    expect(html).toContain('src="https://e.com/p.png"')
   })
 })
 

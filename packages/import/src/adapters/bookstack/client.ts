@@ -281,13 +281,19 @@ export class BookStackClient {
     return this.request<BookStackListResponse<BookStackImage>>(`image-gallery?filter[uploaded_to]=${pageId}&count=500`)
   }
 
-  /** Upload an image to the BookStack image gallery (multipart/form-data). */
-  async uploadImage(pageId: number, name: string, imageData: ArrayBuffer | Uint8Array<ArrayBuffer>): Promise<BookStackImage> {
+  /** Upload an image to the BookStack image gallery (multipart/form-data).
+   *  `type: 'drawio'` makes it a BookStack drawing (a PNG carrying the diagram). */
+  async uploadImage(
+    pageId: number,
+    name: string,
+    imageData: ArrayBuffer | Uint8Array<ArrayBuffer>,
+    type: 'gallery' | 'drawio' = 'gallery',
+  ): Promise<BookStackImage> {
     // Keep the filename safe for the multipart header
     const safeName = name.replace(/["\r\n]/g, '').replace(/[^\x20-\x7E]/g, '_')
     const form = new FormData()
     form.append('uploaded_to', String(pageId))
-    form.append('type', 'gallery')
+    form.append('type', type)
     form.append('name', safeName)
     form.append('image', new File([imageData], safeName, { type: guessMimeType(safeName) }))
     return this.request<BookStackImage>('image-gallery', { method: 'POST', body: form })

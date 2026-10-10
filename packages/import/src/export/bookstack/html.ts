@@ -12,6 +12,8 @@ export interface HtmlContext {
   space: string
   /** `_media/<name>` → BookStack image URL after upload. */
   imageUrls: Map<string, string>
+  /** BookStack image URL → image id, for images that are editable drawings. */
+  drawingIds: Map<string, number>
   /** `_media/<name>` → BookStack attachment URL for linked files. */
   attachmentUrls: Map<string, string>
   /** Link target (id, path or title, as in a wikilink) → f451 page id, or
@@ -101,13 +103,48 @@ function toCallout(el: HElement, kind: string): HNode[] {
   return inline.length > 0 ? [callout, ...blocks] : blocks
 }
 
+/** The BookStack drawing id of an `<img>` whose src is a drawing, or null. */
+function drawingIdOf(node: HNode, drawingIds: Map<string, number>): number | null {
+  if (!isElement(node, 'img')) return null
+  const src = node.properties.src
+  return typeof src === 'string' ? (drawingIds.get(src) ?? null) : null
+}
+
+/** `<div drawio-diagram="<id>"><img …></div>`, the markup BookStack's editor
+ *  recognises as an editable drawing. */
+function drawingBlock(img: HElement, id: number): HElement {
+  const properties: Record<string, unknown> = { src: img.properties.src }
+  if (img.properties.alt !== undefined) properties.alt = img.properties.alt
+  return {
+    type: 'element',
+    tagName: 'div',
+    properties: { 'drawio-diagram': String(id) },
+    children: [{ type: 'element', tagName: 'img', properties, children: [] } as HElement],
+  }
+}
+
 /** Rewrites the children of `node` in place; returns the number of broken links flattened. */
-function transform(node: HNode): number {
+function transform(node: HNode, drawingIds: Map<string, number>): number {
   if (!node.children) return 0
   let broken = 0
   const out: HNode[] = []
   for (const child of node.children) {
-    broken += transform(child)
+    // A drawing alone in a paragraph replaces the paragraph (no div inside p).
+    if (isElement(child, 'p')) {
+      const content = child.children.filter((c) => !isBlankText(c))
+      const only = content.length === 1 ? content[0]! : undefined
+      const id = only ? drawingIdOf(only, drawingIds) : null
+      if (only && id !== null) {
+        out.push(drawingBlock(only as HElement, id))
+        continue
+      }
+    }
+    const id = drawingIdOf(child, drawingIds)
+    if (id !== null) {
+      out.push(drawingBlock(child as HElement, id))
+      continue
+    }
+    broken += transform(child, drawingIds)
     if (isElement(child, 'span') && classes(child).includes('broken-link')) {
       out.push(...child.children)
       broken += 1
@@ -153,7 +190,7 @@ export function renderForBookStack(
   })
 
   const root = fromHtml(rendered, { fragment: true }) as unknown as HNode
-  const brokenLinks = transform(root)
+  const brokenLinks = transform(root, ctx.drawingIds)
   return { html: toHtml(root as never), brokenLinks }
 }
 

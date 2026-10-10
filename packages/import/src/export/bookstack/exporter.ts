@@ -184,6 +184,7 @@ export async function exportToBookStack(
     space: opts.space,
     imageUrls: new Map(),
     attachmentUrls: new Map(),
+    drawingIds: new Map(),
     resolvePage: pageResolver(roots),
   }
 
@@ -280,10 +281,14 @@ export async function exportToBookStack(
       }
       // A file BookStack refuses is reported; the page is still exported.
       const byName = new Map<string, string>()
+      const drawingIds = new Map<string, number>()
       const attachmentByName = new Map<string, string>()
       for (const image of images) {
         try {
-          for (const [k, v] of await uploadImages(bs, p.bsId, [image])) byName.set(k, v)
+          for (const [k, v] of await uploadImages(bs, p.bsId, [image])) {
+            byName.set(k, v.url)
+            if (v.drawingId !== undefined) drawingIds.set(v.url, v.drawingId)
+          }
         } catch (err) {
           report.missingMedia.push({ pageId: p.page.pageId, ref: `${MEDIA_PREFIX}${image.name}`, reason: reasonOf(err) })
         }
@@ -298,7 +303,7 @@ export async function exportToBookStack(
       const imageUrls = new Map([...byName].map(([name, url]) => [`${MEDIA_PREFIX}${name}`, url] as const))
       const attachmentUrls = new Map([...attachmentByName].map(([name, url]) => [`${MEDIA_PREFIX}${name}`, url] as const))
 
-      const { html, brokenLinks } = renderForBookStack(p.markdown, p.page.pageId, { ...ctx, imageUrls, attachmentUrls })
+      const { html, brokenLinks } = renderForBookStack(p.markdown, p.page.pageId, { ...ctx, imageUrls, attachmentUrls, drawingIds })
       await bs.updatePage(p.bsId, { name: p.name, html })
 
       report.brokenLinks += brokenLinks

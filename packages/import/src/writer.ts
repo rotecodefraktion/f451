@@ -4,6 +4,7 @@ import { rewriteLinks } from './links.js'
 import type { ImportEvent, ImportMedia, ImportNode, ImportOptions, ImportTarget, ImportTree } from './model.js'
 import { flattenTree, type FlatEntry } from './order.js'
 import { emptyReport, type ImportReport } from './report.js'
+import { diagramXml } from './svg-diagram.js'
 
 /** Upload limit per file, matching the `F451_MAX_UPLOAD_MB` default of the API. */
 export const MAX_UPLOAD = 10 * 1024 * 1024
@@ -30,23 +31,13 @@ async function sameOriginDraft(api: WriterApi, e: unknown, node: ImportNode): Pr
   }
 }
 
-/** The diagram a `.drawio.svg` carries in its `content` attribute, decoded. */
-function diagramOf(svg: Uint8Array): string | null {
-  const m = /\scontent="([^"]*)"/.exec(Buffer.from(svg).toString('utf8'))
-  if (!m) return null
-  return m[1]
-    .replace(/&#x([0-9a-f]+);/gi, (_, h: string) => String.fromCodePoint(parseInt(h, 16)))
-    .replace(/&#(\d+);/g, (_, d: string) => String.fromCodePoint(Number(d)))
-    .replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&apos;/g, "'").replace(/&amp;/g, '&')
-}
-
 /** The API sanitises an uploaded SVG, so a stored diagram never equals the
  *  rendered bytes; two diagrams are the same when their embedded draw.io XML
  *  is. Everything else compares byte for byte. */
 function sameMedia(m: ImportMedia, existing: Uint8Array): boolean {
   if (m.kind !== 'drawio') return Buffer.from(m.bytes).equals(Buffer.from(existing))
-  const a = diagramOf(m.bytes)
-  return a !== null && a === diagramOf(existing)
+  const a = diagramXml(m.bytes)
+  return a !== null && a === diagramXml(existing)
 }
 
 function describe(e: unknown): string {
