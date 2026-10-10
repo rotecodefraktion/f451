@@ -103,6 +103,25 @@ export const editor: Messages['editor'] = {
     },
   },
 
+  phoneToolbar: {
+    label: 'Formatting',
+    heading: 'Heading',
+    bold: 'Bold',
+    code: 'Code',
+    link: 'Link',
+    bulletList: 'Bullet list',
+    orderedList: 'Numbered list',
+    image: 'Image or photo',
+    undo: 'Undo',
+    more: 'More',
+    moreTitle: 'More formats',
+    italic: 'Italic',
+  },
+
+  writing: {
+    done: 'Done',
+  },
+
   slashMenu: {
     ariaLabel: 'Command menu',
     heading: 'Insert block',

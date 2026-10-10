@@ -472,6 +472,22 @@
   }
 }
 
+/* Formatting bar above the on-screen keyboard, its "More" and link sheets and
+   the writing header (f451#2, `phone-toolbar.tsx`, `writing-header.tsx`):
+   phone layout only — shown by `66-telefon.css`. */
+.phone-toolbar,
+.phone-more-sheet,
+.phone-link-sheet,
+.writing-header {
+  display: none;
+}
+/* Focus root of the phone writing mode (`wysiwyg-editor.tsx`), no box of its
+   own: toolbar, notices and `.body` stay direct layout children of the
+   editor as before. */
+.wysiwyg-editor {
+  display: contents;
+}
+
 /* Alert-Titel im Editor (Issue #22 Fix): renderHTML liefert kein statisches
    Titel-<p> mehr — ProseMirrors DOMSerializer verlangt, dass das Content-Loch (`0`)
    das alleinige Kind seines Eltern-Arrays ist; ein Titel-<p> daneben crashte jeden

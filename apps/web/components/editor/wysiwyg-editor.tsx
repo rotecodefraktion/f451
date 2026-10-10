@@ -4,16 +4,23 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRe
 import type { Editor } from '@tiptap/react'
 import { EditorContent, useEditor } from '@tiptap/react'
 import { NodeSelection, TextSelection } from '@tiptap/pm/state'
+import type { EditorView } from '@tiptap/pm/view'
 import { docToMarkdown, markdownToDoc } from '@f451/editor'
 import { searchPages, UploadError, uploadMedia } from '../../lib/editor/client-api'
 import { diagramPath, diagramSlug, type DiagramKind } from '../../lib/editor/diagram'
+import { downscaleImage, UPLOAD_LIMIT_BYTES } from '../../lib/editor/downscale-image'
+import { caretScrollDelta } from '../../lib/editor/caret-scroll'
 import { bumpDiagramVersion } from '../../lib/editor/diagram-versions'
 import { findDefinition, findFirstReference } from '../../lib/editor/footnotes'
+import { trackKeyboardInset } from '../../lib/editor/keyboard-inset'
 import { uiExtensions } from '../../lib/editor/ui-extensions'
 import { initialUploadQueueState, skippedFilesNotice, uploadQueueReducer } from '../../lib/editor/upload-queue'
+import { attachWritingMode } from '../../lib/editor/writing-mode'
+import { isPhoneLayout } from '../../lib/phone'
 import { DrawioDialog } from './drawio-dialog'
 import { EditorToolbar } from './editor-toolbar'
 import { ExcalidrawDialog } from './excalidraw-dialog'
+import { PhoneToolbar } from './phone-toolbar'
 import { useT } from '../../lib/i18n/provider'
 
 /** Ergebnis von `getMarkdownBody()` — diskriminiert, damit ein Konvertierungsfehler
@@ -70,6 +77,44 @@ export interface WysiwygEditorProps {
 }
 
 const CELL_OVERFLOW_NOTICE_MS = 4000
+
+/** Nearest ancestor that scrolls vertically (in this app `.main`), or `null`
+ *  when the window scrolls. */
+function scrollContainerOf(el: HTMLElement): HTMLElement | null {
+  for (let node = el.parentElement; node && node !== document.body; node = node.parentElement) {
+    const { overflowY } = getComputedStyle(node)
+    if ((overflowY === 'auto' || overflowY === 'scroll') && node.scrollHeight > node.clientHeight) return node
+  }
+  return null
+}
+
+/** Phone layout (f451#2): keeps the caret between the writing header and the
+ *  formatting bar above the keyboard. Returns false outside the phone layout
+ *  so ProseMirror scrolls as usual.
+ *
+ *  Coordinate system: client coordinates of the LAYOUT viewport throughout.
+ *  `coordsAtPos` and `getBoundingClientRect` report those; the visual viewport
+ *  (what is not covered by the keyboard) is the band
+ *  [vv.offsetTop, vv.offsetTop + vv.height] of the same system. */
+function scrollCaretIntoPhoneView(view: EditorView): boolean {
+  if (!isPhoneLayout()) return false
+  const caret = view.coordsAtPos(view.state.selection.head)
+  const vv = window.visualViewport
+  const vvTop = vv ? vv.offsetTop : 0
+  const visibleBottom = vv ? vv.offsetTop + vv.height : window.innerHeight
+  // The sticky writing header and the phone toolbar below it cover the top of
+  // the scroll area; when the visual viewport is scrolled below them, the
+  // viewport edge is the limit. Nothing of ours covers the bottom any more.
+  const headerBottom = document.querySelector('.writing-header')?.getBoundingClientRect().bottom ?? 0
+  const toolbarBottom = document.querySelector('.phone-toolbar')?.getBoundingClientRect().bottom ?? 0
+  const delta = caretScrollDelta(caret, { top: Math.max(vvTop, headerBottom, toolbarBottom), visibleBottom }, 0)
+  if (delta !== 0) {
+    const container = scrollContainerOf(view.dom)
+    if (container) container.scrollBy({ top: delta })
+    else window.scrollBy({ top: delta })
+  }
+  return true
+}
 
 /**
  * Tiptap-WYSIWYG-Fläche (Phase 2c Task 3). Baut die Editor-Instanz aus
@@ -141,6 +186,7 @@ export const WysiwygEditor = forwardRef<WysiwygEditorHandle, WysiwygEditorProps>
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const skippedNoticeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const phoneImageInputRef = useRef<HTMLInputElement>(null)
   // uiExtensions() (s. useMemo unten) baut die Extensions VOR `useEditor()` — zu
   // diesem Zeitpunkt existiert die Editor-Instanz noch nicht. `handleUploadFiles`
   // braucht sie aber erst beim tatsächlichen Upload (weit nach dem Mount), deshalb
@@ -200,7 +246,12 @@ export const WysiwygEditor = forwardRef<WysiwygEditorHandle, WysiwygEditorProps>
       const currentEditor = editorRef.current
       if (!currentEditor || files.length === 0) return
       dispatchUploadQueue({ type: 'start', count: files.length })
-      for (const file of files) {
+      // Phone photos are downscaled in the browser first (f451#2); the desktop
+      // uploads the original file as before.
+      const phone = isPhoneLayout()
+      for (const original of files) {
+        // downscaleImage returns non-images and failures unchanged; it never throws.
+        const file = phone ? await downscaleImage(original, UPLOAD_LIMIT_BYTES) : original
         try {
           const result = await uploadMedia(pageId, file, t)
           if (result.kind === 'image') {
@@ -282,6 +333,7 @@ export const WysiwygEditor = forwardRef<WysiwygEditorHandle, WysiwygEditorProps>
       // an denen Tiptaps DOM vom gerenderten Lese-HTML abweicht (Tabellen ohne
       // thead/tbody, Task-Listen über data-type/data-checked).
       attributes: { class: 'doc page-body' },
+      handleScrollToSelection: scrollCaretIntoPhoneView,
       handleKeyDown: (_view, event) => {
         if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
           event.preventDefault()
@@ -356,6 +408,21 @@ export const WysiwygEditor = forwardRef<WysiwygEditorHandle, WysiwygEditorProps>
     editorRef.current = editor ?? null
   }, [editor])
 
+  // Phone layout (f451#2): keyboard height for the formatting bar and writing
+  // mode while the editor has focus. Depends on `editor` because the wrapper
+  // only exists once the editor has been created (loading state above).
+  const writingRootRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const root = writingRootRef.current
+    if (!editor || !root || !isPhoneLayout()) return
+    const stopInset = trackKeyboardInset()
+    const detachWriting = attachWritingMode(root)
+    return () => {
+      detachWriting()
+      stopInset()
+    }
+  }, [editor])
+
   useImperativeHandle(
     ref,
     () => ({
@@ -388,8 +455,11 @@ export const WysiwygEditor = forwardRef<WysiwygEditorHandle, WysiwygEditorProps>
     )
   }
 
+  // `.wysiwyg-editor` is `display: contents` (`62-editor.css`): it exists only
+  // as the writing-mode focus root and leaves the layout (sticky `.etoolbar`)
+  // as it was with the former fragment.
   return (
-    <>
+    <div className="wysiwyg-editor" ref={writingRootRef}>
       {editable ? (
         <EditorToolbar
           editor={editor}
@@ -398,6 +468,25 @@ export const WysiwygEditor = forwardRef<WysiwygEditorHandle, WysiwygEditorProps>
           onCloseLinkPopover={() => setLinkPopoverOpen(false)}
         />
       ) : null}
+      {editable ? (
+        <PhoneToolbar
+          editor={editor}
+          onPickImage={() => phoneImageInputRef.current?.click()}
+        />
+      ) : null}
+      {/* Image picker of the phone bar (f451#2): images only and no `capture`
+          attribute, so iOS/Android offer both camera and photo library. */}
+      <input
+        ref={phoneImageInputRef}
+        type="file"
+        accept="image/*"
+        className="upload-input"
+        onChange={(event) => {
+          const file = event.target.files?.[0]
+          event.target.value = ''
+          if (file) void handleUploadFiles([file])
+        }}
+      />
       {/* Verstecktes Datei-Feld für den Upload-Flow (Toolbar-Button/Slash-Item
           „Bild/Datei", s. `openImagePicker`/`ui-extensions.ts#triggerImageUpload`) —
           akzeptiert Bilder UND die erlaubten Dokument-Anhänge (deckungsgleich mit
@@ -479,6 +568,6 @@ export const WysiwygEditor = forwardRef<WysiwygEditorHandle, WysiwygEditorProps>
       {diagramDialog?.kind === 'excalidraw' ? (
         <ExcalidrawDialog pageId={pageId} state={diagramDialog} onSaved={handleDiagramSaved} onClose={closeDiagramDialog} />
       ) : null}
-    </>
+    </div>
   )
 })

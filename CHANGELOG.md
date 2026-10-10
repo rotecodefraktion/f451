@@ -6,6 +6,24 @@ All notable changes to f451. The format follows
 to the HTTP API, the MCP tools, the page format or the configuration only come
 with a new major version.
 
+## [1.2.14] — 2026-10-10
+
+No breaking changes to the API, the MCP tools, the page format or the
+configuration.
+
+### Added
+- Writing mode on phones: tapping into the text hides the page chrome and
+  shows a slim header (save state, **Done**) with a formatting bar and a
+  **More** sheet for further formats.
+- Photos from the camera or the photo library, downscaled to 2560 px on the
+  long edge before upload.
+
+### Changed
+- The editor saves immediately when the page is hidden (app switch, locked
+  phone, closed laptop lid) and resumes the lock on return — in all layouts.
+- The viewport sets `interactive-widget=resizes-content`, so Android keeps
+  fixed bars above the keyboard.
+
 ## [1.2.13] — 2026-10-09
 
 ### Security

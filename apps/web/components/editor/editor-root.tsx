@@ -23,6 +23,7 @@ import {
 import { createAutosave, type Autosave } from '../../lib/editor/autosave'
 import { clearOfflineDraft, readOfflineDraft, writeOfflineDraft } from '../../lib/editor/offline-buffer'
 import { evaluateOfflineRecovery } from '../../lib/editor/offline-recovery'
+import { resumeAction, settleHeartbeat } from '../../lib/editor/visibility-resume'
 import { archivedFromFrontmatter, classificationFromFrontmatter, titleFromFrontmatter } from '../../lib/editor/frontmatter-fields'
 import { classifySaveFailure } from '../../lib/editor/save-failure'
 import { frontmatterLineOffset, offsetFindingLines } from '../../lib/editor/frontmatter-offset'
@@ -50,6 +51,7 @@ import { SaveTemplateDialog } from './save-template-dialog'
 import { SaveState, StatusBar } from './status-bar'
 import { StatusBarBottom } from '../status-bar-bottom'
 import { TitleField } from './title-field'
+import { WritingHeader } from './writing-header'
 import { WysiwygEditor, type WysiwygEditorHandle } from './wysiwyg-editor'
 
 /** Kurzer, menschenlesbarer Grund für den WYSIWYG-Tab-Tooltip, wenn der
@@ -349,6 +351,15 @@ function EditorSession({
           setSavedAt(result.savedAt)
           clearOfflineDraft(pageId)
           autosaveRef.current.onSaveResult('ok', Date.now())
+        } else if (result.conflict.currentContent === content) {
+          // The draft already holds exactly this content: an earlier save of
+          // ours arrived but its answer did not (iOS freezes a hidden page
+          // before the keepalive save's response is handled, f451#2). Adopt
+          // the server's revision instead of reporting a conflict with ourselves.
+          baseShaRef.current = result.conflict.currentSha
+          setSavedAt(new Date().toISOString())
+          clearOfflineDraft(pageId)
+          autosaveRef.current.onSaveResult('ok', Date.now())
         } else {
           setConflict({
             currentSha: result.conflict.currentSha,
@@ -436,6 +447,9 @@ function EditorSession({
     bumpTick()
     if (shouldSave) void performSave()
   }, [performSave, bumpTick])
+  // For effects that must not re-register when `performSave` changes.
+  const triggerFlushRef = useRef(triggerFlush)
+  triggerFlushRef.current = triggerFlush
 
   const handleDirty = useCallback(() => {
     autosaveRef.current.onChange(Date.now())
@@ -603,6 +617,11 @@ function EditorSession({
   // unabhängig davon, ob `lockNotice` zwischendurch erneut auftaucht (Fall
   // „eigener Lock an einen anderen gefallen" — Banner zeigen, NICHT aufhören zu
   // heartbeaten, Soft-Lock blockiert nie hart).
+  // Restarts the heartbeat interval so the next regular beat is a full interval
+  // away — set by the heartbeat effect below, used after the immediate beat on
+  // returning to the page (f451#2). `null` while no heartbeat runs.
+  const restartHeartbeatIntervalRef = useRef<(() => void) | null>(null)
+
   useEffect(() => {
     if (entryGateActive) return
     let cancelled = false
@@ -620,10 +639,15 @@ function EditorSession({
     }
 
     beat()
-    const id = setInterval(beat, HEARTBEAT_INTERVAL_MS)
+    let id = setInterval(beat, HEARTBEAT_INTERVAL_MS)
+    restartHeartbeatIntervalRef.current = () => {
+      clearInterval(id)
+      id = setInterval(beat, HEARTBEAT_INTERVAL_MS)
+    }
     return () => {
       cancelled = true
       clearInterval(id)
+      restartHeartbeatIntervalRef.current = null
     }
   }, [pageId, entryGateActive])
 
@@ -671,11 +695,15 @@ function EditorSession({
   // meldet das Ergebnis über `onSaveResult` zurück — überlebt der JS-Kontext den
   // Unload (bfcache-Restore/iOS-Backgrounding), heilt sich der sonst dauerhaft
   // in `saving` hängende Zustand dadurch selbst.
-  useEffect(() => {
-    function onUnload() {
-      if (unloadHandledRef.current) return // Reentranz-Sperre, s. Kommentar oben.
-      unloadHandledRef.current = true
-      releaseLock(pageId).catch(() => {})
+  /** "Save now with keepalive" — shared by the `pagehide`/`beforeunload` path
+   *  and the `visibilitychange: hidden` path (f451#2). Saves only when
+   *  `flushNow` says something is pending (never while a conflict is open).
+   *  `opts.buffer` additionally writes the offline buffer with the content
+   *  being sent, before the request goes out — for the hidden path, where the
+   *  OS may kill the backgrounded page before the response arrives. Uses refs
+   *  only, so it stays stable and does not tear down the unload effect. */
+  const saveNowWithKeepalive = useCallback(
+    () => {
       const shouldSave = autosaveRef.current.flushNow(Date.now())
       if (!shouldSave) return
       const read = readCurrentContentRef.current()
@@ -687,6 +715,16 @@ function EditorSession({
         return
       }
       void saveContentRef.current(read.content, baseShaRef.current, { keepalive: true })
+    },
+    [pageId, draft.branch],
+  )
+
+  useEffect(() => {
+    function onUnload() {
+      if (unloadHandledRef.current) return // Reentranz-Sperre, s. Kommentar oben.
+      unloadHandledRef.current = true
+      releaseLock(pageId).catch(() => {})
+      saveNowWithKeepalive()
     }
     window.addEventListener('pagehide', onUnload)
     window.addEventListener('beforeunload', onUnload)
@@ -695,7 +733,90 @@ function EditorSession({
       window.removeEventListener('beforeunload', onUnload)
       releaseLock(pageId).catch(() => {})
     }
-  }, [pageId])
+  }, [pageId, saveNowWithKeepalive])
+
+  // App switch / phone locked mid-draft (f451#2), all layouts. `hidden`: save
+  // pending changes with keepalive and buffer them locally — the lock stays
+  // (the user is likely coming back). `visible`: one heartbeat at once instead
+  // of waiting up to a full interval, then act on `resumeAction`. Skipped
+  // while the entry gate holds the editor read-only (no heartbeat that would
+  // disturb a foreign lock, see the heartbeat effect) and once the unload path
+  // has run. `resumeInFlight` drops a second `visible` while the first beat is
+  // still under way.
+  useEffect(() => {
+    if (entryGateActive) return
+    let cancelled = false
+    let resumeInFlight = false
+
+    // Hidden: a best-effort keepalive save outside the autosave state machine.
+    // On iOS the page is frozen before the answer is handled; had the machine
+    // gone to `saving`, it would stay there (or fall to `offline`) although the
+    // server has the text. The machine therefore stays `dirty`, and the return
+    // to the page reconciles (`onVisible`). The lock is not released.
+    function onHidden() {
+      if (unloadHandledRef.current) return
+      if (autosaveRef.current.getStatus().status !== 'dirty') return
+      const read = readCurrentContentRef.current()
+      if (!read.ok) return
+      const sentSha = baseShaRef.current
+      writeOfflineDraft(pageId, {
+        content: read.content,
+        baseSha: sentSha,
+        branch: draft.branch,
+        savedAt: new Date().toISOString(),
+      })
+      void saveDraft(pageId, { content: read.content, baseSha: sentSha }, { keepalive: true })
+        .then((result) => {
+          // Only when nothing else moved the revision meanwhile.
+          if (!result.ok || baseShaRef.current !== sentSha) return
+          baseShaRef.current = result.newSha
+          setSavedAt(result.savedAt)
+          const now = readCurrentContentRef.current()
+          if (now.ok && now.content === read.content && autosaveRef.current.flushNow(Date.now())) {
+            clearOfflineDraft(pageId)
+            autosaveRef.current.onSaveResult('ok', Date.now())
+          }
+          bumpTick()
+        })
+        .catch(() => {})
+    }
+
+    function onVisible() {
+      if (resumeInFlight || unloadHandledRef.current) return
+      resumeInFlight = true
+      restartHeartbeatIntervalRef.current?.()
+      // Save what is still open right away instead of waiting for the debounce:
+      // if the hidden save arrived, the server answers with our own content and
+      // `saveContent` adopts its revision; otherwise this is the save.
+      const status = autosaveRef.current.getStatus().status
+      if (status === 'dirty' || status === 'offline') triggerFlushRef.current()
+      void settleHeartbeat(() => heartbeatLock(pageId))
+        .then(({ result, info }) => {
+          if (cancelled) return
+          switch (resumeAction(result)) {
+            case 'notifyLocked':
+              if (info) setLockNotice({ heldBy: info.heldBy })
+              break
+            case 'none':
+              break
+          }
+        })
+        .finally(() => {
+          resumeInFlight = false
+        })
+    }
+
+    function onVisibilityChange() {
+      if (document.visibilityState === 'hidden') onHidden()
+      else if (document.visibilityState === 'visible') onVisible()
+    }
+
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => {
+      cancelled = true
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+    }
+  }, [pageId, entryGateActive, bumpTick, draft.branch])
 
   function handleOverride() {
     setEntryGateActive(false)
@@ -1010,6 +1131,8 @@ function EditorSession({
         onExportMarkdown={handleExportMarkdown}
         onDeletePage={handleDeletePage}
       />
+      {/* Phone writing mode (f451#2): shown by CSS only under `html[data-writing]`. */}
+      <WritingHeader saveStatus={saveStatus} savedAt={savedAt} />
       {lockNotice ? <LockBanner heldBy={lockNotice.heldBy} onOverride={handleOverride} /> : null}
       <TitleField
         title={titleValue}
