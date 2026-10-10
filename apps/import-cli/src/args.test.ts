@@ -32,4 +32,7 @@ describe('parseArgs', () => {
     expect(() => parseArgs(['export', '--book', '7', '--space', 's'])).toThrow(UsageError)
     expect(() => parseArgs(['bookstack', '--book', '7', '--space', 's', '--nope'])).toThrow(UsageError)
   })
+  it('ignores the separator pnpm passes through', () => {
+    expect(parseArgs(['--', 'bookstack', '--book', '7', '--space', 's']).book).toBe('7')
+  })
 })

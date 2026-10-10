@@ -14,6 +14,21 @@ export type WriterApi = Pick<
   'tree' | 'raw' | 'createPage' | 'getDraft' | 'openDraft' | 'putDraft' | 'uploadMedia' | 'requestReview' | 'release' | 'reorder'
 >
 
+/** On a 409 from `createPage`, the id of the conflicting page if its draft
+ *  carries the same origin as `node`; otherwise null. */
+async function sameOriginDraft(api: WriterApi, e: unknown, node: ImportNode): Promise<string | null> {
+  if (!(e instanceof F451ApiError) || e.status !== 409) return null
+  const pageId = (e.body as { pageId?: unknown } | null)?.pageId
+  if (typeof pageId !== 'string') return null
+  try {
+    const draft = await api.getDraft(pageId)
+    const source = draft ? readSource(draft.content) : null
+    return source && source.type === node.sourceRef.type && source.id === node.sourceRef.id ? pageId : null
+  } catch {
+    return null
+  }
+}
+
 function describe(e: unknown): string {
   if (e instanceof F451ApiError) {
     const body = (e.body && typeof e.body === 'object' ? e.body : {}) as Record<string, unknown>
@@ -113,6 +128,7 @@ export async function importTree(
   onEvent({ kind: 'start', pages: entries.length })
 
   const failedIds = new Set<string>()
+  const openReview = new Set<string>()
   const fail = (node: ImportNode, reason: string, pageId?: string) => {
     const sourceId = node.sourceRef.id
     failedIds.add(sourceId)
@@ -153,7 +169,14 @@ export async function importTree(
       ids.set(sid, r.id)
       created.set(sid, { baseSha: r.baseSha })
     } catch (e) {
-      fail(node, describe(e))
+      // The tree and `raw` only see the published version. A page imported
+      // earlier whose review is still open shows up here as a path conflict;
+      // if its draft carries the same origin it is the same page.
+      const existingId = await sameOriginDraft(api, e, node)
+      if (existingId) {
+        ids.set(sid, existingId)
+        openReview.add(sid)
+      } else fail(node, describe(e))
     }
   }
 
@@ -163,6 +186,10 @@ export async function importTree(
     const pageId = ids.get(sid)
     if (!pageId || failedIds.has(sid)) continue
     const isNew = created.has(sid) || (opts.dryRun && pageId === `dry-${sid}`)
+    if (openReview.has(sid)) {
+      skip(node, pageId, 'already imported, review still open')
+      continue
+    }
     if (!isNew && !opts.update) {
       skip(node, pageId, 'already imported')
       continue

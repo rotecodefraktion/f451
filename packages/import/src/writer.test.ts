@@ -104,6 +104,39 @@ describe('importTree', () => {
     expect(events).toContainEqual(expect.objectContaining({ kind: 'page', sourceId: '1', status: 'failed' }))
   })
 
+  it('treats a 409 whose draft has the same origin as imported with an open review', async () => {
+    const api = fakeApi()
+    api.createPage.mockImplementation(async (p) => {
+      if (p.title === 'Book') throw new F451ApiError('conflict', 409, { error: 'exists', pageId: 'p-book' })
+      throw new F451ApiError('conflict', 409, { error: 'exists', pageId: 'p-child' })
+    })
+    api.getDraft.mockImplementation(async (id) => ({
+      baseSha: 's',
+      content: `---\nid: ${id}\nsource:\n  type: bookstack\n  id: "${id === 'p-book' ? 'book:1' : '2'}"\n---\n\nx\n`,
+    }))
+
+    const report = await importTree(tree([node('book:1', 'Book', { children: [node('2', 'Child')] })]), TARGET, api, OPTS, () => {})
+
+    expect(report.failed).toEqual([])
+    expect(report.skipped.map((r) => [r.sourceId, r.pageId, r.reason])).toEqual([
+      ['book:1', 'p-book', 'already imported, review still open'],
+      ['2', 'p-child', 'already imported, review still open'],
+    ])
+    expect(api.createPage.mock.calls[1]?.[0]).toMatchObject({ parentId: 'p-book' })
+    expect(api.putDraft).not.toHaveBeenCalled()
+  })
+
+  it('keeps a 409 as failed when the conflicting draft has another origin', async () => {
+    const api = fakeApi()
+    api.createPage.mockRejectedValue(new F451ApiError('conflict', 409, { error: 'exists', pageId: 'p-other' }))
+    api.getDraft.mockResolvedValue({ baseSha: 's', content: '---\nid: p-other\n---\n\nmine\n' })
+
+    const report = await importTree(tree([node('1', 'Same')]), TARGET, api, OPTS, () => {})
+
+    expect(report.failed.map((r) => r.sourceId)).toEqual(['1'])
+    expect(report.skipped).toEqual([])
+  })
+
   it('records a 409 on create as failed and does not reuse the other page', async () => {
     const api = fakeApi()
     let calls = 0

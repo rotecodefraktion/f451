@@ -36,7 +36,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
   let parsed
   try {
     parsed = nodeParseArgs({
-      args: argv,
+      // `pnpm … start -- bookstack …` passes the separator through.
+      args: argv[0] === '--' ? argv.slice(1) : argv,
       allowPositionals: true,
       strict: true,
       options: {
