@@ -1,4 +1,5 @@
-import { crc32 } from 'node:zlib'
+import { readFileSync } from 'node:fs'
+import { crc32, deflateSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
 import { detectDrawioRenderer, extractMxfile, type Exec } from './drawings.js'
 
@@ -28,6 +29,21 @@ const drawingPng = png(chunk('tEXt', Buffer.from('mxfile\0%3Cmxfile%3E%3C%2Fmxfi
 describe('extractMxfile', () => {
   it('returns the decoded mxfile text chunk', () => {
     expect(extractMxfile(drawingPng)).toBe('<mxfile></mxfile>')
+  })
+
+  it('reads the zTXt mxGraphModel chunk that draw.io desktop writes', () => {
+    const real = new Uint8Array(readFileSync(new URL('../../../test/fixtures/bookstack/drawio-desktop.png', import.meta.url)))
+    const xml = extractMxfile(real)
+    expect(xml?.startsWith('<mxfile>')).toBe(true)
+    expect(xml).toContain('value="Start"')
+  })
+
+  it('reads an iTXt chunk, compressed or not', () => {
+    const value = '%3Cmxfile%3E%3C%2Fmxfile%3E'
+    const plain = Buffer.concat([Buffer.from('mxfile\0\0\0\0\0', 'latin1'), Buffer.from(value)])
+    const packed = Buffer.concat([Buffer.from('mxfile\0\x01\0\0\0', 'latin1'), deflateSync(Buffer.from(value))])
+    expect(extractMxfile(png(chunk('iTXt', plain)))).toBe('<mxfile></mxfile>')
+    expect(extractMxfile(png(chunk('iTXt', packed)))).toBe('<mxfile></mxfile>')
   })
 
   it('returns null without the chunk', () => {

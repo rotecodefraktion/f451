@@ -1,3 +1,4 @@
+import { inflateSync } from 'node:zlib'
 import { execFile } from 'node:child_process'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -44,7 +45,8 @@ function containerRenderer(engine: string, exec: Exec): DrawioRenderer {
       try {
         await writeFile(join(dir, 'in.drawio'), xml, 'utf8')
         await exec(engine, [
-          'run', '--rm',
+          // Electron crashes with the default 64 MB of /dev/shm.
+          'run', '--rm', '--shm-size=1g',
           '-v', `${dir}:/data`,
           IMAGE,
           '-x', '-f', 'svg', '--embed-diagram',
@@ -73,12 +75,14 @@ export function extractMxfile(png: Uint8Array): string | null {
     const start = pos + 8
     const end = start + length
     if (end + 4 > png.byteLength) return null
-    if (type === 'tEXt') {
-      const data = png.subarray(start, end)
-      const sep = data.indexOf(0)
-      if (sep > 0 && latin1.decode(data.subarray(0, sep)) === 'mxfile') {
+    // draw.io writes the diagram as `tEXt` (web editor, keyword `mxfile`),
+    // `zTXt` (desktop, keyword `mxGraphModel`) or `iTXt`; the value is
+    // URL-encoded XML in each case.
+    if (type === 'tEXt' || type === 'zTXt' || type === 'iTXt') {
+      const value = textChunkValue(type, png.subarray(start, end), latin1)
+      if (value !== null) {
         try {
-          return decodeURIComponent(latin1.decode(data.subarray(sep + 1)))
+          return decodeURIComponent(value)
         } catch {
           return null
         }
@@ -88,6 +92,34 @@ export function extractMxfile(png: Uint8Array): string | null {
     pos = end + 4 // skip the CRC
   }
   return null
+}
+
+const MX_KEYWORDS = new Set(['mxfile', 'mxGraphModel'])
+
+/** Value of a draw.io text chunk, or null for any other keyword. */
+function textChunkValue(type: string, data: Uint8Array, latin1: TextDecoder): string | null {
+  const sep = data.indexOf(0)
+  if (sep <= 0 || !MX_KEYWORDS.has(latin1.decode(data.subarray(0, sep)))) return null
+  const rest = data.subarray(sep + 1)
+  if (type === 'tEXt') return latin1.decode(rest)
+  if (type === 'zTXt') {
+    // compression method byte, then zlib data
+    try {
+      return latin1.decode(inflateSync(rest.subarray(1)))
+    } catch {
+      return null
+    }
+  }
+  // iTXt: compression flag, method, language tag \0, translated keyword \0, text
+  const flag = rest[0]
+  let pos = 2
+  for (let zeros = 0; zeros < 2 && pos < rest.length; pos++) if (rest[pos] === 0) zeros++
+  const text = rest.subarray(pos)
+  try {
+    return new TextDecoder('utf-8').decode(flag === 1 ? inflateSync(text) : text)
+  } catch {
+    return null
+  }
 }
 
 export interface DrawingsResult {
