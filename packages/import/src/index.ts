@@ -1,6 +1,7 @@
 export * from './model.js'
 export * from './adapters/bookstack/index.js'
 export { importTree } from './writer.js'
+export { flattenTree } from './order.js'
 export { F451Api, F451ApiError } from './api.js'
 export { renderReport, emptyReport } from './report.js'
 export type { ImportReport, PageResult } from './report.js'

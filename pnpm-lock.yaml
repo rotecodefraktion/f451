@@ -90,6 +90,25 @@ importers:
         specifier: ^3.0.0
         version: 3.2.7(@types/debug@4.1.13)(@types/node@22.20.1)(tsx@4.23.0)(yaml@2.9.0)
 
+  apps/import-cli:
+    dependencies:
+      '@f451/import':
+        specifier: workspace:*
+        version: link:../../packages/import
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.20.1
+      tsx:
+        specifier: ^4.19.0
+        version: 4.23.0
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@22.20.1)(tsx@4.23.0)(yaml@2.9.0)
+
   apps/mcp:
     dependencies:
       '@f451/design-tokens':

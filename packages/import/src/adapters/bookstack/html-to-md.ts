@@ -1,3 +1,4 @@
+/// <reference path="./gfm.d.ts" />
 // Adapted from BookBridge (github.com/rotecodefraktion/bookbridge)
 
 import TurndownService from 'turndown'
