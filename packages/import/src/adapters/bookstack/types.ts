@@ -13,6 +13,13 @@ export interface BookStackTag {
   order?: number
 }
 
+/** One hit of `GET search`, reduced to what the export needs. */
+export interface BookStackSearchHit {
+  id: number
+  type: 'book' | 'chapter' | 'page'
+  name: string
+}
+
 export interface BookStackBook {
   id: number
   name: string
