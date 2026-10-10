@@ -34,7 +34,9 @@ export function renderReport(r: ImportReport): string {
   }
   const dropped = Object.entries(r.droppedHtml)
   if (dropped.length) {
-    out += '## HTML without Markdown equivalent\n\n' + dropped.map(([t, n]) => `- \`<${t}>\`: ${n}`).join('\n') + '\n\n'
+    // Keys are HTML tag names (`span`, `!--` for comments) or constructs
+    // such as `colspan` and `tableBlock`.
+    out += '## Content without a Markdown equivalent\n\n' + dropped.map(([t, n]) => `- \`${t}\`: ${n}`).join('\n') + '\n\n'
   }
   if (r.drawingsAsPng.length) {
     out += `## Drawings kept as PNG (no draw.io container)\n\n` + r.drawingsAsPng.map((d) => `- ${d}`).join('\n') + '\n'

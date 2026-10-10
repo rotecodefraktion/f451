@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildPageContent, mergeIntoExisting, readSource } from './frontmatter.js'
+import { buildPageContent, importUnchanged, mergeIntoExisting, readSource } from './frontmatter.js'
 
 const source = { type: 'bookstack', id: '12', url: 'https://b/books/a/page/x' }
 
@@ -34,5 +34,16 @@ describe('mergeIntoExisting', () => {
     expect(out).toContain('tags:\n  - new')
     expect(out).not.toContain('old')
     expect(out.endsWith('---\n\nnew body\n')).toBe(true)
+  })
+})
+
+describe('importUnchanged', () => {
+  const existing = '---\nid: p-abc\ntitle: T\ntags:\n  - a\nversion: 1.0.0\n---\n\nbody\n'
+  it('ignores front matter the import does not own', () => {
+    expect(importUnchanged(existing, { tags: ['a'], body: 'body\n' })).toBe(true)
+  })
+  it('sees a changed body or tag list', () => {
+    expect(importUnchanged(existing, { tags: ['a'], body: 'other\n' })).toBe(false)
+    expect(importUnchanged(existing, { tags: ['a', 'b'], body: 'body\n' })).toBe(false)
   })
 })

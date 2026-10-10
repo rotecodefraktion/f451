@@ -18,6 +18,8 @@ function fakeApi() {
     requestReview: vi.fn<WriterApi['requestReview']>(async () => ({ number: 1, url: 'https://pr/1' })),
     release: vi.fn<WriterApi['release']>(async () => ({ mergeSha: 'sha-merge' })),
     reorder: vi.fn<WriterApi['reorder']>(async () => undefined),
+    media: vi.fn<WriterApi['media']>(async () => null),
+    discardDraft: vi.fn<WriterApi['discardDraft']>(async () => undefined),
   }
 }
 
@@ -102,6 +104,58 @@ describe('importTree', () => {
     expect(report.created.map((r) => r.sourceId)).toEqual(['2'])
     expect(api.putDraft).toHaveBeenCalledTimes(1)
     expect(events).toContainEqual(expect.objectContaining({ kind: 'page', sourceId: '1', status: 'failed' }))
+  })
+
+  describe('update of an imported page', () => {
+    const published = '---\nid: p-a\ntitle: A\nsource:\n  type: bookstack\n  id: "1"\nversion: 1.0.0\n---\n\n# A\n\n![x](_media/x.png)\n'
+    const media = (bytes: number[]) => [{ name: 'x.png', bytes: new Uint8Array(bytes), mime: 'image/png', kind: 'image' as const, ref: '_media/x.png' }]
+    const setup = () => {
+      const api = fakeApi()
+      api.tree.mockResolvedValue([{ id: 'p-a', title: 'A', path: 'a/index.md', archived: false, children: [] }])
+      api.raw.mockResolvedValue(published)
+      api.openDraft.mockResolvedValue({ baseSha: 'sha-a', content: published })
+      api.media.mockResolvedValue(new Uint8Array([1, 2, 3]))
+      return api
+    }
+
+    it('discards the draft when body, tags and media are unchanged', async () => {
+      const api = setup()
+      const report = await importTree(
+        tree([node('1', 'A', { markdown: '# A\n\n![x](_media/x.png)\n', media: media([1, 2, 3]) })]),
+        TARGET, api, { ...OPTS, update: true }, () => {},
+      )
+      expect(report.skipped).toEqual([expect.objectContaining({ sourceId: '1', reason: 'unchanged' })])
+      expect(api.uploadMedia).not.toHaveBeenCalled()
+      expect(api.discardDraft).toHaveBeenCalledWith('p-a')
+      expect(api.requestReview).not.toHaveBeenCalled()
+    })
+
+    it('reuses a stored diagram whose embedded XML is the same', async () => {
+      const api = setup()
+      const rendered = '<svg id="ge-svg-AAA" content="&lt;mxfile&gt;&lt;diagram id=&quot;a&quot;/&gt;&lt;/mxfile&gt;"><g/></svg>'
+      const stored = '<svg xmlns="http://www.w3.org/2000/svg" id="ge-svg-BBB" content="&lt;mxfile&gt;&lt;diagram id=&#x22;a&#x22;/&gt;&lt;/mxfile&gt;"><g></g></svg>'
+      api.media.mockResolvedValue(new TextEncoder().encode(stored))
+      const drawing = [{ name: 'f.drawio.svg', bytes: new TextEncoder().encode(rendered), mime: 'image/svg+xml', kind: 'drawio' as const, ref: '_media/f.drawio.svg' }]
+      api.raw.mockResolvedValue(published.replace('x.png', 'f.drawio.svg'))
+      api.openDraft.mockResolvedValue({ baseSha: 'sha-a', content: published.replace('x.png', 'f.drawio.svg') })
+      const report = await importTree(
+        tree([node('1', 'A', { markdown: '# A\n\n![x](_media/f.drawio.svg)\n', media: drawing })]),
+        TARGET, api, { ...OPTS, update: true }, () => {},
+      )
+      expect(api.uploadMedia).not.toHaveBeenCalled()
+      expect(report.skipped).toEqual([expect.objectContaining({ reason: 'unchanged' })])
+    })
+
+    it('uploads only a changed file and opens a review', async () => {
+      const api = setup()
+      const report = await importTree(
+        tree([node('1', 'A', { markdown: '# A\n\n![x](_media/x.png)\n', media: media([9, 9]) })]),
+        TARGET, api, { ...OPTS, update: true }, () => {},
+      )
+      expect(api.uploadMedia).toHaveBeenCalledTimes(1)
+      expect(api.discardDraft).not.toHaveBeenCalled()
+      expect(report.updated.map((r) => r.sourceId)).toEqual(['1'])
+    })
   })
 
   it('treats a 409 whose draft has the same origin as imported with an open review', async () => {

@@ -83,6 +83,20 @@ export class F451Api {
     return this.expect(`/api/pages/${pageId}/draft/media`, { method: 'POST', body: form }, [200, 201])
   }
 
+  /** A file from the page's `_media/`, or null if it does not exist. */
+  async media(pageId: string, name: string, ref: 'main' | 'draft'): Promise<Uint8Array | null> {
+    const res = await this.fetchImpl(`${this.baseUrl}/media/${pageId}/${encodeURIComponent(name)}?ref=${ref}`, {
+      headers: { authorization: `Bearer ${this.token}` },
+    })
+    if (res.status === 404) return null
+    if (res.status !== 200) throw new F451ApiError(`media ${name} failed with ${res.status}`, res.status, null)
+    return new Uint8Array(await res.arrayBuffer())
+  }
+
+  async discardDraft(pageId: string): Promise<void> {
+    await this.expect(`/api/pages/${pageId}/draft`, { method: 'DELETE' }, [200, 204])
+  }
+
   requestReview(pageId: string): Promise<{ number: number; url: string }> {
     return this.expect(`/api/pages/${pageId}/review`, { method: 'POST', body: '{}' }, [200])
   }

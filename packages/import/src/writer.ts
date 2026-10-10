@@ -1,7 +1,7 @@
 import { F451ApiError, type F451Api, type TreeNode } from './api.js'
-import { buildPageContent, mergeIntoExisting, readSource } from './frontmatter.js'
+import { buildPageContent, importUnchanged, mergeIntoExisting, readSource } from './frontmatter.js'
 import { rewriteLinks } from './links.js'
-import type { ImportEvent, ImportNode, ImportOptions, ImportTarget, ImportTree } from './model.js'
+import type { ImportEvent, ImportMedia, ImportNode, ImportOptions, ImportTarget, ImportTree } from './model.js'
 import { flattenTree, type FlatEntry } from './order.js'
 import { emptyReport, type ImportReport } from './report.js'
 
@@ -11,7 +11,8 @@ export const MAX_UPLOAD = 10 * 1024 * 1024
 /** The part of the f451 API client the writer uses. */
 export type WriterApi = Pick<
   F451Api,
-  'tree' | 'raw' | 'createPage' | 'getDraft' | 'openDraft' | 'putDraft' | 'uploadMedia' | 'requestReview' | 'release' | 'reorder'
+  | 'tree' | 'raw' | 'createPage' | 'getDraft' | 'openDraft' | 'putDraft' | 'uploadMedia' | 'requestReview' | 'release' | 'reorder'
+  | 'media' | 'discardDraft'
 >
 
 /** On a 409 from `createPage`, the id of the conflicting page if its draft
@@ -27,6 +28,25 @@ async function sameOriginDraft(api: WriterApi, e: unknown, node: ImportNode): Pr
   } catch {
     return null
   }
+}
+
+/** The diagram a `.drawio.svg` carries in its `content` attribute, decoded. */
+function diagramOf(svg: Uint8Array): string | null {
+  const m = /\scontent="([^"]*)"/.exec(Buffer.from(svg).toString('utf8'))
+  if (!m) return null
+  return m[1]
+    .replace(/&#x([0-9a-f]+);/gi, (_, h: string) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d: string) => String.fromCodePoint(Number(d)))
+    .replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&apos;/g, "'").replace(/&amp;/g, '&')
+}
+
+/** The API sanitises an uploaded SVG, so a stored diagram never equals the
+ *  rendered bytes; two diagrams are the same when their embedded draw.io XML
+ *  is. Everything else compares byte for byte. */
+function sameMedia(m: ImportMedia, existing: Uint8Array): boolean {
+  if (m.kind !== 'drawio') return Buffer.from(m.bytes).equals(Buffer.from(existing))
+  const a = diagramOf(m.bytes)
+  return a !== null && a === diagramOf(existing)
 }
 
 function describe(e: unknown): string {
@@ -214,12 +234,20 @@ export async function importTree(
         existingContent = d.content
       }
       let markdown = node.markdown
+      let uploaded = 0
       for (const m of node.media) {
         if (m.bytes.byteLength > MAX_UPLOAD) {
           report.mediaSkipped.push({ sourceId: sid, name: m.name, reason: 'too large' })
           onEvent({ kind: 'media', sourceId: sid, name: m.name, status: 'skipped', reason: 'too large' })
           continue
         }
+        // On an update the draft starts from the published page; an
+        // unchanged file is reused instead of uploaded as `<name>-1`.
+        if (!isNew) {
+          const existing = await api.media(pageId, m.name, 'draft')
+          if (existing && sameMedia(m, existing)) continue
+        }
+        uploaded++
         const u = await api.uploadMedia(pageId, m.name, m.bytes, m.mime)
         if (u.path !== m.ref) markdown = markdown.split(m.ref).join(u.path)
         onEvent({ kind: 'media', sourceId: sid, name: m.name, status: 'uploaded' })
@@ -228,6 +256,11 @@ export async function importTree(
       const content = isNew
         ? buildPageContent({ id: pageId, title: node.title, tags: node.tags, source: node.sourceRef, body: markdown })
         : mergeIntoExisting(existingContent, { tags: node.tags, body: markdown })
+      if (!isNew && uploaded === 0 && importUnchanged(existingContent, { tags: node.tags, body: markdown })) {
+        await api.discardDraft(pageId)
+        skip(node, pageId, 'unchanged')
+        continue
+      }
       // Media uploads commit to the draft branch, but the page file itself is
       // unchanged, so the blob sha from createPage/openDraft is still valid.
       await api.putDraft(pageId, content, baseSha, `Import from ${node.sourceRef.type}`)

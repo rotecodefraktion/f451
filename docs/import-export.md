@@ -90,7 +90,7 @@ links to BookStack.
 
 Each run writes `import-report.md` to `--out`. It lists created, updated,
 skipped and failed pages (with reasons), media that were skipped, drawings kept
-as PNG, and HTML elements that have no Markdown equivalent. With `--dry-run`,
+as PNG, and content that has no Markdown equivalent (HTML elements, merged table cells, block content in cells). With `--dry-run`,
 the generated Markdown files are written next to it.
 
 ## Second import

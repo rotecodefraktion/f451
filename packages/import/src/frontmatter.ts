@@ -41,3 +41,12 @@ export function mergeIntoExisting(existing: string, p: { tags: string[]; body: s
   else delete data.tags
   return join(data, p.body)
 }
+
+/** True if `existing` already has exactly this body and these tags, i.e. an
+ *  update would change nothing the import owns. */
+export function importUnchanged(existing: string, p: { tags: string[]; body: string }): boolean {
+  const { yaml, body } = split(existing)
+  const data = (yaml ? (parseYaml(yaml) as Record<string, unknown> | null) : null) ?? {}
+  const tags = Array.isArray(data.tags) ? data.tags.map(String) : []
+  return body === p.body && tags.length === p.tags.length && tags.every((t, i) => t === p.tags[i])
+}
