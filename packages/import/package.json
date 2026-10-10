@@ -10,6 +10,8 @@
   "dependencies": {
     "@f451/markdown": "workspace:*",
     "@joplin/turndown-plugin-gfm": "^1.0.64",
+    "hast-util-from-html": "^2.0.3",
+    "hast-util-to-html": "^9.0.5",
     "remark-gfm": "^4.0.0",
     "remark-parse": "^11.0.0",
     "remark-stringify": "^11.0.0",

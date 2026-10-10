@@ -132,10 +132,74 @@ describe('htmlToMarkdown', () => {
     expect(r.dropped).toEqual({ drawing: 1 })
   })
 
-  it('flattens colspan tables and counts them', () => {
+  it('expands a colspan header into a valid table and counts it', () => {
     const r = htmlToMarkdown('<table><tr><th colspan="2">h</th></tr><tr><td>1</td><td>2</td></tr></table>', ctx)
-    expect(r.markdown).toMatch(/\|\s*1\s*\|\s*2\s*\|/)
-    expect(r.markdown).not.toContain('<!--')
+    const lines = tableLines(r.markdown)
+    expect(lines).toHaveLength(3)
+    expect(cellCount(lines[0]!)).toBe(2)
+    expect(cellCount(lines[1]!)).toBe(2)
+    expect(lines[1]).toMatch(/^\|\s*---\s*\|\s*---\s*\|$/)
+    expect(lines[2]).toMatch(/^\|\s*1\s*\|\s*2\s*\|$/)
+    expect(r.markdown).not.toContain('<')
     expect(r.dropped).toEqual({ colspan: 1 })
   })
+
+  it('expands a rowspan cell into an empty cell in the following row', () => {
+    const html = '<table><tr><th>a</th><th>b</th></tr><tr><td rowspan="2">x</td><td>1</td></tr><tr><td>2</td></tr></table>'
+    const r = htmlToMarkdown(html, ctx)
+    const lines = tableLines(r.markdown)
+    expect(lines).toHaveLength(4)
+    for (const line of lines) expect(cellCount(line)).toBe(2)
+    expect(lines[2]).toMatch(/^\|\s*x\s*\|\s*1\s*\|$/)
+    expect(lines[3]).toMatch(/^\|\s*\|\s*2\s*\|$/)
+    expect(r.markdown).not.toContain('<')
+    expect(r.dropped).toEqual({ rowspan: 1 })
+  })
+
+  it('keeps one header row for a two-row thead with a rowspan header cell', () => {
+    const html =
+      '<table><thead><tr><th rowspan="2">a</th><th>b</th></tr><tr><th>c</th></tr></thead>'
+      + '<tbody><tr><td>1</td><td>2</td></tr></tbody></table>'
+    const r = htmlToMarkdown(html, ctx)
+    const lines = tableLines(r.markdown)
+    expect(lines).toHaveLength(4)
+    expect(lines.filter((line) => /^\|(\s*:?-{3,}:?\s*\|)+$/.test(line))).toHaveLength(1)
+    for (const line of lines) expect(cellCount(line)).toBe(2)
+    expect(lines[0]).toMatch(/^\|\s*a\s*\|\s*b\s*\|$/)
+    expect(lines[2]).toMatch(/^\|\s*\|\s*c\s*\|$/)
+    expect(lines[3]).toMatch(/^\|\s*1\s*\|\s*2\s*\|$/)
+    expect(r.markdown).not.toContain('<')
+    expect(r.dropped).toEqual({ rowspan: 1 })
+  })
+
+  it('flattens a list in a cell to items joined with "; "', () => {
+    const html = '<table><tr><th>k</th><th>v</th></tr><tr><td>list</td><td><ul><li>a</li><li>b</li></ul></td></tr></table>'
+    const r = htmlToMarkdown(html, ctx)
+    expect(r.markdown).toMatch(/^\|\s*list\s*\|\s*a; b\s*\|$/m)
+    expect(r.markdown).not.toContain('<')
+    expect(r.markdown).not.toContain('joplin-table-wrapper')
+    expect(r.dropped).toEqual({ tableBlock: 1 })
+  })
+
+  it('flattens a code block in a cell to inline code', () => {
+    const html = '<table><tr><th>k</th><th>v</th></tr><tr><td>code</td><td><pre><code>x\ny</code></pre></td></tr></table>'
+    const r = htmlToMarkdown(html, ctx)
+    expect(r.markdown).toContain('`x y`')
+    expect(r.markdown).not.toContain('```')
+    expect(r.markdown).not.toContain('<')
+    expect(r.dropped).toEqual({ tableBlock: 1 })
+  })
 })
+
+/** The lines of the GFM table in `markdown`. */
+function tableLines(markdown: string): string[] {
+  return markdown
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith('|'))
+}
+
+/** Cells in a table line that starts and ends with a pipe (no escaped pipes). */
+function cellCount(line: string): number {
+  return line.split('|').length - 2
+}

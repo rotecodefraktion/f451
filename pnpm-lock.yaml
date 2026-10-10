@@ -335,6 +335,12 @@ importers:
       '@joplin/turndown-plugin-gfm':
         specifier: ^1.0.64
         version: 1.0.68
+      hast-util-from-html:
+        specifier: ^2.0.3
+        version: 2.0.3
+      hast-util-to-html:
+        specifier: ^9.0.5
+        version: 9.0.5
       remark-gfm:
         specifier: ^4.0.0
         version: 4.0.1
