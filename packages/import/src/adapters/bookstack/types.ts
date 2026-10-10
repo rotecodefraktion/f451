@@ -18,6 +18,7 @@ export interface BookStackBook {
   name: string
   slug: string
   description: string
+  description_html?: string
   created_at: string
   updated_at: string
   created_by: number
@@ -30,6 +31,7 @@ export interface BookStackShelf {
   name: string
   slug: string
   description: string
+  description_html?: string
   books: BookStackBook[]
   tags?: BookStackTag[]
 }
@@ -39,6 +41,7 @@ export interface BookStackBookContents {
   name: string
   slug: string
   description: string
+  description_html?: string
   created_at: string
   updated_at: string
   contents: BookStackBookContentItem[]
@@ -52,6 +55,8 @@ export interface BookStackBookContentItem {
   type: 'chapter' | 'page'
   updated_at: string
   priority: number
+  /** Only present when type === 'page' */
+  draft?: boolean
   /** Only present when type === 'chapter' */
   pages?: BookStackBookContentPage[]
 }
@@ -71,6 +76,7 @@ export interface BookStackChapter {
   name: string
   slug: string
   description: string
+  description_html?: string
   priority: number
   created_at: string
   updated_at: string
