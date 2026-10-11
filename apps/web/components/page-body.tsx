@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { useT } from '../lib/i18n/provider.js'
+import { loadMermaid, mermaidTheme, renderAll, type MermaidResult } from '../lib/mermaid'
 import { youtubeEmbedSrc } from '../lib/youtube'
 
 export interface PageBodyProps {
@@ -32,6 +33,9 @@ export function PageBody({ html }: PageBodyProps) {
   // nichts Neues auslösen.
   const [bild, setBild] = useState<{ src: string; alt: string } | null>(null)
   const [original, setOriginal] = useState(false)
+  // Stable per instance; mermaid uses the id as a DOM id and CSS selector,
+  // so it is reduced to [a-z0-9-] and starts with a letter.
+  const mermaidIdPrefix = `mermaid-${useId().toLowerCase().replace(/[^a-z0-9-]/g, '')}`
 
   useEffect(() => {
     const dialog = dialogRef.current
@@ -71,6 +75,70 @@ export function PageBody({ html }: PageBodyProps) {
     root.addEventListener('click', onClick)
     return () => root.removeEventListener('click', onClick)
   }, [t])
+
+  // Mermaid diagrams (#104). mermaid is loaded lazily, only when the page
+  // actually contains a ```mermaid block — pages without diagrams pay nothing.
+  // `securityLevel: 'strict'` (see lib/mermaid) runs the SVG through mermaid's
+  // DOMPurify, so inserting it via innerHTML does not open a script path. On
+  // failure the source block stays visible.
+  useEffect(() => {
+    const root = ref.current
+    if (!root) return
+    const pres = Array.from(root.querySelectorAll<HTMLPreElement>('pre[data-lang="mermaid"]'))
+    if (pres.length === 0) return
+    const sources = pres.map((pre) => pre.querySelector('code')?.textContent ?? '')
+    const media = window.matchMedia('(prefers-color-scheme: dark)')
+    let cancelled = false
+    // Runs are chained: mermaid is not reentrant, and a theme switch during a
+    // running render must not overlap with it.
+    let chain: Promise<void> = Promise.resolve()
+
+    async function run() {
+      const theme = mermaidTheme(document.documentElement.dataset.theme, media.matches)
+      let results: MermaidResult[]
+      try {
+        const renderer = await loadMermaid(theme)
+        if (cancelled) return
+        results = await renderAll(sources, renderer, mermaidIdPrefix)
+      } catch {
+        // Loading the chunk failed: leave the code blocks as they are.
+        return
+      }
+      if (cancelled) return
+      results.forEach((result, i) => {
+        const pre = pres[i]
+        if (!pre) return
+        const next = pre.nextElementSibling
+        const existing = next instanceof HTMLElement && next.matches('figure.mermaid') ? next : null
+        if ('svg' in result) {
+          const figure = existing ?? document.createElement('figure')
+          if (!existing) {
+            figure.className = 'mermaid'
+            pre.after(figure)
+          }
+          figure.innerHTML = result.svg
+          pre.hidden = true
+        } else {
+          pre.hidden = false
+          existing?.remove()
+        }
+      })
+    }
+
+    function schedule() {
+      chain = chain.then(run).catch(() => {})
+    }
+
+    schedule()
+    const observer = new MutationObserver(schedule)
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    media.addEventListener('change', schedule)
+    return () => {
+      cancelled = true
+      observer.disconnect()
+      media.removeEventListener('change', schedule)
+    }
+  }, [html, mermaidIdPrefix])
 
   return (
     <>

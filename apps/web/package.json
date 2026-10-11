@@ -33,6 +33,7 @@
     "d3-force": "^3.0.0",
     "hast-util-from-html": "^2.0.3",
     "hast-util-to-html": "^9.0.5",
+    "mermaid": "11.17.2",
     "next": "^15.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
