@@ -276,6 +276,10 @@ export const editor: Messages['editor'] = {
     phoneHint: 'Diagrams are edited on a tablet or computer.',
   },
 
+  mermaid: {
+    error: 'Diagram cannot be rendered',
+  },
+
   uploadQueue: {
     skipped_one: '{count} file skipped — unsupported file type.',
     skipped_other: '{count} files skipped — unsupported file type.',
