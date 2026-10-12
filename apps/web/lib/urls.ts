@@ -180,3 +180,10 @@ export function apiPageRawPath(pageId: string, opts?: { download?: boolean }): s
   const base = `/api/pages/${encodeURIComponent(pageId)}/raw`
   return opts?.download ? `${base}?download=1` : base
 }
+
+/** API path of a page's backlinks with excerpts (`GET /api/pages/:id/backlinks`,
+ *  f451#97), e.g. `apiPageBacklinksPath('home')` → `/api/pages/home/backlinks`.
+ *  Encoding as in {@link wikiPageHref}. */
+export function apiPageBacklinksPath(pageId: string): string {
+  return `/api/pages/${encodeURIComponent(pageId)}/backlinks`
+}

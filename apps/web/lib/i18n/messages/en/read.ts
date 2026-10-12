@@ -92,7 +92,7 @@ export const read: Messages['read'] = {
     updated: 'Updated',
     relatedPages: 'Related pages',
     linksTo: 'Links to',
-    linkedFrom: 'Linked from',
+    backlinks: 'Backlinks',
   },
   graph: {
     phoneHint: 'The graph view is available on tablets and computers.',
