@@ -226,6 +226,9 @@ describe.sequential('indexSpace (Voll-Reindex)', () => {
         and(eq(edges.fromPageId, 'home'), eq(edges.rawTarget, 'betrieb/deployment'), eq(edges.type, 'link')),
       )
     expect(linkDeployment[0]?.toPageId).toBe('deployment')
+    // The link edge carries the excerpt of its surrounding sentence (f451#97).
+    expect(linkDeployment[0]?.context).toContain('Siehe')
+    expect(linkDeployment[0]?.context).toContain('und den fehlenden')
 
     // Wikilink (Titel-Match, case-insensitive) aufgelöst
     const linkMonitoring = await db
