@@ -68,6 +68,11 @@ export interface ExtractedLink {
   kind: 'wikilink' | 'relative'
   /** Sichtbarer Text (bei Wikilinks ggf. Alias). */
   text: string
+  /** Plain text around the link within its enclosing block (paragraph, heading or
+   *  table cell), including the link text itself: at most `radius` chars on each side
+   *  (see `linkContext`), whitespace collapsed, '…' where text was cut. '' if the link
+   *  has no enclosing block. */
+  context: string
 }
 
 export interface PageHeading {

@@ -4,10 +4,11 @@ import { notFound, redirect } from 'next/navigation'
 import { PageView, type PageData } from '../../../../../components/page-view'
 import { Rail } from '../../../../../components/rail'
 import { ApiError, apiFetch } from '../../../../../lib/api'
+import type { Backlink } from '../../../../../lib/backlinks'
 import type { GraphData } from '../../../../../lib/graph/types'
 import { getT } from '../../../../../lib/i18n/server.js'
 import { formatUpdatedAt, pageStatusLabel } from '../../../../../lib/page-view'
-import { decodeRouteParam, wikiPageHref } from '../../../../../lib/urls'
+import { apiPageBacklinksPath, decodeRouteParam, wikiPageHref } from '../../../../../lib/urls'
 
 interface PageProps {
   params: Promise<{ space: string; pageId: string }>
@@ -37,6 +38,10 @@ interface PageProps {
  * Schema, dann zeigt die Rail einfach keinen zusätzlichen Block (Fail-Soft,
  * dieselbe Philosophie wie beim Mini-Graph).
  *
+ * The backlinks with excerpts (`GET /api/pages/:id/backlinks`, f451#97) are
+ * loaded in parallel and fail-soft the same way: `null` on error, and the
+ * rail simply shows no backlinks section.
+ *
  * Redirect auf die kanonische Id (Phase 3.1, „Stabile Seiten-Id + Backfill +
  * Redirect"): `GET /api/pages/:id` antwortet statt der Seite mit `{redirectTo}`
  * (200, s. `apps/api/src/routes/pages.ts#lookupRedirectTarget`), wenn `pageId`
@@ -64,8 +69,9 @@ export default async function WikiPage({ params }: PageProps) {
   let data: PageData | { redirectTo: string }
   let miniGraph: GraphData | null
   let metadataSchema: MetadataSchema | null
+  let backlinks: Backlink[] | null
   try {
-    ;[data, miniGraph, metadataSchema] = await Promise.all([
+    ;[data, miniGraph, metadataSchema, backlinks] = await Promise.all([
       apiFetch<PageData | { redirectTo: string }>(`/api/pages/${encodeURIComponent(pageId)}`, {
         cookie: cookieHeader,
       }),
@@ -75,6 +81,10 @@ export default async function WikiPage({ params }: PageProps) {
       apiFetch<MetadataSchema>(`/api/spaces/${encodeURIComponent(spaceId)}/metadata-schema`, {
         cookie: cookieHeader,
       }).catch(() => null),
+      apiFetch<{ backlinks: Backlink[] }>(apiPageBacklinksPath(pageId), { cookie: cookieHeader }).then(
+        (r) => r.backlinks,
+        () => null,
+      ),
     ])
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) {
@@ -110,6 +120,7 @@ export default async function WikiPage({ params }: PageProps) {
         pageId={data.id}
         metadataSchema={metadataSchema}
         metadata={data.metadata}
+        backlinks={backlinks}
       />
     </>
   )

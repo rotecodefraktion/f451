@@ -158,6 +158,10 @@ export const edges = pgTable(
     // (Indexer) schreibt `ref: 'main'` seither explizit statt sich auf den
     // Spalten-Default zu verlassen.
     ref: text('ref').notNull().default('main'),
+    // Plain-text excerpt around the link for the backlinks panel (f451#97),
+    // derived from Git like everything in this table. '' for non-link edges and
+    // for rows indexed before this column existed, until the next reindex.
+    context: text('context').notNull().default(''),
   },
   (table) => [
     primaryKey({ columns: [table.fromPageId, table.rawTarget, table.type, table.label] }),
