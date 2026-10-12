@@ -12,6 +12,7 @@ import { mediaHref } from '../urls.js'
 import { diagramKind, type DiagramKind } from './diagram.js'
 import { diagramVersion, subscribeDiagramVersions } from './diagram-versions.js'
 import { insertFootnoteInto, supportsFootnotes } from './footnotes.js'
+import { mermaidCodeBlock } from './mermaid-code-block.js'
 import { classifyPaste } from './paste-rules.js'
 import { filterSlashItems, type SlashItem } from './slash-items.js'
 import { TableGuard, type TableGuardOptions } from './table-guard.js'
@@ -117,8 +118,9 @@ export function uiExtensions(pageId: string, options: UiExtensionsOptions = {}):
   const searchPages = options.searchPages
   const t = options.t ?? DEFAULT_T
   return [
-    ...editorExtensions().filter((extension) => extension.name !== 'image'),
+    ...editorExtensions().filter((extension) => extension.name !== 'image' && extension.name !== 'codeBlock'),
     imageWithMediaSrc(pageId, options, t),
+    mermaidCodeBlock(t),
     UndoRedo,
     Dropcursor,
     Gapcursor,

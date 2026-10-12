@@ -1094,6 +1094,17 @@
   padding: 0;
   color: inherit;
 }
+/* Mermaid diagram (#104): the client renders a ```mermaid block into a figure
+   right after its (then hidden) `pre`; wide diagrams scroll in their own box. */
+figure.mermaid {
+  margin: var(--space-4) 0;
+  overflow-x: auto;
+  text-align: center;
+}
+figure.mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
 
 /* Tabelle — ohne Wrapper vom Server geliefert, daher als scrollender Block
    (display:block + overflow-x:auto), damit breite Tabellen im eigenen Container

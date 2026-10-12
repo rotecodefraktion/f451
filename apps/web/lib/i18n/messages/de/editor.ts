@@ -288,6 +288,11 @@ export const editor = {
     phoneHint: 'Diagramme bearbeitest du auf einem Tablet oder Computer.',
   },
 
+  // Live preview below a ```mermaid code block (`lib/editor/mermaid-code-block.ts`, f451#104).
+  mermaid: {
+    error: 'Diagramm kann nicht dargestellt werden',
+  },
+
   uploadQueue: {
     skipped_one: '{count} Datei übersprungen — nicht unterstützter Dateityp.',
     skipped_other: '{count} Dateien übersprungen — nicht unterstützter Dateityp.',
