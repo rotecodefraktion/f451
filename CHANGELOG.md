@@ -15,6 +15,10 @@ with a new major version.
 - `f451-import export bookstack`: exports a space or subtree as a BookStack
   book; a second export updates in place (#94). See
   [docs/import-export.md](docs/import-export.md).
+- Backlinks: the rail lists every page that links to the current one, each
+  with the passages around its links (#97). On the phone this section replaces
+  the "linked from" list. **Operators:** run `POST /admin/reindex` once after
+  upgrading; until then, existing links show without an excerpt.
 
 ## [1.2.14] — 2026-10-10
 
