@@ -27,6 +27,7 @@ import {
   registerMeRoute,
   type SignInMethod,
 } from './routes/auth.js'
+import { registerBacklinkRoutes } from './routes/backlinks.js'
 import { registerBrokenLinksRoutes } from './routes/broken-links.js'
 import { registerCreatePageRoute } from './routes/create-page.js'
 import { registerDeletePageRoute } from './routes/delete-page.js'
@@ -817,7 +818,9 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
       canWrite,
       getUserProvider: userProvider,
     })
-    registerGraphRoutes(app, { db, spaces: opts.spaces, providerRegistry: opts.providerRegistry, access, canWrite })
+    const graphDeps = { db, spaces: opts.spaces, providerRegistry: opts.providerRegistry, access, canWrite }
+    registerGraphRoutes(app, graphDeps)
+    registerBacklinkRoutes(app, graphDeps)
     registerTemplatesRoutes(app, {
       spaces: opts.spaces,
       providerRegistry: opts.providerRegistry,
