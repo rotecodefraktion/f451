@@ -1583,3 +1583,29 @@ figure.mermaid svg {
 .page-body tbody tr:hover td:first-child {
   background: var(--panel-2);
 }
+
+/* =========================================================================
+   Link hover preview (#100)
+   Title and opening text of the target page next to an internal link.
+   Surface, layer and shadow follow the menu/popover block in
+   `44-dialog.css`; top/left are set by `page-body.tsx` after measuring.
+   ========================================================================= */
+.link-preview {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 25;
+  max-width: 22rem;
+  padding: var(--space-3);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+}
+.link-preview p {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-muted);
+}
