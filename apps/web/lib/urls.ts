@@ -53,6 +53,47 @@ export function wikiPageHref(space: string, pageId: string): string {
   return `/wiki/${encodeURIComponent(space)}/${encodeURIComponent(pageId)}`
 }
 
+/**
+ * Inverse of {@link wikiPageHref}: reads `/wiki/<enc space>/<enc pageId>` with
+ * an optional `#section` (decoded) back into its parts. A query string is
+ * dropped. Anything else — absolute URLs, `/wiki/x`, sub-routes such as
+ * `/wiki/x/y/edit`, malformed percent escapes — yields `null`. Only paths
+ * starting with `/wiki/` are accepted, so other origins can never match.
+ */
+/** Space-level routes that share the `/wiki/<space>/<segment>` shape with pages. */
+const SPACE_ROUTES = new Set(['report', 'graph', 'schema', 'templates'])
+
+export function parseWikiPageHref(
+  href: string,
+): { space: string; pageId: string; section: string | null } | null {
+  const hashAt = href.indexOf('#')
+  const beforeHash = hashAt >= 0 ? href.slice(0, hashAt) : href
+  const rawHash = hashAt >= 0 ? href.slice(hashAt + 1) : ''
+  const queryAt = beforeHash.indexOf('?')
+  const path = queryAt >= 0 ? beforeHash.slice(0, queryAt) : beforeHash
+  if (!path.startsWith('/wiki/')) return null
+  const segments = path.slice('/wiki/'.length).split('/')
+  if (segments.length !== 2) return null
+  const [rawSpace, rawPageId] = segments
+  if (!rawSpace || !rawPageId || SPACE_ROUTES.has(rawPageId)) return null
+  try {
+    return {
+      space: decodeURIComponent(rawSpace),
+      pageId: decodeURIComponent(rawPageId),
+      section: rawHash ? decodeURIComponent(rawHash) : null,
+    }
+  } catch {
+    return null
+  }
+}
+
+/** API path of a page's hover preview (#100), e.g.
+ *  `apiPagePreviewPath('home', 'setup')` → `/api/pages/home/preview?section=setup`. */
+export function apiPagePreviewPath(pageId: string, section?: string | null): string {
+  const base = `/api/pages/${encodeURIComponent(pageId)}/preview`
+  return section ? `${base}?section=${encodeURIComponent(section)}` : base
+}
+
 /** API-Pfad für den Seitenbaum eines Space, z. B. `/api/spaces/demo/tree`. */
 export function apiSpaceTreePath(space: string): string {
   return `/api/spaces/${encodeURIComponent(space)}/tree`
