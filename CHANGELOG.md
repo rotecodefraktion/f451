@@ -15,6 +15,9 @@ with a new major version.
 - `f451-import export bookstack`: exports a space or subtree as a BookStack
   book; a second export updates in place (#94). See
   [docs/import-export.md](docs/import-export.md).
+- Mermaid diagrams: a fenced code block with the language `mermaid` renders as
+  a diagram in the reading view and as a live preview in the editor. The source
+  stays a plain code block; a diagram that fails to render shows the code (#104).
 - Backlinks: the rail lists every page that links to the current one, each
   with the passages around its links (#97). On the phone this section replaces
   the "linked from" list. **Operators:** run `POST /admin/reindex` once after

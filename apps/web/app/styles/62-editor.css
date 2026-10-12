@@ -472,6 +472,22 @@
   }
 }
 
+/* Live preview below a ```mermaid code block (f451#104, `lib/editor/mermaid-code-block.ts`). */
+.mermaid-preview {
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  border: var(--rule-hair) dashed var(--color-border-strong);
+  overflow-x: auto;
+  text-align: center;
+}
+.mermaid-preview svg {
+  max-width: 100%;
+  height: auto;
+}
+.mermaid-preview.is-error {
+  color: var(--color-text-muted);
+}
+
 /* Formatting bar above the on-screen keyboard, its "More" and link sheets and
    the writing header (f451#2, `phone-toolbar.tsx`, `writing-header.tsx`):
    phone layout only — shown by `66-telefon.css`. */
