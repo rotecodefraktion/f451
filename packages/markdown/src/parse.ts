@@ -3,7 +3,7 @@ import remarkParse from 'remark-parse'
 import remarkFrontmatter from 'remark-frontmatter'
 import remarkGfm from 'remark-gfm'
 import remarkWikiLink from 'remark-wiki-link'
-import { visit } from 'unist-util-visit'
+import { visitParents } from 'unist-util-visit-parents'
 import { parseFrontmatterBlock } from './frontmatter.js'
 import { createSlugger } from './slug.js'
 import type {
@@ -72,6 +72,86 @@ function isExcludedUrl(url: string): boolean {
   return url.includes('://') || url.startsWith('#') || url.startsWith('mailto:')
 }
 
+type TextNode = Parameters<typeof textFromNode>[0]
+
+/** Block types whose plain text serves as the context of a link inside them. */
+const CONTEXT_BLOCK_TYPES = new Set(['paragraph', 'heading', 'tableCell'])
+
+/** Plain text of `block` (same rules as textFromNode) plus the offsets at which
+ *  `target` starts and ends in it. Walking the tree — rather than searching the text —
+ *  picks the right occurrence when the link text appears more than once. */
+function blockTextWithSpan(
+  block: TextNode,
+  target: unknown,
+): { text: string; start: number; end: number } {
+  let text = ''
+  let start = -1
+  let end = -1
+  const walk = (node: TextNode): void => {
+    if (node === target) {
+      start = text.length
+      text += textFromNode(node)
+      end = text.length
+      return
+    }
+    if (node.type === 'wikiLink' || typeof node.value === 'string') {
+      text += textFromNode(node)
+      return
+    }
+    if (Array.isArray(node.children)) {
+      for (const child of node.children) walk(child as TextNode)
+    }
+  }
+  walk(block)
+  return { text, start, end }
+}
+
+/** `ExtractedLink.context` of a link node: excerpt of its nearest enclosing paragraph,
+ *  heading or table cell; '' without such a block. */
+function contextOf(node: unknown, ancestors: readonly unknown[]): string {
+  for (let i = ancestors.length - 1; i >= 0; i--) {
+    const ancestor = ancestors[i] as TextNode
+    if (CONTEXT_BLOCK_TYPES.has(ancestor.type)) {
+      const { text, start, end } = blockTextWithSpan(ancestor, node)
+      return start < 0 ? '' : linkContext(text, start, end)
+    }
+  }
+  return ''
+}
+
+const collapseWhitespace = (s: string): string => s.replace(/\s+/g, ' ')
+
+/** Short plain-text excerpt around `block.slice(start, end)` (the link text).
+ *  Whitespace runs collapse to single spaces; up to `radius` chars are kept on each
+ *  side of the link text. A cut never splits a word — the partial word is dropped —
+ *  and '…' marks each side where text was actually cut. */
+export function linkContext(block: string, start: number, end: number, radius = 80): string {
+  let before = collapseWhitespace(block.slice(0, start)).trimStart()
+  const link = collapseWhitespace(block.slice(start, end))
+  let after = collapseWhitespace(block.slice(end)).trimEnd()
+
+  if (before.length > radius) {
+    const cut = before.length - radius
+    let tail = before.slice(cut)
+    if (before[cut - 1] !== ' ' && tail[0] !== ' ') {
+      const space = tail.indexOf(' ')
+      tail = space === -1 ? '' : tail.slice(space + 1)
+    }
+    before = '…' + tail.trimStart()
+  }
+
+  if (after.length > radius) {
+    let head = after.slice(0, radius)
+    if (after[radius] !== ' ' && head[radius - 1] !== ' ') {
+      const space = head.lastIndexOf(' ')
+      head = space === -1 ? '' : head.slice(0, space)
+    }
+    after = head.trimEnd() + '…'
+  }
+
+  return before + link + after
+}
+
 /** Parst Markdown zu einer ParsedPage: Frontmatter (via Task 1), Wikilinks und relative
  *  Links (keine externen, Anker- oder mailto-Links, keine Bilder), Headings mit Slugs
  *  sowie den Titel (frontmatter.title gewinnt, sonst erstes H1, sonst undefined).
@@ -86,7 +166,7 @@ export function parsePage(markdown: string, opts?: ParseOptions): ParsedPage {
   const headings: PageHeading[] = []
   let firstH1: string | undefined
 
-  visit(tree, (node) => {
+  visitParents(tree, (node, ancestors) => {
     // remark-wiki-link führt den Node-Typ 'wikiLink' ein, der in @types/mdast nicht
     // deklariert ist — daher die Typvergleiche hier über den unnarrowed string.
     const type: string = node.type
@@ -104,6 +184,7 @@ export function parsePage(markdown: string, opts?: ParseOptions): ParsedPage {
         rawTarget: wikiLink.value,
         kind: 'wikilink',
         text: wikiLink.data?.alias ?? wikiLink.value,
+        context: contextOf(node, ancestors),
       })
       return
     }
@@ -111,7 +192,12 @@ export function parsePage(markdown: string, opts?: ParseOptions): ParsedPage {
     if (type === 'link') {
       const link = node as unknown as LinkNode
       if (!isExcludedUrl(link.url)) {
-        links.push({ rawTarget: link.url, kind: 'relative', text: textFromNode(link) })
+        links.push({
+          rawTarget: link.url,
+          kind: 'relative',
+          text: textFromNode(link),
+          context: contextOf(node, ancestors),
+        })
       }
       return
     }

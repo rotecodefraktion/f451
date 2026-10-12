@@ -24,22 +24,26 @@
     {
       "rawTarget": "betrieb/monitoring",
       "kind": "wikilink",
-      "text": "betrieb/monitoring"
+      "text": "betrieb/monitoring",
+      "context": "…für Produktionsdienste. Er richtet sich an alle, die Änderungen an betrieb/monitoring oder an der Verwaltung von Secrets vornehmen."
     },
     {
       "rawTarget": "Secrets-Management",
       "kind": "wikilink",
-      "text": "Verwaltung von Secrets"
+      "text": "Verwaltung von Secrets",
+      "context": "…Er richtet sich an alle, die Änderungen an betrieb/monitoring oder an der Verwaltung von Secrets vornehmen."
     },
     {
       "rawTarget": "../runbooks/index.md",
       "kind": "relative",
-      "text": "Runbook"
+      "text": "Runbook",
+      "context": "Weitere Details stehen im Runbook sowie in der offiziellen Kubernetes-Dokumentation (externer Link). Der Link zur…"
     },
     {
       "rawTarget": "./anleitung-fehlt.md",
       "kind": "relative",
-      "text": "veralteten Anleitung"
+      "text": "veralteten Anleitung",
+      "context": "…sowie in der offiziellen Kubernetes-Dokumentation (externer Link). Der Link zur veralteten Anleitung führt ins Leere, da die Seite entfernt wurde."
     }
   ],
   "headings": [

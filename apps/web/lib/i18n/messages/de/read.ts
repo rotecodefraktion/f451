@@ -105,7 +105,8 @@ export const read = {
     relatedPages: 'Verknüpfte Seiten',
     // Phone list in place of the mini graph (`components/linked-pages.tsx`, f451#1).
     linksTo: 'Verweist auf',
-    linkedFrom: 'Wird verwiesen von',
+    // Backlinks section with excerpts (`components/backlinks.tsx`, f451#97).
+    backlinks: 'Verlinkt von',
   },
   // Phone stand-in for the graph view (`components/graph/graph-phone-list.tsx`, f451#1).
   graph: {

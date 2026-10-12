@@ -6,9 +6,10 @@ export interface LinkedPage {
   title: string
 }
 
+/** Outgoing links only: incoming ones are the backlinks section's job
+ *  (`components/backlinks.tsx`, f451#97). */
 export interface LinkedGroups {
   linksTo: LinkedPage[]
-  linkedFrom: LinkedPage[]
 }
 
 /** Edge types that make two pages "linked". Hierarchy and tags are structure,
@@ -21,27 +22,19 @@ function byTitle(a: LinkedPage, b: LinkedPage): number {
   return a.title.localeCompare(b.title)
 }
 
-/** Neighbours of pageId over 'link' and 'relation' edges, split by direction;
- *  hierarchy/tag ignored; self and duplicates removed; sorted by title
- *  (localeCompare). Neighbours missing from `graph.nodes` are skipped — there
+/** Pages pageId links to over 'link' and 'relation' edges; incoming edges,
+ *  hierarchy and tag ignored; self and duplicates removed; sorted by title
+ *  (localeCompare). Targets missing from `graph.nodes` are skipped — there
  *  is no title to show for them. */
 export function linkedPages(graph: GraphData, pageId: string): LinkedGroups {
   const titles = new Map(graph.nodes.map((n) => [n.id, n.title]))
   const linksTo = new Map<string, LinkedPage>()
-  const linkedFrom = new Map<string, LinkedPage>()
-  const addPage = (group: Map<string, LinkedPage>, id: string) => {
-    const title = titles.get(id)
-    if (title !== undefined) group.set(id, { id, title })
-  }
   for (const edge of graph.edges) {
-    if (!isLinkEdge(edge) || edge.from === edge.to) continue
-    if (edge.from === pageId) addPage(linksTo, edge.to)
-    else if (edge.to === pageId) addPage(linkedFrom, edge.from)
+    if (!isLinkEdge(edge) || edge.from === edge.to || edge.from !== pageId) continue
+    const title = titles.get(edge.to)
+    if (title !== undefined) linksTo.set(edge.to, { id: edge.to, title })
   }
-  return {
-    linksTo: [...linksTo.values()].sort(byTitle),
-    linkedFrom: [...linkedFrom.values()].sort(byTitle),
-  }
+  return { linksTo: [...linksTo.values()].sort(byTitle) }
 }
 
 /** All pages with their number of distinct link/relation neighbours,

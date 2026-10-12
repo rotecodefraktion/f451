@@ -493,17 +493,26 @@ export async function replaceEdgesForPage(
     type: string
     label: string
     ref: string
+    context?: string
   }> = []
   const seen = new Set<string>()
-  const push = (rawTarget: string, type: string, label: string, toPageId: string | null): void => {
+  const push = (
+    rawTarget: string,
+    type: string,
+    label: string,
+    toPageId: string | null,
+    context?: string,
+  ): void => {
     const key = `${type} ${rawTarget} ${label}`
+    // First occurrence wins, including its context excerpt (f451#97).
     if (seen.has(key)) return
     seen.add(key)
     // `ref` explizit statt Spalten-Default (P1-Fix Phase 2a/2d Task 1): die
     // Spalte ist jetzt NOT NULL, der Default bliebe zwar weiterhin 'main', aber
     // ein expliziter Wert macht die Absicht hier lesbar und ist unabhängig vom
     // DB-Default korrekt, falls der sich je ändert.
-    rows.push({ fromPageId: p.id, toPageId, rawTarget, type, label, ref: 'main' })
+    const row = { fromPageId: p.id, toPageId, rawTarget, type, label, ref: 'main' }
+    rows.push(context === undefined ? row : { ...row, context })
   }
 
   // Links (Wikilinks + relative Links). Anhang-Links (`_media/…`, relativ) sind
@@ -515,7 +524,7 @@ export async function replaceEdgesForPage(
   for (const link of p.links) {
     if (link.kind === 'relative' && isMediaLink(link.rawTarget)) continue
     const tid = resolver.resolve(link.rawTarget, link.kind, p.path)
-    push(link.rawTarget, 'link', '', tid)
+    push(link.rawTarget, 'link', '', tid, link.context)
   }
   // Relations (Label = Relations-Typ).
   for (const [relType, targets] of Object.entries(p.relations)) {

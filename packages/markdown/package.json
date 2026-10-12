@@ -24,6 +24,7 @@
     "remark-wiki-link": "^2.0.1",
     "unified": "^11.0.5",
     "unist-util-visit": "^5.0.0",
+    "unist-util-visit-parents": "^6.0.0",
     "yaml": "^2.6.0"
   },
   "devDependencies": {
