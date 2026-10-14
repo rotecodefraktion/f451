@@ -212,6 +212,34 @@ export async function indexChangedFiles(
       await replaceEdgesForPage(tx, p, resolver)
     }
 
+    // f451#133: a parent page that appears or goes away changes the parent of
+    // pages that were not touched (a child indexed before its parent hangs
+    // below the nearest existing ancestor). Re-resolve their hierarchy edge.
+    const changedIds = new Set(changedInfos.map((p) => p.id))
+    const hierarchyRows = await tx
+      .select({ from: edges.fromPageId, to: edges.toPageId })
+      .from(edges)
+      .innerJoin(pages, and(eq(edges.fromPageId, pages.id), eq(pages.ref, ref)))
+      .where(and(eq(pages.spaceId, space.id), eq(edges.type, 'hierarchy')))
+    const parentNow = new Map(hierarchyRows.map((r) => [r.from, r.to]))
+    for (const page of byPath.values()) {
+      if (changedIds.has(page.id)) continue
+      const found = resolver.parentOf(page.path)
+      const want = found && found.id !== page.id ? found : null
+      if (want ? parentNow.get(page.id) === want.id : !parentNow.has(page.id)) continue
+      await tx.delete(edges).where(and(eq(edges.fromPageId, page.id), eq(edges.type, 'hierarchy')))
+      if (want) {
+        await tx.insert(edges).values({
+          fromPageId: page.id,
+          toPageId: want.id,
+          rawTarget: want.path,
+          type: 'hierarchy',
+          label: '',
+          ref: 'main',
+        })
+      }
+    }
+
     // --- Broken-Link-Heilung: alle Kanten mit toPageId IS NULL des Space ------
     const brokenRows = await tx
       .select({
