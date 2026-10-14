@@ -296,7 +296,11 @@ export async function importTree(
 
   // 3. order (the API commits it to main, so only after release)
   // After a cancel the order of a partial tree would be wrong; leave it.
-  if (opts.release && !opts.dryRun && !aborted()) await applyOrder(tree, ids, failedIds, target, api, report)
+  // Pages whose review is still open are not on main, so the API refuses
+  // them as children; leave them out like failed ones.
+  if (opts.release && !opts.dryRun && !aborted()) {
+    await applyOrder(tree, ids, new Set([...failedIds, ...openReview]), target, api, report)
+  }
   onEvent({ kind: 'done' })
   return report
 }

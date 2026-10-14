@@ -1,12 +1,12 @@
 import { cookies } from 'next/headers'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import type { MarkdownDiff } from '@f451/markdown'
 import { DiffView } from '../../../../../../components/review/diff-view'
 import { ReviewView } from '../../../../../../components/review/review-view'
 import { ApiError, apiFetch } from '../../../../../../lib/api'
 import { getT } from '../../../../../../lib/i18n/server.js'
 import { changedBlocks, dchangeModifierClass, railLabel } from '../../../../../../lib/review/diff-view-model'
-import { decodeRouteParam, wikiPageReviewHref, wikiSpaceHref } from '../../../../../../lib/urls'
+import { decodeRouteParam, wikiPageHref, wikiPageReviewHref, wikiSpaceHref } from '../../../../../../lib/urls'
 
 interface ReviewPageProps {
   params: Promise<{ space: string; pageId: string }>
@@ -125,6 +125,9 @@ export default async function ReviewPage({ params }: ReviewPageProps) {
     })
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) {
+      // No open review (any more): after a release the page lives on at its
+      // own address, so old review links (import list, PR body) still work.
+      if (await isReadablePage(pageId, cookieHeader)) redirect(wikiPageHref(spaceId, pageId))
       notFound()
     }
     return (
@@ -265,4 +268,15 @@ export default async function ReviewPage({ params }: ReviewPageProps) {
       </aside>
     </>
   )
+}
+
+/** Whether the published page can be read; any failure counts as no (the
+ *  page route has the same gates, so this reveals nothing new). */
+async function isReadablePage(pageId: string, cookie: string | undefined): Promise<boolean> {
+  try {
+    await apiFetch(`/api/pages/${encodeURIComponent(pageId)}`, { cookie })
+    return true
+  } catch {
+    return false
+  }
 }

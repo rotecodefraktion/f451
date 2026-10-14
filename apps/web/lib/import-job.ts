@@ -8,6 +8,8 @@
  * import from the API package, so the shape is redeclared.
  */
 
+import { wikiPageHref, wikiPageReviewHref } from './urls'
+
 export type JobKind = 'import-bookstack' | 'export-bookstack'
 export type JobStatus = 'running' | 'done' | 'failed' | 'cancelled'
 
@@ -16,6 +18,8 @@ export interface JobEvent {
   title: string
   pageId?: string
   reason?: string
+  /** Set by the API: the published page or its open review; absent → no link. */
+  link?: 'page' | 'review'
 }
 
 export interface JobView {
@@ -67,4 +71,10 @@ export function progressPercent(view: JobView): number {
 /** File name for the "Download report" button. */
 export function reportFileName(kind: JobView['kind']): string {
   return kind === 'import-bookstack' ? 'import-report.md' : 'export-report.md'
+}
+
+/** Link for one event's page, as the API decided it (`JobEvent.link`). */
+export function eventHref(space: string, e: JobEvent): string | null {
+  if (!e.pageId || !e.link) return null
+  return e.link === 'review' ? wikiPageReviewHref(space, e.pageId) : wikiPageHref(space, e.pageId)
 }

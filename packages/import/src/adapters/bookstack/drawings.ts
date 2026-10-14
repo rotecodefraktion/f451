@@ -7,7 +7,7 @@ import { promisify } from 'node:util'
 import type { ImportMedia } from '../../model.js'
 import type { BookStackClient } from './client.js'
 import type { DrawingRef } from './html-to-md.js'
-import { baseName, slugifyFileName, uniqueName } from './media.js'
+import { baseName, bookStackMediaUrl, slugifyFileName, uniqueName } from './media.js'
 
 export interface DrawioRenderer {
   /** draw.io XML in, SVG with the diagram embedded in `content` out. */
@@ -152,7 +152,7 @@ export async function convertDrawings(
 
     let png: Uint8Array
     try {
-      png = await client.downloadUrl(new URL(drawing.src, `${baseUrl}/`).href)
+      png = await client.downloadUrl(bookStackMediaUrl(drawing.src, baseUrl) ?? new URL(drawing.src, `${baseUrl}/`).href)
     } catch {
       continue
     }

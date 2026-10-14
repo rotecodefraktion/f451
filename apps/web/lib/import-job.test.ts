@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { nextState, progressPercent, reportFileName, storageKey, type JobView, type PanelState } from './import-job.js'
+import { eventHref, nextState, progressPercent, reportFileName, storageKey, type JobView, type PanelState } from './import-job.js'
 
 function view(over: Partial<JobView> = {}): JobView {
   return {
@@ -61,5 +61,16 @@ describe('storageKey and reportFileName', () => {
   it('names the report by job kind', () => {
     expect(reportFileName('import-bookstack')).toBe('import-report.md')
     expect(reportFileName('export-bookstack')).toBe('export-report.md')
+  })
+})
+
+describe('eventHref', () => {
+  it('follows the link the API chose for the event', () => {
+    expect(eventHref('demo', { status: 'created', title: 'A', pageId: 'p-a', link: 'review' })).toBe('/wiki/demo/p-a/review')
+    expect(eventHref('demo', { status: 'skipped', title: 'A', pageId: 'p-a', link: 'page' })).toBe('/wiki/demo/p-a')
+  })
+  it('has no link without a link target or a page id', () => {
+    expect(eventHref('demo', { status: 'created', title: 'A', pageId: 'dry-3' })).toBeNull()
+    expect(eventHref('demo', { status: 'failed', title: 'A', link: 'page' })).toBeNull()
   })
 })

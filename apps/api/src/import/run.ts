@@ -13,7 +13,7 @@ import {
 import { generateApiToken, generateSessionId, hashApiToken } from '../auth/crypto.js'
 import type { Db } from '../db/client.js'
 import { apiTokens } from '../db/schema.js'
-import type { JobProgress, JobResult, JobRun } from './jobs.js'
+import type { JobEvent, JobProgress, JobResult, JobRun } from './jobs.js'
 
 /**
  * Runners for import/export jobs started from the web UI (#128).
@@ -140,13 +140,30 @@ export async function withJobToken<T>(
   }
 }
 
-function pageEvent(progress: JobProgress, e: { status: string; title: string; pageId?: string; reason?: string }): void {
+interface PageEventIn { status: string; title: string; pageId?: string; reason?: string }
+
+function pageEvent(progress: JobProgress, e: PageEventIn, link: JobEvent['link']): void {
   progress.page({
     status: e.status,
     title: e.title,
     ...(e.pageId !== undefined ? { pageId: e.pageId } : {}),
     ...(e.reason !== undefined ? { reason: e.reason } : {}),
+    ...(link !== undefined ? { link } : {}),
   })
+}
+
+/** Where an imported page can be opened right after the run. Without release
+ *  a new or changed page exists only as a draft with an open review; skipped
+ *  pages are published unless their review is still open. Dry-run ids are
+ *  placeholders, failed and cancelled pages have nothing to show. */
+export function importEventLink(
+  e: Pick<PageEventIn, 'status' | 'pageId' | 'reason'>,
+  opts: { release: boolean; dryRun: boolean },
+): JobEvent['link'] {
+  if (!e.pageId || opts.dryRun) return undefined
+  if (e.status === 'created' || e.status === 'updated') return opts.release ? 'page' : 'review'
+  if (e.status === 'skipped') return e.reason?.includes('review still open') ? 'review' : 'page'
+  return undefined
 }
 
 export function importRun(deps: RunDeps, p: ImportParams): JobRun {
@@ -166,7 +183,7 @@ export function importRun(deps: RunDeps, p: ImportParams): JobRun {
         { update: p.update, release: p.release, dryRun: p.dryRun, signal },
         (e) => {
           if (e.kind === 'start') progress.start(e.pages)
-          else if (e.kind === 'page') pageEvent(progress, e)
+          else if (e.kind === 'page') pageEvent(progress, e, importEventLink(e, p))
         },
       )
       return {
@@ -202,7 +219,7 @@ export function exportRun(deps: RunDeps, p: ExportParams): JobRun {
         },
         (e) => {
           if (e.kind === 'start') progress.start(e.pages)
-          else if (e.kind === 'page') pageEvent(progress, { status: e.status, title: e.name, pageId: e.pageId, reason: e.reason })
+          else if (e.kind === 'page') pageEvent(progress, { status: e.status, title: e.name, pageId: e.pageId, reason: e.reason }, 'page')
         },
       )
       return {

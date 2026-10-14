@@ -180,6 +180,28 @@ describe('importTree', () => {
     expect(api.putDraft).not.toHaveBeenCalled()
   })
 
+  it('leaves pages whose review is still open out of the order, even with release', async () => {
+    const api = fakeApi()
+    const ids: Record<string, string> = { Book: 'p-book', A: 'p-a', B: 'p-b' }
+    api.createPage.mockImplementation(async (p) => {
+      throw new F451ApiError('conflict', 409, { error: 'exists', pageId: ids[p.title] })
+    })
+    const sources: Record<string, string> = { 'p-book': 'book:1', 'p-a': '1', 'p-b': '2' }
+    api.getDraft.mockImplementation(async (id) => ({
+      baseSha: 's',
+      content: `---\nid: ${id}\nsource:\n  type: bookstack\n  id: "${sources[id]}"\n---\n\nx\n`,
+    }))
+
+    const report = await importTree(
+      tree([node('book:1', 'Book', { children: [node('1', 'A', { order: 1 }), node('2', 'B', { order: 0 })] })]),
+      TARGET, api, { ...OPTS, release: true }, () => {},
+    )
+
+    // Not on main yet, so the API would refuse them as children of the book.
+    expect(api.reorder).not.toHaveBeenCalled()
+    expect(report.failed).toEqual([])
+  })
+
   it('keeps a 409 as failed when the conflicting draft has another origin', async () => {
     const api = fakeApi()
     api.createPage.mockRejectedValue(new F451ApiError('conflict', 409, { error: 'exists', pageId: 'p-other' }))
