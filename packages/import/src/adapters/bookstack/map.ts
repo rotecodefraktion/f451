@@ -247,6 +247,7 @@ async function buildPage(
     usedNames,
   })
   tree.drawingsAsPng.push(...drawings.asPng)
+  for (const m of drawings.skipped) tree.mediaSkipped.push({ sourceId: String(page.id), ...m })
   const collected = await collectMedia(drawings.markdown, client, page.id, {
     baseUrl: opts.baseUrl,
     maxBytes: opts.maxBytes,

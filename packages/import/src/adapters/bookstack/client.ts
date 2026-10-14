@@ -83,6 +83,8 @@ export class BookStackClient {
           headers,
           body: payload,
           signal: AbortSignal.timeout(DEFAULT_TIMEOUT),
+          // A redirect could lead to any host; BookStack's API does not redirect.
+          redirect: 'error',
         })
 
         if (res.status === 429 && attempt < MAX_RETRIES) {
@@ -318,9 +320,13 @@ export class BookStackClient {
   async downloadUrl(url: string): Promise<Uint8Array> {
     await this.rateLimit()
     const target = new URL(url, `${this.baseUrl}/`)
-    const headers: Record<string, string> = {}
-    if (target.origin === new URL(this.baseUrl).origin) headers.Authorization = this.authHeader()
-    const res = await this.fetchImpl(target.href, { headers, signal: AbortSignal.timeout(DEFAULT_TIMEOUT) })
+    // Only the configured BookStack: page content must not make the importer
+    // fetch other hosts (SSRF), neither directly nor through a redirect.
+    if (target.origin !== new URL(this.baseUrl).origin) {
+      throw new BookStackApiError(`download ${target.href} refused: not the configured BookStack`, 0)
+    }
+    const headers: Record<string, string> = { Authorization: this.authHeader() }
+    const res = await this.fetchImpl(target.href, { headers, redirect: 'error', signal: AbortSignal.timeout(DEFAULT_TIMEOUT) })
     if (res.status >= 400) throw new BookStackApiError(`download ${target.href} → ${res.status}`, res.status)
     return new Uint8Array(await res.arrayBuffer())
   }

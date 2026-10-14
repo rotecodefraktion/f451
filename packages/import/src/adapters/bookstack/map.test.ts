@@ -205,6 +205,30 @@ describe('loadBookStackTree', () => {
   )
 
   it(
+    'never fetches a drawing whose source is not BookStack media, and reports it',
+    async () => {
+      const fetched: string[] = []
+      const internal = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url)
+        fetched.push(url.href)
+        if (url.pathname === '/api/pages/13') {
+          const body = fixture('page-13.json').replaceAll('src=\\"/uploads/images/drawio/d.png\\"', 'src=\\"http://10.0.0.5/admin/export\\"')
+          return new Response(body, { status: 200, headers: { 'Content-Type': 'application/json' } })
+        }
+        return fetchImpl(input, init)
+      }) as typeof fetch
+      const tree = await loadBookStackTree(new BookStackClient(BASE, 'id', 'secret', internal), { book: '7' }, {
+        baseUrl: BASE,
+        drawio: null,
+        maxBytes: MAX_BYTES,
+      })
+      expect(fetched.some((u) => u.startsWith('http://10.0.0.5'))).toBe(false)
+      expect(tree.mediaSkipped).toContainEqual(expect.objectContaining({ sourceId: '13', reason: expect.stringContaining('not BookStack media') }))
+    },
+    TIMEOUT,
+  )
+
+  it(
     'reports a drawing that cannot be downloaded',
     async () => {
       const noDrawing = (async (input: RequestInfo | URL, init?: RequestInit) => {
