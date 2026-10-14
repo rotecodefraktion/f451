@@ -58,4 +58,12 @@ describe('BookStackClient write methods', () => {
     expect(file.size).toBe(3)
     expect((init?.headers as Record<string, string>)['Content-Type']).toBeUndefined()
   })
+
+  it('downloadUrl refuses other hosts and does not follow redirects', async () => {
+    const { client, fetchImpl } = stub({})
+    await expect(client.downloadUrl('http://10.0.0.5/admin')).rejects.toThrow(/refused/)
+    expect(fetchImpl).not.toHaveBeenCalled()
+    await client.downloadUrl('/uploads/a.png')
+    expect(fetchImpl.mock.calls[0]![1]).toMatchObject({ redirect: 'error' })
+  })
 })

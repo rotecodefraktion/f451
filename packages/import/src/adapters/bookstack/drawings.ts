@@ -127,6 +127,8 @@ export interface DrawingsResult {
   media: ImportMedia[]
   /** Drawings that stayed PNG (alt text, or the source URL without one). */
   asPng: string[]
+  /** Drawings not fetched at all, with the reason. */
+  skipped: Array<{ name: string; reason: string }>
 }
 
 /** Downloads each drawing's PNG. With a renderer and an embedded diagram it
@@ -143,6 +145,7 @@ export async function convertDrawings(
   const used = opts.usedNames ?? new Set<string>()
   const media: ImportMedia[] = []
   const asPng: string[] = []
+  const skipped: DrawingsResult['skipped'] = []
   const seen = new Set<string>()
   let out = markdown
 
@@ -150,9 +153,16 @@ export async function convertDrawings(
     if (seen.has(drawing.src)) continue
     seen.add(drawing.src)
 
+    // Only BookStack's own media is fetched, always from the configured base
+    // URL: page content must not make the importer request other hosts (SSRF).
+    const url = bookStackMediaUrl(drawing.src, baseUrl)
+    if (url === null) {
+      skipped.push({ name: drawing.alt || drawing.src, reason: 'source is not BookStack media, not fetched' })
+      continue
+    }
     let png: Uint8Array
     try {
-      png = await client.downloadUrl(bookStackMediaUrl(drawing.src, baseUrl) ?? new URL(drawing.src, `${baseUrl}/`).href)
+      png = await client.downloadUrl(url)
     } catch {
       continue
     }
@@ -181,5 +191,5 @@ export async function convertDrawings(
     out = out.split(`![${drawing.alt}](${drawing.src})`).join(`![${drawing.alt}](${item.ref})`)
   }
 
-  return { markdown: out, media, asPng }
+  return { markdown: out, media, asPng, skipped }
 }
