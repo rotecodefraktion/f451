@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
+  apiImportCatalogPath,
+  apiImportInstancesPath,
+  apiJobCancelPath,
+  apiJobPath,
+  apiSpaceExportPath,
+  apiSpaceImportPath,
+  wikiImportHref,
   apiPagePreviewPath,
   apiPageRawPath,
   apiSpaceGraphPath,
@@ -195,7 +202,7 @@ describe('wikiPageVersionsHref', () => {
 
 describe('parseWikiPageHref (#100)', () => {
   it('rejects space-level routes that look like pages', () => {
-    for (const r of ['report', 'graph', 'schema', 'templates']) expect(parseWikiPageHref(`/wiki/demo/${r}`)).toBeNull()
+    for (const r of ['report', 'graph', 'schema', 'templates', 'import']) expect(parseWikiPageHref(`/wiki/demo/${r}`)).toBeNull()
   })
 
   it('round-trips wikiPageHref, including ids with `:` and `/`', () => {
@@ -243,5 +250,24 @@ describe('apiPagePreviewPath (#100)', () => {
     expect(apiPagePreviewPath(NASTY_ID)).toBe('/api/pages/path%3Ademo%2Fa%2Fb.md/preview')
     expect(apiPagePreviewPath('home', 'größe')).toBe(`/api/pages/home/preview?section=${encodeURIComponent('größe')}`)
     expect(apiPagePreviewPath('home', null)).toBe('/api/pages/home/preview')
+  })
+})
+
+describe('import/export URLs (#128)', () => {
+  it('parseWikiPageHref treats /wiki/<space>/import as a space route', () => {
+    expect(parseWikiPageHref('/wiki/s/import')).toBeNull()
+  })
+
+  it('encodes the space in the page href and the space-level API paths', () => {
+    expect(wikiImportHref('a/b')).toBe('/wiki/a%2Fb/import')
+    expect(apiSpaceImportPath('a/b')).toBe('/api/spaces/a%2Fb/import/bookstack')
+    expect(apiSpaceExportPath('a/b')).toBe('/api/spaces/a%2Fb/export/bookstack')
+  })
+
+  it('builds the fixed and job paths', () => {
+    expect(apiImportInstancesPath()).toBe('/api/import/instances')
+    expect(apiImportCatalogPath()).toBe('/api/import/bookstack/catalog')
+    expect(apiJobPath('j 1')).toBe('/api/jobs/j%201')
+    expect(apiJobCancelPath('j1')).toBe('/api/jobs/j1/cancel')
   })
 })

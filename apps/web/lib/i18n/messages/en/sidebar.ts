@@ -26,6 +26,10 @@ export const sidebar: Messages['sidebar'] = {
       label: 'Link report',
       desc: 'Finds broken links and pages nothing points to.',
     },
+    import: {
+      label: 'Import and export',
+      desc: 'Bring pages in from BookStack or write them there.',
+    },
     templates: {
       label: 'Templates',
       desc: 'Starting points for new pages, with a preset structure.',

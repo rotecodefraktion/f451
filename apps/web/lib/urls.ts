@@ -61,7 +61,7 @@ export function wikiPageHref(space: string, pageId: string): string {
  * starting with `/wiki/` are accepted, so other origins can never match.
  */
 /** Space-level routes that share the `/wiki/<space>/<segment>` shape with pages. */
-const SPACE_ROUTES = new Set(['report', 'graph', 'schema', 'templates'])
+const SPACE_ROUTES = new Set(['report', 'graph', 'schema', 'templates', 'import'])
 
 export function parseWikiPageHref(
   href: string,
@@ -132,6 +132,44 @@ export function wikiMetadataSchemaHref(space: string): string {
  *  z. B. `wikiTemplatesHref('demo')` → `/wiki/demo/templates`. */
 export function wikiTemplatesHref(space: string): string {
   return `${wikiSpaceHref(space)}/templates`
+}
+
+/** Href of a space's import/export page (#128), e.g.
+ *  `wikiImportHref('demo')` → `/wiki/demo/import`. */
+export function wikiImportHref(space: string): string {
+  return `${wikiSpaceHref(space)}/import`
+}
+
+/** API path of the BookStack instances the operator allows (#128). */
+export function apiImportInstancesPath(): string {
+  return '/api/import/instances'
+}
+
+/** API path that lists the books and shelves of a BookStack instance (#128). */
+export function apiImportCatalogPath(): string {
+  return '/api/import/bookstack/catalog'
+}
+
+/** API path that starts a BookStack import into a space (#128), e.g.
+ *  `/api/spaces/demo/import/bookstack`. */
+export function apiSpaceImportPath(space: string): string {
+  return `/api/spaces/${encodeURIComponent(space)}/import/bookstack`
+}
+
+/** API path that starts a BookStack export of a space (#128), e.g.
+ *  `/api/spaces/demo/export/bookstack`. */
+export function apiSpaceExportPath(space: string): string {
+  return `/api/spaces/${encodeURIComponent(space)}/export/bookstack`
+}
+
+/** API path of an import/export job (#128), e.g. `/api/jobs/<id>`. */
+export function apiJobPath(id: string): string {
+  return `/api/jobs/${encodeURIComponent(id)}`
+}
+
+/** API path that cancels an import/export job (#128). */
+export function apiJobCancelPath(id: string): string {
+  return `${apiJobPath(id)}/cancel`
 }
 
 /** API-Pfad der Vorlagen-Liste eines Space (`GET .../templates`), z. B.
