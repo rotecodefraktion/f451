@@ -34,6 +34,12 @@ with a new major version.
 - The import client waits for the time given in `Retry-After` on a `429` instead
   of failing the page (#128).
 
+### Fixed
+- A page released before its parent folder page stayed at the root of the tree.
+  The incremental index now re-resolves the parent of pages below a page that
+  appears or goes away (#133). `POST /admin/reindex` repairs trees indexed
+  before.
+
 ## [1.2.14] — 2026-10-10
 
 No breaking changes to the API, the MCP tools, the page format or the
