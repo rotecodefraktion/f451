@@ -313,4 +313,76 @@ describe('importTree', () => {
     }
     expect(report.created.map((r) => r.sourceId)).toEqual(['1', '2'])
   })
+
+  describe('cancel', () => {
+    const tree3 = () => tree([node('1', 'A', { order: 0 }), node('2', 'B', { order: 1 }), node('3', 'C', { order: 2 })])
+
+    it('stops before pass one when already aborted and reports every page as cancelled', async () => {
+      const api = fakeApi()
+      const ac = new AbortController()
+      ac.abort()
+      const events: ImportEvent[] = []
+
+      const report = await importTree(tree3(), TARGET, api, { ...OPTS, signal: ac.signal }, (e) => events.push(e))
+
+      expect(api.createPage).not.toHaveBeenCalled()
+      expect(api.discardDraft).not.toHaveBeenCalled()
+      expect(report.cancelled.map((r) => r.title)).toEqual(['A', 'B', 'C'])
+      expect(report.cancelled.every((r) => r.reason === 'cancelled' && r.pageId === undefined)).toBe(true)
+      expect(events).toContainEqual(expect.objectContaining({ kind: 'page', sourceId: '1', status: 'cancelled' }))
+      expect(events.at(-1)).toEqual({ kind: 'done' })
+    })
+
+    it('cancel in pass two discards unfilled drafts of new pages', async () => {
+      const api = fakeApi()
+      const ac = new AbortController()
+      api.putDraft.mockImplementationOnce(async () => {
+        ac.abort()
+        return { newSha: 's' }
+      })
+
+      const report = await importTree(tree3(), TARGET, api, { ...OPTS, signal: ac.signal }, () => {})
+
+      expect(api.createPage).toHaveBeenCalledTimes(3)
+      expect(report.created.map((r) => r.sourceId)).toEqual(['1'])
+      // B and C were created in pass one, never filled
+      expect(api.discardDraft).toHaveBeenCalledTimes(2)
+      expect(api.discardDraft).toHaveBeenCalledWith('p-b')
+      expect(api.discardDraft).toHaveBeenCalledWith('p-c')
+      expect(report.cancelled.map((r) => [r.sourceId, r.pageId, r.reason])).toEqual([
+        ['2', 'p-b', 'cancelled before content, draft discarded'],
+        ['3', 'p-c', 'cancelled before content, draft discarded'],
+      ])
+    })
+
+    it('reports a failing discard on cancel', async () => {
+      const api = fakeApi()
+      const ac = new AbortController()
+      api.putDraft.mockImplementationOnce(async () => {
+        ac.abort()
+        return { newSha: 's' }
+      })
+      api.discardDraft.mockRejectedValue(new F451ApiError('gone', 404, { error: 'no draft' }))
+
+      const report = await importTree(tree3(), TARGET, api, { ...OPTS, signal: ac.signal }, () => {})
+
+      expect(report.cancelled[0]?.reason).toBe('cancelled before content, discarding the draft failed: 404: no draft')
+    })
+
+    it('does not apply the order after a cancel, even with release', async () => {
+      const api = fakeApi()
+      const ac = new AbortController()
+      api.putDraft.mockImplementationOnce(async () => {
+        ac.abort()
+        return { newSha: 's' }
+      })
+
+      const report = await importTree(tree3(), TARGET, api, { ...OPTS, release: true, signal: ac.signal }, () => {})
+
+      expect(api.release).toHaveBeenCalledTimes(1)
+      expect(api.release).toHaveBeenCalledWith('p-a', expect.anything())
+      expect(api.reorder).not.toHaveBeenCalled()
+      expect(report.cancelled).toHaveLength(2)
+    })
+  })
 })

@@ -54,10 +54,19 @@ export interface ImportOptions {
   update: boolean
   release: boolean
   dryRun: boolean
+  /** Checked between pages; an abort never interrupts a page in progress. */
+  signal?: AbortSignal
 }
 
 export type ImportEvent =
   | { kind: 'start'; pages: number }
-  | { kind: 'page'; sourceId: string; title: string; status: 'created' | 'updated' | 'skipped' | 'failed'; pageId?: string; reason?: string }
+  | {
+      kind: 'page'
+      sourceId: string
+      title: string
+      status: 'created' | 'updated' | 'skipped' | 'failed' | 'cancelled'
+      pageId?: string
+      reason?: string
+    }
   | { kind: 'media'; sourceId: string; name: string; status: 'uploaded' | 'skipped'; reason?: string }
   | { kind: 'done' }

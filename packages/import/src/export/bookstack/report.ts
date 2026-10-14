@@ -8,6 +8,8 @@ export interface ExportReport {
   created: ExportedPage[]
   updated: ExportedPage[]
   failed: Array<{ pageId: string; name: string; reason: string }>
+  /** Pages not exported because the run was cancelled. */
+  cancelled: Array<{ pageId: string; name: string; reason: string }>
   /** Unresolved wikilinks, exported as plain text. */
   brokenLinks: number
   /** BookStack pages of the target book tagged with the space but not part of this export. Never deleted. */
@@ -20,7 +22,7 @@ export interface ExportReport {
 }
 
 export function emptyExportReport(): ExportReport {
-  return { created: [], updated: [], failed: [], brokenLinks: 0, stale: [], missingMedia: [] }
+  return { created: [], updated: [], failed: [], cancelled: [], brokenLinks: 0, stale: [], missingMedia: [] }
 }
 
 function section<T>(title: string, rows: T[], line: (row: T) => string): string {
@@ -30,13 +32,15 @@ function section<T>(title: string, rows: T[], line: (row: T) => string): string 
 
 export function renderExportReport(r: ExportReport): string {
   let out = '# Export report\n\n'
+  const cancelled = r.cancelled.length ? `, cancelled ${r.cancelled.length}` : ''
   if (r.dryRunPages) {
-    out += `Dry run: rendered ${r.dryRunPages.length} pages, failed ${r.failed.length}, broken links ${r.brokenLinks}. Nothing was written to BookStack.\n\n`
+    out += `Dry run: rendered ${r.dryRunPages.length} pages, failed ${r.failed.length}${cancelled}, broken links ${r.brokenLinks}. Nothing was written to BookStack.\n\n`
   } else {
-    out += `Created ${r.created.length}, updated ${r.updated.length}, failed ${r.failed.length}, broken links ${r.brokenLinks}, stale ${r.stale.length}.\n\n`
+    out += `Created ${r.created.length}, updated ${r.updated.length}, failed ${r.failed.length}${cancelled}, broken links ${r.brokenLinks}, stale ${r.stale.length}.\n\n`
   }
   const page = (p: ExportedPage) => `${p.name} (${p.pageId}) → BookStack page ${p.bsId}`
   out += section('Failed', r.failed, (f) => `${f.name} (${f.pageId}): ${f.reason}`)
+  out += section('Cancelled', r.cancelled, (c) => `${c.name} (${c.pageId}): ${c.reason}`)
   out += section('Created', r.created, page)
   out += section('Updated', r.updated, page)
   out += section('Missing media', r.missingMedia, (m) => `${m.ref} on ${m.pageId}${m.reason ? `: ${m.reason}` : ''}`)

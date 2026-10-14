@@ -1,0 +1,219 @@
+import { eq } from 'drizzle-orm'
+import type { FastifyInstance } from 'fastify'
+import {
+  BookStackClient,
+  F451Api,
+  exportToBookStack,
+  importTree,
+  loadBookStackTree,
+  renderExportReport,
+  renderReport,
+  type BookStackSelector,
+} from '@f451/import'
+import { generateApiToken, generateSessionId, hashApiToken } from '../auth/crypto.js'
+import type { Db } from '../db/client.js'
+import { apiTokens } from '../db/schema.js'
+import type { JobProgress, JobResult, JobRun } from './jobs.js'
+
+/**
+ * Runners for import/export jobs started from the web UI (#128).
+ *
+ * A job talks to f451 exactly like the CLI does — through the HTTP API, with
+ * a personal access token of the user — but without leaving the process:
+ * `injectFetch` routes the requests through `app.inject`. The token is minted
+ * for the job only and revoked when it ends, so every write still carries the
+ * user's own rights and goes through the review workflow.
+ *
+ * BookStack credentials only live in the closures built here; nothing stores
+ * or logs them.
+ */
+
+export type BookStackFactory = (url: string, tokenId: string, tokenSecret: string) => BookStackClient
+
+export interface RunDeps {
+  db: Db
+  selfFetch: typeof fetch
+  bookstack: BookStackFactory
+  /** Absolute f451 base URL for links in exported pages ('' when unset). */
+  publicBaseUrl: string
+}
+
+interface RunCommon {
+  userId: string
+  /** Allow-listed, normalised base URL. */
+  instance: string
+  tokenId: string
+  tokenSecret: string
+  space: string
+  dryRun: boolean
+}
+
+export interface ImportParams extends RunCommon {
+  source: BookStackSelector
+  parentId?: string
+  update: boolean
+  release: boolean
+}
+
+export interface ExportParams extends RunCommon {
+  pageId?: string
+  bookId?: number
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000
+const MAX_MEDIA_BYTES = 10 * 1024 * 1024
+const NO_BODY_STATUSES = new Set([204, 205, 304])
+
+type InjectMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS'
+
+/** A `fetch` that answers from the app's own routes via `app.inject`. Only the
+ *  path and query of the URL are used; the host is ignored. */
+export function injectFetch(app: FastifyInstance): typeof fetch {
+  const fetchImpl = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {
+    const href = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+    const url = new URL(href, 'http://internal')
+    const method = (init.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase() as InjectMethod
+
+    const headers: Record<string, string> = {}
+    new Headers(init.headers).forEach((value, key) => {
+      headers[key] = value
+    })
+
+    let payload: string | Buffer | undefined
+    const body = init.body
+    if (body instanceof FormData) {
+      // Let undici serialise the multipart body and pick the boundary.
+      const req = new Request('http://internal', { method, body })
+      const contentType = req.headers.get('content-type')
+      if (contentType) headers['content-type'] = contentType
+      payload = Buffer.from(await req.arrayBuffer())
+    } else if (typeof body === 'string') {
+      payload = body
+    } else if (body instanceof Uint8Array) {
+      payload = Buffer.from(body)
+    } else if (body !== undefined && body !== null) {
+      throw new Error('injectFetch: unsupported body type')
+    }
+
+    const res = await app.inject({
+      method,
+      url: url.pathname + url.search,
+      headers,
+      ...(payload !== undefined ? { payload } : {}),
+    })
+
+    const outHeaders = new Headers()
+    for (const [key, value] of Object.entries(res.headers)) {
+      if (value === undefined) continue
+      outHeaders.set(key, Array.isArray(value) ? value.join(', ') : String(value))
+    }
+    const outBody = NO_BODY_STATUSES.has(res.statusCode) ? null : new Uint8Array(res.rawPayload)
+    return new Response(outBody, { status: res.statusCode, headers: outHeaders })
+  }
+  return fetchImpl as typeof fetch
+}
+
+/** Mints a short-lived PAT for the job, hands it to `fn` and revokes it afterwards,
+ *  whatever the outcome. The plaintext token never leaves this call. */
+export async function withJobToken<T>(
+  db: Db,
+  userId: string,
+  scope: 'read' | 'write',
+  jobId: string,
+  fn: (token: string) => Promise<T>,
+): Promise<T> {
+  const token = generateApiToken()
+  const id = generateSessionId()
+  await db.insert(apiTokens).values({
+    id,
+    userId,
+    tokenHash: hashApiToken(token),
+    label: `import job ${jobId}`,
+    scope,
+    maxClassification: 'strictly-confidential',
+    expiresAt: new Date(Date.now() + DAY_MS),
+  })
+  try {
+    return await fn(token)
+  } finally {
+    await db.update(apiTokens).set({ revokedAt: new Date() }).where(eq(apiTokens.id, id))
+  }
+}
+
+function pageEvent(progress: JobProgress, e: { status: string; title: string; pageId?: string; reason?: string }): void {
+  progress.page({
+    status: e.status,
+    title: e.title,
+    ...(e.pageId !== undefined ? { pageId: e.pageId } : {}),
+    ...(e.reason !== undefined ? { reason: e.reason } : {}),
+  })
+}
+
+export function importRun(deps: RunDeps, p: ImportParams): JobRun {
+  return async (signal, progress, jobId): Promise<JobResult> => {
+    return withJobToken(deps.db, p.userId, 'write', jobId, async (token) => {
+      const f451 = new F451Api('http://internal', token, deps.selfFetch)
+      const bs = deps.bookstack(p.instance, p.tokenId, p.tokenSecret)
+      const tree = await loadBookStackTree(bs, p.source, {
+        baseUrl: p.instance,
+        drawio: null,
+        maxBytes: MAX_MEDIA_BYTES,
+      })
+      const report = await importTree(
+        tree,
+        { space: p.space, ...(p.parentId ? { parentId: p.parentId } : {}) },
+        f451,
+        { update: p.update, release: p.release, dryRun: p.dryRun, signal },
+        (e) => {
+          if (e.kind === 'start') progress.start(e.pages)
+          else if (e.kind === 'page') pageEvent(progress, e)
+        },
+      )
+      return {
+        report: renderReport(report),
+        counts: {
+          created: report.created.length,
+          updated: report.updated.length,
+          skipped: report.skipped.length,
+          failed: report.failed.length,
+          cancelled: report.cancelled.length,
+        },
+      }
+    })
+  }
+}
+
+export function exportRun(deps: RunDeps, p: ExportParams): JobRun {
+  return async (signal, progress, jobId): Promise<JobResult> => {
+    return withJobToken(deps.db, p.userId, 'read', jobId, async (token) => {
+      const f451 = new F451Api('http://internal', token, deps.selfFetch)
+      const bs = deps.bookstack(p.instance, p.tokenId, p.tokenSecret)
+      const report = await exportToBookStack(
+        f451,
+        bs,
+        {
+          space: p.space,
+          ...(p.pageId ? { startPageId: p.pageId } : {}),
+          ...(p.bookId !== undefined ? { bookId: p.bookId } : {}),
+          dryRun: p.dryRun,
+          f451Url: deps.publicBaseUrl,
+          bookstackUrl: p.instance,
+          signal,
+        },
+        (e) => {
+          if (e.kind === 'start') progress.start(e.pages)
+          else if (e.kind === 'page') pageEvent(progress, { status: e.status, title: e.name, pageId: e.pageId, reason: e.reason })
+        },
+      )
+      return {
+        report: renderExportReport(report),
+        counts: {
+          created: report.created.length,
+          updated: report.updated.length,
+          failed: report.failed.length,
+          cancelled: report.cancelled.length,
+        },
+      }
+    })
+  }
+}

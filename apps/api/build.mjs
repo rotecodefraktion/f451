@@ -18,6 +18,8 @@ import { build } from 'esbuild'
 const EXTERNAL = [
   'pg', 'pg-native', 'pg-cloudflare',
   '@fastify/swagger', '@fastify/swagger-ui', '@scalar/fastify-api-reference',
+  // @resvg/resvg-js (via @f451/import): native module, loaded from node_modules.
+  '@resvg/resvg-js',
 ]
 
 await build({

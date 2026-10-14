@@ -34,6 +34,29 @@ describe('F451Api', () => {
     expect(calls).toHaveLength(3)
   })
 
+  it('waits Retry-After on 429 and then succeeds', async () => {
+    const waits: number[] = []
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(new Response('{}', { status: 429, headers: { 'retry-after': '2' } }))
+      .mockResolvedValueOnce(new Response('[]', { status: 200 })) as unknown as typeof fetch
+    const api = new F451Api('http://x', 't', fetchImpl, { retryDelayMs: 1, sleep: async (ms) => { waits.push(ms) } })
+    expect(await api.tree('s')).toEqual([])
+    expect(waits).toEqual([2000])
+  })
+
+  it('caps Retry-After at 60 seconds and falls back to the backoff without it', async () => {
+    const waits: number[] = []
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(new Response('{}', { status: 429, headers: { 'retry-after': '600' } }))
+      .mockResolvedValueOnce(new Response('{}', { status: 429 }))
+      .mockResolvedValueOnce(new Response('[]', { status: 200 })) as unknown as typeof fetch
+    const api = new F451Api('http://x', 't', fetchImpl, { retryDelayMs: 1, sleep: async (ms) => { waits.push(ms) } })
+    await api.tree('s')
+    expect(waits).toEqual([60_000, 2])
+  })
+
   it('does not retry a 409 and exposes the body', async () => {
     const { fetchImpl, calls } = stub([{ status: 409, body: { error: 'conflict', pageId: 'p-9' } }])
     const api = new F451Api('http://x', 't', fetchImpl)

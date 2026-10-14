@@ -16,6 +16,8 @@ export interface ExportOptions {
   f451Url: string
   /** BookStack base URL, for links between exported pages. */
   bookstackUrl: string
+  /** Checked between pages; an abort never interrupts a page in progress. */
+  signal?: AbortSignal
 }
 
 export type ExportEvent =
@@ -25,7 +27,7 @@ export type ExportEvent =
       pageId: string
       name: string
       /** `rendered` only in a dry run. */
-      status: 'created' | 'updated' | 'rendered' | 'failed'
+      status: 'created' | 'updated' | 'rendered' | 'failed' | 'cancelled'
       bsId?: number
       reason?: string
     }
@@ -43,6 +45,7 @@ export type ExportBookStack = Pick<
   | 'getPage'
   | 'createPage'
   | 'updatePage'
+  | 'deletePage'
   | 'listGalleryImages'
   | 'uploadImage'
   | 'uploadAttachment'
@@ -147,7 +150,8 @@ async function resolveBook(
 
 /** Exports an f451 space (or the subtree under `startPageId`) to one BookStack book.
  *  Never writes to f451. Pages are matched by their `f451-id` tag, so a second run
- *  updates in place. BookStack pages no longer in the export are reported, never deleted. */
+ *  updates in place. BookStack pages no longer in the export are reported, never deleted;
+ *  the only deletion is a placeholder this run created and a cancel left unfilled. */
 export async function exportToBookStack(
   f451: ExportF451,
   bs: ExportBookStack,
@@ -160,6 +164,12 @@ export async function exportToBookStack(
     report.failed.push({ pageId, name, reason })
     onEvent({ kind: 'page', pageId, name, status: 'failed', reason, ...(bsId !== undefined ? { bsId } : {}) })
   }
+  const cancel = (pageId: string, name: string, reason: string, bsId?: number) => {
+    report.cancelled.push({ pageId, name, reason })
+    onEvent({ kind: 'page', pageId, name, status: 'cancelled', reason, ...(bsId !== undefined ? { bsId } : {}) })
+  }
+  // Checked between pages only: a page in progress is always finished.
+  const aborted = () => opts.signal?.aborted === true
 
   // 1. Plan the book from the f451 tree.
   const roots = await f451.tree(opts.space)
@@ -191,6 +201,7 @@ export async function exportToBookStack(
   // Load every page's Markdown once; the final name depends on it.
   const loaded: LoadedPage[] = []
   for (const e of entries) {
+    if (aborted()) break
     try {
       const markdown = await f451.raw(e.page.pageId)
       loaded.push({ ...e, markdown, name: pageName(e.page.name, treeTitles.get(e.page.pageId), markdown) })
@@ -199,10 +210,21 @@ export async function exportToBookStack(
     }
   }
 
+  /** After a cancel: every planned page not yet reported in any other way. */
+  const cancelUnaccounted = () => {
+    const done = [...report.created, ...report.updated, ...report.failed, ...report.cancelled, ...(report.dryRunPages ?? [])]
+    const seen = new Set(done.map((r) => r.pageId))
+    const names = new Map(loaded.map((p) => [p.page.pageId, p.name]))
+    for (const e of entries) {
+      if (!seen.has(e.page.pageId)) cancel(e.page.pageId, names.get(e.page.pageId) ?? e.page.name, 'cancelled')
+    }
+  }
+
   // Dry run: render only, no BookStack request at all; links fall back to f451 URLs.
   if (opts.dryRun) {
     report.dryRunPages = []
     for (const p of loaded) {
+      if (aborted()) break
       try {
         const { html, brokenLinks } = renderForBookStack(p.markdown, p.page.pageId, ctx)
         report.brokenLinks += brokenLinks
@@ -212,6 +234,14 @@ export async function exportToBookStack(
         fail(p.page.pageId, p.name, err)
       }
     }
+    if (aborted()) cancelUnaccounted()
+    onEvent({ kind: 'done' })
+    return report
+  }
+
+  // Cancelled while loading: do not create or touch the book at all.
+  if (aborted()) {
+    cancelUnaccounted()
     onEvent({ kind: 'done' })
     return report
   }
@@ -223,6 +253,7 @@ export async function exportToBookStack(
   // 3. Chapters.
   const chapterIds = new Map<string, number>()
   for (const c of book.chapters) {
+    if (aborted()) break
     const hit = await findByTag(bs, c.pageId, 'chapter')
     if (hit) {
       await bs.updateChapter(hit.id, { name: c.name, priority: c.priority })
@@ -243,6 +274,8 @@ export async function exportToBookStack(
   const placed: PlacedPage[] = []
   const touched = new Set<number>()
   for (const p of loaded) {
+    // Also stops pass one after a cancel during the chapters, whose ids would be missing.
+    if (aborted()) break
     try {
       const location =
         p.chapterPageId !== null ? { chapter_id: chapterIds.get(p.chapterPageId)! } : { book_id: target.id }
@@ -265,7 +298,24 @@ export async function exportToBookStack(
   }
 
   // 5. Pass two: media, HTML, content.
-  for (const p of placed) {
+  for (const [index, p] of placed.entries()) {
+    if (aborted()) {
+      // A page created in pass one still holds the placeholder; delete it so
+      // no empty page is left behind. An existing page keeps its old content.
+      for (const rest of placed.slice(index)) {
+        if (!rest.isNew) {
+          cancel(rest.page.pageId, rest.name, 'cancelled, content unchanged', rest.bsId)
+          continue
+        }
+        try {
+          await bs.deletePage(rest.bsId)
+          cancel(rest.page.pageId, rest.name, 'cancelled, placeholder page deleted')
+        } catch (err) {
+          cancel(rest.page.pageId, rest.name, `cancelled, deleting the placeholder failed: ${reasonOf(err)}`, rest.bsId)
+        }
+      }
+      break
+    }
     try {
       const images: Array<{ name: string; bytes: Uint8Array }> = []
       const attachments: Array<{ name: string; bytes: Uint8Array; mime: string }> = []
@@ -314,6 +364,13 @@ export async function exportToBookStack(
     } catch (err) {
       fail(p.page.pageId, p.name, err, p.bsId)
     }
+  }
+
+  // After a cancel the export is partial, so a stale list would be misleading.
+  if (aborted()) {
+    cancelUnaccounted()
+    onEvent({ kind: 'done' })
+    return report
   }
 
   // 6. Stale: pages of the target book tagged with this space whose f451 id is not planned.

@@ -11,9 +11,11 @@ import { ApiError, apiFetch } from '../../../../lib/api'
 import { getT } from '../../../../lib/i18n/server.js'
 import { getMe } from '../../../../lib/session'
 import {
+  apiImportInstancesPath,
   apiSpaceTreePath,
   decodeRouteParam,
   wikiGraphHref,
+  wikiImportHref,
   wikiMetadataSchemaHref,
   wikiReportHref,
   wikiSpaceHref,
@@ -60,6 +62,14 @@ const TEMPLATES_ICON = (
     <rect x="14" y="3" width="7" height="7" rx="1.5" />
     <rect x="3" y="14" width="7" height="7" rx="1.5" />
     <rect x="14" y="14" width="7" height="7" rx="1.5" />
+  </svg>
+)
+
+/** Two opposed arrows: pages come in (import) and go out (export). */
+const IMPORT_ICON = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+    <path d="M7 4v14m0 0-3.5-3.5M7 18l3.5-3.5" />
+    <path d="M17 20V6m0 0-3.5 3.5M17 6l3.5 3.5" />
   </svg>
 )
 
@@ -161,10 +171,17 @@ export default async function SpaceLayout({ children, params }: SpaceLayoutProps
 
   let spaces: SpaceSummary[]
   let tree: TreeNodeData[]
+  let importInstances: string[]
   try {
-    ;[spaces, tree] = await Promise.all([
+    ;[spaces, tree, importInstances] = await Promise.all([
       apiFetch<SpaceSummary[]>('/api/spaces', { cookie: cookieHeader }),
       apiFetch<TreeNodeData[]>(apiSpaceTreePath(spaceId), { cookie: cookieHeader }),
+      // Fail-soft (#128): the import tool only shows when the operator has
+      // allowed BookStack instances; any error just hides the link.
+      apiFetch<{ bookstack?: unknown }>(apiImportInstancesPath(), { cookie: cookieHeader }).then(
+        (r) => (Array.isArray(r.bookstack) ? r.bookstack.filter((u): u is string => typeof u === 'string') : []),
+        () => [],
+      ),
     ])
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) {
@@ -249,6 +266,13 @@ export default async function SpaceLayout({ children, params }: SpaceLayoutProps
       </div>
       <div className="grp">{t('sidebar.toolGroups.configure')}</div>
       <div className="nav">
+        {importInstances.length > 0 && (
+          <Link className="tool" href={wikiImportHref(spaceId)}>
+            {IMPORT_ICON}
+            <span className="lbl">{t('sidebar.tools.import.label')}</span>
+            <span className="sub">{t('sidebar.tools.import.desc')}</span>
+          </Link>
+        )}
         <Link className="tool" href={wikiTemplatesHref(spaceId)}>
           {TEMPLATES_ICON}
           <span className="lbl">{t('sidebar.tools.templates.label')}</span>

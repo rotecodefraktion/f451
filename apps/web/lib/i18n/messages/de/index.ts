@@ -27,5 +27,6 @@ import { schema } from './schema.js'
 import { templates } from './templates.js'
 import { settings } from './settings.js'
 import { shortcuts } from './shortcuts.js'
+import { importMessages } from './import.js'
 
-export const de = { shell, sidebar, editor, read, review, search, actions, errors, graph, schema, templates, settings, shortcuts } as const
+export const de = { shell, sidebar, editor, read, review, search, actions, errors, graph, schema, templates, settings, shortcuts, import: importMessages } as const

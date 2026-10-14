@@ -10,13 +10,15 @@ export interface ImportReport {
   updated: PageResult[]
   skipped: PageResult[]
   failed: PageResult[]
+  /** Pages not processed because the run was cancelled. */
+  cancelled: PageResult[]
   mediaSkipped: Array<{ sourceId: string; name: string; reason: string }>
   droppedHtml: Record<string, number>
   drawingsAsPng: string[]
 }
 
 export function emptyReport(): ImportReport {
-  return { created: [], updated: [], skipped: [], failed: [], mediaSkipped: [], droppedHtml: {}, drawingsAsPng: [] }
+  return { created: [], updated: [], skipped: [], failed: [], cancelled: [], mediaSkipped: [], droppedHtml: {}, drawingsAsPng: [] }
 }
 
 function section(title: string, rows: PageResult[]): string {
@@ -27,8 +29,9 @@ function section(title: string, rows: PageResult[]): string {
 
 export function renderReport(r: ImportReport): string {
   let out = '# Import report\n\n'
-  out += `Created ${r.created.length}, updated ${r.updated.length}, skipped ${r.skipped.length}, failed ${r.failed.length}.\n\n`
-  out += section('Failed', r.failed) + section('Created', r.created) + section('Updated', r.updated) + section('Skipped', r.skipped)
+  const cancelled = r.cancelled.length ? `, cancelled ${r.cancelled.length}` : ''
+  out += `Created ${r.created.length}, updated ${r.updated.length}, skipped ${r.skipped.length}, failed ${r.failed.length}${cancelled}.\n\n`
+  out += section('Failed', r.failed) + section('Cancelled', r.cancelled) + section('Created', r.created) + section('Updated', r.updated) + section('Skipped', r.skipped)
   if (r.mediaSkipped.length) {
     out += `## Media skipped (${r.mediaSkipped.length})\n\n` + r.mediaSkipped.map((m) => `- ${m.name} on ${m.sourceId}: ${m.reason}`).join('\n') + '\n\n'
   }
