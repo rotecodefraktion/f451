@@ -61,7 +61,7 @@ export function wikiPageHref(space: string, pageId: string): string {
  * starting with `/wiki/` are accepted, so other origins can never match.
  */
 /** Space-level routes that share the `/wiki/<space>/<segment>` shape with pages. */
-const SPACE_ROUTES = new Set(['report', 'graph', 'schema', 'templates', 'import'])
+const SPACE_ROUTES = new Set(['report', 'graph', 'schema', 'templates', 'import', 'reviews'])
 
 export function parseWikiPageHref(
   href: string,
@@ -138,6 +138,22 @@ export function wikiTemplatesHref(space: string): string {
  *  `wikiImportHref('demo')` → `/wiki/demo/import`. */
 export function wikiImportHref(space: string): string {
   return `${wikiSpaceHref(space)}/import`
+}
+
+/** Href of a space's review overview (#131), e.g.
+ *  `wikiReviewsHref('demo')` → `/wiki/demo/reviews`. */
+export function wikiReviewsHref(space: string): string {
+  return `${wikiSpaceHref(space)}/reviews`
+}
+
+/** API path of a space's open reviews (#131), e.g. `/api/spaces/demo/reviews`. */
+export function apiSpaceReviewsPath(space: string): string {
+  return `/api/spaces/${encodeURIComponent(space)}/reviews`
+}
+
+/** API path that releases a page's draft (`POST /api/pages/:id/release`). */
+export function apiPageReleasePath(pageId: string): string {
+  return `/api/pages/${encodeURIComponent(pageId)}/release`
 }
 
 /** API path of the BookStack instances the operator allows (#128). */

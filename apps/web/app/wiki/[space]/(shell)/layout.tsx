@@ -18,6 +18,7 @@ import {
   wikiImportHref,
   wikiMetadataSchemaHref,
   wikiReportHref,
+  wikiReviewsHref,
   wikiSpaceHref,
   wikiTemplatesHref,
 } from '../../../../lib/urls'
@@ -46,6 +47,14 @@ const REPORT_ICON = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
     <path d="M14 3v4a1 1 0 0 0 1 1h4" />
     <path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z" />
+  </svg>
+)
+
+/** A list with a check mark: drafts waiting to be released (#131). */
+const REVIEWS_ICON = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+    <path d="M4 6h9M4 12h9M4 18h6" />
+    <path d="m14.5 17 2.5 2.5 4.5-5" />
   </svg>
 )
 
@@ -262,6 +271,11 @@ export default async function SpaceLayout({ children, params }: SpaceLayoutProps
           {REPORT_ICON}
           <span className="lbl">{t('sidebar.tools.report.label')}</span>
           <span className="sub">{t('sidebar.tools.report.desc')}</span>
+        </Link>
+        <Link className="tool" href={wikiReviewsHref(spaceId)}>
+          {REVIEWS_ICON}
+          <span className="lbl">{t('sidebar.tools.reviews.label')}</span>
+          <span className="sub">{t('sidebar.tools.reviews.desc')}</span>
         </Link>
       </div>
       <div className="grp">{t('sidebar.toolGroups.configure')}</div>

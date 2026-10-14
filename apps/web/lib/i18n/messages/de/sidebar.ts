@@ -35,6 +35,10 @@ export const sidebar = {
       label: 'Verweis-Report',
       desc: 'Findet tote Verweise und Seiten, auf die niemand zeigt.',
     },
+    reviews: {
+      label: 'Offene Reviews',
+      desc: 'Wartende Entwürfe sehen und gesammelt freigeben.',
+    },
     import: {
       label: 'Import und Export',
       desc: 'Seiten aus BookStack übernehmen oder dorthin schreiben.',
