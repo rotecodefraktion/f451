@@ -15,6 +15,7 @@
  */
 import { useEffect, useId, useState, type FormEvent } from 'react'
 import {
+  eventHref,
   nextState,
   progressPercent,
   reportFileName,
@@ -30,7 +31,6 @@ import {
   apiJobPath,
   apiSpaceExportPath,
   apiSpaceImportPath,
-  wikiPageHref,
 } from '../lib/urls'
 
 const POLL_MS = 1000
@@ -334,7 +334,7 @@ export function ImportPanel({ space, instances }: ImportPanelProps) {
             ? t('import.progress', { done: view.done, total: view.total })
             : t('import.progressUnknown')}
         </p>
-        {view && view.events.length > 0 && <EventList view={view} space={space} label={t('import.eventsLabel')} statusLabel={statusLabel} />}
+        {view && view.events.length > 0 && <EventList view={view} label={t('import.eventsLabel')} statusLabel={statusLabel} />}
         <div className="btn-row">
           <button type="button" className="btn danger" onClick={onCancel} disabled={cancelling}>
             {cancelling ? t('import.cancelling') : t('import.cancel')}
@@ -366,7 +366,7 @@ export function ImportPanel({ space, instances }: ImportPanelProps) {
             ))}
           </ul>
         )}
-        {view.events.length > 0 && <EventList view={view} space={space} label={t('import.eventsLabel')} statusLabel={statusLabel} />}
+        {view.events.length > 0 && <EventList view={view} label={t('import.eventsLabel')} statusLabel={statusLabel} />}
         {view.report !== null && (
           <>
             <h3 className="import-subheading">{t('import.reportLabel')}</h3>
@@ -632,24 +632,25 @@ function SourceField({ inputId, kind, catalog, value, onChange }: SourceFieldPro
 
 interface EventListProps {
   view: JobView
-  space: string
   label: string
   statusLabel: (status: string) => string
 }
 
-/** Per-page events of a job (the API keeps the last 200). Imported pages
- *  link to their new location in this space. */
-function EventList({ view, space, label, statusLabel }: EventListProps) {
-  const linkPages = view.kind === 'import-bookstack'
+/** Per-page events of a job (the API keeps the last 200). Pages link to
+ *  where they can be seen now (see {@link eventHref}). */
+function EventList({ view, label, statusLabel }: EventListProps) {
   return (
     <ol className="import-events" aria-label={label}>
-      {view.events.map((e, i) => (
+      {view.events.map((e, i) => {
+        const href = eventHref(view.space, e)
+        return (
         <li key={i}>
           <span className="chip neutral">{statusLabel(e.status)}</span>{' '}
-          {linkPages && e.pageId ? <a href={wikiPageHref(space, e.pageId)}>{e.title}</a> : <span>{e.title}</span>}
+          {href ? <a href={href}>{e.title}</a> : <span>{e.title}</span>}
           {e.reason && <span className="import-event-reason"> — {e.reason}</span>}
         </li>
-      ))}
+        )
+      })}
     </ol>
   )
 }

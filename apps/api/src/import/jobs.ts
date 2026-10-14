@@ -11,7 +11,8 @@ import { randomUUID } from 'node:crypto'
 
 export type JobKind = 'import-bookstack' | 'export-bookstack'
 export type JobStatus = 'running' | 'done' | 'failed' | 'cancelled'
-export interface JobEvent { status: string; title: string; pageId?: string; reason?: string }
+/** `link`: where `pageId` can be opened now — the published page or its open review. */
+export interface JobEvent { status: string; title: string; pageId?: string; reason?: string; link?: 'page' | 'review' }
 export interface JobView {
   id: string; kind: JobKind; space: string; status: JobStatus
   startedAt: string; finishedAt: string | null
@@ -163,6 +164,7 @@ function copyEvent(e: JobEvent): JobEvent {
     title: e.title,
     ...(e.pageId !== undefined ? { pageId: e.pageId } : {}),
     ...(e.reason !== undefined ? { reason: e.reason } : {}),
+    ...(e.link !== undefined ? { link: e.link } : {}),
   }
 }
 
