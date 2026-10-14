@@ -261,21 +261,31 @@ export async function exportToBookStack(
   const base = opts.bookstackUrl.replace(/\/+$/, '')
 
   // 3. Chapters.
+  //    A chapter BookStack refuses fails its pages; the other chapters go on.
   const chapterIds = new Map<string, number>()
+  const failedChapters = new Set<string>()
   for (const c of book.chapters) {
     if (aborted()) break
-    const hit = await findByTag(bs, c.pageId, 'chapter', target.id)
-    if (hit) {
-      await bs.updateChapter(hit.id, { name: c.name, priority: c.priority })
-      chapterIds.set(c.pageId, hit.id)
-    } else {
-      const created = await bs.createChapter({
-        book_id: target.id,
-        name: c.name,
-        priority: c.priority,
-        tags: tagsFor(c.pageId, opts.space),
-      })
-      chapterIds.set(c.pageId, created.id)
+    try {
+      const hit = await findByTag(bs, c.pageId, 'chapter', target.id)
+      if (hit) {
+        await bs.updateChapter(hit.id, { name: c.name, priority: c.priority })
+        chapterIds.set(c.pageId, hit.id)
+      } else {
+        const created = await bs.createChapter({
+          book_id: target.id,
+          name: c.name,
+          priority: c.priority,
+          tags: tagsFor(c.pageId, opts.space),
+        })
+        chapterIds.set(c.pageId, created.id)
+      }
+    } catch (err) {
+      failedChapters.add(c.pageId)
+      const reason = `chapter "${c.name}" failed: ${reasonOf(err)}`
+      for (const p of loaded) {
+        if (p.chapterPageId === c.pageId) fail(p.page.pageId, p.name, reason)
+      }
     }
   }
 
@@ -286,6 +296,8 @@ export async function exportToBookStack(
   for (const p of loaded) {
     // Also stops pass one after a cancel during the chapters, whose ids would be missing.
     if (aborted()) break
+    // Already reported as failed with its chapter.
+    if (p.chapterPageId !== null && failedChapters.has(p.chapterPageId)) continue
     try {
       const location =
         p.chapterPageId !== null ? { chapter_id: chapterIds.get(p.chapterPageId)! } : { book_id: target.id }
