@@ -175,6 +175,10 @@ Signed-in users can run the BookStack import and export from the space sidebar
 the API; the page shows progress, the page events and the final report
 (downloadable as `import-report.md`).
 
+After an import without release, the pages wait as open reviews in the review
+overview of the space (`/wiki/<space>/reviews`), where they can be released
+together.
+
 ### Enabling
 
 Set `F451_IMPORT_BOOKSTACK_URLS` on the API to a comma-separated list of base
