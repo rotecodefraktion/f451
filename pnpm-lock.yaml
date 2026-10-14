@@ -16,6 +16,9 @@ importers:
       '@f451/git-provider':
         specifier: workspace:*
         version: link:../../packages/git-provider
+      '@f451/import':
+        specifier: workspace:*
+        version: link:../../packages/import
       '@f451/markdown':
         specifier: workspace:*
         version: link:../../packages/markdown
@@ -34,6 +37,9 @@ importers:
       '@fastify/swagger-ui':
         specifier: ^6.1.0
         version: 6.1.0
+      '@resvg/resvg-js':
+        specifier: 2.6.2
+        version: 2.6.2
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.2(@types/pg@8.20.0)(pg@8.22.0)

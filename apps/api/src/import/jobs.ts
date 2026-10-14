@@ -20,7 +20,8 @@ export interface JobView {
 }
 export interface JobProgress { start(total: number): void; page(e: JobEvent): void }
 export interface JobResult { report: string; counts: Record<string, number> }
-export type JobRun = (signal: AbortSignal, progress: JobProgress) => Promise<JobResult>
+/** `id` is the job's own id (used e.g. to label the job token). */
+export type JobRun = (signal: AbortSignal, progress: JobProgress, id: string) => Promise<JobResult>
 export type StartResult =
   | { ok: true; id: string }
   | { ok: false; reason: 'busy'; id: string }
@@ -102,7 +103,7 @@ export class JobRegistry {
     const signal = job.controller.signal
     let promise: Promise<JobResult>
     try {
-      promise = Promise.resolve(run(signal, progress))
+      promise = Promise.resolve(run(signal, progress, job.id))
     } catch (e) {
       promise = Promise.reject(e)
     }

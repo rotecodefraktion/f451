@@ -30,6 +30,10 @@ import {
 import { registerBacklinkRoutes } from './routes/backlinks.js'
 import { registerBrokenLinksRoutes } from './routes/broken-links.js'
 import { registerCreatePageRoute } from './routes/create-page.js'
+import { registerImportJobRoutes } from './routes/import-jobs.js'
+import { JobRegistry } from './import/jobs.js'
+import { injectFetch, type BookStackFactory } from './import/run.js'
+import { BookStackClient } from '@f451/import'
 import { registerDeletePageRoute } from './routes/delete-page.js'
 import { registerDraftsRoutes } from './routes/drafts.js'
 import { createClassificationGate } from './auth/classification-gate.js'
@@ -158,6 +162,13 @@ export interface AppOptions {
    *  ungesetzt → kein trustProxy (Dev ohne Proxy, Bestandsverhalten:
    *  `req.ip` = Socket-Adresse, X-Forwarded-For wird ignoriert). */
   trustProxy?: boolean | number
+  /** Web import/export (#128): allow-listed BookStack base URLs, already
+   *  normalised (`import/instances.ts#parseInstances` on
+   *  `F451_IMPORT_BOOKSTACK_URLS`, read in `server.ts`). Empty or unset → the
+   *  feature is off: every BookStack call answers 400. */
+  importBookstackUrls?: readonly string[]
+  /** Test hook: replaces the real `BookStackClient` for import/export jobs. */
+  importBookstack?: BookStackFactory
 }
 
 /** Default-Anfragebudget (Task 2, Spec §7) — siehe `AppOptions.rateLimits`.
@@ -262,6 +273,8 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
   // läuft (siehe Kommentar in `ops/counters.ts`).
   const opsCounters = createOpsCounters()
   app.decorate('opsCounters', opsCounters)
+  // Import/export jobs (#128): in memory, one registry per app build.
+  const jobs = new JobRegistry()
   // Task 4a-1 (Security & Betrieb): zentraler Error-Handler — übersetzt
   // Fastify-/AJV-Fehler ins projektweite {status,reason}-Format, BEVOR die
   // Response-Schema-Serialisierung greift (schließt die FST_ERR_FAILED_ERROR_
@@ -904,6 +917,21 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
         providerRegistry: opts.providerRegistry,
         globalTemplates: opts.globalTemplates,
       })
+      // Import/export jobs from the web UI (#128): same gate as page creation
+      // (`resolveNewPageWriteContext`); the jobs write through this app's own
+      // routes with a short-lived PAT of the user.
+      registerImportJobRoutes(app, {
+        db,
+        spaces: opts.spaces,
+        access,
+        canWrite,
+        getUserProvider: userProvider,
+        instances: opts.importBookstackUrls ?? [],
+        jobs,
+        publicBaseUrl: opts.publicBaseUrl ?? '',
+        selfFetch: injectFetch(app),
+        bookstack: opts.importBookstack ?? ((url, tokenId, tokenSecret) => new BookStackClient(url, tokenId, tokenSecret)),
+      })
       // Seite verschieben/umbenennen (Phase 3.2, `POST /api/pages/:id/move`)
       // teilt sich dieselbe Gate-Basis (`resolveWriteContext`, `routes/drafts.ts`).
       registerMovePageRoute(app, {
@@ -939,6 +967,8 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
   }
 
   app.addHook('onClose', async () => {
+    // Running jobs stop after their current page; their PATs expire on their own.
+    jobs.abortAll()
     await pool?.end()
   })
 
