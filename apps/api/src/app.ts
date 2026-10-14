@@ -969,8 +969,9 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
   }
 
   app.addHook('onClose', async () => {
-    // Running jobs stop after their current page; their PATs expire on their own.
-    jobs.abortAll()
+    // Running jobs stop after their current page; waiting (bounded) lets their
+    // `finally` revoke the job PAT before the pool closes.
+    await jobs.shutdown()
     await pool?.end()
   })
 

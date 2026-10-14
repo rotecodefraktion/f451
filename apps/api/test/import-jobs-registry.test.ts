@@ -144,6 +144,26 @@ describe('JobRegistry', () => {
     expect(b.state.signal!.aborted).toBe(true)
   })
 
+  it('shutdown aborts and resolves once a run finishes on abort', async () => {
+    const { reg } = setup()
+    const run: JobRun = (signal) => new Promise<JobResult>((resolve) => {
+      signal.addEventListener('abort', () => resolve({ report: '# Cancelled\n', counts: {} }))
+    })
+    reg.start('u1', 'import-bookstack', 'docs', run)
+    // A long timeout: resolving at all within the test timeout means it did not wait for it.
+    await reg.shutdown(60_000)
+    expect(reg.get('u1', 'job-1')?.status).toBe('cancelled')
+  })
+
+  it('shutdown resolves after the timeout when a run never settles', async () => {
+    const { reg } = setup()
+    const r = controlledRun()
+    reg.start('u1', 'import-bookstack', 'docs', r.run)
+    await reg.shutdown(20)
+    expect(r.state.signal!.aborted).toBe(true)
+    expect(reg.get('u1', 'job-1')?.status).toBe('running')
+  })
+
   it('thrown error ends as failed with the message in the report', async () => {
     const { reg } = setup()
     const r = controlledRun()
