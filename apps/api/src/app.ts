@@ -28,6 +28,7 @@ import {
   type SignInMethod,
 } from './routes/auth.js'
 import { registerBacklinkRoutes } from './routes/backlinks.js'
+import { registerReviewRoutes } from './routes/reviews.js'
 import { registerBrokenLinksRoutes } from './routes/broken-links.js'
 import { registerCreatePageRoute } from './routes/create-page.js'
 import { registerImportJobRoutes } from './routes/import-jobs.js'
@@ -834,6 +835,7 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
     const graphDeps = { db, spaces: opts.spaces, providerRegistry: opts.providerRegistry, access, canWrite }
     registerGraphRoutes(app, graphDeps)
     registerBacklinkRoutes(app, graphDeps)
+    registerReviewRoutes(app, graphDeps)
     registerTemplatesRoutes(app, {
       spaces: opts.spaces,
       providerRegistry: opts.providerRegistry,

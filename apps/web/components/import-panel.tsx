@@ -25,12 +25,14 @@ import {
   type PollResult,
 } from '../lib/import-job'
 import { useT } from '../lib/i18n/provider'
+import { waitingReviews } from '../lib/reviews-state'
 import {
   apiImportCatalogPath,
   apiJobCancelPath,
   apiJobPath,
   apiSpaceExportPath,
   apiSpaceImportPath,
+  wikiReviewsHref,
 } from '../lib/urls'
 
 const POLL_MS = 1000
@@ -353,6 +355,7 @@ export function ImportPanel({ space, instances }: ImportPanelProps) {
         : view.status === 'cancelled'
           ? 'import.finished.cancelled'
           : 'import.finished.done'
+    const waiting = waitingReviews(view.events)
     return (
       <section className="import-panel">
         {noticeBlock}
@@ -365,6 +368,11 @@ export function ImportPanel({ space, instances }: ImportPanelProps) {
               </li>
             ))}
           </ul>
+        )}
+        {waiting > 0 && (
+          <p className="callout info import-notice">
+            {t('import.waitingReviews', { count: waiting })} <a href={wikiReviewsHref(space)}>{t('import.waitingReviewsLink')}</a>
+          </p>
         )}
         {view.events.length > 0 && <EventList view={view} label={t('import.eventsLabel')} statusLabel={statusLabel} />}
         {view.report !== null && (

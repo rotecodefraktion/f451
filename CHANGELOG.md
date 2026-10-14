@@ -29,6 +29,9 @@ with a new major version.
   import and export from the space sidebar, watch the progress and cancel a
   running job (#128). Off until the operator sets `F451_IMPORT_BOOKSTACK_URLS`.
   See [docs/import-export.md](docs/import-export.md).
+- Review overview: `/wiki/<space>/reviews` lists the open reviews of a space
+  and releases several at once, for example the pages of an import (#131). New
+  route `GET /api/spaces/:space/reviews`.
 
 ### Changed
 - The import client waits for the time given in `Retry-After` on a `429` instead

@@ -59,6 +59,9 @@ export const importMessages = {
   reportLabel: 'Bericht',
   download: 'Bericht herunterladen',
   newRun: 'Neuer Lauf',
+  waitingReviews_one: '{count} Seite wartet im Review auf Freigabe.',
+  waitingReviews_other: '{count} Seiten warten im Review auf Freigabe.',
+  waitingReviewsLink: 'Zu den offenen Reviews',
   status: {
     created: 'angelegt',
     updated: 'aktualisiert',

@@ -7,6 +7,9 @@ import {
   apiSpaceExportPath,
   apiSpaceImportPath,
   wikiImportHref,
+  wikiReviewsHref,
+  apiSpaceReviewsPath,
+  apiPageReleasePath,
   apiPagePreviewPath,
   apiPageRawPath,
   apiSpaceGraphPath,
@@ -269,5 +272,17 @@ describe('import/export URLs (#128)', () => {
     expect(apiImportCatalogPath()).toBe('/api/import/bookstack/catalog')
     expect(apiJobPath('j 1')).toBe('/api/jobs/j%201')
     expect(apiJobCancelPath('j1')).toBe('/api/jobs/j1/cancel')
+  })
+})
+
+describe('review overview URLs (#131)', () => {
+  it('parseWikiPageHref treats /wiki/<space>/reviews as a space route', () => {
+    expect(parseWikiPageHref('/wiki/s/reviews')).toBeNull()
+  })
+
+  it('encodes the space and the page id', () => {
+    expect(wikiReviewsHref('a/b')).toBe('/wiki/a%2Fb/reviews')
+    expect(apiSpaceReviewsPath('a/b')).toBe('/api/spaces/a%2Fb/reviews')
+    expect(apiPageReleasePath(NASTY_ID)).toBe('/api/pages/path%3Ademo%2Fa%2Fb.md/release')
   })
 })

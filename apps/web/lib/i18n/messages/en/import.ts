@@ -54,6 +54,9 @@ export const importMessages: Messages['import'] = {
   reportLabel: 'Report',
   download: 'Download report',
   newRun: 'New run',
+  waitingReviews_one: '{count} page waits in review for release.',
+  waitingReviews_other: '{count} pages wait in review for release.',
+  waitingReviewsLink: 'Go to open reviews',
   status: {
     created: 'created',
     updated: 'updated',

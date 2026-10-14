@@ -23,5 +23,6 @@ import { templates } from './templates.js'
 import { settings } from './settings.js'
 import { shortcuts } from './shortcuts.js'
 import { importMessages } from './import.js'
+import { reviews } from './reviews.js'
 
-export const en: Messages = { shell, sidebar, editor, read, review, search, actions, errors, graph, schema, templates, settings, shortcuts, import: importMessages }
+export const en: Messages = { shell, sidebar, editor, read, review, search, actions, errors, graph, schema, templates, settings, shortcuts, import: importMessages, reviews }
