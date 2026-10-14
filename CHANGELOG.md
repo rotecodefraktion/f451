@@ -25,6 +25,14 @@ with a new major version.
 - Link preview: hovering an internal link, or reaching it with the keyboard,
   shows the target page's title and first paragraph (or the linked section's)
   (#100). Off on touch devices. New route `GET /api/pages/:id/preview`.
+- Import and export from the web UI: a signed-in user can start the BookStack
+  import and export from the space sidebar, watch the progress and cancel a
+  running job (#128). Off until the operator sets `F451_IMPORT_BOOKSTACK_URLS`.
+  See [docs/import-export.md](docs/import-export.md).
+
+### Changed
+- The import client waits for the time given in `Retry-After` on a `429` instead
+  of failing the page (#128).
 
 ## [1.2.14] — 2026-10-10
 

@@ -168,6 +168,66 @@ recognised as their origin.
 Each run writes `export-report.md` to `--out`: created, updated and failed
 pages, stale pages, missing media and the number of broken links.
 
+## From the web UI
+
+Signed-in users can run the BookStack import and export from the space sidebar
+("Import / export"), without the command line. The run happens as a job inside
+the API; the page shows progress, the page events and the final report
+(downloadable as `import-report.md`).
+
+### Enabling
+
+Set `F451_IMPORT_BOOKSTACK_URLS` on the API to a comma-separated list of base
+URLs, for example `https://bookstack.example.org`. Only these instances can be
+contacted; any other URL is rejected. Unset or empty keeps the feature off and
+the sidebar entry hidden. Trailing slashes and the case of the host do not
+matter. Redirects to another host are not followed.
+
+### Who may start a job
+
+- **Import** needs write access to the target space, **export** needs read
+  access. These are the same Git-provider rights as everywhere else. A space
+  that is unknown, not configured or not accessible answers 404.
+- The job runs as the user with a short-lived personal access token that is
+  revoked when the job ends, so the review workflow, classification and SHA
+  contract apply exactly as for the CLI.
+- Starting a job needs a browser session; a request with a Bearer token is
+  refused (403). Token holders use the CLI.
+- A job is visible only to the user who started it.
+
+### BookStack token
+
+The BookStack token ID and secret are entered for each run. They are held in
+memory for the duration of the job only and never stored, logged or shown in
+the report.
+
+### Behaviour
+
+- One running job per user (a second start answers 409 with the running job's
+  id; the page reattaches after a reload) and at most 3 running jobs per API
+  process (429).
+- Job state lives in API memory. A restart of the API cancels running jobs; a
+  new run with "Update earlier imports" continues without duplicates. Finished
+  jobs are dropped after 24 hours; the page keeps the last 200 page events.
+- Drawings stay PNG (the API container has no Docker or Podman) and are listed
+  in the report.
+- A dry run writes nothing to f451 (import) or BookStack (export) and produces
+  the report only; the generated Markdown is available from the CLI only.
+
+### Cancelling
+
+The owner can cancel a running job. Cancellation is checked before each page,
+never in the middle of one, so the job stays `running` until the current page
+is finished.
+
+- **Import:** no further pages are created or filled. Pages created but not yet
+  filled have their draft discarded, so no empty draft is left behind; they are
+  listed in the report under "Cancelled". A later run with "Update earlier
+  imports" picks up cleanly.
+- **Export:** no further pages are exported. What is already in BookStack stays
+  (its pages carry the `f451-id` tag, so the next export updates them); the
+  remaining pages are listed under "Cancelled".
+
 ## Second import
 
 With `--update`, pages whose `source:` matches are updated through a new
