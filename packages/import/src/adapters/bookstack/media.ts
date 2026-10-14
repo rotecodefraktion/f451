@@ -96,10 +96,45 @@ export function bookStackMediaUrl(src: string, baseUrl: string): string | null {
   return `${baseUrl}${path}${url.search}`
 }
 
+/** The URL readers should follow for a media reference: `src` as BookStack
+ *  wrote it (its public APP_URL), made absolute against `baseUrl` only when it
+ *  was relative. Bytes are fetched via `bookStackMediaUrl`, links use this. */
+export function publicMediaUrl(src: string, baseUrl: string): string {
+  try {
+    return new URL(src, `${baseUrl}/`).href
+  } catch {
+    return src
+  }
+}
+
+/** The attachment URL BookStack itself reports in `links` of
+ *  `GET /api/attachments/:id` (built from its APP_URL), or null. */
+function attachmentLink(detail: unknown): string | null {
+  const links = (detail as { links?: { markdown?: unknown; html?: unknown } } | null)?.links
+  const candidates: string[] = []
+  if (typeof links?.markdown === 'string') {
+    const m = /\]\((\S+?)\)\s*$/.exec(links.markdown)
+    if (m) candidates.push(m[1]!)
+  }
+  if (typeof links?.html === 'string') {
+    const m = /href="([^"]+)"/.exec(links.html)
+    if (m) candidates.push(m[1]!.replace(/&amp;/g, '&'))
+  }
+  for (const c of candidates) {
+    try {
+      const url = new URL(c)
+      if (url.protocol === 'http:' || url.protocol === 'https:') return url.href
+    } catch {
+      // not an absolute URL, try the next one
+    }
+  }
+  return null
+}
+
 /** Downloads the images and attachments of a page. Image refs are rewritten
  *  to `_media/<name>`; attachments are appended as an `## Attachments` list.
  *  Files over `maxBytes` or failing to download are skipped and keep their
- *  absolute BookStack URL. */
+ *  absolute BookStack URL as written by BookStack (not the base URL). */
 export async function collectMedia(
   markdown: string,
   client: BookStackClient,
@@ -118,20 +153,23 @@ export async function collectMedia(
     const absolute = bookStackMediaUrl(src, baseUrl)
     if (absolute === null || targets.has(src)) continue
     const original = slugifyFileName(baseName(src))
+    // Fetched from `absolute` (the address f451 reaches BookStack under), but
+    // linked as BookStack wrote it, so readers can follow the link.
+    const sourceUrl = publicMediaUrl(src, baseUrl)
     try {
       const bytes = await client.downloadUrl(absolute)
       if (bytes.byteLength > opts.maxBytes) {
         skipped.push({ name: original, reason: `too large (${bytes.byteLength} bytes)` })
-        targets.set(src, absolute)
+        targets.set(src, sourceUrl)
         continue
       }
       const name = uniqueName(original, used)
       const ref = `_media/${name}`
-      media.push({ name, bytes, mime: mimeFor(name), kind: 'image', ref, sourceUrl: absolute })
+      media.push({ name, bytes, mime: mimeFor(name), kind: 'image', ref, sourceUrl })
       targets.set(src, ref)
     } catch (error) {
       skipped.push({ name: original, reason: error instanceof Error ? error.message : String(error) })
-      targets.set(src, absolute)
+      targets.set(src, sourceUrl)
     }
   }
 
@@ -155,9 +193,13 @@ export async function collectMedia(
     }
     const fileName = /\.[^./]+$/.test(a.name) || !a.extension ? a.name : `${a.name}.${a.extension}`
     const original = slugifyFileName(fileName)
-    const sourceUrl = `${baseUrl}/attachments/${a.id}`
+    // Prefer the URL BookStack reports (its public APP_URL); the base URL is
+    // only the fallback, as it may be an internal address.
+    let sourceUrl = `${baseUrl}/attachments/${a.id}`
     try {
-      const bytes = await client.getAttachmentContent(a.id)
+      const detail = await client.getAttachment(a.id)
+      sourceUrl = attachmentLink(detail) ?? sourceUrl
+      const bytes = Uint8Array.from(Buffer.from(detail.content, 'base64'))
       if (bytes.byteLength > opts.maxBytes) {
         skipped.push({ name: original, reason: `too large (${bytes.byteLength} bytes)` })
         lines.push(`- [${label}](${sourceUrl})`)

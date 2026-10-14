@@ -48,8 +48,10 @@ class PageIndex {
 
   constructor(private readonly baseUrl: string) {}
 
-  add(id: number, slug: string, bookSlug: string): void {
-    const entry = { id, slug, bookSlug, url: pageUrl(this.baseUrl, bookSlug, slug) }
+  /** `url` is the page URL BookStack reports, if any; else it is built from
+   *  the base URL. */
+  add(id: number, slug: string, bookSlug: string, url?: string): void {
+    const entry = { id, slug, bookSlug, url: url ?? pageUrl(this.baseUrl, bookSlug, slug) }
     this.byId.set(id, entry)
     this.byPath.set(`${bookSlug}/${slug}`, entry)
   }
@@ -84,6 +86,30 @@ function decode(segment: string): string {
 
 function pageUrl(baseUrl: string, bookSlug: string, slug: string): string {
   return `${baseUrl}/books/${bookSlug}/page/${slug}`
+}
+
+/** The `url` BookStack puts on an item (built from its own APP_URL, so
+ *  reachable for readers even when f451 uses an internal base URL), or
+ *  undefined when the response carries none. */
+function reportedUrl(item: unknown): string | undefined {
+  const url = (item as { url?: unknown } | null)?.url
+  if (typeof url !== 'string') return undefined
+  try {
+    const parsed = new URL(url)
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? url : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/** The contents entry of a page in a book (top level or inside a chapter). */
+function findPageItem(book: BookStackBookContents, id: number): unknown {
+  for (const item of book.contents ?? []) {
+    if (item.type === 'page' && item.id === id) return item
+    const page = item.pages?.find((p) => p.id === id)
+    if (page) return page
+  }
+  return undefined
 }
 
 /** shelf → folder page → books; book → folder page; chapter → folder page;
@@ -138,7 +164,7 @@ async function planScope(
     const id = Number(selector.page)
     const page = await notFoundAs(`page not found: ${selector.page}`, () => client.getPage(id))
     const book = await client.getBookContents(page.book_id)
-    index.add(page.id, page.slug, book.slug)
+    index.add(page.id, page.slug, book.slug, reportedUrl(page) ?? reportedUrl(findPageItem(book, page.id)))
     return [{ kind: 'page', id: page.id, order: page.priority }]
   }
 
@@ -160,7 +186,7 @@ async function planScope(
     return [
       {
         kind: 'folder',
-        sourceRef: { type: 'bookstack', id: `shelf:${shelf.id}`, url: `${baseUrl}/shelves/${shelf.slug}` },
+        sourceRef: { type: 'bookstack', id: `shelf:${shelf.id}`, url: reportedUrl(shelf) ?? `${baseUrl}/shelves/${shelf.slug}` },
         title: shelf.name,
         html: shelf.description_html ?? shelf.description ?? '',
         tags: shelf.tags ?? [],
@@ -186,7 +212,7 @@ async function planBook(
     if (aborted()) break
     if (item.type === 'page') {
       if (item.draft) continue
-      index.add(item.id, item.slug, book.slug)
+      index.add(item.id, item.slug, book.slug, reportedUrl(item))
       children.push({ kind: 'page', id: item.id, order: item.priority })
       continue
     }
@@ -195,12 +221,12 @@ async function planBook(
     const pages: Plan[] = []
     for (const p of item.pages ?? []) {
       if (p.draft) continue
-      index.add(p.id, p.slug, book.slug)
+      index.add(p.id, p.slug, book.slug, reportedUrl(p))
       pages.push({ kind: 'page', id: p.id, order: p.priority })
     }
     children.push({
       kind: 'folder',
-      sourceRef: { type: 'bookstack', id: `chapter:${item.id}`, url: `${baseUrl}/books/${book.slug}/chapter/${item.slug}` },
+      sourceRef: { type: 'bookstack', id: `chapter:${item.id}`, url: reportedUrl(item) ?? reportedUrl(chapter) ?? `${baseUrl}/books/${book.slug}/chapter/${item.slug}` },
       title: chapter.name,
       html: chapter.description_html ?? chapter.description ?? '',
       tags: chapter.tags ?? [],
@@ -210,7 +236,7 @@ async function planBook(
   }
   return {
     kind: 'folder',
-    sourceRef: { type: 'bookstack', id: `book:${book.id}`, url: `${baseUrl}/books/${book.slug}` },
+    sourceRef: { type: 'bookstack', id: `book:${book.id}`, url: reportedUrl(book) ?? `${baseUrl}/books/${book.slug}` },
     title: book.name,
     html: book.description_html ?? book.description ?? '',
     tags: book.tags ?? [],
@@ -276,7 +302,7 @@ async function buildPage(
   const media: ImportMedia[] = [...drawings.media, ...collected.media]
   const { tags, knownF451Id } = mapTags(page.tags ?? [])
   const node: ImportNode = {
-    sourceRef: { type: 'bookstack', id: String(page.id), url: index.url(page.id) ?? `${opts.baseUrl}/link/${page.id}` },
+    sourceRef: { type: 'bookstack', id: String(page.id), url: index.url(page.id) ?? reportedUrl(page) ?? `${opts.baseUrl}/link/${page.id}` },
     title: page.name,
     markdown: normalized.markdown,
     tags,
