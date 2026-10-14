@@ -13,14 +13,18 @@ function stub(body: unknown) {
 describe('BookStackClient write methods', () => {
   it('searchByTag sends an encoded tag query and maps the hits', async () => {
     const { client, fetchImpl } = stub({
-      data: [{ id: 7, type: 'page', name: 'A', slug: 'a', book_id: 1 }],
-      total: 1,
+      data: [
+        { id: 7, type: 'page', name: 'A', slug: 'a', book_id: 1 },
+        { id: 1, type: 'book', name: 'B', slug: 'b' },
+      ],
+      total: 2,
     })
     const hits = await client.searchByTag('f451-id', 'p-a')
     const [url, init] = fetchImpl.mock.calls[0]!
     expect(url).toBe('https://bs.example/api/search?query=%5Bf451-id%3Dp-a%5D&count=100')
     expect(init?.method).toBe('GET')
-    expect(hits).toEqual([{ id: 7, type: 'page', name: 'A' }])
+    // The exporter matches pages and chapters only inside the target book.
+    expect(hits).toEqual([{ id: 7, type: 'page', name: 'A', book_id: 1 }, { id: 1, type: 'book', name: 'B' }])
   })
 
   it('createChapter posts JSON with book_id', async () => {
