@@ -151,6 +151,8 @@ export async function importTree(
     report.skipped.push({ sourceId, title: node.title, pageId, reason })
     onEvent({ kind: 'page', sourceId, title: node.title, status: 'skipped', pageId, reason })
   }
+  // Checked between pages only: a page in progress is always finished.
+  const aborted = () => opts.signal?.aborted === true
 
   // 0. existing pages by source id (GET raw reads main)
   const existing = await findExisting(api, target.space, entries)
@@ -159,6 +161,7 @@ export async function importTree(
   const ids = new Map<string, string>() // sourceId → f451 id
   const created = new Map<string, { baseSha: string }>()
   for (const { node, parent } of entries) {
+    if (aborted()) break
     const sid = node.sourceRef.id
     const tagged = node.knownF451Id && existing.pageIds.has(node.knownF451Id) ? node.knownF451Id : undefined
     const known = tagged ?? existing.bySource.get(sid)
@@ -191,8 +194,35 @@ export async function importTree(
     }
   }
 
+  /** Reports every remaining page as cancelled. A page created in pass one
+   *  but never filled would leave an empty draft behind; its draft is
+   *  discarded so a later run starts clean. */
+  const cancelRest = async (rest: FlatEntry[]): Promise<void> => {
+    for (const { node } of rest) {
+      const sid = node.sourceRef.id
+      if (failedIds.has(sid)) continue
+      const pageId = ids.get(sid)
+      let reason = 'cancelled'
+      if (pageId && created.has(sid)) {
+        try {
+          await api.discardDraft(pageId)
+          reason = 'cancelled before content, draft discarded'
+        } catch (e) {
+          reason = `cancelled before content, discarding the draft failed: ${describe(e)}`
+        }
+      }
+      const ref = pageId && !pageId.startsWith('dry-') ? { pageId } : {}
+      report.cancelled.push({ sourceId: sid, title: node.title, ...ref, reason })
+      onEvent({ kind: 'page', sourceId: sid, title: node.title, status: 'cancelled', ...ref, reason })
+    }
+  }
+
   // 2. pass two: content, media, review
-  for (const { node } of entries) {
+  for (const [index, { node }] of entries.entries()) {
+    if (aborted()) {
+      await cancelRest(entries.slice(index))
+      break
+    }
     const sid = node.sourceRef.id
     const pageId = ids.get(sid)
     if (!pageId || failedIds.has(sid)) continue
@@ -265,7 +295,8 @@ export async function importTree(
   }
 
   // 3. order (the API commits it to main, so only after release)
-  if (opts.release && !opts.dryRun) await applyOrder(tree, ids, failedIds, target, api, report)
+  // After a cancel the order of a partial tree would be wrong; leave it.
+  if (opts.release && !opts.dryRun && !aborted()) await applyOrder(tree, ids, failedIds, target, api, report)
   onEvent({ kind: 'done' })
   return report
 }

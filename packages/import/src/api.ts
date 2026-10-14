@@ -10,16 +10,26 @@ export interface TreeNode { id: string; title: string; path: string; archived: b
 type CallInit = RequestInit & { expectText?: boolean }
 
 const RETRY = 3
+/** Upper bound for a server-requested `Retry-After`, in seconds. */
+const MAX_RETRY_AFTER = 60
+
+/** `Retry-After` as whole seconds (the API sends delta-seconds), or null. */
+function retryAfterSeconds(res: Response): number | null {
+  const v = res.headers.get('retry-after')?.trim()
+  return v && /^\d+$/.test(v) ? Number(v) : null
+}
 
 export class F451Api {
   private readonly retryDelayMs: number
+  private readonly sleep: (ms: number) => Promise<void>
   constructor(
     private readonly baseUrl: string,
     private readonly token: string,
     private readonly fetchImpl: typeof fetch = fetch,
-    opts: { retryDelayMs?: number } = {},
+    opts: { retryDelayMs?: number; sleep?: (ms: number) => Promise<void> } = {},
   ) {
     this.retryDelayMs = opts.retryDelayMs ?? 500
+    this.sleep = opts.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)))
   }
 
   private async call(path: string, init: CallInit = {}): Promise<{ status: number; body: unknown }> {
@@ -34,7 +44,11 @@ export class F451Api {
       if (!expectText) { try { body = JSON.parse(text) } catch { /* keep text */ } }
       last = { status: res.status, body }
       if (res.status === 429 || res.status >= 500) {
-        if (attempt < RETRY - 1) await new Promise((r) => setTimeout(r, this.retryDelayMs * 2 ** attempt))
+        if (attempt < RETRY - 1) {
+          // On 429 the rate limiter says how long to wait; honour it instead of the short backoff.
+          const after = res.status === 429 ? retryAfterSeconds(res) : null
+          await this.sleep(after !== null ? Math.min(after, MAX_RETRY_AFTER) * 1000 : this.retryDelayMs * 2 ** attempt)
+        }
         continue
       }
       return last

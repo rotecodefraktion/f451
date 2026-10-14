@@ -86,7 +86,9 @@ function fakeBookStack() {
     uploadImage: vi.fn<ExportBookStack['uploadImage']>(),
     uploadAttachment: vi.fn<ExportBookStack['uploadAttachment']>(),
     getAttachmentsForPage: vi.fn<ExportBookStack['getAttachmentsForPage']>(async () => ({ data: [], total: 0 })),
-    deletePage: vi.fn(),
+    deletePage: vi.fn<ExportBookStack['deletePage']>(async (id) => {
+      store.splice(store.indexOf(get(id, 'page')), 1)
+    }),
   }
   return { bs: bs satisfies ExportBookStack, store, add }
 }
@@ -222,5 +224,86 @@ describe('exportToBookStack', () => {
 
     expect(report.stale).toEqual([{ bsId: gone.id, name: 'Gone' }])
     expect(bs.deletePage).not.toHaveBeenCalled()
+  })
+
+  describe('cancel', () => {
+    it('writes nothing to BookStack when already aborted and reports every page as cancelled', async () => {
+      const { bs } = fakeBookStack()
+      const ac = new AbortController()
+      ac.abort()
+      const events: string[] = []
+
+      const report = await exportToBookStack(fakeF451().f451, bs, { ...opts, signal: ac.signal }, (e) => {
+        if (e.kind === 'page') events.push(`${e.pageId}:${e.status}`)
+      })
+
+      expect(bs.createBook).not.toHaveBeenCalled()
+      expect(bs.searchByTag).not.toHaveBeenCalled()
+      expect(bs.createPage).not.toHaveBeenCalled()
+      expect(report.cancelled).toEqual([
+        { pageId: 'p-root', name: 'Space', reason: 'cancelled' },
+        { pageId: 'p-ch', name: 'Ch', reason: 'cancelled' },
+        { pageId: 'p-x', name: 'X', reason: 'cancelled' },
+      ])
+      expect(events).toEqual(['p-root:cancelled', 'p-ch:cancelled', 'p-x:cancelled'])
+    })
+
+    it('cancel in pass two deletes new placeholder pages and keeps existing ones', async () => {
+      const { bs, store, add } = fakeBookStack()
+      // `Ch` already exists in BookStack (tag hit); `Space` and `X` are new.
+      const existing = add({
+        type: 'page',
+        name: 'Ch',
+        book_id: 0,
+        chapter_id: 0,
+        priority: 0,
+        html: '<p>old</p>',
+        tags: [
+          { name: 'f451-id', value: 'p-ch' },
+          { name: 'f451-space', value: 'docs' },
+        ],
+      })
+      const ac = new AbortController()
+      const updateImpl = bs.updatePage.getMockImplementation()!
+      // Pass one sets name and place only; pass two is the first call with HTML.
+      bs.updatePage.mockImplementation(async (id, p) => {
+        const r = await updateImpl(id, p)
+        if (p.html !== undefined) ac.abort()
+        return r
+      })
+
+      const report = await exportToBookStack(fakeF451().f451, bs, { ...opts, signal: ac.signal }, () => {})
+
+      expect(bs.deletePage).toHaveBeenCalledTimes(1)
+      expect(store.find((e) => e.type === 'page' && tag(e, 'f451-id') === 'p-x')).toBeUndefined()
+      expect(report.created.map((r) => r.pageId)).toEqual(['p-root'])
+      expect(report.updated).toEqual([])
+      expect(report.cancelled).toEqual([
+        { pageId: 'p-ch', name: 'Ch', reason: 'cancelled, content unchanged' },
+        { pageId: 'p-x', name: 'X', reason: 'cancelled, placeholder page deleted' },
+      ])
+      expect(store.find((e) => e.id === existing.id)?.html).toBe('<p>old</p>')
+      expect(report.stale).toEqual([])
+      expect(bs.searchByTag).not.toHaveBeenCalledWith('f451-space', 'docs')
+    })
+
+    it('reports a placeholder that could not be deleted', async () => {
+      const { bs } = fakeBookStack()
+      const ac = new AbortController()
+      const updateImpl = bs.updatePage.getMockImplementation()!
+      bs.updatePage.mockImplementation(async (id, p) => {
+        const r = await updateImpl(id, p)
+        if (p.html !== undefined) ac.abort()
+        return r
+      })
+      bs.deletePage.mockRejectedValue(new Error('403 forbidden'))
+
+      const report = await exportToBookStack(fakeF451().f451, bs, { ...opts, signal: ac.signal }, () => {})
+
+      expect(report.cancelled.map((c) => c.reason)).toEqual([
+        'cancelled, deleting the placeholder failed: 403 forbidden',
+        'cancelled, deleting the placeholder failed: 403 forbidden',
+      ])
+    })
   })
 })
