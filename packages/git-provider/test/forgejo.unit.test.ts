@@ -101,7 +101,9 @@ describe('ForgejoProvider (Fixtures)', () => {
       }))
     const page1 = pulls(1, 50)
     const page2 = pulls(51, 3)
-    for (const [page, body] of [[1, page1], [2, page2]] as const) {
+    // A short page does not end the loop (an instance may cap the page size);
+    // the empty page 3 does.
+    for (const [page, body] of [[1, page1], [2, page2], [3, []]] as const) {
       api()
         .intercept({ path: `/api/v1/repos/acme/docs/pulls?state=open&limit=50&page=${page}`, method: 'GET' })
         .reply(200, body)
