@@ -34,6 +34,29 @@ describe('F451Api', () => {
     expect(calls).toHaveLength(3)
   })
 
+  it('does not retry a 5xx on POST', async () => {
+    const { fetchImpl, calls } = stub([{ status: 502 }, { status: 201, body: { id: 'p-1' } }])
+    const api = new F451Api('http://x', 't', fetchImpl, { retryDelayMs: 0 })
+    const err = await api.createPage({ space: 's', title: 'A' }).catch((e) => e)
+    expect(err).toBeInstanceOf(F451ApiError)
+    expect(err.status).toBe(502)
+    expect(calls).toHaveLength(1)
+  })
+
+  it('retries a 5xx on GET and then succeeds', async () => {
+    const { fetchImpl, calls } = stub([{ status: 502 }, { status: 200, body: [] }])
+    const api = new F451Api('http://x', 't', fetchImpl, { retryDelayMs: 0 })
+    expect(await api.tree('s')).toEqual([])
+    expect(calls).toHaveLength(2)
+  })
+
+  it('retries a 429 on POST', async () => {
+    const { fetchImpl, calls } = stub([{ status: 429 }, { status: 201, body: { id: 'p-1', path: 'a/index.md', baseSha: 's', content: '' } }])
+    const api = new F451Api('http://x', 't', fetchImpl, { retryDelayMs: 0 })
+    expect((await api.createPage({ space: 's', title: 'A' })).id).toBe('p-1')
+    expect(calls).toHaveLength(2)
+  })
+
   it('waits Retry-After on 429 and then succeeds', async () => {
     const waits: number[] = []
     const fetchImpl = vi

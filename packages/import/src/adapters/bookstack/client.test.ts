@@ -59,6 +59,31 @@ describe('BookStackClient write methods', () => {
     expect((init?.headers as Record<string, string>)['Content-Type']).toBeUndefined()
   })
 
+  it('does not retry a POST whose fetch fails', async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new TypeError('fetch failed')
+    })
+    const client = new BookStackClient('https://bs.example/', 'id', 'secret', fetchImpl as unknown as typeof fetch, {
+      sleep: async () => {},
+    })
+    await expect(client.createChapter({ book_id: 5, name: 'Ch' })).rejects.toThrow(TypeError)
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+  })
+
+  it('retries a GET whose fetch fails once', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('fetch failed'))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ id: 3, name: 'Ch' }), { status: 200, headers: { 'Content-Type': 'application/json' } }),
+      )
+    const client = new BookStackClient('https://bs.example/', 'id', 'secret', fetchImpl as unknown as typeof fetch, {
+      sleep: async () => {},
+    })
+    expect(await client.getChapter(3)).toEqual({ id: 3, name: 'Ch' })
+    expect(fetchImpl).toHaveBeenCalledTimes(2)
+  })
+
   it('downloadUrl refuses other hosts and does not follow redirects', async () => {
     const { client, fetchImpl } = stub({})
     await expect(client.downloadUrl('http://10.0.0.5/admin')).rejects.toThrow(/refused/)
