@@ -17,6 +17,8 @@ export interface BookStackLoadOptions {
   baseUrl: string
   drawio: DrawioRenderer | null
   maxBytes: number
+  /** Stops loading between items; see `loadBookStackTree`. */
+  signal?: AbortSignal
 }
 
 interface PageEntry {
@@ -85,7 +87,13 @@ function pageUrl(baseUrl: string, bookSlug: string, slug: string): string {
 }
 
 /** shelf → folder page → books; book → folder page; chapter → folder page;
- *  page → page. The description of a shelf/book/chapter is its body. */
+ *  page → page. The description of a shelf/book/chapter is its body.
+ *
+ *  Cancelling: the selector is always resolved. After that `opts.signal` is
+ *  checked before each book, chapter and page is loaded — never in the middle
+ *  of one. Once it is aborted nothing more is loaded or built: the tree holds
+ *  only the nodes finished so far (a folder being built keeps the children it
+ *  already has), and the caller's `importTree` reports them as cancelled. */
 export async function loadBookStackTree(
   client: BookStackClient,
   selector: BookStackSelector,
@@ -93,13 +101,15 @@ export async function loadBookStackTree(
 ): Promise<ImportTree> {
   const baseUrl = opts.baseUrl.replace(/\/+$/, '')
   const index = new PageIndex(baseUrl)
-  const plans = await planScope(client, selector, baseUrl, index)
+  const aborted = () => opts.signal?.aborted === true
+  const plans = await planScope(client, selector, baseUrl, index, aborted)
 
   const tree: ImportTree = { root: [], droppedHtml: {}, drawingsAsPng: [], failed: [], mediaSkipped: [] }
   const ctx: ConversionContext = { baseUrl, resolveInternalLink: (href) => index.resolve(href) }
   // A page that cannot be loaded or converted is a page error: it is recorded
   // and left out, the rest of the tree is still imported.
   const build = async (plan: Plan): Promise<ImportNode | null> => {
+    if (aborted()) return null
     if (plan.kind === 'folder') return buildFolder(plan, ctx, tree, build)
     try {
       return await buildPage(client, plan, ctx, index, { ...opts, baseUrl }, tree)
@@ -121,6 +131,7 @@ async function planScope(
   selector: BookStackSelector,
   baseUrl: string,
   index: PageIndex,
+  aborted: () => boolean,
 ): Promise<Plan[]> {
   if (selector.page !== undefined) {
     if (!/^\d+$/.test(selector.page)) throw new Error(`page not found: ${selector.page} (expected a numeric id)`)
@@ -134,7 +145,7 @@ async function planScope(
   if (selector.book !== undefined) {
     const id = await resolveId(client, 'books', selector.book, 'book')
     const book = await notFoundAs(`book not found: ${selector.book}`, () => client.getBookContents(id))
-    return [await planBook(client, book, 0, baseUrl, index)]
+    return [await planBook(client, book, 0, baseUrl, index, aborted)]
   }
 
   if (selector.shelf !== undefined) {
@@ -142,8 +153,9 @@ async function planScope(
     const shelf = await notFoundAs(`shelf not found: ${selector.shelf}`, () => client.getShelf(id))
     const children: Plan[] = []
     for (const [i, b] of (shelf.books ?? []).entries()) {
+      if (aborted()) break
       const book = await client.getBookContents(b.id)
-      children.push(await planBook(client, book, i, baseUrl, index))
+      children.push(await planBook(client, book, i, baseUrl, index, aborted))
     }
     return [
       {
@@ -167,9 +179,11 @@ async function planBook(
   order: number,
   baseUrl: string,
   index: PageIndex,
+  aborted: () => boolean,
 ): Promise<Plan> {
   const children: Plan[] = []
   for (const item of book.contents ?? []) {
+    if (aborted()) break
     if (item.type === 'page') {
       if (item.draft) continue
       index.add(item.id, item.slug, book.slug)

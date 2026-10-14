@@ -171,10 +171,14 @@ export function importRun(deps: RunDeps, p: ImportParams): JobRun {
     return withJobToken(deps.db, p.userId, 'write', jobId, async (token) => {
       const f451 = new F451Api('http://internal', token, deps.selfFetch)
       const bs = deps.bookstack(p.instance, p.tokenId, p.tokenSecret)
+      progress.phase('reading')
+      // Cancelling while reading stops the load; importTree then reports the
+      // partial tree as cancelled (#142).
       const tree = await loadBookStackTree(bs, p.source, {
         baseUrl: p.instance,
         drawio: null,
         maxBytes: MAX_MEDIA_BYTES,
+        signal,
       })
       const report = await importTree(
         tree,

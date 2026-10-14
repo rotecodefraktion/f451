@@ -36,6 +36,10 @@ export class F451Api {
     const { expectText, ...fetchInit } = init
     const headers: Record<string, string> = { authorization: `Bearer ${this.token}`, ...(init.headers as Record<string, string> | undefined) }
     if (init.body && !(init.body instanceof FormData)) headers['content-type'] = 'application/json'
+    // A 5xx on a write may have been applied before the error; repeating it could
+    // create duplicates. Only reads retry 5xx. A 429 was rejected before any work, so it retries for all.
+    const method = (fetchInit.method ?? 'GET').toUpperCase()
+    const retry5xx = method === 'GET' || method === 'HEAD'
     let last: { status: number; body: unknown } = { status: 0, body: null }
     for (let attempt = 0; attempt < RETRY; attempt++) {
       const res = await this.fetchImpl(`${this.baseUrl}${path}`, { ...fetchInit, headers })
@@ -43,7 +47,7 @@ export class F451Api {
       let body: unknown = text
       if (!expectText) { try { body = JSON.parse(text) } catch { /* keep text */ } }
       last = { status: res.status, body }
-      if (res.status === 429 || res.status >= 500) {
+      if (res.status === 429 || (res.status >= 500 && retry5xx)) {
         if (attempt < RETRY - 1) {
           // On 429 the rate limiter says how long to wait; honour it instead of the short backoff.
           const after = res.status === 429 ? retryAfterSeconds(res) : null

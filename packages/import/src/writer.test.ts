@@ -161,6 +161,68 @@ describe('importTree', () => {
       expect(api.discardDraft).not.toHaveBeenCalled()
       expect(report.updated.map((r) => r.sourceId)).toEqual(['1'])
     })
+
+    it('reuses an unchanged file stored under a collision suffix', async () => {
+      const api = setup()
+      const stored = published.replace('x.png', 'foo-1.png')
+      api.raw.mockResolvedValue(stored)
+      api.openDraft.mockResolvedValue({ baseSha: 'sha-a', content: stored })
+      api.media.mockImplementation(async (_id, name) => (name === 'foo-1.png' ? new Uint8Array([1, 2, 3]) : null))
+      const foo = [{ name: 'foo.png', bytes: new Uint8Array([1, 2, 3]), mime: 'image/png', kind: 'image' as const, ref: '_media/foo.png' }]
+
+      const report = await importTree(
+        tree([node('1', 'A', { markdown: '# A\n\n![x](_media/foo.png)\n', media: foo })]),
+        TARGET, api, { ...OPTS, update: true }, () => {},
+      )
+
+      expect(api.media).toHaveBeenCalledWith('p-a', 'foo-1.png', 'draft')
+      expect(api.uploadMedia).not.toHaveBeenCalled()
+      expect(api.putDraft).not.toHaveBeenCalled()
+      expect(report.skipped).toEqual([expect.objectContaining({ sourceId: '1', reason: 'unchanged' })])
+    })
+  })
+
+  it('skips an attachment the API refuses and keeps its source URL', async () => {
+    const api = fakeApi()
+    api.uploadMedia.mockImplementation(async (_id, name) => {
+      if (name === 'doc.pdf') throw new F451ApiError('refused', 415, { error: 'type not allowed' })
+      return { path: `_media/${name}`, markdown: '', kind: 'image' }
+    })
+    const events: ImportEvent[] = []
+    const page = node('1', 'X', {
+      markdown: '![a](_media/a.png)\n\n## Attachments\n\n- [Doc](_media/doc.pdf)\n',
+      media: [
+        { name: 'a.png', bytes: new Uint8Array(4), mime: 'image/png', kind: 'image', ref: '_media/a.png', sourceUrl: 'https://b/uploads/a.png' },
+        { name: 'doc.pdf', bytes: new Uint8Array(4), mime: 'application/pdf', kind: 'file', ref: '_media/doc.pdf', sourceUrl: 'https://b/attachments/7' },
+      ],
+    })
+
+    const report = await importTree(tree([page]), TARGET, api, OPTS, (e) => events.push(e))
+
+    expect(report.created.map((r) => r.sourceId)).toEqual(['1'])
+    expect(report.failed).toEqual([])
+    expect(report.mediaSkipped).toEqual([{ sourceId: '1', name: 'doc.pdf', reason: expect.stringContaining('415') }])
+    expect(events).toContainEqual(expect.objectContaining({ kind: 'media', name: 'doc.pdf', status: 'skipped' }))
+    const content = putFor(api, 'p-x')
+    expect(content).toContain('- [Doc](https://b/attachments/7)')
+    expect(content).toContain('![a](_media/a.png)')
+    expect(content).not.toContain('_media/doc.pdf')
+  })
+
+  it('fails the page and discards its draft on another upload error', async () => {
+    const api = fakeApi()
+    api.uploadMedia.mockRejectedValue(new F451ApiError('boom', 500, { error: 'internal' }))
+    const page = node('1', 'X', {
+      markdown: '![a](_media/a.png)',
+      media: [{ name: 'a.png', bytes: new Uint8Array(4), mime: 'image/png', kind: 'image', ref: '_media/a.png' }],
+    })
+
+    const report = await importTree(tree([page]), TARGET, api, OPTS, () => {})
+
+    expect(report.created).toEqual([])
+    expect(report.failed).toEqual([expect.objectContaining({ sourceId: '1', pageId: 'p-x', reason: expect.stringContaining('500') })])
+    expect(api.discardDraft).toHaveBeenCalledWith('p-x')
+    expect(api.putDraft).not.toHaveBeenCalled()
   })
 
   it('treats a 409 whose draft has the same origin as imported with an open review', async () => {
@@ -353,6 +415,7 @@ describe('importTree', () => {
       const report = await importTree(tree3(), TARGET, api, { ...OPTS, signal: ac.signal }, (e) => events.push(e))
 
       expect(api.createPage).not.toHaveBeenCalled()
+      expect(api.tree).not.toHaveBeenCalled()
       expect(api.discardDraft).not.toHaveBeenCalled()
       expect(report.cancelled.map((r) => r.title)).toEqual(['A', 'B', 'C'])
       expect(report.cancelled.every((r) => r.reason === 'cancelled' && r.pageId === undefined)).toBe(true)

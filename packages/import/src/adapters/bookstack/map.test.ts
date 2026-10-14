@@ -246,6 +246,26 @@ describe('loadBookStackTree', () => {
     TIMEOUT,
   )
 
+  it('loads nothing past the selector when the signal is already aborted', async () => {
+    const fetched: string[] = []
+    const recording = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url)
+      fetched.push(url.pathname)
+      return fetchImpl(input, init)
+    }) as typeof fetch
+    const controller = new AbortController()
+    controller.abort()
+    const tree = await loadBookStackTree(new BookStackClient(BASE, 'id', 'secret', recording), { book: '7' }, {
+      baseUrl: BASE,
+      drawio: null,
+      maxBytes: MAX_BYTES,
+      signal: controller.signal,
+    })
+    expect(fetched).toEqual(['/api/books/7'])
+    expect(tree.root).toEqual([])
+    expect(tree.failed).toEqual([])
+  })
+
   it('rejects an unknown book', async () => {
     await expect(
       loadBookStackTree(client(), { book: '99' }, { baseUrl: BASE, drawio: null, maxBytes: MAX_BYTES }),

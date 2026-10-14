@@ -29,14 +29,17 @@ interface RequestOptions {
 export class BookStackClient {
   private requestTimestamps: number[] = []
   private readonly baseUrl: string
+  private readonly sleepImpl: (ms: number) => Promise<void>
 
   constructor(
     baseUrl: string,
     private readonly tokenId: string,
     private readonly tokenSecret: string,
     private readonly fetchImpl: typeof fetch = fetch,
+    opts: { sleep?: (ms: number) => Promise<void> } = {},
   ) {
     this.baseUrl = baseUrl.replace(/\/+$/, '')
+    this.sleepImpl = opts.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)))
   }
 
   private async rateLimit(): Promise<void> {
@@ -54,7 +57,7 @@ export class BookStackClient {
   }
 
   private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms))
+    return this.sleepImpl(ms)
   }
 
   private authHeader(): string {
@@ -73,6 +76,9 @@ export class BookStackClient {
       payload = JSON.stringify(body)
     }
 
+    // A network error or timeout on a write may hit after BookStack applied it;
+    // repeating it could create duplicates. Only reads retry those.
+    const retryNetworkErrors = method.toUpperCase() === 'GET'
     let lastError: Error | undefined
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -116,6 +122,7 @@ export class BookStackClient {
         return (await res.json()) as T
       } catch (error) {
         if (error instanceof BookStackApiError) throw error
+        if (!retryNetworkErrors) throw error
         lastError = error instanceof Error ? error : new Error(String(error))
         if (attempt < MAX_RETRIES) {
           await this.sleep(BASE_RETRY_DELAY * Math.pow(2, attempt))
