@@ -75,12 +75,25 @@ function destinationUrl(dest: string): string {
   return d.replace(/\s+"[^"]*"$/, '').replace(/\s+'[^']*'$/, '')
 }
 
-function absoluteUrl(src: string, baseUrl: string): string {
-  return new URL(src, `${baseUrl}/`).href
-}
+const MEDIA_PATH = /^\/(uploads|api|attachments)\//
 
-function isBookStackMedia(src: string, baseUrl: string): boolean {
-  return src.startsWith('/uploads/') || src.startsWith(`${baseUrl}/uploads/`) || src.startsWith('/api/')
+/** The URL to fetch a BookStack media reference from, or null when `src` is
+ *  not BookStack media. BookStack writes absolute URLs from its own APP_URL,
+ *  which may name another host than the one f451 reaches it under (container
+ *  network, proxy), so any host with a media path is fetched from `baseUrl`. */
+export function bookStackMediaUrl(src: string, baseUrl: string): string | null {
+  let url: URL
+  try {
+    url = new URL(src, `${baseUrl}/`)
+  } catch {
+    return null
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return null
+  // BookStack under a path prefix (`https://ex.org/wiki`) writes it into its URLs.
+  const prefix = new URL(`${baseUrl}/`).pathname.replace(/\/+$/, '')
+  const path = prefix && url.pathname.startsWith(`${prefix}/`) ? url.pathname.slice(prefix.length) : url.pathname
+  if (!MEDIA_PATH.test(path)) return null
+  return `${baseUrl}${path}${url.search}`
 }
 
 /** Downloads the images and attachments of a page. Image refs are rewritten
@@ -102,8 +115,8 @@ export async function collectMedia(
   const targets = new Map<string, string>()
   for (const match of markdown.matchAll(IMAGE)) {
     const src = destinationUrl(match[2] ?? '')
-    if (!isBookStackMedia(src, baseUrl) || targets.has(src)) continue
-    const absolute = absoluteUrl(src, baseUrl)
+    const absolute = bookStackMediaUrl(src, baseUrl)
+    if (absolute === null || targets.has(src)) continue
     const original = slugifyFileName(baseName(src))
     try {
       const bytes = await client.downloadUrl(absolute)

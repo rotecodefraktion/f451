@@ -176,6 +176,52 @@ describe('loadBookStackTree', () => {
     TIMEOUT,
   )
 
+  it(
+    'downloads media whose absolute URL names another host for the same BookStack',
+    async () => {
+      // BookStack writes absolute URLs from its own APP_URL; f451 may reach it
+      // under another address (container network, proxy). Fetch via BASE.
+      const fetched: string[] = []
+      const publicHost = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url)
+        fetched.push(url.origin)
+        const file = JSON_ROUTES[url.pathname]
+        if (file === 'page-12.json' || file === 'page-13.json') {
+          const body = fixture(file).replaceAll('src=\\"/uploads/', 'src=\\"http://public.example/uploads/')
+          return new Response(body, { status: 200, headers: { 'Content-Type': 'application/json' } })
+        }
+        return fetchImpl(input, init)
+      }) as typeof fetch
+      const tree = await loadBookStackTree(new BookStackClient(BASE, 'id', 'secret', publicHost), { book: '7' }, {
+        baseUrl: BASE,
+        drawio: null,
+        maxBytes: MAX_BYTES,
+      })
+      expect(find(tree.root, '12').markdown).toContain('![x](_media/a-b.png)')
+      expect(find(tree.root, '13').markdown).toContain('_media/d.png')
+      expect(fetched).not.toContain('http://public.example')
+    },
+    TIMEOUT,
+  )
+
+  it(
+    'reports a drawing that cannot be downloaded',
+    async () => {
+      const noDrawing = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+        if (new URL(url).pathname === '/uploads/images/drawio/d.png') return new Response('{}', { status: 404 })
+        return fetchImpl(input, init)
+      }) as typeof fetch
+      const tree = await loadBookStackTree(new BookStackClient(BASE, 'id', 'secret', noDrawing), { book: '7' }, {
+        baseUrl: BASE,
+        drawio: null,
+        maxBytes: MAX_BYTES,
+      })
+      expect(tree.mediaSkipped).toContainEqual(expect.objectContaining({ sourceId: '13', name: 'd.png' }))
+    },
+    TIMEOUT,
+  )
+
   it('rejects an unknown book', async () => {
     await expect(
       loadBookStackTree(client(), { book: '99' }, { baseUrl: BASE, drawio: null, maxBytes: MAX_BYTES }),
