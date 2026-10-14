@@ -31,6 +31,9 @@ export type ExportEvent =
       bsId?: number
       reason?: string
     }
+  /** Marks the start of a stretch without page events: `reading` (f451 pages),
+   *  `placing` (book, chapters, pass one), `writing` (content, page events follow). */
+  | { kind: 'phase'; phase: string }
   | { kind: 'done' }
 
 export type ExportF451 = Pick<F451Api, 'tree' | 'raw' | 'media'>
@@ -117,12 +120,16 @@ function tagsFor(f451Id: string, space: string): BookStackTag[] {
   ]
 }
 
+/** The entity tagged with `f451Id`. Chapters and pages are only matched inside
+ *  `bookId`: an export never touches (or moves) a copy in another book. */
 async function findByTag(
   bs: ExportBookStack,
   f451Id: string,
   type: 'book' | 'chapter' | 'page',
+  bookId?: number,
 ): Promise<{ id: number; name: string } | null> {
-  return (await bs.searchByTag(ID_TAG, f451Id)).find((h) => h.type === type) ?? null
+  const hits = await bs.searchByTag(ID_TAG, f451Id)
+  return hits.find((h) => h.type === type && (bookId === undefined || h.book_id === bookId)) ?? null
 }
 
 async function resolveBook(
@@ -199,6 +206,7 @@ export async function exportToBookStack(
   }
 
   // Load every page's Markdown once; the final name depends on it.
+  onEvent({ kind: 'phase', phase: 'reading' })
   const loaded: LoadedPage[] = []
   for (const e of entries) {
     if (aborted()) break
@@ -223,6 +231,7 @@ export async function exportToBookStack(
   // Dry run: render only, no BookStack request at all; links fall back to f451 URLs.
   if (opts.dryRun) {
     report.dryRunPages = []
+    onEvent({ kind: 'phase', phase: 'writing' })
     for (const p of loaded) {
       if (aborted()) break
       try {
@@ -247,6 +256,7 @@ export async function exportToBookStack(
   }
 
   // 2. Target book.
+  onEvent({ kind: 'phase', phase: 'placing' })
   const target = await resolveBook(bs, book.name, book.rootPageId ?? `space:${opts.space}`, opts)
   const base = opts.bookstackUrl.replace(/\/+$/, '')
 
@@ -254,7 +264,7 @@ export async function exportToBookStack(
   const chapterIds = new Map<string, number>()
   for (const c of book.chapters) {
     if (aborted()) break
-    const hit = await findByTag(bs, c.pageId, 'chapter')
+    const hit = await findByTag(bs, c.pageId, 'chapter', target.id)
     if (hit) {
       await bs.updateChapter(hit.id, { name: c.name, priority: c.priority })
       chapterIds.set(c.pageId, hit.id)
@@ -279,7 +289,7 @@ export async function exportToBookStack(
     try {
       const location =
         p.chapterPageId !== null ? { chapter_id: chapterIds.get(p.chapterPageId)! } : { book_id: target.id }
-      const hit = await findByTag(bs, p.page.pageId, 'page')
+      const hit = await findByTag(bs, p.page.pageId, 'page', target.id)
       const bsPage = hit
         ? await bs.updatePage(hit.id, { name: p.name, priority: p.page.priority, ...location })
         : await bs.createPage({
@@ -298,6 +308,7 @@ export async function exportToBookStack(
   }
 
   // 5. Pass two: media, HTML, content.
+  onEvent({ kind: 'phase', phase: 'writing' })
   for (const [index, p] of placed.entries()) {
     if (aborted()) {
       // A page created in pass one still holds the placeholder; delete it so

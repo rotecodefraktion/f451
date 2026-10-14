@@ -36,7 +36,8 @@ function fakeBookStack() {
     searchByTag: vi.fn<ExportBookStack['searchByTag']>(async (name, value) =>
       store
         .filter((e) => e.tags.some((t) => t.name === name && t.value === value))
-        .map((e) => ({ id: e.id, type: e.type, name: e.name })),
+        // Like BookStack's search: chapters and pages carry their book.
+        .map((e) => ({ id: e.id, type: e.type, name: e.name, ...(e.type === 'book' ? {} : { book_id: e.book_id }) })),
     ),
     getBookContents: vi.fn<ExportBookStack['getBookContents']>(async (id) => asAny(get(id, 'book'))),
     createBook: vi.fn<ExportBookStack['createBook']>(async (p) =>
@@ -170,6 +171,21 @@ describe('exportToBookStack', () => {
     expect(store.filter((e) => e.type === 'page')).toHaveLength(3)
   })
 
+  it('leaves pages of the same f451 page in other books alone', async () => {
+    const { bs, store } = fakeBookStack()
+    // An earlier export of this page into another book.
+    const other = await bs.createBook({ name: 'Other', tags: [] })
+    const old = await bs.createPage({ book_id: other.id, name: 'X old', html: '<p>old</p>', tags: [{ name: 'f451-id', value: 'p-x' }] })
+    vi.clearAllMocks()
+
+    await exportToBookStack(fakeF451().f451, bs, opts, () => {})
+
+    expect(bs.updatePage).not.toHaveBeenCalledWith(old.id, expect.anything())
+    const copies = store.filter((e) => e.type === 'page' && tag(e, 'f451-id') === 'p-x')
+    expect(copies).toHaveLength(2)
+    expect(store.find((e) => e.id === old.id)).toMatchObject({ book_id: other.id, name: 'X old', html: '<p>old</p>' })
+  })
+
   it('reports a page whose raw fails with 404 and exports the rest', async () => {
     const { bs } = fakeBookStack()
     const { f451, missing } = fakeF451()
@@ -177,8 +193,13 @@ describe('exportToBookStack', () => {
     const events: string[] = []
     const report = await exportToBookStack(f451, bs, opts, (e) => {
       if (e.kind === 'page') events.push(`${e.pageId}:${e.status}`)
+      if (e.kind === 'phase') events.push(`phase:${e.phase}`)
     })
 
+    // The read failure is reported during `reading`; content events follow `writing`.
+    expect(events).toEqual([
+      'phase:reading', 'p-x:failed', 'phase:placing', 'phase:writing', 'p-root:created', 'p-ch:created',
+    ])
     expect(report.failed.map((f) => f.pageId)).toEqual(['p-x'])
     expect(report.failed[0]!.reason).toContain('404')
     expect(report.created.map((p) => p.pageId)).toEqual(['p-root', 'p-ch'])
@@ -250,11 +271,23 @@ describe('exportToBookStack', () => {
 
     it('cancel in pass two deletes new placeholder pages and keeps existing ones', async () => {
       const { bs, store, add } = fakeBookStack()
-      // `Ch` already exists in BookStack (tag hit); `Space` and `X` are new.
+      // `Ch` already exists in the target book (tag hit); `Space` and `X` are new.
+      const book = add({
+        type: 'book',
+        name: 'Space',
+        book_id: 0,
+        chapter_id: 0,
+        priority: 0,
+        html: '',
+        tags: [
+          { name: 'f451-id', value: 'p-root' },
+          { name: 'f451-space', value: 'docs' },
+        ],
+      })
       const existing = add({
         type: 'page',
         name: 'Ch',
-        book_id: 0,
+        book_id: book.id,
         chapter_id: 0,
         priority: 0,
         html: '<p>old</p>',
