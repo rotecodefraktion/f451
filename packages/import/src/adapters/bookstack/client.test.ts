@@ -21,10 +21,31 @@ describe('BookStackClient write methods', () => {
     })
     const hits = await client.searchByTag('f451-id', 'p-a')
     const [url, init] = fetchImpl.mock.calls[0]!
-    expect(url).toBe('https://bs.example/api/search?query=%5Bf451-id%3Dp-a%5D&count=100')
+    expect(url).toBe('https://bs.example/api/search?query=%5Bf451-id%3Dp-a%5D&page=1&count=100')
     expect(init?.method).toBe('GET')
+    // A short first page ends the paging.
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
     // The exporter matches pages and chapters only inside the target book.
     expect(hits).toEqual([{ id: 7, type: 'page', name: 'A', book_id: 1 }, { id: 1, type: 'book', name: 'B' }])
+  })
+
+  it('searchByTag pages through results beyond 100 hits', async () => {
+    const page1 = Array.from({ length: 100 }, (_, i) => ({ id: i + 1, type: 'page', name: `P${i + 1}`, book_id: 1 }))
+    const page2 = [
+      { id: 101, type: 'page', name: 'P101', book_id: 1 },
+      { id: 102, type: 'chapter', name: 'C102', book_id: 1 },
+    ]
+    const bodies = [{ data: page1, total: 102 }, { data: page2, total: 102 }]
+    const fetchImpl = vi.fn(
+      async (_url: string | URL | Request, _init?: RequestInit) =>
+        new Response(JSON.stringify(bodies.shift()), { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    )
+    const client = new BookStackClient('https://bs.example/', 'id', 'secret', fetchImpl as unknown as typeof fetch)
+    const hits = await client.searchByTag('f451-id', 'p-a')
+    expect(fetchImpl).toHaveBeenCalledTimes(2)
+    expect(fetchImpl.mock.calls[1]![0]).toBe('https://bs.example/api/search?query=%5Bf451-id%3Dp-a%5D&page=2&count=100')
+    expect(hits).toHaveLength(102)
+    expect(hits[101]).toEqual({ id: 102, type: 'chapter', name: 'C102', book_id: 1 })
   })
 
   it('createChapter posts JSON with book_id', async () => {

@@ -248,12 +248,25 @@ export class BookStackClient {
     return this.request<BookStackChapter>(`chapters/${id}`, { method: 'PUT', body: data })
   }
 
-  /** Find books, chapters and pages carrying the tag `name=value`. */
+  /**
+   * Find books, chapters and pages carrying the tag `name=value`. Pages through the
+   * search API until a page comes back short (safety cap: 50 pages of 100).
+   */
   async searchByTag(name: string, value: string): Promise<BookStackSearchHit[]> {
-    const r = await this.request<BookStackListResponse<BookStackSearchHit>>(
-      `search?query=${encodeURIComponent(`[${name}=${value}]`)}&count=100`,
-    )
-    return r.data.map((h) => ({ id: h.id, type: h.type, name: h.name, ...(h.book_id != null ? { book_id: h.book_id } : {}) }))
+    const pageSize = 100
+    const maxPages = 50
+    const query = encodeURIComponent(`[${name}=${value}]`)
+    const hits: BookStackSearchHit[] = []
+    for (let page = 1; page <= maxPages; page++) {
+      const r = await this.request<BookStackListResponse<BookStackSearchHit>>(
+        `search?query=${query}&page=${page}&count=${pageSize}`,
+      )
+      for (const h of r.data) {
+        hits.push({ id: h.id, type: h.type, name: h.name, ...(h.book_id != null ? { book_id: h.book_id } : {}) })
+      }
+      if (r.data.length < pageSize) break
+    }
+    return hits
   }
 
   /** Gallery images whose name starts with `name`. */

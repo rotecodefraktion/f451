@@ -1,7 +1,7 @@
 import { editorExtensions } from '@f451/editor'
 import type { Node as TiptapNode } from '@tiptap/core'
 import type { Node as PmNode } from '@tiptap/pm/model'
-import { loadMermaid, mermaidTheme, renderAll } from '../mermaid.js'
+import { loadMermaid, mermaidTheme, renderAll, type MermaidResult } from '../mermaid.js'
 import type { T } from '../i18n/types.js'
 
 // Live mermaid preview in the WYSIWYG editor (f451#104). The code block stays
@@ -75,11 +75,28 @@ export function mermaidCodeBlock(t: T) {
 
         const render = (source: string) => {
           const id = `mermaid-ed-${++renderCounter}`
+          // `renderedSource` is claimed up front (no duplicate render while this one
+          // is queued) and released when loading or rendering fails, so the next
+          // scheduled render retries the same source (e.g. the mermaid import
+          // failed while offline).
+          const release = () => {
+            if (renderedSource === source) renderedSource = null
+          }
           const job = renderQueue.then(async () => {
             if (destroyed) return
-            const renderer = await loadMermaid(currentTheme())
-            const [result] = await renderAll([source], renderer, id)
-            if (destroyed || !result) return
+            let result: MermaidResult | undefined
+            try {
+              const renderer = await loadMermaid(currentTheme())
+              result = (await renderAll([source], renderer, id))[0]
+            } catch (err) {
+              release()
+              throw err
+            }
+            if (destroyed) return
+            if (!result) {
+              release()
+              return
+            }
             if ('svg' in result) {
               preview.classList.remove('is-error')
               preview.innerHTML = result.svg

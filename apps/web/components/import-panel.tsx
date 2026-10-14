@@ -16,6 +16,7 @@
 import { useEffect, useId, useState, type FormEvent } from 'react'
 import {
   eventHref,
+  isJobView,
   nextState,
   progressPercent,
   reportFileName,
@@ -166,7 +167,8 @@ export function ImportPanel({ space, instances }: ImportPanelProps) {
       let poll: PollResult
       try {
         const r = await call(apiJobPath(runningJobId))
-        if (r.status === 200) poll = { status: 200, view: r.body as unknown as JobView }
+        // A 200 with a foreign body (proxy HTML, `{}`) counts as transient: keep polling.
+        if (r.status === 200 && isJobView(r.body)) poll = { status: 200, view: r.body }
         else if (r.status === 404) poll = { status: 404 }
         else poll = { status: 'error' }
       } catch (err) {
@@ -282,8 +284,11 @@ export function ImportPanel({ space, instances }: ImportPanelProps) {
     try {
       const r = await call(apiJobCancelPath(jobId), { method: 'POST' })
       let poll: PollResult
-      if (r.status === 200) poll = { status: 200, view: r.body as unknown as JobView }
-      else if (r.status === 404) poll = { status: 404 }
+      if (r.status === 200) {
+        // A foreign 200 body is transient: keep the running state, the poll picks up the outcome.
+        if (!isJobView(r.body)) return
+        poll = { status: 200, view: r.body }
+      } else if (r.status === 404) poll = { status: 404 }
       else {
         setNotice({ tone: 'error', text: t('import.errors.cancelFailed') })
         return

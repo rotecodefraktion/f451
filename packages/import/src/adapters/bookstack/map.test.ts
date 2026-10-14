@@ -205,6 +205,42 @@ describe('loadBookStackTree', () => {
   )
 
   it(
+    'links skipped media under the URL BookStack wrote, not the internal base URL',
+    async () => {
+      const publicHost = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url)
+        if (url.pathname === '/api/pages/12') {
+          const body = fixture('page-12.json').replaceAll('src=\\"/uploads/', 'src=\\"http://public.example/uploads/')
+          return new Response(body, { status: 200, headers: { 'Content-Type': 'application/json' } })
+        }
+        if (url.pathname === '/api/attachments' && url.searchParams.get('filter[uploaded_to]') === '12') {
+          const a = { id: 5, name: 'Doc', extension: 'pdf', uploaded_to: 12, external: false, order: 0, created_at: '', updated_at: '' }
+          return Response.json({ data: [a], total: 1 })
+        }
+        if (url.pathname === '/api/attachments/5') {
+          return Response.json({
+            id: 5, name: 'Doc', extension: 'pdf', uploaded_to: 12, external: false, order: 0, created_at: '', updated_at: '',
+            content: Buffer.from([1, 2, 3, 4]).toString('base64'),
+            links: { html: '<a target="_blank" href="http://public.example/attachments/5">Doc</a>', markdown: '[Doc](http://public.example/attachments/5)' },
+          })
+        }
+        return fetchImpl(input, init)
+      }) as typeof fetch
+      const tree = await loadBookStackTree(new BookStackClient(BASE, 'id', 'secret', publicHost), { book: '7' }, {
+        baseUrl: BASE,
+        drawio: null,
+        maxBytes: 2,
+      })
+      const p12 = find(tree.root, '12')
+      expect(p12.markdown).toContain('http://public.example/uploads/images/gallery/2026/a%20b.png')
+      expect(p12.markdown).toContain('[Doc](http://public.example/attachments/5)')
+      expect(p12.markdown).not.toContain('https://b/uploads/')
+      expect(p12.markdown).not.toContain('https://b/attachments/')
+    },
+    TIMEOUT,
+  )
+
+  it(
     'never fetches a drawing whose source is not BookStack media, and reports it',
     async () => {
       const fetched: string[] = []

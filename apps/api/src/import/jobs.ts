@@ -49,6 +49,8 @@ interface Job {
   report: string | null
   phase: string | null
   controller: AbortController
+  /** Resolves once the run has settled and the record is updated; never rejects. */
+  settled: Promise<void>
 }
 
 export class JobRegistry {
@@ -90,6 +92,7 @@ export class JobRegistry {
       report: null,
       phase: null,
       controller: new AbortController(),
+      settled: Promise.resolve(),
     }
     this.jobs.set(job.id, job)
 
@@ -116,7 +119,8 @@ export class JobRegistry {
       promise = Promise.reject(e)
     }
     // Not awaited: the job runs in the background, its settlement updates the record.
-    promise.then(
+    // Kept so that shutdown() can wait for it.
+    job.settled = promise.then(
       (result) => {
         job.status = signal.aborted ? 'cancelled' : 'done'
         job.report = result.report
@@ -154,6 +158,30 @@ export class JobRegistry {
   abortAll(): void {
     for (const job of this.jobs.values()) {
       if (job.status === 'running') job.controller.abort()
+    }
+  }
+
+  /**
+   * App shutdown: abort every running job and wait until their runs have settled
+   * (so their `finally` blocks, e.g. revoking the job token, still reach the
+   * database), but no longer than `timeoutMs`.
+   */
+  async shutdown(timeoutMs = 5000): Promise<void> {
+    const pending: Promise<void>[] = []
+    for (const job of this.jobs.values()) {
+      if (job.status !== 'running') continue
+      job.controller.abort()
+      pending.push(job.settled)
+    }
+    if (pending.length === 0) return
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const timeout = new Promise<void>((resolve) => {
+      timer = setTimeout(resolve, timeoutMs)
+    })
+    try {
+      await Promise.race([Promise.all(pending).then(() => undefined), timeout])
+    } finally {
+      clearTimeout(timer)
     }
   }
 

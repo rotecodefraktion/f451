@@ -224,6 +224,47 @@ describe('exportToBookStack', () => {
     expect(report.created.map((r) => r.pageId)).toContain('p-x')
   })
 
+  it('fails the pages of a chapter BookStack refuses and exports the other chapters', async () => {
+    const { bs } = fakeBookStack()
+    const { f451 } = fakeF451()
+    // A second chapter `Ch2` with child page `Y`.
+    ;(f451.tree as ReturnType<typeof vi.fn>).mockResolvedValue([
+      node('p-root', 'Space', [], 'index.md'),
+      node('p-ch', 'Ch', [node('p-x', 'X')]),
+      node('p-ch2', 'Ch2', [node('p-y', 'Y')]),
+    ])
+    const raw: Record<string, string> = {
+      'p-root': page('Space'),
+      'p-ch': page('Ch'),
+      'p-x': page('X'),
+      'p-ch2': page('Ch2'),
+      'p-y': page('Y'),
+    }
+    ;(f451.raw as ReturnType<typeof vi.fn>).mockImplementation(async (id: string) => raw[id]!)
+    const createImpl = bs.createChapter.getMockImplementation()!
+    bs.createChapter.mockImplementation(async (p) => {
+      if (p.tags?.some((t) => t.name === 'f451-id' && t.value === 'p-ch')) throw new Error('422 name too long')
+      return createImpl(p)
+    })
+    const events: string[] = []
+
+    const report = await exportToBookStack(f451, bs, opts, (e) => {
+      if (e.kind === 'page') events.push(`${e.pageId}:${e.status}`)
+      if (e.kind === 'done') events.push('done')
+    })
+
+    expect(report.failed.map((f) => f.pageId).sort()).toEqual(['p-ch', 'p-x'])
+    for (const f of report.failed) {
+      expect(f.reason).toContain('422 name too long')
+      expect(f.reason).toContain('"Ch"')
+    }
+    expect(report.created.map((p) => p.pageId).sort()).toEqual(['p-ch2', 'p-root', 'p-y'])
+    expect(bs.createPage).toHaveBeenCalledTimes(3)
+    expect(events).toContain('p-ch:failed')
+    expect(events).toContain('p-x:failed')
+    expect(events.at(-1)).toBe('done')
+  })
+
   it('lists stale BookStack pages of the space and never deletes them', async () => {
     const { bs, store, add } = fakeBookStack()
     await exportToBookStack(fakeF451().f451, bs, opts, () => {})

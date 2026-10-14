@@ -58,6 +58,27 @@ export function nextState(prev: PanelState, poll: PollResult): PanelState {
   return { kind: 'finished', view }
 }
 
+/**
+ * Shape check for a 200 answer of `GET /api/jobs/:id` (and the cancel route).
+ * A proxy can answer 200 with HTML or `{}`; such a body must not reach the
+ * views, which read `events`, `counts`, `total` and `done` unguarded. Checks
+ * only the fields the panel dereferences, not the full {@link JobView}.
+ */
+export function isJobView(x: unknown): x is JobView {
+  if (!x || typeof x !== 'object') return false
+  const v = x as Record<string, unknown>
+  return (
+    typeof v.id === 'string' &&
+    typeof v.status === 'string' &&
+    Array.isArray(v.events) &&
+    typeof v.counts === 'object' &&
+    v.counts !== null &&
+    !Array.isArray(v.counts) &&
+    typeof v.total === 'number' &&
+    typeof v.done === 'number'
+  )
+}
+
 /** `sessionStorage` key holding the running job id of a space. */
 export function storageKey(space: string): string {
   return `f451:import-job:${space}`
