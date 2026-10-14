@@ -366,7 +366,7 @@ describe('GitHubProvider (Fixtures)', () => {
   it('listPullRequests baut head als "owner:branch", base und state als Query-Parameter', async () => {
     api()
       .intercept({
-        path: '/repos/acme/docs/pulls?head=acme%3Adraft%2Fx&base=main&state=open',
+        path: '/repos/acme/docs/pulls?head=acme%3Adraft%2Fx&base=main&state=open&per_page=100&page=1',
         method: 'GET',
       })
       .reply(200, [
@@ -396,17 +396,42 @@ describe('GitHubProvider (Fixtures)', () => {
     ])
   })
 
-  it('listPullRequests ohne Filter ruft /pulls ohne Query-String auf', async () => {
+  it('listPullRequests without filters only sends the paging parameters', async () => {
     api()
-      .intercept({ path: '/repos/acme/docs/pulls', method: 'GET' })
+      .intercept({ path: '/repos/acme/docs/pulls?per_page=100&page=1', method: 'GET' })
       .reply(200, [])
     const p = new GitHubProvider({ token: 't' })
     await expect(p.listPullRequests(repo)).resolves.toEqual([])
   })
 
+  it('listPullRequests follows pages until one is shorter than per_page (f451#141)', async () => {
+    const pulls = (from: number, count: number) =>
+      Array.from({ length: count }, (_, i) => ({
+        number: from + i,
+        state: 'open',
+        merged: false,
+        title: `PR ${from + i}`,
+        head: { ref: `draft/${from + i}` },
+        base: { ref: 'main' },
+        html_url: `https://github.com/acme/docs/pull/${from + i}`,
+        mergeable: null,
+      }))
+    api()
+      .intercept({ path: '/repos/acme/docs/pulls?state=open&per_page=100&page=1', method: 'GET' })
+      .reply(200, pulls(1, 100))
+    api()
+      .intercept({ path: '/repos/acme/docs/pulls?state=open&per_page=100&page=2', method: 'GET' })
+      .reply(200, pulls(101, 7))
+    const p = new GitHubProvider({ token: 't' })
+    const prs = await p.listPullRequests(repo, { state: 'open' })
+    expect(prs).toHaveLength(107)
+    expect(prs[0]?.number).toBe(1)
+    expect(prs[106]?.number).toBe(107)
+  })
+
   it('listPullRequests 404 (unbekanntes Repo) → NotFoundError', async () => {
     api()
-      .intercept({ path: '/repos/acme/docs/pulls', method: 'GET' })
+      .intercept({ path: '/repos/acme/docs/pulls?per_page=100&page=1', method: 'GET' })
       .reply(404, { message: 'Not Found' })
     const p = new GitHubProvider({ token: 't' })
     await expect(p.listPullRequests(repo)).rejects.toBeInstanceOf(NotFoundError)
