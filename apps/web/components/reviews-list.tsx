@@ -132,6 +132,8 @@ export function ReviewsList({ space, versioning, initial }: ReviewsListProps) {
 
   const selectedCount = items.filter((item) => selected.has(item.id)).length
 
+  // Draft rows carry no author in the index yet; an all-empty column says nothing.
+  const showAuthor = items.some((item) => item.lastAuthor)
   return (
     <section className="reviews-panel">
       <p className="reviews-count">{t('reviews.count', { count: items.length })}</p>
@@ -158,7 +160,7 @@ export function ReviewsList({ space, versioning, initial }: ReviewsListProps) {
                 </th>
                 <th scope="col">{t('reviews.columns.title')}</th>
                 <th scope="col">{t('reviews.columns.kind')}</th>
-                <th scope="col">{t('reviews.columns.author')}</th>
+                {showAuthor && <th scope="col">{t('reviews.columns.author')}</th>}
                 <th scope="col">{t('reviews.columns.updated')}</th>
               </tr>
             </thead>
@@ -187,11 +189,11 @@ export function ReviewsList({ space, versioning, initial }: ReviewsListProps) {
                       )}
                     </td>
                     <td>
-                      <span className={`chip ${item.isNew ? 'info' : 'neutral'}`}>
+                      <span className="chip neutral">
                         {item.isNew ? t('reviews.kinds.new') : t('reviews.kinds.changed')}
                       </span>
                     </td>
-                    <td>{item.lastAuthor ?? t('reviews.unknownAuthor')}</td>
+                    {showAuthor && <td>{item.lastAuthor ?? t('reviews.unknownAuthor')}</td>}
                     <td>{formatDate(item.updatedAt)}</td>
                   </tr>
                 )
