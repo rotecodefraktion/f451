@@ -117,12 +117,16 @@ function tagsFor(f451Id: string, space: string): BookStackTag[] {
   ]
 }
 
+/** The entity tagged with `f451Id`. Chapters and pages are only matched inside
+ *  `bookId`: an export never touches (or moves) a copy in another book. */
 async function findByTag(
   bs: ExportBookStack,
   f451Id: string,
   type: 'book' | 'chapter' | 'page',
+  bookId?: number,
 ): Promise<{ id: number; name: string } | null> {
-  return (await bs.searchByTag(ID_TAG, f451Id)).find((h) => h.type === type) ?? null
+  const hits = await bs.searchByTag(ID_TAG, f451Id)
+  return hits.find((h) => h.type === type && (bookId === undefined || h.book_id === bookId)) ?? null
 }
 
 async function resolveBook(
@@ -254,7 +258,7 @@ export async function exportToBookStack(
   const chapterIds = new Map<string, number>()
   for (const c of book.chapters) {
     if (aborted()) break
-    const hit = await findByTag(bs, c.pageId, 'chapter')
+    const hit = await findByTag(bs, c.pageId, 'chapter', target.id)
     if (hit) {
       await bs.updateChapter(hit.id, { name: c.name, priority: c.priority })
       chapterIds.set(c.pageId, hit.id)
@@ -279,7 +283,7 @@ export async function exportToBookStack(
     try {
       const location =
         p.chapterPageId !== null ? { chapter_id: chapterIds.get(p.chapterPageId)! } : { book_id: target.id }
-      const hit = await findByTag(bs, p.page.pageId, 'page')
+      const hit = await findByTag(bs, p.page.pageId, 'page', target.id)
       const bsPage = hit
         ? await bs.updatePage(hit.id, { name: p.name, priority: p.page.priority, ...location })
         : await bs.createPage({

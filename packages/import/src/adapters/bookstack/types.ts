@@ -18,6 +18,8 @@ export interface BookStackSearchHit {
   id: number
   type: 'book' | 'chapter' | 'page'
   name: string
+  /** Set for chapters and pages. */
+  book_id?: number
 }
 
 export interface BookStackBook {
