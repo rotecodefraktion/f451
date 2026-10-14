@@ -15,6 +15,12 @@ const TREE_PAGE_SIZE = 1000
  *  100 Seiten × 1000 = 100.000 Einträge, weit jenseits jedes Doku-Repos. */
 const TREE_PAGE_LIMIT = 100
 
+/** Page size for `listPullRequests`: Forgejo's default `MAX_RESPONSE_ITEMS` (50)
+ *  caps `limit`, so asking for more would not help. */
+const PULLS_PAGE_SIZE = 50
+/** Safety cap against endless paging: 50 pages × 50 = 2,500 pull requests. */
+const PULLS_PAGE_LIMIT = 50
+
 /** Dateien je Sammel-Commit (`commitFiles`). Sie reisen base64-kodiert im
  *  JSON-Körper — 50 hält die Anfrage im einstelligen Megabyte-Bereich, selbst
  *  wenn jede Datei ein Bildschirmabzug ist. */
@@ -316,13 +322,23 @@ export class ForgejoProvider implements GitProvider {
     repo: RepoRef,
     opts: { head?: string; base?: string; state?: 'open' | 'closed' | 'all' } = {},
   ): Promise<PullRequestInfo[]> {
-    const params = new URLSearchParams()
-    if (opts.state) params.set('state', opts.state)
-    const qs = params.toString()
-    const data = (await this.#request(
-      'GET',
-      `/repos/${repo.owner}/${repo.repo}/pulls${qs ? `?${qs}` : ''}`,
-    )) as ForgejoPullResponse[]
+    // Paginated: one unpaginated request only returns the first page (f451#141).
+    // Stop at the first page shorter than the page size, or at the safety cap.
+    const data: ForgejoPullResponse[] = []
+    for (let page = 1; page <= PULLS_PAGE_LIMIT; page++) {
+      const params = new URLSearchParams()
+      if (opts.state) params.set('state', opts.state)
+      params.set('limit', String(PULLS_PAGE_SIZE))
+      params.set('page', String(page))
+      const chunk = ((await this.#request(
+        'GET',
+        `/repos/${repo.owner}/${repo.repo}/pulls?${params.toString()}`,
+      )) ?? []) as ForgejoPullResponse[]
+      data.push(...chunk)
+      // Stop on an empty page, not a short one: an instance may cap the page
+      // size below PULLS_PAGE_SIZE (MAX_RESPONSE_ITEMS).
+      if (chunk.length === 0) break
+    }
     // Forgejo filtert `head` serverseitig nicht zuverlässig (undokumentiertes
     // Verhalten, beobachtet gegen Forgejo 11) — deshalb clientseitig nachfiltern.
     // `base` filtert Forgejo korrekt mit, wir filtern trotzdem defensiv mit.
