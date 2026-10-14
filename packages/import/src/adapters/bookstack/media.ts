@@ -127,7 +127,7 @@ export async function collectMedia(
       }
       const name = uniqueName(original, used)
       const ref = `_media/${name}`
-      media.push({ name, bytes, mime: mimeFor(name), kind: 'image', ref })
+      media.push({ name, bytes, mime: mimeFor(name), kind: 'image', ref, sourceUrl: absolute })
       targets.set(src, ref)
     } catch (error) {
       skipped.push({ name: original, reason: error instanceof Error ? error.message : String(error) })
@@ -165,7 +165,7 @@ export async function collectMedia(
       }
       const name = uniqueName(original, used)
       const ref = `_media/${name}`
-      media.push({ name, bytes, mime: mimeFor(name), kind: 'file', ref })
+      media.push({ name, bytes, mime: mimeFor(name), kind: 'file', ref, sourceUrl })
       lines.push(`- [${label}](${ref})`)
     } catch (error) {
       skipped.push({ name: original, reason: error instanceof Error ? error.message : String(error) })

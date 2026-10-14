@@ -15,6 +15,9 @@ export interface ImportMedia {
   /** The URL or path the Markdown currently references; the writer rewrites
    *  it to the `_media/<name>` path the API returns. */
   ref: string
+  /** Where the bytes came from. When the API refuses the upload, the writer
+   *  points the Markdown reference back at this URL. */
+  sourceUrl?: string
 }
 
 export interface ImportNode {

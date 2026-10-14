@@ -40,6 +40,49 @@ function sameMedia(m: ImportMedia, existing: Uint8Array): boolean {
   return a !== null && a === diagramXml(existing)
 }
 
+/** Statuses with which the API refuses a single upload by its rules (size,
+ *  file type, SVG sanitising). The file is skipped, the page is still written. */
+const REFUSED_UPLOAD = new Set([413, 415, 422])
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/** `_media/` file names referenced in `content` that may hold `name`: the
+ *  name itself or the name with the API's collision suffix `-N` before the
+ *  extension (`.drawio.svg`/`.excalidraw.svg` count as one). Exact name first. */
+function storedCandidates(content: string, name: string): string[] {
+  const compound = /\.(drawio|excalidraw)\.svg$/.exec(name)
+  const dot = compound ? compound.index : name.lastIndexOf('.')
+  const stem = dot > 0 ? name.slice(0, dot) : name
+  const ext = dot > 0 ? name.slice(dot) : ''
+  const suffixed = new RegExp(`^${escapeRegExp(stem)}-\\d+${escapeRegExp(ext)}$`)
+  const found = new Set<string>()
+  for (const match of content.matchAll(/_media\/([A-Za-z0-9._-]+)/g)) {
+    const file = match[1]!
+    if (file === name || suffixed.test(file)) found.add(file)
+  }
+  return [...found].sort((a, b) => (a === name ? -1 : b === name ? 1 : 0))
+}
+
+/** The file name under `_media/` the existing page already stores `m` as,
+ *  or null when no referenced candidate has the same content. */
+async function findStored(api: WriterApi, pageId: string, content: string, m: ImportMedia): Promise<string | null> {
+  for (const file of storedCandidates(content, m.name)) {
+    const bytes = await api.media(pageId, file, 'draft')
+    if (bytes && sameMedia(m, bytes)) return file
+  }
+  return null
+}
+
+/** Replaces every reference in one pass, so a new path that equals another
+ *  medium's original ref (`foo.png` → `foo-1.png`) is not rewritten again. */
+function replaceRefs(markdown: string, refs: Map<string, string>): string {
+  const keys = [...refs.keys()].filter((k) => refs.get(k) !== k).sort((a, b) => b.length - a.length)
+  if (keys.length === 0) return markdown
+  return markdown.replace(new RegExp(keys.map(escapeRegExp).join('|'), 'g'), (k) => refs.get(k)!)
+}
+
 function describe(e: unknown): string {
   if (e instanceof F451ApiError) {
     const body = (e.body && typeof e.body === 'object' ? e.body : {}) as Record<string, unknown>
@@ -157,6 +200,16 @@ export async function importTree(
   // 0. existing pages by source id (GET raw reads main). The lookup belongs to
   //    the creating phase: it emits no page events either.
   onEvent({ kind: 'phase', phase: 'creating' })
+  // Cancelled before anything happened: no reads against f451 either.
+  if (aborted()) {
+    for (const { node } of entries) {
+      if (failedIds.has(node.sourceRef.id)) continue
+      report.cancelled.push({ sourceId: node.sourceRef.id, title: node.title, reason: 'cancelled' })
+      onEvent({ kind: 'page', sourceId: node.sourceRef.id, title: node.title, status: 'cancelled', reason: 'cancelled' })
+    }
+    onEvent({ kind: 'done' })
+    return report
+  }
   const existing = await findExisting(api, target.space, entries)
 
   // 1. pass one: create pages, parents before children
@@ -243,44 +296,64 @@ export async function importTree(
       onEvent({ kind: 'page', sourceId: sid, title: node.title, status: isNew ? 'created' : 'updated', pageId })
       continue
     }
+    // True while this run holds a draft (created in pass one or opened here)
+    // that has no content written yet; a failure then discards it, so a
+    // later run starts clean.
+    let discardOnFail = false
     try {
       let baseSha: string
       let existingContent = ''
       if (isNew) {
         baseSha = created.get(sid)!.baseSha
+        discardOnFail = true
       } else {
         if (await api.getDraft(pageId)) {
           skip(node, pageId, 'draft already open')
           continue
         }
         const d = await api.openDraft(pageId)
+        discardOnFail = true
         baseSha = d.baseSha
         existingContent = d.content
       }
-      let markdown = node.markdown
+      const refs = new Map<string, string>() // media ref → new destination
       let uploaded = 0
       for (const m of node.media) {
         if (m.bytes.byteLength > MAX_UPLOAD) {
           report.mediaSkipped.push({ sourceId: sid, name: m.name, reason: 'too large' })
           onEvent({ kind: 'media', sourceId: sid, name: m.name, status: 'skipped', reason: 'too large' })
+          if (m.sourceUrl) refs.set(m.ref, m.sourceUrl)
           continue
         }
         // On an update the draft starts from the published page; an
-        // unchanged file is reused instead of uploaded as `<name>-1`.
+        // unchanged file is reused under the name it is stored as (possibly
+        // with a collision suffix) instead of uploaded again.
         if (!isNew) {
-          const existing = await api.media(pageId, m.name, 'draft')
-          if (existing && sameMedia(m, existing)) continue
+          const stored = await findStored(api, pageId, existingContent, m)
+          if (stored) {
+            refs.set(m.ref, `_media/${stored}`)
+            continue
+          }
         }
-        uploaded++
-        const u = await api.uploadMedia(pageId, m.name, m.bytes, m.mime)
-        if (u.path !== m.ref) markdown = markdown.split(m.ref).join(u.path)
-        onEvent({ kind: 'media', sourceId: sid, name: m.name, status: 'uploaded' })
+        try {
+          const u = await api.uploadMedia(pageId, m.name, m.bytes, m.mime)
+          uploaded++
+          refs.set(m.ref, u.path)
+          onEvent({ kind: 'media', sourceId: sid, name: m.name, status: 'uploaded' })
+        } catch (e) {
+          if (!(e instanceof F451ApiError) || !REFUSED_UPLOAD.has(e.status)) throw e
+          const reason = describe(e)
+          report.mediaSkipped.push({ sourceId: sid, name: m.name, reason })
+          onEvent({ kind: 'media', sourceId: sid, name: m.name, status: 'skipped', reason })
+          if (m.sourceUrl) refs.set(m.ref, m.sourceUrl)
+        }
       }
-      markdown = rewriteLinks(markdown, ids)
+      const markdown = rewriteLinks(replaceRefs(node.markdown, refs), ids)
       const content = isNew
         ? buildPageContent({ id: pageId, title: node.title, tags: node.tags, source: node.sourceRef, body: markdown })
         : mergeIntoExisting(existingContent, { tags: node.tags, body: markdown })
       if (!isNew && uploaded === 0 && importUnchanged(existingContent, { tags: node.tags, body: markdown })) {
+        discardOnFail = false
         await api.discardDraft(pageId)
         skip(node, pageId, 'unchanged')
         continue
@@ -288,12 +361,22 @@ export async function importTree(
       // Media uploads commit to the draft branch, but the page file itself is
       // unchanged, so the blob sha from createPage/openDraft is still valid.
       await api.putDraft(pageId, content, baseSha, `Import from ${node.sourceRef.type}`)
+      discardOnFail = false
       await api.requestReview(pageId)
       if (opts.release) await api.release(pageId, { bump: 'major', note: `Imported from ${node.sourceRef.type}` })
       ;(isNew ? report.created : report.updated).push({ sourceId: sid, title: node.title, pageId })
       onEvent({ kind: 'page', sourceId: sid, title: node.title, status: isNew ? 'created' : 'updated', pageId })
     } catch (e) {
-      fail(node, describe(e), pageId)
+      let reason = describe(e)
+      if (discardOnFail) {
+        try {
+          await api.discardDraft(pageId)
+          reason += ', draft discarded'
+        } catch (d) {
+          reason += `, discarding the draft failed: ${describe(d)}`
+        }
+      }
+      fail(node, reason, pageId)
     }
   }
 
