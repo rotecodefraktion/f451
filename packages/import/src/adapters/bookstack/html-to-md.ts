@@ -11,6 +11,9 @@ import { toHtml } from 'hast-util-to-html'
 
 export interface ConversionContext {
   baseUrl: string
+  /** Further bases of the same BookStack, e.g. its public APP_URL when f451
+   *  reaches it under another address: absolute links on them are internal too. */
+  publicBases?: readonly string[]
   /** Maps a BookStack link (`/books/<b>/page/<p>`, `/link/<id>`, relative or
    *  absolute) to the source page; null if it is not part of the import. */
   resolveInternalLink(href: string): { id: string; url: string } | null
@@ -590,10 +593,12 @@ function addDetailsSummaryRule(turndown: TurndownService): void {
  *  absolute URLs if the target is not part of the import */
 function addInternalLinkRule(turndown: TurndownService, context: ConversionContext): void {
   const base = context.baseUrl.replace(/\/+$/, '')
+  const bases = [base, ...(context.publicBases ?? []).map((b) => b.replace(/\/+$/, ''))].filter((b) => b !== '')
 
   const internalPath = (href: string): string | null => {
     let path: string | null = null
-    if (href.startsWith(`${base}/`)) path = href.slice(base.length)
+    const known = bases.find((b) => href.startsWith(`${b}/`))
+    if (known !== undefined) path = href.slice(known.length)
     else if (href.startsWith('/') && !href.startsWith('//')) path = href
     return path && /^\/(books|link)\//.test(path) ? path : null
   }
@@ -604,7 +609,9 @@ function addInternalLinkRule(turndown: TurndownService, context: ConversionConte
       const href = (node as HTMLElement).getAttribute('href') || ''
       const resolved = context.resolveInternalLink(href)
       if (resolved) return `[${content}](source:${resolved.id}|${resolved.url})`
-      return `[${content}](${base}${internalPath(href)})`
+      // An absolute link stays as written (on a public base it is the address
+      // readers can reach); a relative one gets the configured base.
+      return `[${content}](${href.startsWith('/') ? `${base}${internalPath(href)}` : href})`
     },
   })
 }

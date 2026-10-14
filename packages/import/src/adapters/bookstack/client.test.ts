@@ -29,6 +29,16 @@ describe('BookStackClient write methods', () => {
     expect(hits).toEqual([{ id: 7, type: 'page', name: 'A', book_id: 1 }, { id: 1, type: 'book', name: 'B' }])
   })
 
+  it('searchByTag keeps the url BookStack reports', async () => {
+    const { client } = stub({
+      data: [{ id: 1, type: 'book', name: 'B', slug: 'b', url: 'http://public.example/books/b' }],
+      total: 1,
+    })
+    const hits = await client.searchByTag('f451-id', 'p-a')
+    // The exporter derives BookStack's public base from it.
+    expect(hits).toEqual([{ id: 1, type: 'book', name: 'B', url: 'http://public.example/books/b' }])
+  })
+
   it('searchByTag pages through results beyond 100 hits', async () => {
     const page1 = Array.from({ length: 100 }, (_, i) => ({ id: i + 1, type: 'page', name: `P${i + 1}`, book_id: 1 }))
     const page2 = [

@@ -20,6 +20,8 @@ export interface BookStackSearchHit {
   name: string
   /** Set for chapters and pages. */
   book_id?: number
+  /** Built by BookStack from its own APP_URL (its public address). */
+  url?: string
 }
 
 export interface BookStackBook {

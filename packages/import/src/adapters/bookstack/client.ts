@@ -262,7 +262,13 @@ export class BookStackClient {
         `search?query=${query}&page=${page}&count=${pageSize}`,
       )
       for (const h of r.data) {
-        hits.push({ id: h.id, type: h.type, name: h.name, ...(h.book_id != null ? { book_id: h.book_id } : {}) })
+        hits.push({
+          id: h.id,
+          type: h.type,
+          name: h.name,
+          ...(h.book_id != null ? { book_id: h.book_id } : {}),
+          ...(typeof h.url === 'string' ? { url: h.url } : {}),
+        })
       }
       if (r.data.length < pageSize) break
     }
