@@ -42,6 +42,23 @@ with a new major version.
   The incremental index now re-resolves the parent of pages below a page that
   appears or goes away (#133). `POST /admin/reindex` repairs trees indexed
   before.
+- Import from BookStack (review of the 1.3 block):
+  - Page content can no longer make the importer fetch addresses outside the
+    configured BookStack; redirects are not followed (#136).
+  - Media the API refuses (unsupported type, invalid SVG, too large) is
+    reported and keeps its BookStack link instead of failing the page (#137).
+  - A page that fails before its content is saved leaves no draft behind
+    (#138); writes are not retried after a 5xx (#139, #140).
+  - Cancelling also stops reading from BookStack (#142); repeated update runs
+    no longer re-upload unchanged images (#143).
+  - Skipped media and source links use BookStack's public address (#146).
+- Export to BookStack: a failing chapter no longer aborts the export (#147);
+  stale pages beyond 100 search hits are listed (#145).
+- Open pull requests are read across all result pages, so the review overview
+  is complete after large imports (#141).
+- Import jobs revoke their token when the API shuts down mid-run (#144); the
+  import panel survives malformed job responses, and the editor retries a
+  failed Mermaid load (#148).
 
 ## [1.2.14] — 2026-10-10
 
