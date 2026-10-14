@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { eventHref, nextState, progressPercent, reportFileName, storageKey, type JobView, type PanelState } from './import-job.js'
+import {
+  eventHref,
+  isJobView,
+  nextState,
+  progressPercent,
+  reportFileName,
+  storageKey,
+  type JobView,
+  type PanelState,
+} from './import-job.js'
 
 function view(over: Partial<JobView> = {}): JobView {
   return {
@@ -40,6 +49,35 @@ describe('nextState', () => {
     expect(nextState(running, { status: 'error' })).toBe(running)
     const form: PanelState = { kind: 'form' }
     expect(nextState(form, { status: 'error' })).toBe(form)
+  })
+})
+
+describe('isJobView', () => {
+  it('accepts a job view', () => {
+    expect(isJobView(view())).toBe(true)
+    expect(isJobView(view({ status: 'done', counts: { created: 2 } }))).toBe(true)
+  })
+
+  it.each([
+    ['undefined', undefined],
+    ['null', null],
+    ['an HTML string', '<!doctype html><html></html>'],
+    ['an empty object', {}],
+    ['an array', []],
+  ])('rejects %s', (_label, body) => {
+    expect(isJobView(body)).toBe(false)
+  })
+
+  it.each([
+    ['id', { id: 1 }],
+    ['status', { status: undefined }],
+    ['events', { events: {} }],
+    ['counts (null)', { counts: null }],
+    ['counts (array)', { counts: [] }],
+    ['total', { total: '10' }],
+    ['done', { done: undefined }],
+  ])('rejects a view with a wrong %s', (_label, over) => {
+    expect(isJobView({ ...view(), ...over })).toBe(false)
   })
 })
 
