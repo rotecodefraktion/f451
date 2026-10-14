@@ -183,6 +183,7 @@ export function importRun(deps: RunDeps, p: ImportParams): JobRun {
         { update: p.update, release: p.release, dryRun: p.dryRun, signal },
         (e) => {
           if (e.kind === 'start') progress.start(e.pages)
+          else if (e.kind === 'phase') progress.phase(e.phase)
           else if (e.kind === 'page') pageEvent(progress, e, importEventLink(e, p))
         },
       )
@@ -219,6 +220,7 @@ export function exportRun(deps: RunDeps, p: ExportParams): JobRun {
         },
         (e) => {
           if (e.kind === 'start') progress.start(e.pages)
+          else if (e.kind === 'phase') progress.phase(e.phase)
           else if (e.kind === 'page') pageEvent(progress, { status: e.status, title: e.name, pageId: e.pageId, reason: e.reason }, 'page')
         },
       )

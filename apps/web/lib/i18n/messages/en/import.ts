@@ -42,6 +42,11 @@ export const importMessages: Messages['import'] = {
   running: 'Running …',
   progress: '{done} of {total} pages',
   progressUnknown: 'Reading the source …',
+  phase: {
+    creating: 'Creating pages in f451 …',
+    reading: 'Reading pages from f451 …',
+    placing: 'Creating pages in BookStack …',
+  },
   eventsLabel: 'Progress',
   cancel: 'Cancel',
   cancelling: 'Cancelling …',

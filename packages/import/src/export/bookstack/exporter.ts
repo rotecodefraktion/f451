@@ -31,6 +31,9 @@ export type ExportEvent =
       bsId?: number
       reason?: string
     }
+  /** Marks the start of a stretch without page events: `reading` (f451 pages),
+   *  `placing` (book, chapters, pass one), `writing` (content, page events follow). */
+  | { kind: 'phase'; phase: string }
   | { kind: 'done' }
 
 export type ExportF451 = Pick<F451Api, 'tree' | 'raw' | 'media'>
@@ -203,6 +206,7 @@ export async function exportToBookStack(
   }
 
   // Load every page's Markdown once; the final name depends on it.
+  onEvent({ kind: 'phase', phase: 'reading' })
   const loaded: LoadedPage[] = []
   for (const e of entries) {
     if (aborted()) break
@@ -227,6 +231,7 @@ export async function exportToBookStack(
   // Dry run: render only, no BookStack request at all; links fall back to f451 URLs.
   if (opts.dryRun) {
     report.dryRunPages = []
+    onEvent({ kind: 'phase', phase: 'writing' })
     for (const p of loaded) {
       if (aborted()) break
       try {
@@ -251,6 +256,7 @@ export async function exportToBookStack(
   }
 
   // 2. Target book.
+  onEvent({ kind: 'phase', phase: 'placing' })
   const target = await resolveBook(bs, book.name, book.rootPageId ?? `space:${opts.space}`, opts)
   const base = opts.bookstackUrl.replace(/\/+$/, '')
 
@@ -302,6 +308,7 @@ export async function exportToBookStack(
   }
 
   // 5. Pass two: media, HTML, content.
+  onEvent({ kind: 'phase', phase: 'writing' })
   for (const [index, p] of placed.entries()) {
     if (aborted()) {
       // A page created in pass one still holds the placeholder; delete it so

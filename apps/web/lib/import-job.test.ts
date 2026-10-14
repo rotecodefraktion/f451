@@ -14,6 +14,7 @@ function view(over: Partial<JobView> = {}): JobView {
     events: [],
     counts: {},
     report: null,
+    phase: null,
     ...over,
   }
 }

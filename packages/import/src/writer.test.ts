@@ -104,6 +104,11 @@ describe('importTree', () => {
     expect(report.created.map((r) => r.sourceId)).toEqual(['2'])
     expect(api.putDraft).toHaveBeenCalledTimes(1)
     expect(events).toContainEqual(expect.objectContaining({ kind: 'page', sourceId: '1', status: 'failed' }))
+    // Phases mark the stretches without page events; `writing` precedes the
+    // content events, while the create failure is reported during `creating`.
+    expect(events.map((e) => (e.kind === 'phase' ? e.phase : e.kind))).toEqual([
+      'start', 'creating', 'page', 'writing', 'page', 'done',
+    ])
   })
 
   describe('update of an imported page', () => {

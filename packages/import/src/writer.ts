@@ -154,7 +154,9 @@ export async function importTree(
   // Checked between pages only: a page in progress is always finished.
   const aborted = () => opts.signal?.aborted === true
 
-  // 0. existing pages by source id (GET raw reads main)
+  // 0. existing pages by source id (GET raw reads main). The lookup belongs to
+  //    the creating phase: it emits no page events either.
+  onEvent({ kind: 'phase', phase: 'creating' })
   const existing = await findExisting(api, target.space, entries)
 
   // 1. pass one: create pages, parents before children
@@ -218,6 +220,7 @@ export async function importTree(
   }
 
   // 2. pass two: content, media, review
+  onEvent({ kind: 'phase', phase: 'writing' })
   for (const [index, { node }] of entries.entries()) {
     if (aborted()) {
       await cancelRest(entries.slice(index))

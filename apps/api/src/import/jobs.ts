@@ -18,8 +18,10 @@ export interface JobView {
   startedAt: string; finishedAt: string | null
   total: number; done: number; events: JobEvent[]
   counts: Record<string, number>; report: string | null
+  /** The runner's current phase (e.g. `reading`, `writing`); null until the first one. */
+  phase: string | null
 }
-export interface JobProgress { start(total: number): void; page(e: JobEvent): void }
+export interface JobProgress { start(total: number): void; page(e: JobEvent): void; phase(name: string): void }
 export interface JobResult { report: string; counts: Record<string, number> }
 /** `id` is the job's own id (used e.g. to label the job token). */
 export type JobRun = (signal: AbortSignal, progress: JobProgress, id: string) => Promise<JobResult>
@@ -45,6 +47,7 @@ interface Job {
   events: JobEvent[]
   counts: Record<string, number>
   report: string | null
+  phase: string | null
   controller: AbortController
 }
 
@@ -85,6 +88,7 @@ export class JobRegistry {
       events: [],
       counts: {},
       report: null,
+      phase: null,
       controller: new AbortController(),
     }
     this.jobs.set(job.id, job)
@@ -98,6 +102,9 @@ export class JobRegistry {
         job.done++
         job.events.push(copyEvent(e))
         if (job.events.length > MAX_EVENTS) job.events.splice(0, job.events.length - MAX_EVENTS)
+      },
+      phase: (name) => {
+        if (job.status === 'running') job.phase = name
       },
     }
 
@@ -181,5 +188,6 @@ function view(job: Job): JobView {
     events: job.events.map(copyEvent),
     counts: { ...job.counts },
     report: job.report,
+    phase: job.phase,
   }
 }

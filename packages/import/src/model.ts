@@ -69,4 +69,7 @@ export type ImportEvent =
       reason?: string
     }
   | { kind: 'media'; sourceId: string; name: string; status: 'uploaded' | 'skipped'; reason?: string }
+  /** Marks the start of a stretch without page events: `creating` (pass one),
+   *  `writing` (pass two, page events follow). */
+  | { kind: 'phase'; phase: string }
   | { kind: 'done' }

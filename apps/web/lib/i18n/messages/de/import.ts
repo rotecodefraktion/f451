@@ -47,6 +47,13 @@ export const importMessages = {
   running: 'Läuft …',
   progress: '{done} von {total} Seiten',
   progressUnknown: 'Quelle wird gelesen …',
+  /** Shown instead of the page count while a run is in a phase without page
+   *  events; `writing` has no entry because the count is shown there. */
+  phase: {
+    creating: 'Seiten werden in f451 angelegt …',
+    reading: 'Seiten werden aus f451 gelesen …',
+    placing: 'Seiten werden in BookStack angelegt …',
+  },
   eventsLabel: 'Verlauf',
   cancel: 'Abbrechen',
   cancelling: 'Bricht ab …',

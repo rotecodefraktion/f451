@@ -317,6 +317,10 @@ export function ImportPanel({ space, instances }: ImportPanelProps) {
 
   const statusLabel = (status: string): string =>
     (messages.import.status as Record<string, string>)[status] ?? status
+  /** Text for a phase without page events; null for `writing` (page counts tell
+   *  the progress there) and for a phase this UI does not know. */
+  const phaseLabel = (phase: string | null): string | null =>
+    phase === null || phase === 'writing' ? null : ((messages.import.phase as Record<string, string>)[phase] ?? null)
 
   const noticeBlock = notice ? (
     <div className={`callout ${notice.tone} import-notice`} role={notice.tone === 'error' ? 'alert' : 'status'}>
@@ -326,15 +330,18 @@ export function ImportPanel({ space, instances }: ImportPanelProps) {
 
   if (panel.kind === 'running') {
     const view = panel.view
+    const phaseText = view ? phaseLabel(view.phase) : null
     return (
       <section className="import-panel">
         {noticeBlock}
         <h2 className="import-heading">{t('import.running')}</h2>
         <progress className="import-progress" max={100} value={view ? progressPercent(view) : 0} />
         <p className="import-progress-text" aria-live="polite">
-          {view && view.total > 0
-            ? t('import.progress', { done: view.done, total: view.total })
-            : t('import.progressUnknown')}
+          {phaseText !== null
+            ? phaseText
+            : view && view.total > 0
+              ? t('import.progress', { done: view.done, total: view.total })
+              : t('import.progressUnknown')}
         </p>
         {view && view.events.length > 0 && <EventList view={view} label={t('import.eventsLabel')} statusLabel={statusLabel} />}
         <div className="btn-row">

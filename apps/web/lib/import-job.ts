@@ -34,6 +34,8 @@ export interface JobView {
   events: JobEvent[]
   counts: Record<string, number>
   report: string | null
+  /** The runner's current phase (`creating`, `reading`, `placing`, `writing`); null until the first. */
+  phase: string | null
 }
 
 export type PanelState =

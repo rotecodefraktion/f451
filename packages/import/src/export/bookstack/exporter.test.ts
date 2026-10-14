@@ -193,8 +193,13 @@ describe('exportToBookStack', () => {
     const events: string[] = []
     const report = await exportToBookStack(f451, bs, opts, (e) => {
       if (e.kind === 'page') events.push(`${e.pageId}:${e.status}`)
+      if (e.kind === 'phase') events.push(`phase:${e.phase}`)
     })
 
+    // The read failure is reported during `reading`; content events follow `writing`.
+    expect(events).toEqual([
+      'phase:reading', 'p-x:failed', 'phase:placing', 'phase:writing', 'p-root:created', 'p-ch:created',
+    ])
     expect(report.failed.map((f) => f.pageId)).toEqual(['p-x'])
     expect(report.failed[0]!.reason).toContain('404')
     expect(report.created.map((p) => p.pageId)).toEqual(['p-root', 'p-ch'])

@@ -46,10 +46,11 @@ describe('JobRegistry', () => {
     expect(running).toMatchObject({
       id: 'job-1', kind: 'import-bookstack', space: 'docs', status: 'running',
       startedAt: new Date(clock.t).toISOString(), finishedAt: null,
-      total: 0, done: 0, events: [], counts: {}, report: null,
+      total: 0, done: 0, events: [], counts: {}, report: null, phase: null,
     })
 
     r.state.progress!.start(2)
+    r.state.progress!.phase('writing')
     r.state.progress!.page({ status: 'created', title: 'A', pageId: 'p1' })
     clock.t += 1000
     r.resolve({ report: '# Report\n', counts: { created: 1 } })
@@ -59,8 +60,25 @@ describe('JobRegistry', () => {
       id: 'job-1', kind: 'import-bookstack', space: 'docs', status: 'done',
       startedAt: new Date(clock.t - 1000).toISOString(), finishedAt: new Date(clock.t).toISOString(),
       total: 2, done: 1, events: [{ status: 'created', title: 'A', pageId: 'p1' }],
-      counts: { created: 1 }, report: '# Report\n',
+      counts: { created: 1 }, report: '# Report\n', phase: 'writing',
     })
+  })
+
+  it('shows the latest phase and ignores phases after the job ended', async () => {
+    const { reg } = setup()
+    const r = controlledRun()
+    reg.start('u1', 'export-bookstack', 'docs', r.run)
+    expect(reg.get('u1', 'job-1')?.phase).toBeNull()
+
+    r.state.progress!.phase('reading')
+    expect(reg.get('u1', 'job-1')?.phase).toBe('reading')
+    r.state.progress!.phase('placing')
+    expect(reg.get('u1', 'job-1')?.phase).toBe('placing')
+
+    r.resolve({ report: 'ok', counts: {} })
+    await r.settled()
+    r.state.progress!.phase('writing')
+    expect(reg.get('u1', 'job-1')?.phase).toBe('placing')
   })
 
   it('another user gets null, as does an unknown id', () => {
@@ -180,7 +198,7 @@ describe('JobRegistry', () => {
     const r = controlledRun()
     reg.start('u1', 'import-bookstack', 'docs', r.run)
     r.state.progress!.page({ status: 'created', title: 'A', secret: 'x' } as never)
-    const keys = ['counts', 'done', 'events', 'finishedAt', 'id', 'kind', 'report', 'space', 'startedAt', 'status', 'total']
+    const keys = ['counts', 'done', 'events', 'finishedAt', 'id', 'kind', 'phase', 'report', 'space', 'startedAt', 'status', 'total']
     expect(Object.keys(reg.get('u1', 'job-1')!).sort()).toEqual(keys)
     expect(Object.keys(reg.get('u1', 'job-1')!.events[0]!).sort()).toEqual(['status', 'title'])
 
