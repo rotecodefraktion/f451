@@ -201,7 +201,7 @@ describe('loadObsidianTree', () => {
   it('converts callouts, highlights, comments and block ids, but not code', async () => {
     const tree = await loadObsidianTree(memSource(vault))
     const md = find(tree.root, 'Start').markdown
-    expect(md).toContain('> [!NOTE]\n> **Heads up**\n> **Important** text')
+    expect(md).toContain('> [!NOTE]\n> **Heads up**\n>\n> **Important** text')
     expect(md).not.toContain('secret')
     expect(md).not.toContain('^blk1')
     expect(md).toContain('```\n[[Project Plan]] ==no==\n```')

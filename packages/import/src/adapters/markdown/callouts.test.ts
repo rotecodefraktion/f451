@@ -37,9 +37,9 @@ describe('convertCallouts', () => {
     expect(run('> [!tip]\n> Body text')).toBe('> [!TIP]\n> Body text\n')
   })
 
-  it('drops the fold marker and makes a custom title a bold first line', () => {
-    expect(run('> [!faq]- Why *this*?\n> Because.')).toBe('> [!IMPORTANT]\n> **Why *this*?**\n> Because.\n')
-    expect(run('> [!bug]+ Known issue\n> Details')).toBe('> [!WARNING]\n> **Known issue**\n> Details\n')
+  it('drops the fold marker and makes a custom title a bold first line with the body below', () => {
+    expect(run('> [!faq]- Why *this*?\n> Because.')).toBe('> [!IMPORTANT]\n> **Why *this*?**\n>\n> Because.\n')
+    expect(run('> [!bug]+ Known issue\n> Details')).toBe('> [!WARNING]\n> **Known issue**\n>\n> Details\n')
   })
 
   it('keeps later blocks of the callout and maps unknown types to NOTE', () => {

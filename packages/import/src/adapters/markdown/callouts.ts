@@ -42,6 +42,17 @@ function splitFirstLine(nodes: PhrasingContent[]): { first: PhrasingContent[]; r
   return { first: nodes, rest: [] }
 }
 
+/** Drops a leading line break left over from splitting off the title line. */
+function trimLeadingBreak(nodes: PhrasingContent[]): PhrasingContent[] {
+  const [head, ...tail] = nodes
+  if (head?.type === 'break') return tail
+  if (head?.type === 'text') {
+    const value = head.value.replace(/^\s+/, '')
+    return value ? [{ ...head, value }, ...tail] : tail
+  }
+  return nodes
+}
+
 /** Remark pass: `> [!type]± Title` blockquotes become GFM alerts
  *  (`> [!NOTE]`). The fold marker is dropped; a custom title becomes a bold
  *  first line. */
@@ -66,8 +77,12 @@ export function convertCallouts(tree: Root): void {
       if (last && last.type === 'text') last.value = last.value.replace(/\s+$/, '')
       children.push({ type: 'text', value: '\n' }, { type: 'strong', children: first })
     }
-    if (rest.length) children.push({ type: 'text', value: '\n' }, ...rest)
+    // With a title the body starts a paragraph of its own: on a soft line
+    // break it would render on the title's line.
+    const body: Paragraph[] = []
+    if (rest.length && hasTitle) body.push({ type: 'paragraph', children: trimLeadingBreak(rest) })
+    else if (rest.length) children.push({ type: 'text', value: '\n' }, ...rest)
     const replaced: Paragraph = { type: 'paragraph', children }
-    quote.children[0] = replaced
+    quote.children.splice(0, 1, replaced, ...body)
   })
 }
