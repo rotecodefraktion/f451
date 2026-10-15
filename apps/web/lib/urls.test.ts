@@ -5,6 +5,7 @@ import {
   apiJobCancelPath,
   apiJobPath,
   apiSpaceExportPath,
+  apiSpaceFileImportPath,
   apiSpaceImportPath,
   wikiImportHref,
   wikiReviewsHref,
@@ -265,6 +266,7 @@ describe('import/export URLs (#128)', () => {
     expect(wikiImportHref('a/b')).toBe('/wiki/a%2Fb/import')
     expect(apiSpaceImportPath('a/b')).toBe('/api/spaces/a%2Fb/import/bookstack')
     expect(apiSpaceExportPath('a/b')).toBe('/api/spaces/a%2Fb/export/bookstack')
+    expect(apiSpaceFileImportPath('a/b')).toBe('/api/spaces/a%2Fb/import/file')
   })
 
   it('builds the fixed and job paths', () => {

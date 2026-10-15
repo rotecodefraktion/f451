@@ -10,7 +10,7 @@
 
 import { wikiPageHref, wikiPageReviewHref } from './urls'
 
-export type JobKind = 'import-bookstack' | 'export-bookstack'
+export type JobKind = 'import-bookstack' | 'import-file' | 'export-bookstack'
 export type JobStatus = 'running' | 'done' | 'failed' | 'cancelled'
 
 export interface JobEvent {
@@ -93,7 +93,63 @@ export function progressPercent(view: JobView): number {
 
 /** File name for the "Download report" button. */
 export function reportFileName(kind: JobView['kind']): string {
-  return kind === 'import-bookstack' ? 'import-report.md' : 'export-report.md'
+  return kind === 'export-bookstack' ? 'export-report.md' : 'import-report.md'
+}
+
+/** What `GET /api/import/instances` offers: the BookStack allow-list and,
+ *  if the API supports it, the file import with its upload limit. */
+export interface ImportOffer {
+  bookstack: string[]
+  /** Upload limit in MB; null → this API has no file import. */
+  maxUploadMb: number | null
+}
+
+/** Reads an answer of `GET /api/import/instances` defensively (unknown
+ *  fields ignored, malformed ones treated as absent). */
+export function parseImportOffer(body: unknown): ImportOffer {
+  const b = body && typeof body === 'object' ? (body as Record<string, unknown>) : {}
+  const bookstack = Array.isArray(b.bookstack) ? b.bookstack.filter((u): u is string => typeof u === 'string') : []
+  const file = b.fileImport && typeof b.fileImport === 'object' ? (b.fileImport as Record<string, unknown>) : null
+  const mb = file?.maxUploadMb
+  const maxUploadMb = typeof mb === 'number' && Number.isFinite(mb) && mb > 0 ? mb : null
+  return { bookstack, maxUploadMb }
+}
+
+/** Whether the import page and its sidebar link are offered at all. */
+export function importAvailable(offer: ImportOffer): boolean {
+  return offer.bookstack.length > 0 || offer.maxUploadMb !== null
+}
+
+/** Client-side size check before the upload (the API checks again → 413). */
+export function exceedsUploadLimit(bytes: number, maxUploadMb: number): boolean {
+  return bytes > maxUploadMb * 1024 * 1024
+}
+
+export type FileFormat = 'markdown' | 'obsidian'
+
+export interface FileImportOptions {
+  format: FileFormat
+  parentId: string
+  update: boolean
+  release: boolean
+  dryRun: boolean
+}
+
+/**
+ * Multipart body for `POST /api/spaces/:space/import/file`. The text fields
+ * come before the file part: `@fastify/multipart`'s `req.file()` only sees
+ * the fields that precede the file in the stream.
+ */
+export function fileImportForm(file: Blob, fileName: string, opts: FileImportOptions): FormData {
+  const form = new FormData()
+  form.append('format', opts.format)
+  const parent = opts.parentId.trim()
+  if (parent) form.append('parentId', parent)
+  form.append('update', String(opts.update))
+  form.append('release', String(opts.release))
+  form.append('dryRun', String(opts.dryRun))
+  form.append('file', file, fileName)
+  return form
 }
 
 /** Link for one event's page, as the API decided it (`JobEvent.link`). */

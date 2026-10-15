@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { ImportPanel } from '../../../../../components/import-panel'
 import { ApiError, apiFetch } from '../../../../../lib/api'
 import { getT } from '../../../../../lib/i18n/server'
+import { importAvailable, parseImportOffer, type ImportOffer } from '../../../../../lib/import-job'
 import { apiImportInstancesPath, decodeRouteParam } from '../../../../../lib/urls'
 
 interface ImportPageProps {
@@ -10,11 +11,10 @@ interface ImportPageProps {
 }
 
 /**
- * Import/export page of a space (#128). Loads the operator's BookStack
- * allow-list server-side and hands it to the client island
- * {@link ImportPanel}, which starts jobs and polls them. Without an
- * allow-list the feature is off and the page answers 404, like the hidden
- * sidebar link. Space access itself is checked by the API when a job starts.
+ * Import/export page of a space (#128, #90). Loads the operator's BookStack
+ * allow-list and the file import limit server-side and hands them to the
+ * client island {@link ImportPanel}, which starts jobs and polls them. With
+ * neither source on offer the page answers 404, like the hidden sidebar link. Space access itself is checked by the API when a job starts.
  */
 export default async function ImportPage({ params }: ImportPageProps) {
   const { space: rawSpaceId } = await params
@@ -22,17 +22,16 @@ export default async function ImportPage({ params }: ImportPageProps) {
   const cookieHeader = (await cookies()).toString() || undefined
   const { t } = await getT()
 
-  let instances: string[]
+  let offer: ImportOffer
   try {
-    const res = await apiFetch<{ bookstack?: unknown }>(apiImportInstancesPath(), { cookie: cookieHeader })
-    instances = Array.isArray(res.bookstack) ? res.bookstack.filter((u): u is string => typeof u === 'string') : []
+    offer = parseImportOffer(await apiFetch<unknown>(apiImportInstancesPath(), { cookie: cookieHeader }))
   } catch (err) {
     if (err instanceof ApiError && (err.status === 401 || err.status === 404)) {
       notFound()
     }
     throw err
   }
-  if (instances.length === 0) {
+  if (!importAvailable(offer)) {
     notFound()
   }
 
@@ -40,7 +39,7 @@ export default async function ImportPage({ params }: ImportPageProps) {
     <main className="main full doc-pad">
       <h1 className="import-title">{t('import.pageTitle')}</h1>
       <p className="import-intro">{t('import.intro')}</p>
-      <ImportPanel space={spaceId} instances={instances} />
+      <ImportPanel space={spaceId} instances={offer.bookstack} maxUploadMb={offer.maxUploadMb} />
     </main>
   )
 }

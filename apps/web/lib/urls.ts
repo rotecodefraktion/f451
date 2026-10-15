@@ -172,6 +172,12 @@ export function apiSpaceImportPath(space: string): string {
   return `/api/spaces/${encodeURIComponent(space)}/import/bookstack`
 }
 
+/** API path that starts a file import (ZIP upload) into a space (#90), e.g.
+ *  `/api/spaces/demo/import/file`. */
+export function apiSpaceFileImportPath(space: string): string {
+  return `/api/spaces/${encodeURIComponent(space)}/import/file`
+}
+
 /** API path that starts a BookStack export of a space (#128), e.g.
  *  `/api/spaces/demo/export/bookstack`. */
 export function apiSpaceExportPath(space: string): string {

@@ -1,16 +1,28 @@
+import { createWriteStream, type WriteStream } from 'node:fs'
+import { readFile } from 'node:fs/promises'
+import { pipeline } from 'node:stream/promises'
 import type { FastifyInstance, FastifyReply } from 'fastify'
-import { BookStackApiError, type BookStackSelector } from '@f451/import'
+import type {} from '@fastify/multipart'
+import { ArchiveRejectedError, BookStackApiError, zipSource, type BookStackSelector, type FileSource } from '@f451/import'
 import { requireBrowserSession } from '../auth/sessions.js'
 import type { Db } from '../db/client.js'
 import { findInstance } from '../import/instances.js'
 import type { JobRegistry, StartResult } from '../import/jobs.js'
-import { exportRun, importRun, type BookStackFactory, type RunDeps } from '../import/run.js'
+import { exportRun, fileImportRun, importRun, type BookStackFactory, type RunDeps } from '../import/run.js'
+import type { TempFiles } from '../import/temp-files.js'
 import { resolveNewPageWriteContext, type NewPageGateDeps } from './drafts.js'
+
+/** Upload limit of the file import when `F451_IMPORT_MAX_UPLOAD_MB` is unset. */
+export const DEFAULT_IMPORT_MAX_UPLOAD_MB = 200
 
 export interface ImportJobsDeps extends NewPageGateDeps {
   db: Db
   /** Allow-listed BookStack base URLs (`F451_IMPORT_BOOKSTACK_URLS`); empty → every POST is 400. */
   instances: readonly string[]
+  /** Size limit of a file-import upload in MiB (`F451_IMPORT_MAX_UPLOAD_MB`). */
+  fileImportMaxUploadMb: number
+  /** Temp files of uploads; removed per job and at shutdown. */
+  tempFiles: TempFiles
   jobs: JobRegistry
   publicBaseUrl: string
   /** `fetch` against this app's own routes (`injectFetch`). */
@@ -105,6 +117,27 @@ const exportSchema = {
   },
 } as const
 
+// No `body` schema: `@fastify/multipart` leaves `request.body` empty in this
+// mode (see `uploadMediaSchema` in drafts.ts); the fields are checked by hand.
+const fileImportSchema = {
+  tags: ['import'],
+  params: spaceParams,
+  consumes: ['multipart/form-data'],
+} as const
+
+/** `POST /api/spaces/:space/import/file` takes the ZIP in this multipart field;
+ *  the text fields are `format`, `parentId`, `update`, `release`, `dryRun`. */
+const FILE_FIELD = 'file'
+/** Upper bound on text fields per request (unknown ones are ignored). */
+const MAX_FIELDS = 20
+
+/** Multipart flag fields: `'true'` or `'false'`; missing counts as false. */
+function parseFlag(value: string | undefined): boolean | null {
+  if (value === undefined || value === 'false') return false
+  if (value === 'true') return true
+  return null
+}
+
 const jobParams = {
   tags: ['import'],
   params: {
@@ -120,6 +153,12 @@ function badRequest(reply: FastifyReply, reason: string): FastifyReply {
 
 function unknownInstance(reply: FastifyReply): FastifyReply {
   return badRequest(reply, 'This BookStack instance is not allowed.')
+}
+
+function uploadTooLarge(reply: FastifyReply, maxUploadMb: number): FastifyReply {
+  return reply
+    .code(413)
+    .send({ status: 'payload_too_large', reason: `The file exceeds the upload limit of ${maxUploadMb} MB.` })
 }
 
 function jobNotFound(reply: FastifyReply): FastifyReply {
@@ -164,7 +203,7 @@ export function registerImportJobRoutes(app: FastifyInstance, deps: ImportJobsDe
     instance.get(
       '/api/import/instances',
       { schema: { tags: ['import'] }, preHandler: requireBrowserSession },
-      async () => ({ bookstack: deps.instances }),
+      async () => ({ bookstack: deps.instances, fileImport: { maxUploadMb: deps.fileImportMaxUploadMb } }),
     )
 
     instance.post<{ Body: Credentials }>(
@@ -229,6 +268,103 @@ export function registerImportJobRoutes(app: FastifyInstance, deps: ImportJobsDe
         )
         if (!result.ok) return startRefused(reply, result)
         return reply.code(202).send({ jobId: result.id })
+      },
+    )
+
+    // File import (#90): a ZIP of a Markdown folder or an Obsidian vault. The
+    // upload streams to a temp file; the archive is validated before a job
+    // starts, so a rejected archive is a 400 with the reason. The job owns the
+    // temp file from then on and removes it when it ends.
+    instance.post<{ Params: { space: string } }>(
+      '/api/spaces/:space/import/file',
+      { schema: fileImportSchema, preHandler: requireBrowserSession },
+      async (req, reply) => {
+        const userId = req.user!.id
+        // Rights first: nobody without write access gets to store an upload.
+        const gate = await resolveNewPageWriteContext(deps, userId, req.params.space)
+        if (!gate.ok) return reply.code(gate.status).send(gate.body)
+        if (!req.isMultipart()) return badRequest(reply, 'Expected a multipart/form-data upload.')
+
+        const maxMb = deps.fileImportMaxUploadMb
+        const maxBytes = Math.floor(maxMb * 1024 * 1024)
+        const tempFile = deps.tempFiles.create()
+        let handedOver = false
+        let out: WriteStream | undefined
+        try {
+          // `parts()` rather than `file()`: the text fields may come before
+          // or after the file.
+          const fields: Record<string, string> = {}
+          let gotFile = false
+          try {
+            const parts = req.parts({ limits: { fileSize: maxBytes, files: 1, fields: MAX_FIELDS } })
+            for await (const part of parts) {
+              if (part.type === 'field') {
+                if (typeof part.value === 'string') fields[part.fieldname] = part.value
+                continue
+              }
+              if (part.fieldname !== FILE_FIELD) {
+                part.file.resume()
+                continue
+              }
+              out = createWriteStream(tempFile)
+              await pipeline(part.file, out)
+              if (part.file.truncated) return uploadTooLarge(reply, maxMb)
+              gotFile = true
+            }
+          } catch (err) {
+            if (err instanceof req.server.multipartErrors.RequestFileTooLargeError) return uploadTooLarge(reply, maxMb)
+            return badRequest(reply, 'The upload could not be read.')
+          }
+          if (!gotFile) return badRequest(reply, `Multipart field "${FILE_FIELD}" is missing.`)
+
+          const format = fields.format
+          if (format !== 'markdown' && format !== 'obsidian') {
+            return badRequest(reply, 'format must be "markdown" or "obsidian".')
+          }
+          const update = parseFlag(fields.update)
+          const release = parseFlag(fields.release)
+          const dryRun = parseFlag(fields.dryRun)
+          if (update === null || release === null || dryRun === null) {
+            return badRequest(reply, 'update, release and dryRun must be "true" or "false".')
+          }
+          const parentId = fields.parentId ? fields.parentId : undefined
+
+          let source: FileSource
+          try {
+            source = zipSource(await readFile(tempFile))
+          } catch (err) {
+            if (err instanceof ArchiveRejectedError) return badRequest(reply, err.message)
+            throw err
+          }
+
+          const result = deps.jobs.start(
+            userId,
+            'import-file',
+            gate.space.id,
+            fileImportRun(runDeps, {
+              userId,
+              space: gate.space.id,
+              format,
+              source,
+              cleanup: () => deps.tempFiles.remove(tempFile),
+              ...(parentId ? { parentId } : {}),
+              update,
+              release,
+              dryRun,
+            }),
+          )
+          if (!result.ok) return startRefused(reply, result)
+          handedOver = true
+          return reply.code(202).send({ jobId: result.id })
+        } finally {
+          if (!handedOver) {
+            // The stream opens its file asynchronously: when the upload is cut
+            // short, wait for it to close, or the file would reappear after
+            // the removal.
+            if (out && !out.closed) await new Promise<void>((resolve) => out!.once('close', () => resolve()))
+            await deps.tempFiles.remove(tempFile)
+          }
+        }
       },
     )
 

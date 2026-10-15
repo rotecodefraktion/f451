@@ -1,9 +1,10 @@
 'use client'
 
 /**
- * Import/export panel (#128) — the client island of
+ * Import/export panel (#128, #90) — the client island of
  * `app/wiki/[space]/(shell)/import/page.tsx`. Starts a BookStack import or
- * export as a job in the API and polls `GET /api/jobs/:id` until it ends.
+ * export, or a file import (ZIP upload of a Markdown folder or Obsidian
+ * vault), as a job in the API and polls `GET /api/jobs/:id` until it ends.
  *
  * The job id is kept in `sessionStorage` (per space) so a reload or a second
  * visit reattaches to the running job; a 404 from the poll (API restart,
@@ -16,11 +17,14 @@
 import { useEffect, useId, useState, type FormEvent } from 'react'
 import {
   eventHref,
+  exceedsUploadLimit,
+  fileImportForm,
   isJobView,
   nextState,
   progressPercent,
   reportFileName,
   storageKey,
+  type FileFormat,
   type JobView,
   type PanelState,
   type PollResult,
@@ -32,6 +36,7 @@ import {
   apiJobCancelPath,
   apiJobPath,
   apiSpaceExportPath,
+  apiSpaceFileImportPath,
   apiSpaceImportPath,
   wikiReviewsHref,
 } from '../lib/urls'
@@ -39,6 +44,7 @@ import {
 const POLL_MS = 1000
 
 type Tab = 'import' | 'export'
+type Origin = 'bookstack' | 'file'
 type SourceKind = 'book' | 'shelf' | 'page'
 
 interface Catalog {
@@ -118,18 +124,27 @@ function parseWhole(value: string): number | null {
 
 export interface ImportPanelProps {
   space: string
+  /** BookStack allow-list; empty → BookStack import and export are off. */
   instances: string[]
+  /** Upload limit of the file import in MB; null → file import is off. */
+  maxUploadMb: number | null
 }
 
-export function ImportPanel({ space, instances }: ImportPanelProps) {
+export function ImportPanel({ space, instances, maxUploadMb }: ImportPanelProps) {
   const { t, messages } = useT()
   const uid = useId()
   const id = (name: string) => `${uid}-${name}`
+
+  const hasBookstack = instances.length > 0
+  const hasFile = maxUploadMb !== null
 
   const [panel, setPanel] = useState<PanelState>({ kind: 'form' })
   const [notice, setNotice] = useState<Notice | null>(null)
 
   const [tab, setTab] = useState<Tab>('import')
+  const [origin, setOrigin] = useState<Origin>(hasBookstack ? 'bookstack' : 'file')
+  const [fileFormat, setFileFormat] = useState<FileFormat>('markdown')
+  const [file, setFile] = useState<File | null>(null)
   const [instance, setInstance] = useState(instances[0] ?? '')
   const [tokenId, setTokenId] = useState('')
   const [tokenSecret, setTokenSecret] = useState('')
@@ -242,18 +257,47 @@ export function ImportPanel({ space, instances }: ImportPanelProps) {
     return { body: { ...base, ...(startPage ? { pageId: startPage } : {}), ...(book !== null ? { bookId: book } : {}) } }
   }
 
+  const isFileImport = tab === 'import' && origin === 'file' && hasFile
+
+  function switchOrigin(next: Origin) {
+    setOrigin(next)
+    setFile(null)
+    setNotice(null)
+  }
+
+  /** Multipart body of a file import, or an error text for the form. */
+  function buildFileForm(): { form: FormData } | { error: string } {
+    if (!file) return { error: t('import.errors.missingFile') }
+    if (maxUploadMb !== null && exceedsUploadLimit(file.size, maxUploadMb)) {
+      return { error: t('import.errors.tooLarge', { max: maxUploadMb }) }
+    }
+    return { form: fileImportForm(file, file.name, { format: fileFormat, parentId, update, release, dryRun }) }
+  }
+
   async function onStart(event: FormEvent) {
     event.preventDefault()
     setNotice(null)
-    const built = buildBody()
-    if ('error' in built) {
-      setNotice({ tone: 'error', text: built.error })
-      return
+    let request: () => Promise<CallResult>
+    if (isFileImport) {
+      const built = buildFileForm()
+      if ('error' in built) {
+        setNotice({ tone: 'error', text: built.error })
+        return
+      }
+      // No content-type header: the browser sets the multipart boundary.
+      request = () => call(apiSpaceFileImportPath(space), { method: 'POST', body: built.form })
+    } else {
+      const built = buildBody()
+      if ('error' in built) {
+        setNotice({ tone: 'error', text: built.error })
+        return
+      }
+      const path = tab === 'import' ? apiSpaceImportPath(space) : apiSpaceExportPath(space)
+      request = () => postJson(path, built.body)
     }
     setStarting(true)
     try {
-      const path = tab === 'import' ? apiSpaceImportPath(space) : apiSpaceExportPath(space)
-      const r = await postJson(path, built.body)
+      const r = await request()
       const jobId = typeof r.body.jobId === 'string' ? r.body.jobId : null
       if ((r.status === 202 || r.status === 200) && jobId) {
         attach(jobId)
@@ -266,6 +310,10 @@ export function ImportPanel({ space, instances }: ImportPanelProps) {
         setNotice({ tone: 'error', text: t('import.errors.forbidden') })
       } else if (r.status === 404) {
         setNotice({ tone: 'error', text: t('import.errors.notFound') })
+      } else if (r.status === 413 && maxUploadMb !== null) {
+        setNotice({ tone: 'error', text: t('import.errors.tooLarge', { max: maxUploadMb }) })
+      } else if (r.status === 400 && isFileImport) {
+        setNotice({ tone: 'error', text: serverMessage(r.body) ?? t('import.errors.badArchive') })
       } else {
         setNotice({ tone: 'error', text: serverMessage(r.body) ?? t('import.errors.startFailed') })
       }
@@ -305,6 +353,8 @@ export function ImportPanel({ space, instances }: ImportPanelProps) {
   function onNewRun() {
     clearStored(space)
     setNotice(null)
+    // The file input is remounted empty; drop the file it no longer shows.
+    setFile(null)
     setPanel({ kind: 'form' })
   }
 
@@ -411,117 +461,172 @@ export function ImportPanel({ space, instances }: ImportPanelProps) {
 
   return (
     <form className="import-panel" onSubmit={onStart} noValidate>
-      <div className="segmented import-tabs" role="group" aria-label={t('import.tabsLabel')}>
-        <button type="button" aria-pressed={tab === 'import'} onClick={() => setTab('import')}>
-          {t('import.tabs.import')}
-        </button>
-        <button type="button" aria-pressed={tab === 'export'} onClick={() => setTab('export')}>
-          {t('import.tabs.export')}
-        </button>
-      </div>
+      {hasBookstack && (
+        <div className="segmented import-tabs" role="group" aria-label={t('import.tabsLabel')}>
+          <button type="button" aria-pressed={tab === 'import'} onClick={() => setTab('import')}>
+            {t('import.tabs.import')}
+          </button>
+          <button type="button" aria-pressed={tab === 'export'} onClick={() => setTab('export')}>
+            {t('import.tabs.export')}
+          </button>
+        </div>
+      )}
+      {tab === 'import' && hasBookstack && hasFile && (
+        <div className="segmented import-tabs" role="group" aria-label={t('import.originLabel')}>
+          <button type="button" aria-pressed={origin === 'bookstack'} onClick={() => switchOrigin('bookstack')}>
+            {t('import.origins.bookstack')}
+          </button>
+          <button type="button" aria-pressed={origin === 'file'} onClick={() => switchOrigin('file')}>
+            {t('import.origins.file')}
+          </button>
+        </div>
+      )}
 
-      <div className="field">
-        <label className="label" htmlFor={id('instance')}>
-          {t('import.instance')}
-        </label>
-        <div className="selectwrap">
-          <select
-            id={id('instance')}
-            className="select"
-            value={instance}
-            onChange={(e) => {
-              setInstance(e.target.value)
-              setCatalog(null)
-            }}
-          >
-            {instances.map((u) => (
-              <option key={u} value={u}>
-                {u}
-              </option>
-            ))}
-          </select>
-          <span className="caret" aria-hidden="true">
-            ▾
-          </span>
-        </div>
-      </div>
+      {!isFileImport && (
+        <>
+          <div className="field">
+            <label className="label" htmlFor={id('instance')}>
+              {t('import.instance')}
+            </label>
+            <div className="selectwrap">
+              <select
+                id={id('instance')}
+                className="select"
+                value={instance}
+                onChange={(e) => {
+                  setInstance(e.target.value)
+                  setCatalog(null)
+                }}
+              >
+                {instances.map((u) => (
+                  <option key={u} value={u}>
+                    {u}
+                  </option>
+                ))}
+              </select>
+              <span className="caret" aria-hidden="true">
+                ▾
+              </span>
+            </div>
+          </div>
 
-      <div className="import-row">
-        <div className="field">
-          <label className="label" htmlFor={id('token-id')}>
-            {t('import.tokenId')}
-          </label>
-          <input
-            id={id('token-id')}
-            className="input"
-            autoComplete="off"
-            spellCheck={false}
-            value={tokenId}
-            onChange={(e) => setTokenId(e.target.value)}
-          />
-        </div>
-        <div className="field">
-          <label className="label" htmlFor={id('token-secret')}>
-            {t('import.tokenSecret')}
-          </label>
-          <input
-            id={id('token-secret')}
-            className="input"
-            type="password"
-            autoComplete="off"
-            value={tokenSecret}
-            onChange={(e) => setTokenSecret(e.target.value)}
-          />
-        </div>
-      </div>
-      <p className="import-hint">{t('import.tokenHint')}</p>
+          <div className="import-row">
+            <div className="field">
+              <label className="label" htmlFor={id('token-id')}>
+                {t('import.tokenId')}
+              </label>
+              <input
+                id={id('token-id')}
+                className="input"
+                autoComplete="off"
+                spellCheck={false}
+                value={tokenId}
+                onChange={(e) => setTokenId(e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label className="label" htmlFor={id('token-secret')}>
+                {t('import.tokenSecret')}
+              </label>
+              <input
+                id={id('token-secret')}
+                className="input"
+                type="password"
+                autoComplete="off"
+                value={tokenSecret}
+                onChange={(e) => setTokenSecret(e.target.value)}
+              />
+            </div>
+          </div>
+          <p className="import-hint">{t('import.tokenHint')}</p>
+        </>
+      )}
 
       {tab === 'import' ? (
         <>
-          <div className="import-row">
-            <div className="field">
-              <label className="label" htmlFor={id('source-kind')}>
-                {t('import.sourceKind')}
-              </label>
-              <div className="selectwrap">
-                <select
-                  id={id('source-kind')}
-                  className="select"
-                  value={sourceKind}
-                  onChange={(e) => {
-                    setSourceKind(e.target.value as SourceKind)
-                    setSourceValue('')
-                  }}
-                >
-                  <option value="book">{t('import.sourceKinds.book')}</option>
-                  <option value="shelf">{t('import.sourceKinds.shelf')}</option>
-                  <option value="page">{t('import.sourceKinds.page')}</option>
-                </select>
-                <span className="caret" aria-hidden="true">
-                  ▾
-                </span>
+          {isFileImport ? (
+            <>
+              <div className="field">
+                <label className="label" htmlFor={id('file-format')}>
+                  {t('import.fileFormat')}
+                </label>
+                <div className="selectwrap">
+                  <select
+                    id={id('file-format')}
+                    className="select"
+                    value={fileFormat}
+                    onChange={(e) => setFileFormat(e.target.value as FileFormat)}
+                  >
+                    <option value="markdown">{t('import.fileFormats.markdown')}</option>
+                    <option value="obsidian">{t('import.fileFormats.obsidian')}</option>
+                  </select>
+                  <span className="caret" aria-hidden="true">
+                    ▾
+                  </span>
+                </div>
               </div>
-            </div>
-            <SourceField
-              inputId={id('source')}
-              kind={sourceKind}
-              catalog={catalog}
-              value={sourceValue}
-              onChange={setSourceValue}
-            />
-          </div>
-          {sourceKind !== 'page' && (
-            <div className="import-catalog">
-              <button type="button" className="btn small" onClick={loadCatalog} disabled={!credentialsReady || catalogBusy}>
-                {catalogBusy ? t('import.loadingBooks') : t('import.loadBooks')}
-              </button>
-              {catalog === null && <span className="import-hint">{t('import.catalogHint')}</span>}
-            </div>
-          )}
-          {catalogError && (
-            <div className="callout error import-notice" role="alert">
-              {catalogError}
-            </div>
+              <div className="field">
+                <label className="label" htmlFor={id('file')}>
+                  {t('import.file')}
+                </label>
+                <input
+                  id={id('file')}
+                  className="input"
+                  type="file"
+                  accept=".zip,application/zip"
+                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                />
+                {maxUploadMb !== null && <span className="hint">{t('import.fileHint', { max: maxUploadMb })}</span>}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="import-row">
+                <div className="field">
+                  <label className="label" htmlFor={id('source-kind')}>
+                    {t('import.sourceKind')}
+                  </label>
+                  <div className="selectwrap">
+                    <select
+                      id={id('source-kind')}
+                      className="select"
+                      value={sourceKind}
+                      onChange={(e) => {
+                        setSourceKind(e.target.value as SourceKind)
+                        setSourceValue('')
+                      }}
+                    >
+                      <option value="book">{t('import.sourceKinds.book')}</option>
+                      <option value="shelf">{t('import.sourceKinds.shelf')}</option>
+                      <option value="page">{t('import.sourceKinds.page')}</option>
+                    </select>
+                    <span className="caret" aria-hidden="true">
+                      ▾
+                    </span>
+                  </div>
+                </div>
+                <SourceField
+                  inputId={id('source')}
+                  kind={sourceKind}
+                  catalog={catalog}
+                  value={sourceValue}
+                  onChange={setSourceValue}
+                />
+              </div>
+              {sourceKind !== 'page' && (
+                <div className="import-catalog">
+                  <button type="button" className="btn small" onClick={loadCatalog} disabled={!credentialsReady || catalogBusy}>
+                    {catalogBusy ? t('import.loadingBooks') : t('import.loadBooks')}
+                  </button>
+                  {catalog === null && <span className="import-hint">{t('import.catalogHint')}</span>}
+                </div>
+              )}
+              {catalogError && (
+                <div className="callout error import-notice" role="alert">
+                  {catalogError}
+                </div>
+              )}
+            </>
           )}
 
           <div className="field">

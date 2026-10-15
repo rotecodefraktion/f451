@@ -10,12 +10,24 @@
 export const importMessages = {
   pageTitle: 'Import und Export',
   intro:
-    'Übernimmt Bücher, Regale oder einzelne Seiten aus BookStack in diesen Space oder schreibt Seiten des Space nach BookStack. Der Lauf geht im Hintergrund weiter, auch wenn diese Seite geschlossen wird.',
+    'Übernimmt einen Markdown-Ordner, einen Obsidian-Vault oder Inhalte aus BookStack in diesen Space oder schreibt Seiten des Space nach BookStack. Der Lauf geht im Hintergrund weiter, auch wenn diese Seite geschlossen wird.',
   tabsLabel: 'Richtung',
   tabs: {
     import: 'Import',
     export: 'Export',
   },
+  originLabel: 'Herkunft',
+  origins: {
+    bookstack: 'BookStack',
+    file: 'Datei',
+  },
+  fileFormat: 'Format',
+  fileFormats: {
+    markdown: 'Markdown-Ordner',
+    obsidian: 'Obsidian-Vault',
+  },
+  file: 'ZIP-Archiv',
+  fileHint: 'Den Ordner oder Vault als ZIP-Archiv hochladen, höchstens {max} MB.',
   instance: 'BookStack-Instanz',
   tokenId: 'Token-ID',
   tokenSecret: 'Token-Secret',
@@ -79,6 +91,9 @@ export const importMessages = {
   errors: {
     missingFields: 'Bitte Instanz, Token-ID, Token-Secret und eine Quelle angeben.',
     invalidNumber: 'Bitte eine ganze Zahl angeben.',
+    missingFile: 'Bitte ein ZIP-Archiv auswählen.',
+    tooLarge: 'Die Datei ist größer als die erlaubten {max} MB.',
+    badArchive: 'Das Archiv wurde abgelehnt.',
     catalogFailed: 'Die Bücher konnten nicht geladen werden.',
     busy: 'Es läuft bereits ein Import oder Export — die Anzeige wechselt zu diesem Lauf.',
     full: 'Gerade laufen zu viele Importe und Exporte. Bitte in ein paar Minuten erneut versuchen.',

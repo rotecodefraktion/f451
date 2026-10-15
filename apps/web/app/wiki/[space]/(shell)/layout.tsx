@@ -9,6 +9,7 @@ import { ToolTrigger } from '../../../../components/tool-trigger'
 import { Tree, type TreeNodeData } from '../../../../components/tree'
 import { ApiError, apiFetch } from '../../../../lib/api'
 import { getT } from '../../../../lib/i18n/server.js'
+import { importAvailable, parseImportOffer } from '../../../../lib/import-job'
 import { getMe } from '../../../../lib/session'
 import {
   apiImportInstancesPath,
@@ -180,16 +181,16 @@ export default async function SpaceLayout({ children, params }: SpaceLayoutProps
 
   let spaces: SpaceSummary[]
   let tree: TreeNodeData[]
-  let importInstances: string[]
+  let showImport: boolean
   try {
-    ;[spaces, tree, importInstances] = await Promise.all([
+    ;[spaces, tree, showImport] = await Promise.all([
       apiFetch<SpaceSummary[]>('/api/spaces', { cookie: cookieHeader }),
       apiFetch<TreeNodeData[]>(apiSpaceTreePath(spaceId), { cookie: cookieHeader }),
-      // Fail-soft (#128): the import tool only shows when the operator has
-      // allowed BookStack instances; any error just hides the link.
-      apiFetch<{ bookstack?: unknown }>(apiImportInstancesPath(), { cookie: cookieHeader }).then(
-        (r) => (Array.isArray(r.bookstack) ? r.bookstack.filter((u): u is string => typeof u === 'string') : []),
-        () => [],
+      // Fail-soft (#128, #90): the import tool only shows when the API offers
+      // a source (BookStack allow-list or file import); any error hides the link.
+      apiFetch<unknown>(apiImportInstancesPath(), { cookie: cookieHeader }).then(
+        (r) => importAvailable(parseImportOffer(r)),
+        () => false,
       ),
     ])
   } catch (err) {
@@ -280,7 +281,7 @@ export default async function SpaceLayout({ children, params }: SpaceLayoutProps
       </div>
       <div className="grp">{t('sidebar.toolGroups.configure')}</div>
       <div className="nav">
-        {importInstances.length > 0 && (
+        {showImport && (
           <Link className="tool" href={wikiImportHref(spaceId)}>
             {IMPORT_ICON}
             <span className="lbl">{t('sidebar.tools.import.label')}</span>

@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
   eventHref,
+  exceedsUploadLimit,
+  fileImportForm,
+  importAvailable,
   isJobView,
+  parseImportOffer,
   nextState,
   progressPercent,
   reportFileName,
@@ -99,7 +103,56 @@ describe('storageKey and reportFileName', () => {
 
   it('names the report by job kind', () => {
     expect(reportFileName('import-bookstack')).toBe('import-report.md')
+    expect(reportFileName('import-file')).toBe('import-report.md')
     expect(reportFileName('export-bookstack')).toBe('export-report.md')
+  })
+})
+
+describe('parseImportOffer and importAvailable', () => {
+  it('reads the allow-list and the file import limit', () => {
+    const offer = parseImportOffer({ bookstack: ['https://a', 3], fileImport: { maxUploadMb: 200 } })
+    expect(offer).toEqual({ bookstack: ['https://a'], maxUploadMb: 200 })
+    expect(importAvailable(offer)).toBe(true)
+  })
+  it('treats a missing or malformed file import as absent', () => {
+    expect(parseImportOffer({ bookstack: [] }).maxUploadMb).toBeNull()
+    expect(parseImportOffer({ fileImport: { maxUploadMb: '200' } }).maxUploadMb).toBeNull()
+    expect(parseImportOffer({ fileImport: { maxUploadMb: 0 } }).maxUploadMb).toBeNull()
+    expect(parseImportOffer(null)).toEqual({ bookstack: [], maxUploadMb: null })
+  })
+  it('offers the page with either source', () => {
+    expect(importAvailable({ bookstack: [], maxUploadMb: 50 })).toBe(true)
+    expect(importAvailable({ bookstack: ['https://a'], maxUploadMb: null })).toBe(true)
+    expect(importAvailable({ bookstack: [], maxUploadMb: null })).toBe(false)
+  })
+})
+
+describe('exceedsUploadLimit', () => {
+  it('compares bytes against the limit in MiB', () => {
+    expect(exceedsUploadLimit(2 * 1024 * 1024, 2)).toBe(false)
+    expect(exceedsUploadLimit(2 * 1024 * 1024 + 1, 2)).toBe(true)
+  })
+})
+
+describe('fileImportForm', () => {
+  const opts = { format: 'obsidian' as const, parentId: ' p-1 ', update: true, release: false, dryRun: true }
+
+  it('carries the options as text fields and the file last', () => {
+    const form = fileImportForm(new Blob(['zip']), 'vault.zip', opts)
+    expect([...form.keys()]).toEqual(['format', 'parentId', 'update', 'release', 'dryRun', 'file'])
+    expect(form.get('format')).toBe('obsidian')
+    expect(form.get('parentId')).toBe('p-1')
+    expect(form.get('update')).toBe('true')
+    expect(form.get('release')).toBe('false')
+    expect(form.get('dryRun')).toBe('true')
+    const file = form.get('file')
+    expect(file).toBeInstanceOf(Blob)
+    expect((file as File).name).toBe('vault.zip')
+  })
+
+  it('leaves out an empty parent', () => {
+    const form = fileImportForm(new Blob(['zip']), 'x.zip', { ...opts, parentId: '  ' })
+    expect(form.has('parentId')).toBe(false)
   })
 })
 

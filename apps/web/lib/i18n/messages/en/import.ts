@@ -5,12 +5,24 @@ import type { Messages } from '../../types.js'
 export const importMessages: Messages['import'] = {
   pageTitle: 'Import and export',
   intro:
-    'Brings books, shelves or single pages from BookStack into this space, or writes pages of this space to BookStack. A run keeps going in the background even if you close this page.',
+    'Brings a Markdown folder, an Obsidian vault or content from BookStack into this space, or writes pages of this space to BookStack. A run keeps going in the background even if you close this page.',
   tabsLabel: 'Direction',
   tabs: {
     import: 'Import',
     export: 'Export',
   },
+  originLabel: 'Origin',
+  origins: {
+    bookstack: 'BookStack',
+    file: 'File',
+  },
+  fileFormat: 'Format',
+  fileFormats: {
+    markdown: 'Markdown folder',
+    obsidian: 'Obsidian vault',
+  },
+  file: 'ZIP archive',
+  fileHint: 'Upload the folder or vault as a ZIP archive, at most {max} MB.',
   instance: 'BookStack instance',
   tokenId: 'Token ID',
   tokenSecret: 'Token secret',
@@ -72,6 +84,9 @@ export const importMessages: Messages['import'] = {
   errors: {
     missingFields: 'Please enter the instance, token ID, token secret and a source.',
     invalidNumber: 'Please enter a whole number.',
+    missingFile: 'Please choose a ZIP archive.',
+    tooLarge: 'The file is larger than the allowed {max} MB.',
+    badArchive: 'The archive was rejected.',
     catalogFailed: 'The books could not be loaded.',
     busy: 'An import or export is already running — switching to that run.',
     full: 'Too many imports and exports are running right now. Please try again in a few minutes.',
