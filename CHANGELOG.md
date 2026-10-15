@@ -8,6 +8,25 @@ with a new major version.
 
 ## [Unreleased]
 
+## [1.3.0] — 2026-10-15
+
+Import from and export to BookStack, from the command line and the web UI;
+an overview of open reviews; Mermaid diagrams, backlinks and link previews.
+
+One behaviour change in the HTTP API: `DELETE /api/pages/:id` no longer
+deletes at once. It opens a review that deletes the page's whole folder when
+released, and answers `409` for the root page, a page with a pending draft or
+a busy subpage (#155). No changes to the MCP tools, the page format or the
+configuration beyond the new optional `F451_IMPORT_BOOKSTACK_URLS`.
+
+**Operators, after upgrading:**
+1. Run the database migration: `node dist/db/migrate-cli.js` in the API
+   container (see `deploy/BETRIEB.md`). Without it, page requests fail.
+2. Run `POST /admin/reindex` once, for backlink excerpts (#97) and trees
+   indexed before #133.
+3. Optional: set `F451_IMPORT_BOOKSTACK_URLS` to enable import and export in
+   the web UI (#128).
+
 ### Added
 - Import core and `f451-import bookstack`: imports a BookStack shelf, book or
   page as drafts with reviews (#87, #93). See
@@ -56,6 +75,8 @@ with a new major version.
   - Cancelling also stops reading from BookStack (#142); repeated update runs
     no longer re-upload unchanged images (#143).
   - Skipped media and source links use BookStack's public address (#146).
+  - Links written by import and export use BookStack's public address when
+    the API reaches BookStack under an internal one (#152).
 - Export to BookStack: a failing chapter no longer aborts the export (#147);
   stale pages beyond 100 search hits are listed (#145).
 - Open pull requests are read across all result pages, so the review overview
@@ -377,6 +398,7 @@ f451 License 1.1 — PolyForm Shield 1.0.0 with additional conditions: free to
 use, change and share, also commercially; a separate license is needed only to
 sell f451 or offer it as a paid hosted service. See `LICENSE.md`.
 
+[1.3.0]: https://github.com/rotecodefraktion/f451/releases/tag/v1.3.0
 [1.2.0]: https://github.com/rotecodefraktion/f451/releases/tag/v1.2.0
 [1.1.1]: https://github.com/rotecodefraktion/f451/releases/tag/v1.1.1
 [1.1.0]: https://github.com/rotecodefraktion/f451/releases/tag/v1.1.0
