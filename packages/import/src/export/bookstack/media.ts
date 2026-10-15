@@ -85,7 +85,8 @@ export async function uploadImages(
   return images
 }
 
-/** Uploads attachments, skipping names the page already has. */
+/** Uploads attachments, skipping names the page already has. `baseUrl` only
+ *  builds the returned links, so it is the base readers reach BookStack under. */
 export async function uploadAttachments(
   client: MediaClient,
   bsPageId: number,

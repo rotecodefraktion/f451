@@ -241,6 +241,38 @@ describe('loadBookStackTree', () => {
   )
 
   it(
+    'resolves an absolute link on BookStack\'s public host as an internal link',
+    async () => {
+      // BookStack reports content urls from its APP_URL, which differs from BASE.
+      const publicHost = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url)
+        if (url.pathname === '/api/books/7') {
+          const book = JSON.parse(fixture('book-7.json')) as { contents: Array<{ slug: string; url?: string; pages?: Array<{ slug: string; url?: string }> }> }
+          for (const item of book.contents) {
+            if (item.pages) for (const p of item.pages) p.url = `http://public.example/books/guide/page/${p.slug}`
+            else item.url = `http://public.example/books/guide/page/${item.slug}`
+          }
+          return Response.json(book)
+        }
+        if (url.pathname === '/api/pages/12') {
+          const body = fixture('page-12.json').replace('href=\\"/books/guide/page/next\\"', 'href=\\"http://public.example/books/guide/page/next\\"')
+          return new Response(body, { status: 200, headers: { 'Content-Type': 'application/json' } })
+        }
+        return fetchImpl(input, init)
+      }) as typeof fetch
+      const tree = await loadBookStackTree(new BookStackClient(BASE, 'id', 'secret', publicHost), { book: '7' }, {
+        baseUrl: BASE,
+        drawio: null,
+        maxBytes: MAX_BYTES,
+      })
+      const p12 = find(tree.root, '12')
+      expect(p12.markdown).toContain('[Next](source:13|http://public.example/books/guide/page/next)')
+      expect(p12.sourceRef.url).toBe('http://public.example/books/guide/page/start')
+    },
+    TIMEOUT,
+  )
+
+  it(
     'never fetches a drawing whose source is not BookStack media, and reports it',
     async () => {
       const fetched: string[] = []

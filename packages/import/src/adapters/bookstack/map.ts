@@ -4,6 +4,7 @@ import { BookStackNotFoundError, type BookStackClient } from './client.js'
 import { convertDrawings, type DrawioRenderer } from './drawings.js'
 import { htmlToMarkdown, type ConversionContext } from './html-to-md.js'
 import { collectMedia } from './media.js'
+import { publicBaseOf } from './public-base.js'
 import type { BookStackBookContents, BookStackTag } from './types.js'
 
 export interface BookStackSelector {
@@ -45,13 +46,20 @@ type Plan =
 class PageIndex {
   private readonly byId = new Map<number, PageEntry>()
   private readonly byPath = new Map<string, PageEntry>()
+  /** The configured base URL and every public base seen in reported URLs. */
+  private readonly bases: Set<string>
 
-  constructor(private readonly baseUrl: string) {}
+  constructor(private readonly baseUrl: string) {
+    this.bases = new Set([baseUrl])
+  }
 
   /** `url` is the page URL BookStack reports, if any; else it is built from
-   *  the base URL. */
+   *  the base URL. A reported URL also teaches the index BookStack's public
+   *  base, so absolute links written with it count as internal. */
   add(id: number, slug: string, bookSlug: string, url?: string): void {
     const entry = { id, slug, bookSlug, url: url ?? pageUrl(this.baseUrl, bookSlug, slug) }
+    const publicBase = publicBaseOf(url)
+    if (publicBase) this.bases.add(publicBase)
     this.byId.set(id, entry)
     this.byPath.set(`${bookSlug}/${slug}`, entry)
   }
@@ -60,9 +68,19 @@ class PageIndex {
     return this.byId.get(id)?.url
   }
 
+  /** Bases learned from reported URLs, other than the configured one. */
+  publicBases(): string[] {
+    return [...this.bases].filter((b) => b !== this.baseUrl)
+  }
+
   resolve(href: string): { id: string; url: string } | null {
     let path = href
-    if (path.startsWith(`${this.baseUrl}/`)) path = path.slice(this.baseUrl.length)
+    for (const base of this.bases) {
+      if (path.startsWith(`${base}/`)) {
+        path = path.slice(base.length)
+        break
+      }
+    }
     path = path.split(/[?#]/)[0] ?? ''
     const link = /^\/link\/(\d+)\/?$/.exec(path)
     if (link) return toTarget(this.byId.get(Number(link[1])))
@@ -131,7 +149,12 @@ export async function loadBookStackTree(
   const plans = await planScope(client, selector, baseUrl, index, aborted)
 
   const tree: ImportTree = { root: [], droppedHtml: {}, drawingsAsPng: [], failed: [], mediaSkipped: [] }
-  const ctx: ConversionContext = { baseUrl, resolveInternalLink: (href) => index.resolve(href) }
+  // Planning has registered every page, so the public bases are known by now.
+  const ctx: ConversionContext = {
+    baseUrl,
+    publicBases: index.publicBases(),
+    resolveInternalLink: (href) => index.resolve(href),
+  }
   // A page that cannot be loaded or converted is a page error: it is recorded
   // and left out, the rest of the tree is still imported.
   const build = async (plan: Plan): Promise<ImportNode | null> => {

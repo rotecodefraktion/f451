@@ -18,7 +18,7 @@ interface Entity {
 const slugify = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
 
 /** In-memory BookStack: every entity lives in one list, search goes by tag. */
-function fakeBookStack() {
+function fakeBookStack(publicBase?: string) {
   const store: Entity[] = []
   let nextId = 1
   const add = (e: Omit<Entity, 'id' | 'slug'>): Entity => {
@@ -36,8 +36,15 @@ function fakeBookStack() {
     searchByTag: vi.fn<ExportBookStack['searchByTag']>(async (name, value) =>
       store
         .filter((e) => e.tags.some((t) => t.name === name && t.value === value))
-        // Like BookStack's search: chapters and pages carry their book.
-        .map((e) => ({ id: e.id, type: e.type, name: e.name, ...(e.type === 'book' ? {} : { book_id: e.book_id }) })),
+        // Like BookStack's search: chapters and pages carry their book; with a
+        // public base, a book hit carries its url built from BookStack's APP_URL.
+        .map((e) => ({
+          id: e.id,
+          type: e.type,
+          name: e.name,
+          ...(e.type === 'book' ? {} : { book_id: e.book_id }),
+          ...(publicBase !== undefined && e.type === 'book' ? { url: `${publicBase}/books/${e.slug}` } : {}),
+        })),
     ),
     getBookContents: vi.fn<ExportBookStack['getBookContents']>(async (id) => asAny(get(id, 'book'))),
     createBook: vi.fn<ExportBookStack['createBook']>(async (p) =>
@@ -153,6 +160,36 @@ describe('exportToBookStack', () => {
     const chPage = store.find((e) => e.type === 'page' && tag(e, 'f451-id') === 'p-ch')!
     const xPage = store.find((e) => e.type === 'page' && tag(e, 'f451-id') === 'p-x')!
     expect(chPage.html).toContain(`href="https://bs.example/books/${book.slug}/page/${xPage.slug}"`)
+  })
+
+  it('links exported pages under BookStack\'s public base when its search reveals one', async () => {
+    const { bs, store } = fakeBookStack('http://public.example')
+    // The book exists already, so its search hit carries the public url.
+    await bs.createBook({ name: 'Space', tags: [{ name: 'f451-id', value: 'p-root' }, { name: 'f451-space', value: 'docs' }] })
+
+    await exportToBookStack(fakeF451().f451, bs, opts, () => {})
+
+    const book = store.find((e) => e.type === 'book')!
+    const chPage = store.find((e) => e.type === 'page' && tag(e, 'f451-id') === 'p-ch')!
+    const xPage = store.find((e) => e.type === 'page' && tag(e, 'f451-id') === 'p-x')!
+    expect(chPage.html).toContain(`href="http://public.example/books/${book.slug}/page/${xPage.slug}"`)
+    expect(chPage.html).not.toContain('https://bs.example')
+  })
+
+  it('learns the public base from the book contents on the first export into a new book', async () => {
+    const { bs, store } = fakeBookStack()
+    // A new book has no search hit yet; once pass one placed the pages, the
+    // book contents carry their public URLs.
+    bs.getBookContents.mockImplementation(async (id) => ({
+      ...(store.find((e) => e.id === id && e.type === 'book') as object),
+      contents: [{ type: 'page', url: 'http://public.example/books/space/page/x' }],
+    }) as never)
+
+    await exportToBookStack(fakeF451().f451, bs, opts, () => {})
+
+    const chPage = store.find((e) => e.type === 'page' && tag(e, 'f451-id') === 'p-ch')!
+    expect(chPage.html).toContain('href="http://public.example/books/')
+    expect(chPage.html).not.toContain('https://bs.example')
   })
 
   it('updates in place after a rename instead of duplicating', async () => {

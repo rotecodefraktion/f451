@@ -1,7 +1,8 @@
 import { parsePage } from '@f451/markdown'
 import type { F451Api, TreeNode } from '../../api.js'
 import type { BookStackClient } from '../../adapters/bookstack/client.js'
-import type { BookStackTag } from '../../adapters/bookstack/types.js'
+import { publicBaseOf } from '../../adapters/bookstack/public-base.js'
+import type { BookStackBookContents, BookStackSearchHit, BookStackTag } from '../../adapters/bookstack/types.js'
 import { planBook, type ExportPage } from './tree.js'
 import { pageResolver, renderForBookStack, type HtmlContext } from './html.js'
 import { isGalleryImage, mediaRefs, uploadAttachments, uploadImages } from './media.js'
@@ -14,7 +15,8 @@ export interface ExportOptions {
   dryRun: boolean
   /** Absolute f451 base URL, for links to pages outside the export. */
   f451Url: string
-  /** BookStack base URL, for links between exported pages. */
+  /** BookStack base URL for API calls; also for links between exported pages
+   *  and to attachments unless BookStack reveals its public base (APP_URL). */
   bookstackUrl: string
   /** Checked between pages; an abort never interrupts a page in progress. */
   signal?: AbortSignal
@@ -127,32 +129,50 @@ async function findByTag(
   f451Id: string,
   type: 'book' | 'chapter' | 'page',
   bookId?: number,
-): Promise<{ id: number; name: string } | null> {
+): Promise<BookStackSearchHit | null> {
   const hits = await bs.searchByTag(ID_TAG, f451Id)
   return hits.find((h) => h.type === type && (bookId === undefined || h.book_id === bookId)) ?? null
 }
 
+/** BookStack's public base from the `url` of a content item (page or
+ *  chapter, top level or inside a chapter); undefined if none carries one. */
+function contentsBase(book: BookStackBookContents): string | undefined {
+  const urlOf = (item: unknown) => {
+    const url = (item as { url?: unknown } | null)?.url
+    return typeof url === 'string' ? publicBaseOf(url) : undefined
+  }
+  for (const item of book.contents ?? []) {
+    const base = urlOf(item) ?? item.pages?.map(urlOf).find((b) => b !== undefined)
+    if (base !== undefined) return base
+  }
+  return undefined
+}
+
+/** The target book, plus BookStack's public base (from its APP_URL) when a
+ *  response reveals it: the book's search hit, else its content items. */
 async function resolveBook(
   bs: ExportBookStack,
   name: string,
   f451Id: string,
   opts: ExportOptions,
-): Promise<{ id: number; slug: string }> {
+): Promise<{ id: number; slug: string; publicBase?: string }> {
+  const withBase = (b: { id: number; slug: string }, publicBase: string | undefined) =>
+    publicBase !== undefined ? { id: b.id, slug: b.slug, publicBase } : { id: b.id, slug: b.slug }
   if (opts.bookId !== undefined) {
     const b = await bs.getBookContents(opts.bookId)
-    return { id: b.id, slug: b.slug }
+    return withBase(b, contentsBase(b))
   }
   const hit = await findByTag(bs, f451Id, 'book')
   if (!hit) {
     const b = await bs.createBook({ name, tags: tagsFor(f451Id, opts.space) })
-    return { id: b.id, slug: b.slug }
+    return withBase(b, undefined)
   }
   if (hit.name !== name) {
     const b = await bs.updateBook(hit.id, { name })
-    return { id: b.id, slug: b.slug }
+    return withBase(b, publicBaseOf(hit.url) ?? contentsBase(await bs.getBookContents(b.id)))
   }
   const b = await bs.getBookContents(hit.id)
-  return { id: b.id, slug: b.slug }
+  return withBase(b, publicBaseOf(hit.url) ?? contentsBase(b))
 }
 
 /** Exports an f451 space (or the subtree under `startPageId`) to one BookStack book.
@@ -258,7 +278,10 @@ export async function exportToBookStack(
   // 2. Target book.
   onEvent({ kind: 'phase', phase: 'placing' })
   const target = await resolveBook(bs, book.name, book.rootPageId ?? `space:${opts.space}`, opts)
-  const base = opts.bookstackUrl.replace(/\/+$/, '')
+  // Links readers follow use BookStack's public base when a response revealed
+  // it (f451 may reach BookStack under an internal address); API calls keep
+  // the configured one.
+  let base = target.publicBase ?? opts.bookstackUrl.replace(/\/+$/, '')
 
   // 3. Chapters.
   //    A chapter BookStack refuses fails its pages; the other chapters go on.
@@ -319,6 +342,21 @@ export async function exportToBookStack(
     }
   }
 
+  // A new book has no search hit to reveal the public base; now that pass one
+  // placed its pages, the book contents carry their public URLs. Links are
+  // written in pass two, so rebasing the collected URLs here is in time.
+  if (target.publicBase === undefined && placed.length > 0 && !aborted()) {
+    try {
+      const learned = contentsBase(await bs.getBookContents(target.id))
+      if (learned !== undefined && learned !== base) {
+        for (const [pageId, url] of ctx.bookstackUrls) ctx.bookstackUrls.set(pageId, learned + url.slice(base.length))
+        base = learned
+      }
+    } catch {
+      // Not fatal: links keep the configured address.
+    }
+  }
+
   // 5. Pass two: media, HTML, content.
   onEvent({ kind: 'phase', phase: 'writing' })
   for (const [index, p] of placed.entries()) {
@@ -368,7 +406,7 @@ export async function exportToBookStack(
       }
       for (const file of attachments) {
         try {
-          for (const [k, v] of await uploadAttachments(bs, p.bsId, [file], opts.bookstackUrl)) attachmentByName.set(k, v)
+          for (const [k, v] of await uploadAttachments(bs, p.bsId, [file], base)) attachmentByName.set(k, v)
         } catch (err) {
           report.missingMedia.push({ pageId: p.page.pageId, ref: `${MEDIA_PREFIX}${file.name}`, reason: reasonOf(err) })
         }
