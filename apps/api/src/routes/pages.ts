@@ -62,6 +62,8 @@ export interface PageWorkflowField {
   state: 'working' | 'review'
   pr: { number: number; url: string } | null
   lock: { user: string; mine: boolean } | null
+  /** True while the open review deletes the page folder (f451#155). */
+  deletion: boolean
 }
 
 /**
@@ -92,10 +94,21 @@ async function resolveWorkflowField(
     if (!state) return null
 
     const lock = await loadFreshLock({ db: deps.db }, row.id, userId)
+    // A deletion request marks the page's draft row (f451#155).
+    let deletion = false
+    if (state.state === 'review') {
+      const [draftRow] = await deps.db
+        .select({ pendingDeletion: pages.pendingDeletion })
+        .from(pages)
+        .where(and(eq(pages.id, row.id), eq(pages.ref, 'draft')))
+        .limit(1)
+      deletion = draftRow?.pendingDeletion === true
+    }
     return {
       state: state.state,
       pr: state.pr,
       lock: lock ? { user: lock.user, mine: lock.mine } : null,
+      deletion,
     }
   } catch (err) {
     req.log.error({ err, pageId: row.id }, 'workflow: Provider-Fehler beim Zustandsermitteln')
@@ -364,8 +377,9 @@ const workflowSchema = {
     state: { type: 'string', enum: ['working', 'review'] },
     pr: { anyOf: [workflowPrSchema, { type: 'null' }] },
     lock: { anyOf: [workflowLockSchema, { type: 'null' }] },
+    deletion: { type: 'boolean' },
   },
-  required: ['state', 'pr', 'lock'],
+  required: ['state', 'pr', 'lock', 'deletion'],
 } as const
 
 /**

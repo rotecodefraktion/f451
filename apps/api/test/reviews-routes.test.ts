@@ -23,6 +23,7 @@ interface ReviewsResponse {
     title: string
     path: string
     isNew: boolean
+    isDeletion: boolean
     lastAuthor: string | null
     updatedAt: string
     prNumber: number
@@ -131,6 +132,9 @@ describe.sequential('GET /api/spaces/:space/reviews', () => {
       { id: 'gamma', spaceId: space.id, path: 'guide/gamma.md', ref: 'draft', title: 'Gamma', lang: 'en' },
       // delta: released, no draft.
       { id: 'delta', spaceId: space.id, path: 'ops/delta.md', ref: 'main', title: 'Delta', lang: 'en' },
+      // epsilon: released, deletion requested (f451#155); its PR is added per test.
+      { id: 'epsilon', spaceId: space.id, path: 'ops/epsilon/index.md', ref: 'main', title: 'Epsilon', lang: 'en' },
+      { id: 'epsilon', spaceId: space.id, path: 'ops/epsilon/index.md', ref: 'draft', title: 'Epsilon', lang: 'en', pendingDeletion: true },
     ])
 
     const provider = fakeProvider()
@@ -197,12 +201,21 @@ describe.sequential('GET /api/spaces/:space/reviews', () => {
       title: 'Beta',
       path: 'guide/beta.md',
       isNew: true,
+      isDeletion: false,
       lastAuthor: null,
       updatedAt: updated.toISOString(),
       prNumber: 9,
       prUrl: 'https://git.example/f451/ops/pulls/9',
     })
-    expect(alpha).toMatchObject({ id: 'alpha', title: 'Alpha v2', isNew: false, lastAuthor: 'Alice', prNumber: 7 })
+    expect(alpha).toMatchObject({ id: 'alpha', title: 'Alpha v2', isNew: false, isDeletion: false, lastAuthor: 'Alice', prNumber: 7 })
+  })
+
+  it('a deletion review is marked isDeletion (f451#155)', async () => {
+    providerState.prs = [...providerState.prs, pr(11, draftBranchName('epsilon'))]
+    const res = await app.inject({ method: 'GET', url: '/api/spaces/ops/reviews', headers: as('alice') })
+    expect(res.statusCode).toBe(200)
+    const epsilon = (res.json() as ReviewsResponse).reviews.find((r) => r.id === 'epsilon')
+    expect(epsilon).toMatchObject({ id: 'epsilon', isNew: false, isDeletion: true, prNumber: 11 })
   })
 
   it('versioning is false without a schema file', async () => {

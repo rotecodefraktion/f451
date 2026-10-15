@@ -81,6 +81,9 @@ export interface EditorRootProps {
   /** Frame switch `--status-bar: bottom` (f451#60), read by `edit/page.tsx`:
    *  the save state also shows in the bottom status bar. */
   statusBarBottom?: boolean
+  /** Descendants of this page in the space tree (`edit/page.tsx`), named in
+   *  the delete confirmation (#155). */
+  subpageCount?: number
 }
 
 /** Start mode decision: `canEdit:false` (syntax the editor cannot represent,
@@ -161,6 +164,7 @@ interface EditorSessionProps {
   offlineRecovery: { content: string; savedAt: string; foreignBranch: boolean } | null
   onDismissOfflineRecovery: () => void
   statusBarBottom: boolean
+  subpageCount: number
 }
 
 /**
@@ -188,6 +192,7 @@ function EditorSession({
   offlineRecovery,
   onDismissOfflineRecovery,
   statusBarBottom,
+  subpageCount,
 }: EditorSessionProps) {
   const { t } = useT()
   const router = useRouter()
@@ -865,21 +870,29 @@ function EditorSession({
     anchor.remove()
   }
 
-  /** „Seite löschen": die Bestätigung liegt bereits in `StatusBar#handleDeletePageClick`
-   *  (Muster `handleDiscard`) — hier läuft nur noch der API-Aufruf + die
-   *  Navigation zur Space-Startseite bei Erfolg. `router.refresh()` NACH dem
-   *  `push` (Muster `review-view.tsx#handleMerge`, Task 8): die Space-Layout-
-   *  Route (trägt den Seitenbaum) ist zwischen `/edit` und der Space-
-   *  Startseite derselbe Next-Router-Segment-Baum — ein reiner `push` behält
-   *  dessen gecachten Stand bei (Soft-Navigation), Seitenbaum UND
-   *  Space-Startseite zeigten die gerade gelöschte Seite deshalb weiter an,
-   *  solange derselbe Tab ohne harten Reload weiterlief. `refresh()`
-   *  invalidiert den Router-Cache der Zielroute (inkl. Layout/Seitenbaum) und
-   *  erzwingt einen frischen Server-Fetch. */
+  /** "Delete page" (#155): the confirmation lives in `StatusBar#handleDeletePageClick`.
+   *  The request opens a deletion review → go to the review page. A
+   *  never-released page is discarded instead (no `review`) → go to the space
+   *  start page as before. A 409 refusal shows its reason and, for busy
+   *  subpages, their titles.
+   *
+   *  `router.refresh()` after `push` (pattern `review-view.tsx#handleMerge`):
+   *  the space layout (it carries the page tree) is shared between `/edit` and
+   *  the target, and a plain `push` would keep its cached state. No save flush
+   *  before the request: a fresh commit on the draft branch would make the
+   *  API refuse with `draft_pending`. */
   function handleDeletePage() {
     deletePage(pageId)
-      .then(() => {
-        router.push(wikiSpaceHref(space))
+      .then((result) => {
+        if (!result.ok) {
+          const lines = [t('editor.errors.deletePageRefused', { reason: result.reason })]
+          if (result.pages.length > 0) {
+            lines.push(t('editor.errors.deletePageBusyPages', { pages: result.pages.map((p) => p.title).join(', ') }))
+          }
+          window.alert(lines.join('\n'))
+          return
+        }
+        router.push(result.review ? wikiPageReviewHref(space, pageId) : wikiSpaceHref(space))
         router.refresh()
       })
       .catch(() => {
@@ -1130,6 +1143,7 @@ function EditorSession({
         onSaveAsTemplate={handleOpenSaveTemplateDialog}
         onExportMarkdown={handleExportMarkdown}
         onDeletePage={handleDeletePage}
+        subpageCount={subpageCount}
       />
       {/* Phone writing mode (f451#2): shown by CSS only under `html[data-writing]`. */}
       <WritingHeader saveStatus={saveStatus} savedAt={savedAt} />
@@ -1254,7 +1268,14 @@ function EditorSession({
  * unterscheiden. Jeder andere Fehlerstatus fällt auf dieselbe Fehlerkarte MIT
  * Retry zurück (nie eine leere Seite ohne Erklärung).
  */
-export function EditorRoot({ pageId, space, title, metadataSchema, statusBarBottom = false }: EditorRootProps) {
+export function EditorRoot({
+  pageId,
+  space,
+  title,
+  metadataSchema,
+  statusBarBottom = false,
+  subpageCount = 0,
+}: EditorRootProps) {
   const { t } = useT()
   const [state, setState] = useState<LoadState>({ status: 'loading' })
   // Unmount-Guard (Task-2-Review-Fund): ein `mounted`-Flag statt eines
@@ -1465,6 +1486,7 @@ export function EditorRoot({ pageId, space, title, metadataSchema, statusBarBott
       offlineRecovery={offlineRecovery}
       onDismissOfflineRecovery={dismissOfflineRecovery}
       statusBarBottom={statusBarBottom}
+      subpageCount={subpageCount}
     />
   )
 }

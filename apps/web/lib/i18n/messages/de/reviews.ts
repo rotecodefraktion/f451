@@ -24,6 +24,7 @@ export const reviews = {
   kinds: {
     new: 'neu',
     changed: 'geändert',
+    deletion: 'wird gelöscht',
   },
   unknownAuthor: '—',
   bump: 'Versionssprung',

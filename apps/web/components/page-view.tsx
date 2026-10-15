@@ -6,7 +6,7 @@ import { StatusBarBottom } from './status-bar-bottom'
 import { UnarchiveButton } from './unarchive-button'
 import { takeLeadHeading } from '../lib/lead-heading'
 import { getT } from '../lib/i18n/server.js'
-import { buildBreadcrumb, formatUpdatedAt, sectionSlugs } from '../lib/page-view'
+import { buildBreadcrumb, draftNoticeText, formatUpdatedAt, sectionSlugs } from '../lib/page-view'
 import { placesFootnotes } from '../lib/footnotes-mode'
 import { getFrame, getSwitches } from '../lib/resolved-theme'
 import { wikiPageEditHref, wikiPageReleaseHref, wikiPageReviewHref, wikiPageVersionsHref } from '../lib/urls'
@@ -25,6 +25,8 @@ export interface PageWorkflowField {
   state: 'working' | 'review'
   pr: { number: number; url: string } | null
   lock: { user: string; mine: boolean } | null
+  /** An open review deletes this page and its subpages (#155). */
+  deletion?: boolean
 }
 
 /** Antwort-Shape von `GET /api/pages/:id` (siehe apps/api/src/routes/pages.ts). */
@@ -336,7 +338,7 @@ export async function PageView({ data }: { data: PageData }) {
             <div className="notice draft" role="status">
               <span className="ic">{DRAFT_ICON}</span>
               <div className="txt">
-                {workflow!.state === 'review' ? t('read.notices.draftInReview') : t('read.notices.draftPending')}
+                {draftNoticeText(t, workflow!)}
               </div>
               <span className="grow" />
               <a
@@ -346,7 +348,9 @@ export async function PageView({ data }: { data: PageData }) {
                     : wikiPageEditHref(data.space, data.id)
                 }
               >
-                {t('read.notices.viewDraft')}
+                {workflow!.state === 'review' && workflow!.deletion
+                  ? t('read.notices.viewReview')
+                  : t('read.notices.viewDraft')}
               </a>
             </div>
           ) : null}

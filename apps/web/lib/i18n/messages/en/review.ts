@@ -9,6 +9,15 @@ export const review: Messages['review'] = {
   },
   openPr: 'Open pull request',
   author: 'Author',
+  deletion: {
+    status: 'Deletion',
+    heading: 'These pages will be deleted',
+    intro: 'On release the page and all its subpages disappear, with their attachments. Until then they stay visible.',
+    files_one: '{count} file will be removed.',
+    files_other: '{count} files will be removed.',
+    mergedSuccess: 'Deletion released — redirecting …',
+    continue: 'Continue →',
+  },
   rail: {
     ariaLabel: 'Changes in the pull request',
     changesHeading: 'Changes',

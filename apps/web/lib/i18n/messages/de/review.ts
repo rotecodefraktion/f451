@@ -15,6 +15,16 @@ export const review = {
   },
   openPr: 'Pull Request öffnen',
   author: 'Autor',
+  // Deletion review (#155): instead of the diff, the pages that disappear.
+  deletion: {
+    status: 'Löschung',
+    heading: 'Diese Seiten werden gelöscht',
+    intro: 'Mit der Freigabe verschwinden die Seite und alle Unterseiten samt Anhängen. Bis dahin bleiben sie sichtbar.',
+    files_one: '{count} Datei wird entfernt.',
+    files_other: '{count} Dateien werden entfernt.',
+    mergedSuccess: 'Löschung freigegeben — du wirst weitergeleitet …',
+    continue: 'Weiter →',
+  },
   rail: {
     ariaLabel: 'Änderungen im Pull-Request',
     changesHeading: 'Änderungen',

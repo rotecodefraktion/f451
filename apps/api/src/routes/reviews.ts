@@ -28,12 +28,13 @@ const reviewsResponseSchema = {
       type: 'array',
       items: {
         type: 'object',
-        required: ['id', 'title', 'path', 'isNew', 'lastAuthor', 'updatedAt', 'prNumber', 'prUrl'],
+        required: ['id', 'title', 'path', 'isNew', 'isDeletion', 'lastAuthor', 'updatedAt', 'prNumber', 'prUrl'],
         properties: {
           id: { type: 'string' },
           title: { type: 'string' },
           path: { type: 'string' },
           isNew: { type: 'boolean' },
+          isDeletion: { type: 'boolean' },
           lastAuthor: { type: ['string', 'null'] },
           updatedAt: { type: 'string' },
           prNumber: { type: 'integer' },
@@ -50,6 +51,8 @@ interface ReviewEntry {
   title: string
   path: string
   isNew: boolean
+  /** The review deletes the page folder (f451#155). */
+  isDeletion: boolean
   lastAuthor: string | null
   updatedAt: string
   prNumber: number
@@ -104,6 +107,7 @@ export function registerReviewRoutes(app: FastifyInstance, deps: GraphDeps): voi
             title: row.title,
             path: row.path,
             isNew: !onMain.has(row.id),
+            isDeletion: row.pendingDeletion,
             lastAuthor: row.lastAuthor,
             updatedAt: row.updatedAt.toISOString(),
             prNumber: pr.number,

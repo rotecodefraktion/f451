@@ -112,6 +112,12 @@ export const pages = pgTable(
      * betroffene Zeilen deshalb direkt gezielt statt über `indexChangedFiles`.
      */
     orderKey: integer('order_key'),
+    /**
+     * Set only on `ref='draft'` rows: the draft branch deletes this page's
+     * folder and a deletion review is (to be) open (f451#155). Derivable from
+     * Git — the page file is absent on the draft branch.
+     */
+    pendingDeletion: boolean('pending_deletion').notNull().default(false),
     searchVector: tsvector('search_vector'),
   },
   (table) => [

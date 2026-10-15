@@ -149,7 +149,7 @@ export class RootPageMoveError extends Error {
 /** true, wenn `pagePath` unter `sourceDir` liegt (das Verzeichnis selbst
  *  eingeschlossen) — `sourceDir === ''` (Space-Wurzel) matcht per Definition
  *  JEDE Seite des Space (jede Seite liegt irgendwo unter der Wurzel). */
-function isUnderSourceDir(pagePath: string, sourceDir: string): boolean {
+export function isUnderSourceDir(pagePath: string, sourceDir: string): boolean {
   if (sourceDir === '') return true
   return pagePath === `${sourceDir}/index.md` || pagePath.startsWith(`${sourceDir}/`)
 }
@@ -328,7 +328,7 @@ async function tryReadOrderFile(
  *  `reorder-children.ts#reorderChildren`). Idempotent: fehlt die Datei ODER
  *  steht die id gar nicht (mehr) drin, passiert nichts (wiederaufgenommener
  *  Move nach Teilfehler). */
-async function removeFromParentOrderFile(
+export async function removeFromParentOrderFile(
   provider: GitProvider,
   repo: RepoRef,
   parentDir: string,

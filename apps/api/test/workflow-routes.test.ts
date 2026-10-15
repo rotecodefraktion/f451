@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { ForgejoProvider, ProviderError, type RepoRef } from '@f451/git-provider'
 import { startForgejo, type ForgejoTestInstance, type ForgejoTestUser } from '@f451/git-provider/testing'
@@ -1738,6 +1738,158 @@ describe.sequential('Workflow-Routen: review/release/request-changes/draft-updat
       },
       30_000,
     )
+  })
+
+  describe('deletion review (f451#155)', () => {
+    const pageMd = (id: string, title: string): string => `---\nid: ${id}\ntitle: ${title}\nlang: de\n---\n# ${title}\n`
+
+    async function seedFiles(files: Record<string, string>): Promise<void> {
+      for (const [path, content] of Object.entries(files)) {
+        await provider.writeFile(repo, path, content, { branch: 'main', message: `seed: ${path}` })
+      }
+      await indexSpace({ db, provider }, space)
+    }
+
+    async function requestDeletionOf(pageId: string): Promise<{ number: number; url: string }> {
+      const res = await app.inject({ method: 'DELETE', url: `/api/pages/${pageId}`, cookies: cookiesOf(writerSession) })
+      expect(res.statusCode).toBe(200)
+      const body = res.json() as { ok: boolean; review?: { number: number; url: string } }
+      expect(body.review).toBeTruthy()
+      return body.review!
+    }
+
+    const underFolder = (folder: string) => (path: string) => path.startsWith(`${folder}/`)
+
+    describe('review, page workflow and release', () => {
+      const folder = 'wf-del-parent/wf-del'
+
+      beforeAll(async () => {
+        await seedFiles({
+          'wf-del-parent/index.md': pageMd('wf-del-parent', 'Deletion parent'),
+          [`${folder}/index.md`]: pageMd('wf-del', 'Deletion target'),
+          [`${folder}/_media/note.txt`]: 'media',
+          [`${folder}/kind/index.md`]: pageMd('wf-del-kind', 'Deletion child'),
+        })
+        await requestDeletionOf('wf-del')
+      }, 60_000)
+
+      it('GET review returns the pages and file count that disappear, without diff', async () => {
+        const res = await app.inject({ method: 'GET', url: '/api/pages/wf-del/review', cookies: cookiesOf(writerSession) })
+        expect(res.statusCode).toBe(200)
+        const body = res.json()
+        expect(body.diff).toBeUndefined()
+        expect(body.deletion).toEqual({
+          pages: [
+            { id: 'wf-del', title: 'Deletion target', path: `${folder}/index.md` },
+            { id: 'wf-del-kind', title: 'Deletion child', path: `${folder}/kind/index.md` },
+          ],
+          files: 3,
+        })
+        expect(body.page).toMatchObject({ id: 'wf-del', space: space.id })
+        expect(body.pr.number).toEqual(expect.any(Number))
+      }, 30_000)
+
+      it('GET page reports workflow.deletion while the review is open', async () => {
+        const res = await app.inject({ method: 'GET', url: '/api/pages/wf-del', cookies: cookiesOf(writerSession) })
+        expect(res.statusCode).toBe(200)
+        expect(res.json().workflow).toMatchObject({ state: 'review', deletion: true })
+      }, 30_000)
+
+      it('release removes the folder and all its main rows and redirects to the parent page', async () => {
+        const res = await app.inject({
+          method: 'POST',
+          url: '/api/pages/wf-del/release',
+          cookies: cookiesOf(releaserSession),
+          payload: {},
+        })
+        expect(res.statusCode).toBe(200)
+        const body = res.json() as { mergeSha: string; redirect: string | null; version?: string }
+        expect(body.mergeSha).toBeTruthy()
+        expect(body.redirect).toBe('wf-del-parent')
+        expect(body.version).toBeUndefined()
+
+        const mainTree = await provider.listTree(repo, 'main')
+        expect(mainTree.map((e) => e.path).filter(underFolder(folder))).toEqual([])
+        expect(mainTree.some((e) => e.path === 'wf-del-parent/index.md')).toBe(true)
+
+        const rows = await db
+          .select({ id: pages.id, ref: pages.ref })
+          .from(pages)
+          .where(inArray(pages.id, ['wf-del', 'wf-del-kind']))
+        expect(rows).toEqual([])
+        const parentRows = await db
+          .select({ id: pages.id })
+          .from(pages)
+          .where(and(eq(pages.id, 'wf-del-parent'), eq(pages.ref, 'main')))
+        expect(parentRows).toHaveLength(1)
+
+        await expect(provider.getHeadSha(repo, draftBranchName('wf-del'))).rejects.toThrow()
+      }, 60_000)
+    })
+
+    it('release after a subpage was added on main → 409 scope_changed, nothing merged', async () => {
+      const folder = 'wf-del-scope'
+      await seedFiles({
+        [`${folder}/index.md`]: pageMd('wf-del-scope', 'Scope target'),
+        [`${folder}/kind/index.md`]: pageMd('wf-del-scope-kind', 'Scope child'),
+      })
+      await requestDeletionOf('wf-del-scope')
+
+      // Someone adds a subpage after the request.
+      await seedFiles({ [`${folder}/later/index.md`]: pageMd('wf-del-scope-later', 'Added later') })
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/pages/wf-del-scope/release',
+        cookies: cookiesOf(releaserSession),
+        payload: {},
+      })
+      expect(res.statusCode).toBe(409)
+      expect(res.json().reason).toBe('scope_changed')
+
+      const mainPaths = (await provider.listTree(repo, 'main')).map((e) => e.path).filter(underFolder(folder))
+      expect(mainPaths).toEqual(
+        expect.arrayContaining([`${folder}/index.md`, `${folder}/kind/index.md`, `${folder}/later/index.md`]),
+      )
+      const open = await provider.listPullRequests(repo, {
+        head: draftBranchName('wf-del-scope'),
+        base: 'main',
+        state: 'open',
+      })
+      expect(open).toHaveLength(1)
+    }, 60_000)
+
+    it('discarding a deletion review leaves the page and main intact', async () => {
+      const folder = 'wf-del-discard'
+      await seedFiles({
+        [`${folder}/index.md`]: pageMd('wf-del-discard', 'Discard target'),
+        [`${folder}/kind/index.md`]: pageMd('wf-del-discard-kind', 'Discard child'),
+      })
+      const mainHead = await provider.getHeadSha(repo, 'main')
+      await requestDeletionOf('wf-del-discard')
+
+      const res = await app.inject({
+        method: 'DELETE',
+        url: '/api/pages/wf-del-discard/draft',
+        cookies: cookiesOf(writerSession),
+      })
+      expect(res.statusCode).toBe(204)
+
+      expect(await provider.getHeadSha(repo, 'main')).toBe(mainHead)
+      const mainPaths = (await provider.listTree(repo, 'main')).map((e) => e.path).filter(underFolder(folder))
+      expect(mainPaths).toEqual(expect.arrayContaining([`${folder}/index.md`, `${folder}/kind/index.md`]))
+
+      const mainRows = await db
+        .select({ id: pages.id })
+        .from(pages)
+        .where(and(eq(pages.ref, 'main'), inArray(pages.id, ['wf-del-discard', 'wf-del-discard-kind'])))
+      expect(mainRows).toHaveLength(2)
+      const draftRows = await db
+        .select({ id: pages.id })
+        .from(pages)
+        .where(and(eq(pages.ref, 'draft'), eq(pages.id, 'wf-del-discard')))
+      expect(draftRows).toEqual([])
+    }, 60_000)
   })
 
   describe('POST /api/pages/:id/review/request-changes', () => {

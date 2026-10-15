@@ -106,7 +106,11 @@ export function ReviewsList({ space, versioning, initial }: ReviewsListProps) {
         let outcome: { ok: true } | { ok: false; reason: string }
         try {
           const r = await postJson(apiPageReleasePath(id), body)
+          // A released deletion also answers with `redirect` (#155); the
+          // overview stays where it is and only drops the row.
           if (r.status >= 200 && r.status < 300) outcome = { ok: true }
+          else if (r.status === 409 && r.body.status === 'scope_changed')
+            outcome = { ok: false, reason: serverMessage(r.body) ?? t('reviews.errors.conflict') }
           else if (r.status === 409) outcome = { ok: false, reason: t('reviews.errors.conflict') }
           else if (r.status === 403) outcome = { ok: false, reason: t('reviews.errors.forbidden') }
           else outcome = { ok: false, reason: serverMessage(r.body) ?? t('reviews.errors.releaseFailed') }
@@ -190,7 +194,11 @@ export function ReviewsList({ space, versioning, initial }: ReviewsListProps) {
                     </td>
                     <td>
                       <span className="chip neutral">
-                        {item.isNew ? t('reviews.kinds.new') : t('reviews.kinds.changed')}
+                        {item.isDeletion
+                          ? t('reviews.kinds.deletion')
+                          : item.isNew
+                            ? t('reviews.kinds.new')
+                            : t('reviews.kinds.changed')}
                       </span>
                     </td>
                     {showAuthor && <td>{item.lastAuthor ?? t('reviews.unknownAuthor')}</td>}

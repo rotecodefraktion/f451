@@ -175,7 +175,7 @@ describe.sequential('GET /api/pages/:id: workflow-Feld (Phase 2d Task 2)', () =>
       headers: { 'x-test-user': 'alice' },
     })
     expect(res.statusCode).toBe(200)
-    expect(res.json().workflow).toEqual({ state: 'working', pr: null, lock: null })
+    expect(res.json().workflow).toEqual({ state: 'working', pr: null, lock: null, deletion: false })
     await app.close()
   })
 
@@ -195,7 +195,7 @@ describe.sequential('GET /api/pages/:id: workflow-Feld (Phase 2d Task 2)', () =>
       headers: { 'x-test-user': 'bob' },
     })
     expect(res.statusCode).toBe(200)
-    expect(res.json().workflow).toEqual({ state: 'working', pr: null, lock: { user: 'Alice', mine: false } })
+    expect(res.json().workflow).toEqual({ state: 'working', pr: null, lock: { user: 'Alice', mine: false }, deletion: false })
     await db.delete(locks).where(eq(locks.pageId, pageId))
     await app.close()
   })
