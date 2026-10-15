@@ -147,6 +147,23 @@ const jobParams = {
   },
 } as const
 
+/** Records `code(...).send(...)` so a handler can answer after its cleanup. */
+function holdReply(): FastifyReply & { statusCode: number; payload: unknown } {
+  const held = {
+    statusCode: 200,
+    payload: undefined as unknown,
+    code(status: number) {
+      held.statusCode = status
+      return held
+    },
+    send(payload: unknown) {
+      held.payload = payload
+      return held
+    },
+  }
+  return held as unknown as FastifyReply & { statusCode: number; payload: unknown }
+}
+
 function badRequest(reply: FastifyReply, reason: string): FastifyReply {
   return reply.code(400).send({ status: 'bad_request', reason })
 }
@@ -287,84 +304,90 @@ export function registerImportJobRoutes(app: FastifyInstance, deps: ImportJobsDe
 
         const maxMb = deps.fileImportMaxUploadMb
         const maxBytes = Math.floor(maxMb * 1024 * 1024)
-        const tempFile = deps.tempFiles.create()
-        let handedOver = false
-        let out: WriteStream | undefined
-        try {
-          // `parts()` rather than `file()`: the text fields may come before
-          // or after the file.
-          const fields: Record<string, string> = {}
-          let gotFile = false
+        // Answers are held until the temp file is gone: a client that looks
+        // right after a refused upload must not find it.
+        const held = holdReply()
+        await (async () => {
+          const tempFile = deps.tempFiles.create()
+          let handedOver = false
+          let out: WriteStream | undefined
           try {
-            const parts = req.parts({ limits: { fileSize: maxBytes, files: 1, fields: MAX_FIELDS } })
-            for await (const part of parts) {
-              if (part.type === 'field') {
-                if (typeof part.value === 'string') fields[part.fieldname] = part.value
-                continue
+            // `parts()` rather than `file()`: the text fields may come before
+            // or after the file.
+            const fields: Record<string, string> = {}
+            let gotFile = false
+            try {
+              const parts = req.parts({ limits: { fileSize: maxBytes, files: 1, fields: MAX_FIELDS } })
+              for await (const part of parts) {
+                if (part.type === 'field') {
+                  if (typeof part.value === 'string') fields[part.fieldname] = part.value
+                  continue
+                }
+                if (part.fieldname !== FILE_FIELD) {
+                  part.file.resume()
+                  continue
+                }
+                out = createWriteStream(tempFile)
+                await pipeline(part.file, out)
+                if (part.file.truncated) return uploadTooLarge(held, maxMb)
+                gotFile = true
               }
-              if (part.fieldname !== FILE_FIELD) {
-                part.file.resume()
-                continue
-              }
-              out = createWriteStream(tempFile)
-              await pipeline(part.file, out)
-              if (part.file.truncated) return uploadTooLarge(reply, maxMb)
-              gotFile = true
+            } catch (err) {
+              if (err instanceof req.server.multipartErrors.RequestFileTooLargeError) return uploadTooLarge(held, maxMb)
+              return badRequest(held, 'The upload could not be read.')
             }
-          } catch (err) {
-            if (err instanceof req.server.multipartErrors.RequestFileTooLargeError) return uploadTooLarge(reply, maxMb)
-            return badRequest(reply, 'The upload could not be read.')
-          }
-          if (!gotFile) return badRequest(reply, `Multipart field "${FILE_FIELD}" is missing.`)
+            if (!gotFile) return badRequest(held, `Multipart field "${FILE_FIELD}" is missing.`)
 
-          const format = fields.format
-          if (format !== 'markdown' && format !== 'obsidian') {
-            return badRequest(reply, 'format must be "markdown" or "obsidian".')
-          }
-          const update = parseFlag(fields.update)
-          const release = parseFlag(fields.release)
-          const dryRun = parseFlag(fields.dryRun)
-          if (update === null || release === null || dryRun === null) {
-            return badRequest(reply, 'update, release and dryRun must be "true" or "false".')
-          }
-          const parentId = fields.parentId ? fields.parentId : undefined
+            const format = fields.format
+            if (format !== 'markdown' && format !== 'obsidian') {
+              return badRequest(held, 'format must be "markdown" or "obsidian".')
+            }
+            const update = parseFlag(fields.update)
+            const release = parseFlag(fields.release)
+            const dryRun = parseFlag(fields.dryRun)
+            if (update === null || release === null || dryRun === null) {
+              return badRequest(held, 'update, release and dryRun must be "true" or "false".')
+            }
+            const parentId = fields.parentId ? fields.parentId : undefined
 
-          let source: FileSource
-          try {
-            source = zipSource(await readFile(tempFile))
-          } catch (err) {
-            if (err instanceof ArchiveRejectedError) return badRequest(reply, err.message)
-            throw err
-          }
+            let source: FileSource
+            try {
+              source = zipSource(await readFile(tempFile))
+            } catch (err) {
+              if (err instanceof ArchiveRejectedError) return badRequest(held, err.message)
+              throw err
+            }
 
-          const result = deps.jobs.start(
-            userId,
-            'import-file',
-            gate.space.id,
-            fileImportRun(runDeps, {
+            const result = deps.jobs.start(
               userId,
-              space: gate.space.id,
-              format,
-              source,
-              cleanup: () => deps.tempFiles.remove(tempFile),
-              ...(parentId ? { parentId } : {}),
-              update,
-              release,
-              dryRun,
-            }),
-          )
-          if (!result.ok) return startRefused(reply, result)
-          handedOver = true
-          return reply.code(202).send({ jobId: result.id })
-        } finally {
-          if (!handedOver) {
-            // The stream opens its file asynchronously: when the upload is cut
-            // short, wait for it to close, or the file would reappear after
-            // the removal.
-            if (out && !out.closed) await new Promise<void>((resolve) => out!.once('close', () => resolve()))
-            await deps.tempFiles.remove(tempFile)
+              'import-file',
+              gate.space.id,
+              fileImportRun(runDeps, {
+                userId,
+                space: gate.space.id,
+                format,
+                source,
+                cleanup: () => deps.tempFiles.remove(tempFile),
+                ...(parentId ? { parentId } : {}),
+                update,
+                release,
+                dryRun,
+              }),
+            )
+            if (!result.ok) return startRefused(held, result)
+            handedOver = true
+            return held.code(202).send({ jobId: result.id })
+          } finally {
+            if (!handedOver) {
+              // The stream opens its file asynchronously: when the upload is cut
+              // short, wait for it to close, or the file would reappear after
+              // the removal.
+              if (out && !out.closed) await new Promise<void>((resolve) => out!.once('close', () => resolve()))
+              await deps.tempFiles.remove(tempFile)
+            }
           }
-        }
+        })()
+        return reply.code(held.statusCode).send(held.payload)
       },
     )
 
