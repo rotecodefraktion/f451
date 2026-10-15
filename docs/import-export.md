@@ -182,6 +182,7 @@ deleted.
 ```
 f451-import markdown <dir|zip> --space <space> [options]
 f451-import obsidian <dir|zip> --space <space> [options]
+f451-import html <dir|zip> --space <space> [options]
 ```
 
 A path ending in `.zip` is read as an archive, anything else as a folder.
@@ -193,15 +194,15 @@ the same.
 ### From the web UI
 
 The import panel has a source switch "BookStack | File". Choose the format
-(Markdown folder or Obsidian vault), select a `.zip` file and set the same
+(Markdown folder, Obsidian vault or HTML folder), select a `.zip` file and set the same
 options as for BookStack. Progress, cancelling and the review links work as
 before. No operator switch is needed: the upload fetches no remote address. The
 panel shows the file import even when no BookStack allow-list is set. Anyone
 with write access to the space can use it.
 
 The upload is `POST /api/spaces/:space/import/file` (browser session only), a
-multipart request with the fields `file` (the ZIP), `format` (`markdown` or
-`obsidian`), `parentId`, `update`, `release` and `dryRun` (`"true"` or
+multipart request with the fields `file` (the ZIP), `format` (`markdown`,
+`obsidian` or `html`), `parentId`, `update`, `release` and `dryRun` (`"true"` or
 `"false"`). It answers `202 { jobId }`; `400` for a missing field or an archive
 that is not accepted (the reason is in the message); `413` when the file is
 larger than the limit. `GET /api/import/instances` returns
@@ -231,7 +232,7 @@ Skipped: `.obsidian/`, `.trash/`, every path segment starting with `.`,
 (`*.excalidraw.md`, `*.excalidraw`). Canvas files and drawings are listed in
 the report.
 
-Each page records its origin as `markdown:<path>` or `obsidian:<path>`. A
+Each page records its origin as `markdown:<path>`, `obsidian:<path>` or `html:<path>`. A
 re-import with `--update` finds pages by it; a renamed file is a new page.
 
 #### Obsidian syntax
@@ -264,6 +265,37 @@ Inside a table cell, a link with an alias is written `[[id\|text]]`.
 
 Links to a heading currently land at the top of the page
 ([#163](https://github.com/rotecodefraktion/f451/issues/163)).
+
+### HTML folder
+
+Only for `html`. Every `.html` / `.htm` file is a page; folders become pages as
+above. A folder's content comes from `A/index.html`, else `A/index.htm`; there
+are no other folder-note forms (`A.html` next to `A/` is an ordinary page). A
+root `index.html` is an ordinary top-level page.
+
+| HTML | f451 |
+|---|---|
+| `<title>` (else first `<h1>`, else file name) | Page title |
+| `<main>` (else `<article>`, else `<body>`) | Page content |
+| `nav`, `header`, `footer`, `aside`, `script`, `style`, `noscript`, `template`, `form`, `button`, `input`, `select`, `textarea`, `iframe`, `hidden` and `aria-hidden="true"` elements | Dropped, not counted in the report |
+| Leading `<h1>` equal to the title | Not duplicated |
+| Relative link to an `.html` / `.htm` file (with or without `#anchor`; a `?query` is dropped) | Link to the imported page |
+| Link to a folder (`docs/` or `docs/index.html`) | Link to the folder's page |
+| Relative image or file, also root-relative (`/img/a.png`) | Media of that page (`_media/`) |
+| Absolute URL (`http(s)://…`, `//…`) | Stays as written |
+| `<meta name="keywords">` | Ignored, no tags |
+
+The file is read as UTF-8 unless it declares another charset (`<meta charset>`
+or `<meta http-equiv="Content-Type">`) that the runtime knows; a file that
+cannot be decoded fails alone and the rest continues. The content is converted
+with the same HTML converter as the BookStack import (tables, `<details>`, code
+blocks); constructs Markdown cannot express are counted as dropped. **Nothing
+is fetched**: remote images stay remote images and external links stay links.
+
+A site without `<main>` or `<article>` keeps whatever sits in plain `<div>`s of
+the body, navigation included. Notion's HTML export can be imported this way,
+with the 32-character ids left in the titles; a dedicated Notion import is
+tracked in [#165](https://github.com/rotecodefraktion/f451/issues/165).
 
 ### Limits
 

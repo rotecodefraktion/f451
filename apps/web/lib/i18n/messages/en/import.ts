@@ -20,6 +20,7 @@ export const importMessages: Messages['import'] = {
   fileFormats: {
     markdown: 'Markdown folder',
     obsidian: 'Obsidian vault',
+    html: 'HTML folder',
   },
   file: 'ZIP archive',
   fileHint: 'Upload the folder or vault as a ZIP archive, at most {max} MB.',

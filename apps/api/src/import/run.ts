@@ -6,6 +6,7 @@ import {
   exportToBookStack,
   importTree,
   loadBookStackTree,
+  loadHtmlTree,
   loadMarkdownFolderTree,
   loadObsidianTree,
   renderExportReport,
@@ -65,7 +66,7 @@ export interface ImportParams extends RunCommon {
 export interface FileImportParams {
   userId: string
   space: string
-  format: 'markdown' | 'obsidian'
+  format: 'markdown' | 'obsidian' | 'html'
   source: FileSource
   cleanup: () => Promise<void>
   parentId?: string
@@ -244,7 +245,12 @@ export function fileImportRun(deps: RunDeps, p: FileImportParams): JobRun {
         progress.phase('reading')
         // The loaders take no signal (the archive is local); a cancel while
         // reading takes effect in importTree, which reports the pages as cancelled.
-        const tree = p.format === 'obsidian' ? await loadObsidianTree(p.source) : await loadMarkdownFolderTree(p.source)
+        const tree =
+          p.format === 'obsidian'
+            ? await loadObsidianTree(p.source)
+            : p.format === 'html'
+              ? await loadHtmlTree(p.source)
+              : await loadMarkdownFolderTree(p.source)
         return writeTree(tree, f451, p, signal, progress)
       })
     } finally {

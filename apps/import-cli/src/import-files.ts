@@ -3,6 +3,7 @@ import {
   ArchiveRejectedError,
   F451Api,
   folderSource,
+  loadHtmlTree,
   loadMarkdownFolderTree,
   loadObsidianTree,
   zipSource,
@@ -35,6 +36,11 @@ export async function runFileImport(
   if (!args.path) throw new UsageError('missing path')
   const f451 = new F451Api(need('F451_URL'), need('F451_TOKEN'))
   const src = await openSource(args.path)
-  const tree = args.source === 'obsidian' ? await loadObsidianTree(src) : await loadMarkdownFolderTree(src)
+  const tree =
+    args.source === 'obsidian'
+      ? await loadObsidianTree(src)
+      : args.source === 'html'
+        ? await loadHtmlTree(src)
+        : await loadMarkdownFolderTree(src)
   return writeTreeAndReport(tree, args, f451, out)
 }

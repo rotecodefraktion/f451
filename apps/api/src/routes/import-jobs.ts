@@ -339,8 +339,8 @@ export function registerImportJobRoutes(app: FastifyInstance, deps: ImportJobsDe
             if (!gotFile) return badRequest(held, `Multipart field "${FILE_FIELD}" is missing.`)
 
             const format = fields.format
-            if (format !== 'markdown' && format !== 'obsidian') {
-              return badRequest(held, 'format must be "markdown" or "obsidian".')
+            if (format !== 'markdown' && format !== 'obsidian' && format !== 'html') {
+              return badRequest(held, 'format must be "markdown", "obsidian" or "html".')
             }
             const update = parseFlag(fields.update)
             const release = parseFlag(fields.release)

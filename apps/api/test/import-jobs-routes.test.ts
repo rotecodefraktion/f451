@@ -460,6 +460,26 @@ describe.sequential('import/export job routes (#128)', () => {
       expect(await newTempFiles(before)).toEqual([])
     }, 120_000)
 
+    it('an HTML ZIP (format=html) runs to done; pages exist as drafts', async () => {
+      const site = {
+        'index.html': '<html><head><title>Home</title></head><body><main><h1>Home</h1><p>See <a href="guide.html">the guide</a>.</p></main></body></html>',
+        'guide.html': '<html><head><title>Guide</title></head><body><main><h1>Guide</h1><p>Text.</p></main></body></html>',
+      }
+      const res = await upload(app, writerSession, space.id, storedZip(site), { ...flags, format: 'html' })
+      expect(res.statusCode).toBe(202)
+      const { jobId } = res.json() as { jobId: string }
+
+      const job = await waitForJob(writerSession, jobId)
+      expect(job.status).toBe('done')
+      expect(job.counts.created).toBe(2)
+      expect(job.counts.failed).toBe(0)
+      for (const e of job.events) {
+        expect(e.status).toBe('created')
+        expect(e.pageId).toBeTruthy()
+        expect(e.link).toBe('review')
+      }
+    }, 120_000)
+
     it('over the upload limit → 413, no temp file left', async () => {
       const before = await importTempFiles()
       const big = Buffer.alloc(1024 * 1024 + 4096, 0x61)
@@ -484,7 +504,7 @@ describe.sequential('import/export job routes (#128)', () => {
 
     it('bad fields → 400', async () => {
       const zip = storedZip(vault)
-      expect((await upload(app, writerSession, space.id, zip, { ...flags, format: 'html' })).statusCode).toBe(400)
+      expect((await upload(app, writerSession, space.id, zip, { ...flags, format: 'notion' })).statusCode).toBe(400)
       expect((await upload(app, writerSession, space.id, zip, { ...flags, dryRun: 'yes' })).statusCode).toBe(400)
     })
 

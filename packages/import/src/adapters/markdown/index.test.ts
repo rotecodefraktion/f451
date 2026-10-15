@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { FileSource } from '../../files/source.js'
 import type { ImportNode } from '../../model.js'
 import { rewriteLinks } from '../../links.js'
-import { loadMarkdownFolderTree, loadObsidianTree } from './index.js'
+import { loadHtmlTree, loadMarkdownFolderTree, loadObsidianTree } from './index.js'
 
 const enc = new TextEncoder()
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47])
@@ -248,5 +248,126 @@ describe('loadObsidianTree', () => {
     expect(tree.root[0].sourceRef.id).toBe('obsidian:A/')
     expect(tree.root[0].markdown).toBe('# A\n\nFolder text\n')
     expect(tree.root[0].children.map((n) => n.title)).toEqual(['child'])
+  })
+})
+
+describe('loadHtmlTree', () => {
+  const site = {
+    'index.html': [
+      '<html><head><title>Welcome</title></head><body>',
+      '<nav><a href="docs/">Nav link</a></nav>',
+      '<main><h1>Welcome</h1>',
+      '<p><a href="docs/">Docs</a>, <a href="./docs/guide.html#install">Guide</a>, <a href="docs/guide.html?x=1#s">Query</a>,',
+      ' <a href="https://example.com/">ext</a>, <a href="missing.html">gone</a></p>',
+      '<p><img src="/img/logo.png" alt="logo"> <img src="img/nope.png" alt="nope">',
+      ' <img src="https://example.com/r.png" alt="remote"> <img src="data:image/png;base64,iVBORw0KGgo=" alt="inline"></p>',
+      '</main></body></html>',
+    ].join(''),
+    'docs/index.html': '<html><head><title>Docs</title></head><body><p>All docs, <a href="../index.html">home</a>.</p></body></html>',
+    'docs/guide.html': [
+      '<html><head><title>Guide</title></head><body><article>',
+      '<h2 id="install">Install</h2>',
+      '<table><thead><tr><th>A</th><th>B</th></tr></thead><tbody><tr><td>1</td><td>2</td></tr></tbody></table>',
+      '<details><summary>More</summary><p>Folded text</p></details>',
+      '<p><img src="../img/logo.png" alt="logo"></p>',
+      '</article></body></html>',
+    ].join(''),
+    'img/logo.png': PNG,
+    'img/unused.png': PNG,
+    'notes.md': '# not a page here',
+  }
+
+  it('builds the tree from HTML files; index.html is the folder page, a root index.html an ordinary page', async () => {
+    const tree = await loadHtmlTree(memSource(site))
+    expect(tree.root.map((n) => n.title)).toEqual(['docs', 'Welcome'])
+    const docs = tree.root[0]
+    expect(docs.sourceRef).toEqual({ type: 'html', id: 'html:docs/' })
+    expect(docs.markdown).toContain('All docs')
+    expect(docs.children.map((n) => n.title)).toEqual(['Guide'])
+    expect(docs.children[0].sourceRef.id).toBe('html:docs/guide.html')
+    expect(tree.root[1].sourceRef.id).toBe('html:index.html')
+    expect(tree.failed).toEqual([])
+  })
+
+  // Review focus 1.
+  it('keeps a leading <h1> of <main> as the only title heading and drops the navigation', async () => {
+    const tree = await loadHtmlTree(memSource(site))
+    const home = find(tree.root, 'Welcome').markdown
+    expect(home.startsWith('# Welcome\n')).toBe(true)
+    expect(home.match(/^# /gm)).toHaveLength(1)
+    expect(home).not.toContain('Nav link')
+    expect(find(tree.root, 'Guide').markdown.startsWith('# Guide\n\n## Install')).toBe(true)
+  })
+
+  // Review focus 2 and 3.
+  it('turns page and folder links into placeholders; the query is dropped, the anchor kept', async () => {
+    const tree = await loadHtmlTree(memSource(site))
+    const home = find(tree.root, 'Welcome').markdown
+    expect(home).toContain('[Docs](source:html:docs/|docs/)')
+    expect(home).toContain('[Guide](source:html:docs/guide.html|./docs/guide.html#install)')
+    expect(home).toContain('[Query](source:html:docs/guide.html|docs/guide.html#s)')
+    expect(home).toContain('[ext](https://example.com/)')
+    expect(find(tree.root, 'docs').markdown).toContain('[home](source:html:index.html|../index.html)')
+    expect(tree.unresolved).toEqual([{ sourceId: 'html:index.html', target: 'missing.html' }])
+    const written = rewriteLinks(home, new Map([['html:docs/', 'p-docs']]))
+    expect(written).toContain('[[p-docs|Docs]]')
+  })
+
+  // Review focus 5: a data: image stays as written and is not missing media.
+  it('copies relative and root-relative images, leaves remote and data: images alone', async () => {
+    const tree = await loadHtmlTree(memSource(site))
+    const home = find(tree.root, 'Welcome')
+    expect(home.markdown).toContain('![logo](_media/logo.png)')
+    expect(home.markdown).toContain('![nope](img/nope.png)')
+    expect(home.markdown).toContain('![remote](https://example.com/r.png)')
+    expect(home.markdown).toContain('![inline](data:image/png;base64,iVBORw0KGgo=)')
+    expect(home.media.map((m) => m.name)).toEqual(['logo.png'])
+    expect(find(tree.root, 'Guide').media.map((m) => m.name)).toEqual(['logo.png'])
+    expect(tree.mediaSkipped).toEqual([{ sourceId: 'html:index.html', name: 'img/nope.png', reason: 'not in the archive' }])
+    expect(tree.unreferenced).toEqual(['img/unused.png', 'notes.md'])
+  })
+
+  it('keeps tables and <details> blocks through the converter', async () => {
+    const tree = await loadHtmlTree(memSource(site))
+    const guide = find(tree.root, 'Guide').markdown
+    expect(guide).toMatch(/\| A \| B \|/)
+    expect(guide).toMatch(/\| 1 \| 2 \|/)
+    expect(guide).toContain('[!NOTE]')
+    expect(guide).toContain('**More**')
+    expect(guide).toContain('Folded text')
+  })
+
+  it('uses index.htm as folder page, falls back to the file name, and makes no page of an image folder', async () => {
+    const tree = await loadHtmlTree(
+      memSource({ 'A/index.htm': '<p>Folder text</p>', 'A/x.html': '<p>x</p>', 'pics/a.png': PNG }),
+    )
+    expect(tree.root.map((n) => n.title)).toEqual(['A'])
+    expect(tree.root[0].sourceRef.id).toBe('html:A/')
+    expect(tree.root[0].markdown).toBe('# A\n\nFolder text\n')
+    expect(tree.root[0].children.map((n) => [n.title, n.markdown])).toEqual([['x', '# x\n\nx\n']])
+    expect(tree.unreferenced).toEqual(['pics/a.png'])
+  })
+
+  // Review focus 4.
+  it('decodes a declared ISO-8859-1 page as windows-1252 and fails an undecodable one without stopping', async () => {
+    const latin = new Uint8Array([
+      ...enc.encode('<html><head><meta charset="iso-8859-1"><title>Latin</title></head><body><p>'),
+      0x93,
+      ...enc.encode('Hi'),
+      0x94,
+      ...enc.encode(' Gr'),
+      0xfc,
+      ...enc.encode('n</p></body></html>'),
+    ])
+    const tree = await loadHtmlTree(
+      memSource({
+        'bad.html': new Uint8Array([...enc.encode('<p>'), 0xff, 0xfe, ...enc.encode('</p>')]),
+        'latin.html': latin,
+        'ok.html': '<p>ok</p>',
+      }),
+    )
+    expect(tree.root.map((n) => n.title)).toEqual(['Latin', 'ok'])
+    expect(find(tree.root, 'Latin').markdown).toBe('# Latin\n\n“Hi” Grün\n')
+    expect(tree.failed).toEqual([{ sourceId: 'html:bad.html', title: 'bad', reason: 'not decodable as utf-8' }])
   })
 })
