@@ -74,7 +74,9 @@ export const read: Messages['read'] = {
   notices: {
     draftInReview: 'A draft of this page exists — it is in review.',
     draftPending: 'A draft of this page exists — not yet released.',
+    deletionInReview: 'Deletion waiting for review — the page and its subpages disappear on release.',
     viewDraft: 'View draft →',
+    viewReview: 'View review →',
     lockedBySuffix: 'is currently editing the draft.',
     parseErrorTitle: 'This page contains processing errors',
     frontmatterTitle: 'Notes about the page header (frontmatter)',
@@ -92,7 +94,7 @@ export const read: Messages['read'] = {
     updated: 'Updated',
     relatedPages: 'Related pages',
     linksTo: 'Links to',
-    linkedFrom: 'Linked from',
+    backlinks: 'Backlinks',
   },
   graph: {
     phoneHint: 'The graph view is available on tablets and computers.',

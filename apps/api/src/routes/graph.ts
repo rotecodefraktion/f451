@@ -5,7 +5,6 @@ import { exceedsTokenLimit } from '../auth/classification-gate.js'
 import type { SpaceAccess } from '../auth/permissions.js'
 import type { Db } from '../db/client.js'
 import { pages } from '../db/schema.js'
-import { draftBranchName } from '../drafts/branch-name.js'
 import {
   applyWorkflowStatus,
   buildSpaceGraph,
@@ -16,6 +15,7 @@ import {
 } from '../graph/space-graph.js'
 import type { SpaceConfig } from '../spaces/config.js'
 import { loadMetadataSchema } from '../spaces/metadata-schema.js'
+import { openReviews } from '../workflow/open-reviews.js'
 import { effectiveClassification, type PageFrontmatter } from '@f451/markdown'
 
 export interface GraphDeps {
@@ -88,38 +88,33 @@ function parseTypes(raw: string | undefined): readonly GraphEdgeType[] | { inval
 }
 
 /**
- * Status-Anreicherung (working/review) — bewusst NICHT pro Knoten beim
- * Provider nachfragen (das wäre N Roundtrips; siehe Backlog-Befund zum
- * workflow-Feld der Lese-API): working kommt aus den `ref='draft'`-Zeilen
- * der DB (ein SELECT), review aus EINEM `listPullRequests`-Call pro Load,
- * gematcht über `draftBranchName(pageId)` der Draft-Seiten. Provider-Fehler
- * degradieren den Status (nur DB-Wissen) — Lesen fällt nie aus.
+ * Status enrichment (working/review) — deliberately NOT one provider call per
+ * node (that would be N round trips; see the backlog finding on the
+ * workflow field of the read API): both come from the shared `openReviews`
+ * helper — working from the `ref='draft'` rows (one SELECT), review from ONE
+ * `listPullRequests` call per load, matched via `draftBranchName(pageId)`.
+ * Provider errors degrade the status (DB knowledge only) — reading never fails.
  */
 async function workflowSets(
   deps: GraphDeps,
   space: SpaceConfig,
   log: { warn: (obj: unknown, msg: string) => void },
 ): Promise<{ working: Set<string>; review: Set<string> }> {
+  try {
+    const provider = deps.providerRegistry(space)
+    const { drafts, open } = await openReviews(deps.db, provider, space)
+    return {
+      working: new Set(drafts.map((r) => r.id)),
+      review: new Set(open.map((o) => o.row.id)),
+    }
+  } catch (err) {
+    log.warn({ err, space: space.id }, 'Graph: PR lookup failed — status degraded (working from DB stays)')
+  }
   const draftRows = await deps.db
     .select({ id: pages.id })
     .from(pages)
     .where(and(eq(pages.spaceId, space.id), eq(pages.ref, 'draft')))
-  const working = new Set(draftRows.map((r) => r.id))
-  const review = new Set<string>()
-  if (working.size === 0) return { working, review }
-  const branchToPage = new Map<string, string>()
-  for (const id of working) branchToPage.set(draftBranchName(id), id)
-  try {
-    const provider = deps.providerRegistry(space)
-    const openPrs = await provider.listPullRequests(space.repoRef, { base: 'main', state: 'open' })
-    for (const pr of openPrs) {
-      const pageId = branchToPage.get(pr.headBranch)
-      if (pageId) review.add(pageId)
-    }
-  } catch (err) {
-    log.warn({ err, space: space.id }, 'Graph: PR-Abfrage fehlgeschlagen — Status degradiert (working aus DB bleibt)')
-  }
-  return { working, review }
+  return { working: new Set(draftRows.map((r) => r.id)), review: new Set<string>() }
 }
 
 /** Gemeinsame Anreicherungs-Entscheidung beider Routen. */

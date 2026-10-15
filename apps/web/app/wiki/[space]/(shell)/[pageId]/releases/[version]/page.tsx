@@ -162,6 +162,7 @@ export default async function ReleasePage({ params }: ReleasePageProps) {
         pageId={data.id}
         metadataSchema={metadataSchema}
         metadata={data.metadata}
+        backlinks={null}
       />
     </>
   )

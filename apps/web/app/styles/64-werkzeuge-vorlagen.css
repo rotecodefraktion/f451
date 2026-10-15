@@ -88,3 +88,150 @@
   justify-content: flex-end;
   gap: var(--space-2);
 }
+
+/* =========================================================================
+   Import / export (#128) — `app/wiki/[space]/(shell)/import/page.tsx` and
+   `components/import-panel.tsx`. The form uses the `.field`/`.input`/
+   `.select`/`label.check` building blocks and `.segmented` for the
+   direction; this section only lays them out and styles the job view
+   (progress, event list, counts, report).
+   ========================================================================= */
+.import-title {
+  margin-top: 0;
+}
+.import-intro,
+.import-hint {
+  color: var(--color-text-muted);
+}
+.import-hint {
+  font-size: var(--text-xs);
+  line-height: var(--leading-ui);
+}
+.import-panel {
+  max-width: 44rem;
+  margin-top: var(--space-5);
+}
+.import-tabs {
+  margin-bottom: var(--space-5);
+}
+.import-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0 var(--space-4);
+}
+.import-panel > .import-hint {
+  margin: calc(-1 * var(--space-3)) 0 var(--space-5);
+}
+.import-catalog {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin: calc(-1 * var(--space-3)) 0 var(--space-5);
+}
+.import-notice {
+  margin-block: var(--space-4);
+}
+.import-heading {
+  margin-top: 0;
+}
+.import-subheading {
+  margin-block: var(--space-5) var(--space-2);
+}
+.import-progress {
+  width: 100%;
+  accent-color: var(--color-accent);
+}
+.import-progress-text {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+.import-events {
+  list-style: none;
+  margin: var(--space-4) 0;
+  padding: var(--space-2) var(--space-3);
+  max-height: 20rem;
+  overflow-y: auto;
+  border: var(--rule-hair) solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+}
+.import-events li + li {
+  margin-top: var(--space-1);
+}
+.import-event-reason {
+  color: var(--color-text-muted);
+}
+.import-counts {
+  list-style: none;
+  margin: var(--space-4) 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+}
+.import-report {
+  max-height: 28rem;
+  overflow: auto;
+  margin: 0 0 var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  background: var(--panel-2);
+  border: var(--rule-hair) solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--leading-code);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Review overview (#131) — `app/wiki/[space]/(shell)/reviews/page.tsx` and
+   `components/reviews-list.tsx`. Form fields reuse `.field`/`.input`/
+   `.select`; this section lays out the table and the release options. */
+.reviews-title {
+  margin-top: 0;
+}
+.reviews-intro,
+.reviews-count,
+.reviews-empty,
+.reviews-path {
+  color: var(--color-text-muted);
+}
+.reviews-panel {
+  margin-top: var(--space-5);
+}
+.reviews-notice {
+  margin-block: var(--space-4);
+}
+.reviews-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+}
+.reviews-table th,
+.reviews-table td {
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  vertical-align: top;
+  border-bottom: var(--rule-hair) solid var(--color-border-strong);
+}
+.reviews-check {
+  width: 2.5rem;
+}
+.reviews-path,
+.reviews-status {
+  display: block;
+  font-size: var(--text-xs);
+}
+.reviews-failed {
+  color: var(--color-danger);
+}
+.reviews-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0 var(--space-4);
+  max-width: 44rem;
+  margin-top: var(--space-5);
+}

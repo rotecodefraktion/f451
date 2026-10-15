@@ -49,11 +49,13 @@ export interface StatusBarProps {
    *  (`GET /api/pages/:id/raw?download=1`). Kein destruktiver Vorgang, diese
    *  Komponente fragt daher NICHT nach (Muster `onSaveAsTemplate`). */
   onExportMarkdown: () => void
-  /** „Seite löschen" — diese Komponente zeigt bereits den bestätigenden
-   *  confirm-Dialog (Muster `onDiscard`), bevor sie ruft: kein stilles
-   *  Löschen bei einem Fehlklick. Der Aufrufer (`editor-root.tsx`) ruft
-   *  `deletePage` und navigiert bei Erfolg zur Space-Startseite. */
+  /** "Delete page" — this component shows the confirmation (pattern
+   *  `onDiscard`) before calling. The caller (`editor-root.tsx`) requests the
+   *  deletion and navigates to the review (#155). */
   onDeletePage: () => void
+  /** Number of subpages that are deleted along with the page (descendants in
+   *  the page tree); named in the confirmation. */
+  subpageCount?: number
 }
 
 const EDIT_ICON = (
@@ -226,6 +228,7 @@ export function StatusBar({
   onSaveAsTemplate,
   onExportMarkdown,
   onDeletePage,
+  subpageCount = 0,
 }: StatusBarProps) {
   const { t } = useT()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -271,7 +274,11 @@ export function StatusBar({
 
   function handleDeletePageClick() {
     setMenuOpen(false)
-    if (window.confirm(t('editor.confirm.deletePage'))) {
+    const message =
+      subpageCount > 0
+        ? t('editor.confirm.deletePageWithSubpages', { count: subpageCount })
+        : t('editor.confirm.deletePage')
+    if (window.confirm(message)) {
       onDeletePage()
     }
   }

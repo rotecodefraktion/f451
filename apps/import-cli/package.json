@@ -1,0 +1,13 @@
+{
+  "name": "@f451/import-cli",
+  "private": true,
+  "type": "module",
+  "bin": { "f451-import": "./src/main.ts" },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "start": "tsx src/main.ts"
+  },
+  "dependencies": { "@f451/import": "workspace:*" },
+  "devDependencies": { "@types/node": "^22.10.0", "tsx": "^4.19.0", "typescript": "^5.7.0", "vitest": "^3.0.0" }
+}

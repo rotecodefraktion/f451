@@ -1,6 +1,6 @@
-import type { FastifyInstance, FastifyReply } from 'fastify'
+import type { FastifyBaseLogger, FastifyInstance, FastifyReply } from 'fastify'
 import { and, eq, inArray } from 'drizzle-orm'
-import type { GitProvider, PullRequestInfo, RepoRef } from '@f451/git-provider'
+import type { GitProvider, PullRequestInfo, RepoRef, TreeEntry } from '@f451/git-provider'
 import { ConflictError, NotFoundError, ProviderError } from '@f451/git-provider'
 import {
   diffMarkdown,
@@ -15,8 +15,12 @@ import { draftBranchName } from '../drafts/branch-name.js'
 import { DraftUpdateContentLostError, updateDraft, type UpdateStrategy } from '../drafts/update.js'
 import { applyVersionOnDraft, fillReleaseMetadataOnDraft } from '../drafts/release-metadata.js'
 import { recordRelease } from '../drafts/release-records.js'
-import { pages, pageVersions } from '../db/schema.js'
+import { deletionScope } from '../drafts/request-deletion.js'
+import { directoryOf } from '../drafts/create-page.js'
+import { isUnderSourceDir } from '../drafts/move-page.js'
+import { locks, pages, pageVersions } from '../db/schema.js'
 import { indexChangedFiles } from '../indexer/incremental.js'
+import { isPageFile } from '../indexer/index-space.js'
 import { buildResolveImage, buildResolveLink, LinkResolver, type ResolvablePage } from '../indexer/resolve-links.js'
 import { loadMetadataSchema } from '../spaces/metadata-schema.js'
 import { classificationViolationInMarkdown, classificationViolationReply } from '../spaces/classification.js'
@@ -116,7 +120,7 @@ function reviewPageUrl(publicBaseUrl: string, spaceId: string, pageId: string): 
  *  Fix-Runde 1, `F451_PUBLIC_BASE_URL`) — ohne sie kennt die API ihre eigene
  *  öffentliche Adresse nicht, der Text bleibt beim bisherigen, linklosen
  *  Standard (Titel + Seiten-Id verweisen weiterhin eindeutig auf die Seite). */
-function reviewPrBody(pageId: string, title: string, spaceId: string, publicBaseUrl?: string): string {
+export function reviewPrBody(pageId: string, title: string, spaceId: string, publicBaseUrl?: string): string {
   const base = `Review-Anfrage für „${title}" (Seite \`${pageId}\`), erstellt über die f451-Plattform.`
   if (!publicBaseUrl) return base
   return `${base}\n\n${reviewPageUrl(publicBaseUrl, spaceId, pageId)}`
@@ -275,6 +279,124 @@ export async function buildSpaceLinkResolver(db: DraftsDeps['db'], spaceId: stri
   return new LinkResolver(resolverPages)
 }
 
+/** The page's draft row marks a deletion request (f451#155): its review
+ *  deletes the page folder instead of changing the page. */
+async function isDeletionDraft(db: DraftsDeps['db'], pageId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ pendingDeletion: pages.pendingDeletion })
+    .from(pages)
+    .where(and(eq(pages.id, pageId), eq(pages.ref, 'draft')))
+    .limit(1)
+  return row?.pendingDeletion === true
+}
+
+/**
+ * Files under `dir` on `main` that the deletion branch does not delete — they
+ * appeared on `main` after the request (f451#155, review focus 1). The branch
+ * deleted exactly the folder's files at its fork point; a three-way merge
+ * would leave anything added since. Modified files are not reported here: a
+ * modify/delete pair is a merge conflict and refused by the merge itself.
+ *
+ * The fork point is found without a merge-base API: the deletion branch is a
+ * linear chain off `main`, so its `ahead`-th ancestor is the fork point.
+ */
+async function filesAddedSinceRequest(
+  provider: GitProvider,
+  repo: RepoRef,
+  branch: string,
+  dir: string,
+  mainFiles: readonly TreeEntry[],
+): Promise<string[]> {
+  // `main` has not moved since the request: nothing can have been added.
+  if ((await provider.countCommitsAhead(repo, branch, 'main')) === 0) return []
+
+  const ahead = await provider.countCommitsAhead(repo, 'main', branch)
+  const commits = await provider.listCommits(repo, { ref: branch, limit: ahead + 1 })
+  const forkPoint = commits[ahead]
+  if (!forkPoint) {
+    throw new ProviderError(`Fork point of "${branch}" not found (${commits.length} of ${ahead + 1} commits listed).`)
+  }
+  const forkTree = await provider.listTree(repo, forkPoint.sha)
+  const requested = new Set(
+    forkTree.filter((e) => e.type === 'file' && isUnderSourceDir(e.path, dir)).map((e) => e.path),
+  )
+  return mainFiles.filter((f) => !requested.has(f.path)).map((f) => f.path)
+}
+
+/** Id of the page that owns the parent folder of `pagePath` — where the UI
+ *  goes after a deletion is released — or `null` without such a page. */
+async function parentPageId(db: DraftsDeps['db'], spaceId: string, pagePath: string): Promise<string | null> {
+  const dir = directoryOf(pagePath)
+  const slash = dir.lastIndexOf('/')
+  const parentPath = slash === -1 ? 'index.md' : `${dir.slice(0, slash)}/index.md`
+  const [row] = await db
+    .select({ id: pages.id })
+    .from(pages)
+    .where(and(eq(pages.spaceId, spaceId), eq(pages.ref, 'main'), eq(pages.path, parentPath)))
+    .limit(1)
+  return row?.id ?? null
+}
+
+type MergeOutcome =
+  | { ok: true; mergeSha: string; approveWarning?: string }
+  | { ok: false; status: 403 | 409; body: { error: string; reason?: string } }
+
+/**
+ * Best-effort approve, then merge — shared by the page release and the
+ * deletion release (f451#155).
+ *
+ * Approve BEFORE the merge (plan Task 3): only the tolerated error class
+ * (self review / already approved — both surface as `ConflictError`, see
+ * `isTolerableApproveError`, finding 1 fix round 1) is swallowed silently.
+ * Any OTHER error (network, rate limit, ...) must not leave the reviewer
+ * believing their approval is there — the merge stays authoritative and runs
+ * anyway, but the answer carries `approveWarning`. Fallback text without
+ * `comment`: Forgejo rejects an APPROVE without body with its own error.
+ */
+async function approveAndMerge(
+  provider: GitProvider,
+  repo: RepoRef,
+  prNumber: number,
+  comment: string | undefined,
+  log: FastifyBaseLogger,
+  pageId: string,
+): Promise<MergeOutcome> {
+  let approveWarning: string | undefined
+  try {
+    await provider.submitPullRequestReview(repo, prNumber, {
+      event: 'approve',
+      body: comment ?? 'Freigegeben über die f451-Plattform.',
+    })
+  } catch (err) {
+    if (!isTolerableApproveError(err)) {
+      const message = err instanceof Error ? err.message : String(err)
+      approveWarning =
+        `Automatische Freigabe vor dem Merge fehlgeschlagen (${message}) — bitte manuell im `
+        + 'Pull Request prüfen, ob eine Freigabe vorliegt.'
+    }
+    log.warn(
+      { err, pageId, pr: prNumber, tolerated: approveWarning === undefined },
+      'release: Approve vor dem Merge fehlgeschlagen (vermutlich Self-Review oder bereits '
+        + 'approved) — Merge bleibt autoritativ',
+    )
+  }
+
+  try {
+    const merged = await provider.mergePullRequest(repo, prNumber)
+    return { ok: true, mergeSha: merged.mergeSha, ...(approveWarning ? { approveWarning } : {}) }
+  } catch (err) {
+    if (err instanceof ConflictError) {
+      return { ok: false, status: 409, body: { error: err.message, reason: 'conflict' } }
+    }
+    if (err instanceof ProviderError && err.status === 403) {
+      // Spec: merge right = release right, no separate probe — a provider 403
+      // ON MERGE is the answer to the release right.
+      return { ok: false, status: 403, body: { error: 'Kein Freigabe-Recht auf dieses Repository' } }
+    }
+    throw err
+  }
+}
+
 /** Mappt einen unerwarteten Provider-Fehler auf 502 (wie `routes/drafts.ts`:
  *  „Provider nicht erreichbar → 502 mit Meldung, nie stiller Verlust"). */
 function providerErrorReply(reply: FastifyReply, err: unknown): FastifyReply {
@@ -382,6 +504,9 @@ const releaseResultSchema = {
     archivePath: { type: 'string' },
     /** Referenced attachments not found in the repository — not copied. */
     missingAttachments: { type: 'array', items: { type: 'string' } },
+    /** Deletion releases only (f451#155): the page that owned the parent
+     *  folder, where the UI goes next — `null` without one. */
+    redirect: { type: ['string', 'null'] },
   },
   required: ['mergeSha'],
 } as const
@@ -505,8 +630,25 @@ const reviewGetSchema = {
         // Present (true) only when `version` is the derived 0.1.0 of a page on
         // `main` without `version` (spec addendum 2026-10-02).
         implicitVersion: { type: 'boolean' },
+        // Deletion review (f451#155): what the release removes, read from
+        // `main`. Present instead of `diff`.
+        deletion: {
+          type: 'object',
+          properties: {
+            pages: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: { id: { type: 'string' }, title: { type: 'string' }, path: { type: 'string' } },
+                required: ['id', 'title', 'path'],
+              },
+            },
+            files: { type: 'integer' },
+          },
+          required: ['pages', 'files'],
+        },
       },
-      required: ['pr', 'authorName', 'diff', 'page', 'versioning'],
+      required: ['pr', 'authorName', 'page', 'versioning'],
     },
     403: forbiddenSchema,
     404: errorSchema,
@@ -615,6 +757,23 @@ export function registerWorkflowRoutes(app: FastifyInstance, deps: WorkflowDeps)
             return reply.code(404).send({ status: 'not_found', reason: 'kein offenes Review' })
           }
 
+          // Deletion review (f451#155): the draft branch has no page file to
+          // diff — show what the release removes instead.
+          if (await isDeletionDraft(deps.db, ctx.row.id)) {
+            const [scope, commits, schema] = await Promise.all([
+              deletionScope(deps.db, ctx.provider, repo, ctx.space.id, ctx.row.path),
+              ctx.provider.listCommits(repo, { ref: branch, limit: 1 }),
+              loadMetadataSchema({ providerRegistry: () => ctx.provider }, ctx.space, 'main', req.log),
+            ])
+            return {
+              pr: { number: pr.number, url: pr.url, state: pr.state, mergeable: pr.mergeable, title: pr.title },
+              authorName: commits[0]?.authorName ?? 'unbekannt',
+              deletion: { pages: scope.pages, files: scope.files.length },
+              page: { id: ctx.row.id, space: ctx.space.id, title: ctx.row.title },
+              versioning: schema.versioning,
+            }
+          }
+
           const [mainFile, draftFile, draftCommits] = await Promise.all([
             // Draft-only-Seiten (Phase 2d Task 5, „+ Neue Seite") haben VOR ihrem
             // ersten Release schlicht keine Datei auf main — `readFile` wirft dafür
@@ -719,6 +878,53 @@ export function registerWorkflowRoutes(app: FastifyInstance, deps: WorkflowDeps)
           // Autorabsicht) "echt" aussehen lassen.
           if ((await ctx.provider.countCommitsAhead(repo, 'main', branch)) === 0) {
             return reply.code(422).send({ error: 'Draft has no changes', reason: 'no_changes' })
+          }
+
+          // Deletion review (f451#155): no page content to classify, version or
+          // fill — the merge removes the folder, the index follows.
+          if (await isDeletionDraft(deps.db, ctx.row.id)) {
+            const scope = await deletionScope(deps.db, ctx.provider, repo, ctx.space.id, ctx.row.path)
+            const added = await filesAddedSinceRequest(
+              ctx.provider,
+              repo,
+              branch,
+              directoryOf(ctx.row.path),
+              scope.files,
+            )
+            if (added.length > 0) {
+              return reply.code(409).send({
+                error: 'Pages were added since the deletion was requested; discard the request and request it again.',
+                reason: 'scope_changed',
+              })
+            }
+
+            const outcome = await approveAndMerge(ctx.provider, repo, pr.number, req.body?.comment, req.log, ctx.row.id)
+            if (!outcome.ok) return reply.code(outcome.status).send(outcome.body)
+
+            const redirect = await parentPageId(deps.db, ctx.space.id, ctx.row.path)
+            // After the merge, like the page release below: a failure here must
+            // not turn the completed release into an error.
+            try {
+              await cleanupMergedDraft({ db: deps.db }, ctx.provider, repo, ctx.row.id)
+              const removedPages = scope.files.filter((f) => isPageFile(f.path, f.type)).map((f) => f.path)
+              await indexChangedFiles({ db: deps.db, provider: ctx.provider }, ctx.space, [], removedPages)
+              const subpageIds = scope.pages.map((p) => p.id).filter((id) => id !== ctx.row.id)
+              if (subpageIds.length > 0) {
+                await deps.db.delete(pages).where(and(eq(pages.ref, 'draft'), inArray(pages.id, subpageIds)))
+                await deps.db.delete(locks).where(inArray(locks.pageId, subpageIds))
+              }
+            } catch (err) {
+              req.log.error(
+                { err, pageId: ctx.row.id },
+                'release: cleanup/reindex after deleting merge failed — the merge itself succeeded',
+              )
+            }
+
+            return {
+              mergeSha: outcome.mergeSha,
+              redirect,
+              ...(outcome.approveWarning ? { approveWarning: outcome.approveWarning } : {}),
+            }
           }
 
           // Freigabe-Vorbelegung (Metadaten-Feature M3b Teil B) — VOR dem Merge:
@@ -840,51 +1046,11 @@ export function registerWorkflowRoutes(app: FastifyInstance, deps: WorkflowDeps)
             }
           }
 
-          // Best-effort-Approve VOR dem Merge (Plan Task 3): NUR die tolerierte
-          // Fehlerklasse (Self-Review/"bereits approved" — beide äußern sich
-          // providerseitig als `ConflictError`, siehe `isTolerableApproveError`
-          // unten, Finding 1 Fix-Runde 1) wird still geschluckt. Jeder ANDERE
-          // Fehler (Netzwerk, Rate-Limit, ...) darf den Reviewer NICHT im
-          // Glauben lassen, seine Freigabe sei da — der Merge bleibt zwar
-          // autoritativ und läuft trotzdem weiter, aber die Antwort trägt dann
-          // `approveWarning`, damit der Aufrufer es erfährt. Fallback-Text ohne
-          // `comment` (Forgejo lehnt ein APPROVE ohne Body mit einem eigenen
-          // Fehler ab — sonst würde das Approve OHNE Kommentar praktisch immer
-          // scheitern, obwohl es gelingen könnte).
-          let approveWarning: string | undefined
-          try {
-            await ctx.provider.submitPullRequestReview(repo, pr.number, {
-              event: 'approve',
-              body: req.body?.comment ?? 'Freigegeben über die f451-Plattform.',
-            })
-          } catch (err) {
-            if (!isTolerableApproveError(err)) {
-              const message = err instanceof Error ? err.message : String(err)
-              approveWarning =
-                `Automatische Freigabe vor dem Merge fehlgeschlagen (${message}) — bitte manuell im `
-                + 'Pull Request prüfen, ob eine Freigabe vorliegt.'
-            }
-            req.log.warn(
-              { err, pageId: ctx.row.id, pr: pr.number, tolerated: approveWarning === undefined },
-              'release: Approve vor dem Merge fehlgeschlagen (vermutlich Self-Review oder bereits '
-                + 'approved) — Merge bleibt autoritativ',
-            )
-          }
-
-          let merged: { mergeSha: string }
-          try {
-            merged = await ctx.provider.mergePullRequest(repo, pr.number)
-          } catch (err) {
-            if (err instanceof ConflictError) {
-              return reply.code(409).send({ error: err.message, reason: 'conflict' })
-            }
-            if (err instanceof ProviderError && err.status === 403) {
-              // Spec: Merge-Recht = Freigabe-Recht, keine eigene Probe — ein
-              // Provider-403 BEIM MERGE ist die Freigabe-Recht-Antwort.
-              return reply.code(403).send({ error: 'Kein Freigabe-Recht auf dieses Repository' })
-            }
-            throw err
-          }
+          // Best-effort approve, then merge (see `approveAndMerge`).
+          const outcome = await approveAndMerge(ctx.provider, repo, pr.number, req.body?.comment, req.log, ctx.row.id)
+          if (!outcome.ok) return reply.code(outcome.status).send(outcome.body)
+          const merged = { mergeSha: outcome.mergeSha }
+          const approveWarning = outcome.approveWarning
 
           // Erst NACH dem Merge: Der mergeSha existiert vorher nicht. Ein
           // Fehler hier darf die bereits vollzogene Freigabe nicht in einen

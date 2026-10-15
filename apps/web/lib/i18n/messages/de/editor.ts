@@ -30,6 +30,8 @@ export const editor = {
     loadFailed: 'Der Entwurf konnte nicht geladen werden.',
     discardFailed: 'Der Entwurf konnte nicht verworfen werden — bitte erneut versuchen.',
     deletePageFailed: 'Die Seite konnte nicht gelöscht werden — bitte erneut versuchen.',
+    deletePageRefused: 'Die Seite kann nicht gelöscht werden: {reason}',
+    deletePageBusyPages: 'Betroffene Seiten: {pages}',
     reviewNoDraft: 'Für diese Seite existiert aktuell kein Entwurf — Review kann nicht angefordert werden.',
     reviewNoChanges: 'Dieser Entwurf enthält noch keine Änderungen — bearbeite zuerst die Seite oder verwirf den Entwurf.',
     reviewFailed: 'Review konnte nicht angefordert werden — bitte erneut versuchen.',
@@ -40,7 +42,12 @@ export const editor = {
   confirm: {
     discardResetRecovery: 'Den geretteten Entwurfsinhalt wirklich verwerfen? Er kann danach nicht wiederhergestellt werden.',
     discardDraft: 'Entwurf wirklich verwerfen? Alle ungespeicherten Änderungen gehen unwiderruflich verloren.',
-    deletePage: 'Diese Seite wirklich löschen? Der Inhalt wird unwiderruflich aus dem Repository entfernt.',
+    deletePage:
+      'Diese Seite löschen? Die Löschung wird zum Review eingereicht; die Seite bleibt sichtbar, bis die Löschung freigegeben ist.',
+    deletePageWithSubpages_one:
+      'Diese Seite und {count} Unterseite löschen? Die Löschung wird zum Review eingereicht; die Seiten bleiben sichtbar, bis die Löschung freigegeben ist.',
+    deletePageWithSubpages_other:
+      'Diese Seite und {count} Unterseiten löschen? Die Löschung wird zum Review eingereicht; die Seiten bleiben sichtbar, bis die Löschung freigegeben ist.',
     resetToLastRelease:
       'Entwurf wirklich auf den zuletzt freigegebenen Stand zurücksetzen? Alle unveröffentlichten Änderungen gehen dabei unwiderruflich verloren.',
   },
@@ -286,6 +293,11 @@ export const editor = {
   diagramNode: {
     editButton: 'Diagramm bearbeiten',
     phoneHint: 'Diagramme bearbeitest du auf einem Tablet oder Computer.',
+  },
+
+  // Live preview below a ```mermaid code block (`lib/editor/mermaid-code-block.ts`, f451#104).
+  mermaid: {
+    error: 'Diagramm kann nicht dargestellt werden',
   },
 
   uploadQueue: {

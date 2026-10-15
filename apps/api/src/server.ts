@@ -1,6 +1,7 @@
 import { buildApp, DEFAULT_RATE_LIMITS } from './app.js'
 import { deleteExpiredSessions, type AuthOptions } from './auth/sessions.js'
 import { createDb } from './db/client.js'
+import { parseInstances } from './import/instances.js'
 import { checkDrift } from './indexer/drift.js'
 import type { IndexerLogger } from './indexer/index-space.js'
 import {
@@ -207,6 +208,8 @@ const app = buildApp({
   // §8) zwingend, damit die Rate-Limits pro CLIENT-IP zählen statt pro
   // Proxy-IP (F451_TRUST_PROXY=1 im Deployment, siehe readTrustProxy oben).
   trustProxy,
+  // Web import/export (#128): BookStack instances the API may talk to; empty → feature off.
+  importBookstackUrls: parseInstances(process.env.F451_IMPORT_BOOKSTACK_URLS),
 })
 
 // Fastifys Pino-Logger hat die Signatur `(mergingObject, msg)` — umgekehrt zur

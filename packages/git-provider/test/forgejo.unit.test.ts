@@ -86,4 +86,52 @@ describe('ForgejoProvider (Fixtures)', () => {
 
     await expect(provider().listTree(repo, 'main')).rejects.toBeInstanceOf(ProviderError)
   })
+
+  it('listPullRequests follows pages and filters head client-side across them (f451#141)', async () => {
+    const pulls = (from: number, count: number) =>
+      Array.from({ length: count }, (_, i) => ({
+        number: from + i,
+        state: 'open',
+        merged: false,
+        title: `PR ${from + i}`,
+        head: { ref: `draft/${from + i}` },
+        base: { ref: 'main' },
+        html_url: `https://git.example.test/acme/docs/pulls/${from + i}`,
+        mergeable: null,
+      }))
+    const page1 = pulls(1, 50)
+    const page2 = pulls(51, 3)
+    // A short page does not end the loop (an instance may cap the page size);
+    // the empty page 3 does.
+    for (const [page, body] of [[1, page1], [2, page2], [3, []]] as const) {
+      api()
+        .intercept({ path: `/api/v1/repos/acme/docs/pulls?state=open&limit=50&page=${page}`, method: 'GET' })
+        .reply(200, body)
+    }
+
+    // The PR sought by head branch sits on page 2 — before the fix it was missed.
+    const found = await provider().listPullRequests(repo, { head: 'draft/52', state: 'open' })
+    expect(found.map((pr) => pr.number)).toEqual([52])
+  })
+
+  it('listPullRequests without filters returns all pages merged', async () => {
+    const pulls = (from: number, count: number) =>
+      Array.from({ length: count }, (_, i) => ({
+        number: from + i,
+        state: 'open',
+        merged: false,
+        title: `PR ${from + i}`,
+        head: { ref: `draft/${from + i}` },
+        base: { ref: 'main' },
+        html_url: `https://git.example.test/acme/docs/pulls/${from + i}`,
+      }))
+    api()
+      .intercept({ path: '/api/v1/repos/acme/docs/pulls?limit=50&page=1', method: 'GET' })
+      .reply(200, pulls(1, 50))
+    api()
+      .intercept({ path: '/api/v1/repos/acme/docs/pulls?limit=50&page=2', method: 'GET' })
+      .reply(200, [])
+
+    expect(await provider().listPullRequests(repo)).toHaveLength(50)
+  })
 })

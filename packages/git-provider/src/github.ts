@@ -16,6 +16,11 @@ const API_VERSION = '2022-11-28'
  *  Grenzen, ohne den Move wieder seriell zu machen. */
 const BLOB_CONCURRENCY = 8
 
+/** Page size for `listPullRequests`: GitHub's maximum `per_page`. */
+const PULLS_PAGE_SIZE = 100
+/** Safety cap against endless paging: 50 pages × 100 = 5,000 pull requests. */
+const PULLS_PAGE_LIMIT = 50
+
 /** GitProvider-Implementierung über die GitHub-REST-API. */
 export class GitHubProvider implements GitProvider {
   readonly #base: string
@@ -299,18 +304,26 @@ export class GitHubProvider implements GitProvider {
     repo: RepoRef,
     opts: { head?: string; base?: string; state?: 'open' | 'closed' | 'all' } = {},
   ): Promise<PullRequestInfo[]> {
-    const params = new URLSearchParams()
-    // GitHub erwartet `head` qualifiziert als "owner:branch", nicht den reinen
-    // Branch-Namen (sonst würde es auch Forks anderer Owner mit demselben
-    // Branch-Namen matchen).
-    if (opts.head) params.set('head', `${repo.owner}:${opts.head}`)
-    if (opts.base) params.set('base', opts.base)
-    if (opts.state) params.set('state', opts.state)
-    const qs = params.toString()
-    const data = (await this.#request(
-      'GET',
-      `/repos/${repo.owner}/${repo.repo}/pulls${qs ? `?${qs}` : ''}`,
-    )) as GitHubPullResponse[]
+    // Paginated: one unpaginated request only returns the first page (f451#141).
+    // Stop at the first page shorter than the page size, or at the safety cap.
+    const data: GitHubPullResponse[] = []
+    for (let page = 1; page <= PULLS_PAGE_LIMIT; page++) {
+      const params = new URLSearchParams()
+      // GitHub erwartet `head` qualifiziert als "owner:branch", nicht den reinen
+      // Branch-Namen (sonst würde es auch Forks anderer Owner mit demselben
+      // Branch-Namen matchen).
+      if (opts.head) params.set('head', `${repo.owner}:${opts.head}`)
+      if (opts.base) params.set('base', opts.base)
+      if (opts.state) params.set('state', opts.state)
+      params.set('per_page', String(PULLS_PAGE_SIZE))
+      params.set('page', String(page))
+      const chunk = ((await this.#request(
+        'GET',
+        `/repos/${repo.owner}/${repo.repo}/pulls?${params.toString()}`,
+      )) ?? []) as GitHubPullResponse[]
+      data.push(...chunk)
+      if (chunk.length < PULLS_PAGE_SIZE) break
+    }
     return data.map(mapPullRequest)
   }
 

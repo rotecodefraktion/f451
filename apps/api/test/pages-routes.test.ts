@@ -175,7 +175,7 @@ describe.sequential('GET /api/pages/:id: workflow-Feld (Phase 2d Task 2)', () =>
       headers: { 'x-test-user': 'alice' },
     })
     expect(res.statusCode).toBe(200)
-    expect(res.json().workflow).toEqual({ state: 'working', pr: null, lock: null })
+    expect(res.json().workflow).toEqual({ state: 'working', pr: null, lock: null, deletion: false })
     await app.close()
   })
 
@@ -195,7 +195,7 @@ describe.sequential('GET /api/pages/:id: workflow-Feld (Phase 2d Task 2)', () =>
       headers: { 'x-test-user': 'bob' },
     })
     expect(res.statusCode).toBe(200)
-    expect(res.json().workflow).toEqual({ state: 'working', pr: null, lock: { user: 'Alice', mine: false } })
+    expect(res.json().workflow).toEqual({ state: 'working', pr: null, lock: { user: 'Alice', mine: false }, deletion: false })
     await db.delete(locks).where(eq(locks.pageId, pageId))
     await app.close()
   })
@@ -246,6 +246,72 @@ describe.sequential('GET /api/pages/:id: workflow-Feld (Phase 2d Task 2)', () =>
     // dann keine Rolle mehr; dieser Test dokumentiert nur den Nicht-Crash.
     expect(res.statusCode).toBe(404)
     await app.close()
+  })
+
+  describe('GET /api/pages/:id/preview (#100)', () => {
+    const previewId = 'preview-page'
+
+    beforeAll(async () => {
+      await db.insert(pages).values({
+        id: previewId, spaceId: space.id, path: 'preview/index.md', ref: 'main', title: 'Preview', lang: 'de',
+        htmlRendered: '<h1 id="preview">Preview</h1><p>Intro text.</p><h2 id="setup">Setup</h2><p>Setup text.</p>',
+      })
+    })
+
+    function previewApp(canRead = true): FastifyInstance {
+      return buildTestApp({
+        db,
+        spaces: [space],
+        providerRegistry: () => unreachableProvider(),
+        access: { canRead: async () => canRead },
+      })
+    }
+
+    async function getPreview(app: FastifyInstance, query = '') {
+      await app.ready()
+      const res = await app.inject({
+        method: 'GET',
+        url: `/api/pages/${previewId}/preview${query}`,
+        headers: { 'x-test-user': 'alice' },
+      })
+      await app.close()
+      return res
+    }
+
+    it('returns title and the page start', async () => {
+      const res = await getPreview(previewApp())
+      expect(res.statusCode).toBe(200)
+      expect(res.json()).toEqual({ id: previewId, title: 'Preview', text: 'Intro text.', section: null })
+    })
+
+    it('returns the text of a valid section', async () => {
+      const res = await getPreview(previewApp(), '?section=setup')
+      expect(res.statusCode).toBe(200)
+      expect(res.json()).toEqual({ id: previewId, title: 'Preview', text: 'Setup text.', section: 'setup' })
+    })
+
+    it('ignores a junk section and falls back to the page start', async () => {
+      const res = await getPreview(previewApp(), '?section=%3Cx%3E')
+      expect(res.statusCode).toBe(200)
+      expect(res.json()).toMatchObject({ text: 'Intro text.', section: null })
+    })
+
+    it('answers 404 for an unknown id', async () => {
+      const app = previewApp()
+      await app.ready()
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/pages/does-not-exist/preview',
+        headers: { 'x-test-user': 'alice' },
+      })
+      await app.close()
+      expect(res.statusCode).toBe(404)
+    })
+
+    it('answers 404 without read access, like the page read', async () => {
+      const res = await getPreview(previewApp(false))
+      expect(res.statusCode).toBe(404)
+    })
   })
 })
 

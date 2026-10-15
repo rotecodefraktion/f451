@@ -6,6 +6,85 @@ All notable changes to f451. The format follows
 to the HTTP API, the MCP tools, the page format or the configuration only come
 with a new major version.
 
+## [Unreleased]
+
+## [1.3.0] — 2026-10-15
+
+Import from and export to BookStack, from the command line and the web UI;
+an overview of open reviews; Mermaid diagrams, backlinks and link previews.
+
+One behaviour change in the HTTP API: `DELETE /api/pages/:id` no longer
+deletes at once. It opens a review that deletes the page's whole folder when
+released, and answers `409` for the root page, a page with a pending draft or
+a busy subpage (#155). No changes to the MCP tools, the page format or the
+configuration beyond the new optional `F451_IMPORT_BOOKSTACK_URLS`.
+
+**Operators, after upgrading:**
+1. Run the database migration: `node dist/db/migrate-cli.js` in the API
+   container (see `deploy/BETRIEB.md`). Without it, page requests fail.
+2. Run `POST /admin/reindex` once, for backlink excerpts (#97) and trees
+   indexed before #133.
+3. Optional: set `F451_IMPORT_BOOKSTACK_URLS` to enable import and export in
+   the web UI (#128).
+
+### Added
+- Import core and `f451-import bookstack`: imports a BookStack shelf, book or
+  page as drafts with reviews (#87, #93). See
+  [docs/import-export.md](docs/import-export.md).
+- `f451-import export bookstack`: exports a space or subtree as a BookStack
+  book; a second export updates in place (#94). See
+  [docs/import-export.md](docs/import-export.md).
+- Mermaid diagrams: a fenced code block with the language `mermaid` renders as
+  a diagram in the reading view and as a live preview in the editor. The source
+  stays a plain code block; a diagram that fails to render shows the code (#104).
+- Backlinks: the rail lists every page that links to the current one, each
+  with the passages around its links (#97). On the phone this section replaces
+  the "linked from" list. **Operators:** run `POST /admin/reindex` once after
+  upgrading; until then, existing links show without an excerpt.
+- Link preview: hovering an internal link, or reaching it with the keyboard,
+  shows the target page's title and first paragraph (or the linked section's)
+  (#100). Off on touch devices. New route `GET /api/pages/:id/preview`.
+- Import and export from the web UI: a signed-in user can start the BookStack
+  import and export from the space sidebar, watch the progress and cancel a
+  running job (#128). Off until the operator sets `F451_IMPORT_BOOKSTACK_URLS`.
+  See [docs/import-export.md](docs/import-export.md).
+- Review overview: `/wiki/<space>/reviews` lists the open reviews of a space
+  and releases several at once, for example the pages of an import (#131). New
+  route `GET /api/spaces/:space/reviews`.
+
+### Changed
+- The import client waits for the time given in `Retry-After` on a `429` instead
+  of failing the page (#128).
+- Deleting a page goes through a review instead of committing to main, and
+  removes the whole folder: subpages, media and releases (#155). The pages
+  stay visible until the review is released.
+
+### Fixed
+- Deleting a page with subpages left them orphaned (#155).
+- A page released before its parent folder page stayed at the root of the tree.
+  The incremental index now re-resolves the parent of pages below a page that
+  appears or goes away (#133). `POST /admin/reindex` repairs trees indexed
+  before.
+- Import from BookStack (review of the 1.3 block):
+  - Page content can no longer make the importer fetch addresses outside the
+    configured BookStack; redirects are not followed (#136).
+  - Media the API refuses (unsupported type, invalid SVG, too large) is
+    reported and keeps its BookStack link instead of failing the page (#137).
+  - A page that fails before its content is saved leaves no draft behind
+    (#138); writes are not retried after a 5xx (#139, #140).
+  - Cancelling also stops reading from BookStack (#142); repeated update runs
+    no longer re-upload unchanged images (#143).
+  - Skipped media and source links use BookStack's public address (#146).
+  - Links written by import and export use BookStack's public address when
+    the API reaches BookStack under an internal one (#152).
+- Export to BookStack: a failing chapter no longer aborts the export (#147);
+  stale pages beyond 100 search hits are listed (#145).
+- Open pull requests are read across all result pages, so the review overview
+  is complete after large imports (#141).
+- Import jobs revoke their token when the API shuts down mid-run (#144); the
+  import panel survives malformed job responses, and the editor retries a
+  failed Mermaid load (#148).
+
 ## [1.2.14] — 2026-10-10
 
 No breaking changes to the API, the MCP tools, the page format or the
@@ -319,6 +398,7 @@ f451 License 1.1 — PolyForm Shield 1.0.0 with additional conditions: free to
 use, change and share, also commercially; a separate license is needed only to
 sell f451 or offer it as a paid hosted service. See `LICENSE.md`.
 
+[1.3.0]: https://github.com/rotecodefraktion/f451/releases/tag/v1.3.0
 [1.2.0]: https://github.com/rotecodefraktion/f451/releases/tag/v1.2.0
 [1.1.1]: https://github.com/rotecodefraktion/f451/releases/tag/v1.1.1
 [1.1.0]: https://github.com/rotecodefraktion/f451/releases/tag/v1.1.0

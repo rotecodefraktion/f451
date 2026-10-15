@@ -7,6 +7,7 @@ import {
   IMPLICIT_VERSION,
   type MetadataSchema,
   type PageFrontmatter,
+  previewText,
 } from '@f451/markdown'
 import type { Db } from '../db/client.js'
 import { edges, pageReleases, pages, pageVersions, tags } from '../db/schema.js'
@@ -61,6 +62,8 @@ export interface PageWorkflowField {
   state: 'working' | 'review'
   pr: { number: number; url: string } | null
   lock: { user: string; mine: boolean } | null
+  /** True while the open review deletes the page folder (f451#155). */
+  deletion: boolean
 }
 
 /**
@@ -91,10 +94,21 @@ async function resolveWorkflowField(
     if (!state) return null
 
     const lock = await loadFreshLock({ db: deps.db }, row.id, userId)
+    // A deletion request marks the page's draft row (f451#155).
+    let deletion = false
+    if (state.state === 'review') {
+      const [draftRow] = await deps.db
+        .select({ pendingDeletion: pages.pendingDeletion })
+        .from(pages)
+        .where(and(eq(pages.id, row.id), eq(pages.ref, 'draft')))
+        .limit(1)
+      deletion = draftRow?.pendingDeletion === true
+    }
     return {
       state: state.state,
       pr: state.pr,
       lock: lock ? { user: lock.user, mine: lock.mine } : null,
+      deletion,
     }
   } catch (err) {
     req.log.error({ err, pageId: row.id }, 'workflow: Provider-Fehler beim Zustandsermitteln')
@@ -147,6 +161,14 @@ function resolveMetadata(
  * Kommentar) — „Lesen darf nie ausfallen" (Spec §9) gilt dadurch automatisch
  * auch hier, ohne einen weiteren try/catch.
  */
+/** Read gate of the page routes: with auth wired, a page whose space is unknown or
+ *  not readable for the user is answered like an unknown page (404, no existence
+ *  oracle). Without auth everything stays open. */
+async function readDenied(deps: PagesDeps, req: FastifyRequest, space: SpaceConfig | undefined): Promise<boolean> {
+  if (!deps.access) return false
+  return !space || !(await deps.access.canRead(req.user!.id, space))
+}
+
 async function loadSpaceSchema(
   deps: PagesDeps,
   req: FastifyRequest,
@@ -355,8 +377,9 @@ const workflowSchema = {
     state: { type: 'string', enum: ['working', 'review'] },
     pr: { anyOf: [workflowPrSchema, { type: 'null' }] },
     lock: { anyOf: [workflowLockSchema, { type: 'null' }] },
+    deletion: { type: 'boolean' },
   },
-  required: ['state', 'pr', 'lock'],
+  required: ['state', 'pr', 'lock', 'deletion'],
 } as const
 
 /**
@@ -487,6 +510,39 @@ const rawSchema = {
     502: errorSchema,
   },
 } as const
+
+const previewSchema = {
+  tags: ['pages'],
+  params: {
+    type: 'object',
+    properties: { id: { type: 'string' } },
+    required: ['id'],
+  },
+  response: {
+    200: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        title: { type: 'string' },
+        text: { type: 'string' },
+        // The section the text was taken from; null = page start (none asked for,
+        // invalid or unknown).
+        section: { type: ['string', 'null'] },
+      },
+      required: ['id', 'title', 'text', 'section'],
+    },
+    404: errorSchema,
+  },
+} as const
+
+/** Heading ids as the link preview accepts them in `?section=`. Slugs keep
+ *  Unicode letters (`größe-ändern`), so the pattern does too. */
+const SECTION_PATTERN = /^[\p{Ll}\p{N}][\p{Ll}\p{N}-]{0,119}$/u
+
+/** A single, well-formed `section` query value; anything else (arrays, junk) is ignored. */
+function sectionParam(value: unknown): string | undefined {
+  return typeof value === 'string' && SECTION_PATTERN.test(value) ? value : undefined
+}
 
 /**
  * Registriert die Lese-API für Spaces und Seiten (Plan Task 6): `GET /api/spaces`
@@ -623,10 +679,8 @@ export function registerPagesRoutes(app: FastifyInstance, deps: PagesDeps): void
 
       // Kein Zugriff auf den Space der Seite → 404 wie „unbekannte Seite"
       // (kein Existenz-Orakel: ununterscheidbar von einer nicht vorhandenen Seite).
-      if (deps.access) {
-        if (!space || !(await deps.access.canRead(req.user!.id, space))) {
-          return reply.code(404).send({ status: 'not_found', reason: `Seite "${id}" ist nicht bekannt.` })
-        }
+      if (await readDenied(deps, req, space)) {
+        return reply.code(404).send({ status: 'not_found', reason: `Seite "${id}" ist nicht bekannt.` })
       }
 
       const tagRows = await deps.db.select({ tag: tags.tag }).from(tags).where(eq(tags.pageId, id))
@@ -709,6 +763,40 @@ export function registerPagesRoutes(app: FastifyInstance, deps: PagesDeps): void
         ...(latest ? { latestRelease: latest.version } : {}),
       }
     })
+
+    // Link hover preview (#100): plain text of the page start or of one section.
+    instance.get<{ Params: { id: string }; Querystring: Record<string, unknown> }>(
+      '/api/pages/:id/preview',
+      { schema: previewSchema },
+      async (req, reply) => {
+        const id = req.params.id
+        const row = (
+          await deps.db
+            .select({
+              id: pages.id,
+              spaceId: pages.spaceId,
+              title: pages.title,
+              htmlRendered: pages.htmlRendered,
+            })
+            .from(pages)
+            .where(and(eq(pages.id, id), eq(pages.ref, 'main')))
+            .limit(1)
+        )[0]
+        if (!row) {
+          return reply.code(404).send({ status: 'not_found', reason: `Seite "${id}" ist nicht bekannt.` })
+        }
+
+        const space = deps.spaces.find((s) => s.id === row.spaceId)
+        if (await readDenied(deps, req, space)) {
+          return reply.code(404).send({ status: 'not_found', reason: `Seite "${id}" ist nicht bekannt.` })
+        }
+
+        // An API token above its classification limit never gets here: the app-wide
+        // classification gate (auth/classification-gate.ts) answers 403 first (#39).
+        const preview = previewText(row.htmlRendered, sectionParam(req.query.section))
+        return { id: row.id, title: row.title, text: preview.text, section: preview.section }
+      },
+    )
 
     instance.get<{ Params: { id: string }; Querystring: { download?: string } }>(
       '/api/pages/:id/raw',

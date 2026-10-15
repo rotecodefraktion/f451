@@ -1,0 +1,342 @@
+import { readFileSync } from 'node:fs'
+import { crc32 } from 'node:zlib'
+import { describe, expect, it } from 'vitest'
+import type { ImportNode } from '../../model.js'
+import { BookStackClient } from './client.js'
+import { loadBookStackTree } from './map.js'
+
+// The client allows 3 requests per second, so one load takes a few seconds.
+const TIMEOUT = 20_000
+const BASE = 'https://b'
+const MAX_BYTES = 10 * 1024 * 1024
+
+function fixture(name: string): string {
+  return readFileSync(new URL(`../../../test/fixtures/bookstack/${name}`, import.meta.url), 'utf8')
+}
+
+function chunk(type: string, data: Buffer): Buffer {
+  const length = Buffer.alloc(4)
+  length.writeUInt32BE(data.length)
+  const body = Buffer.concat([Buffer.from(type, 'latin1'), data])
+  const crc = Buffer.alloc(4)
+  crc.writeUInt32BE(crc32(body))
+  return Buffer.concat([length, body, crc])
+}
+
+/** A PNG skeleton carrying an empty draw.io diagram in a `mxfile` tEXt chunk. */
+function drawingPng(): Uint8Array {
+  const ihdr = Buffer.alloc(13)
+  ihdr.writeUInt32BE(1, 0)
+  ihdr.writeUInt32BE(1, 4)
+  ihdr[8] = 8
+  ihdr[9] = 6
+  return new Uint8Array(
+    Buffer.concat([
+      Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+      chunk('IHDR', ihdr),
+      chunk('tEXt', Buffer.from('mxfile\0%3Cmxfile%3E%3C%2Fmxfile%3E', 'latin1')),
+      chunk('IEND', Buffer.alloc(0)),
+    ]),
+  )
+}
+
+const JSON_ROUTES: Record<string, string> = {
+  '/api/books/7': 'book-7.json',
+  '/api/chapters/3': 'chapter-3.json',
+  '/api/pages/12': 'page-12.json',
+  '/api/pages/13': 'page-13.json',
+  '/api/shelves/2': 'shelf-2.json',
+}
+
+function binary(bytes: Uint8Array): Response {
+  return new Response(bytes.slice().buffer as ArrayBuffer, { status: 200 })
+}
+
+const fetchImpl = (async (input: RequestInfo | URL) => {
+  const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url)
+  const path = decodeURIComponent(url.pathname)
+  const file = JSON_ROUTES[path]
+  if (file) return new Response(fixture(file), { status: 200, headers: { 'Content-Type': 'application/json' } })
+  if (path === '/api/attachments') return Response.json({ data: [], total: 0 })
+  if (path === '/uploads/images/gallery/2026/a b.png') return binary(new Uint8Array([1, 2, 3, 4]))
+  if (path === '/uploads/images/drawio/d.png') return binary(drawingPng())
+  return new Response('{}', { status: 404 })
+}) as typeof fetch
+
+function client(): BookStackClient {
+  return new BookStackClient(BASE, 'id', 'secret', fetchImpl)
+}
+
+function shape(node: ImportNode): unknown {
+  return { id: node.sourceRef.id, children: node.children.map(shape) }
+}
+
+function search(nodes: ImportNode[], id: string): ImportNode | null {
+  for (const n of nodes) {
+    if (n.sourceRef.id === id) return n
+    const hit = search(n.children, id)
+    if (hit) return hit
+  }
+  return null
+}
+
+function find(nodes: ImportNode[], id: string): ImportNode {
+  const hit = search(nodes, id)
+  if (!hit) throw new Error(`node ${id} not in tree`)
+  return hit
+}
+
+describe('loadBookStackTree', () => {
+  it(
+    'maps a book with a renderer: tree, links, tags, images and drawings',
+    async () => {
+      const tree = await loadBookStackTree(client(), { book: '7' }, {
+        baseUrl: BASE,
+        drawio: { render: async () => '<svg content="x"/>' },
+        maxBytes: MAX_BYTES,
+      })
+
+      expect(tree.root.map(shape)).toEqual([
+        { id: 'book:7', children: [{ id: 'chapter:3', children: [{ id: '13', children: [] }] }, { id: '12', children: [] }] },
+      ])
+
+      const book = find(tree.root, 'book:7')
+      expect(book.markdown).toContain('# Guide')
+      expect(book.markdown).toContain('The guide')
+      expect(book.sourceRef).toEqual({ type: 'bookstack', id: 'book:7', url: 'https://b/books/guide' })
+
+      const p12 = find(tree.root, '12')
+      expect(p12.markdown).toContain('[Next](source:13|https://b/books/guide/page/next)')
+      expect(p12.tags).toContain('area:ops')
+      expect(p12.tags).not.toContain('f451-id:p-old')
+      expect(p12.knownF451Id).toBe('p-old')
+      expect(p12.markdown).toContain('![x](_media/a-b.png)')
+      expect(p12.media).toHaveLength(1)
+      expect(p12.media[0]).toMatchObject({ name: 'a-b.png', kind: 'image', mime: 'image/png', ref: '_media/a-b.png' })
+      expect(p12.sourceRef).toEqual({ type: 'bookstack', id: '12', url: 'https://b/books/guide/page/start' })
+
+      const p13 = find(tree.root, '13')
+      expect(p13.markdown).toContain('_media/d.drawio.svg')
+      expect(p13.media).toHaveLength(1)
+      expect(p13.media[0]).toMatchObject({ name: 'd.drawio.svg', kind: 'drawio', mime: 'image/svg+xml' })
+      expect(new TextDecoder().decode(p13.media[0]!.bytes)).toBe('<svg content="x"/>')
+      expect(tree.drawingsAsPng).toEqual([])
+    },
+    TIMEOUT,
+  )
+
+  it(
+    'keeps a drawing as PNG without a renderer',
+    async () => {
+      const tree = await loadBookStackTree(client(), { book: '7' }, { baseUrl: BASE, drawio: null, maxBytes: MAX_BYTES })
+      const p13 = find(tree.root, '13')
+      expect(p13.markdown).toContain('_media/d.png')
+      expect(p13.media).toHaveLength(1)
+      expect(p13.media[0]).toMatchObject({ name: 'd.png', kind: 'image' })
+      expect(tree.drawingsAsPng).toHaveLength(1)
+    },
+    TIMEOUT,
+  )
+
+  it(
+    'skips media over the size limit and keeps the absolute URL',
+    async () => {
+      const tree = await loadBookStackTree(client(), { book: '7' }, { baseUrl: BASE, drawio: null, maxBytes: 2 })
+      const p12 = find(tree.root, '12')
+      expect(p12.media).toEqual([])
+      expect(p12.markdown).toContain('https://b/uploads/images/gallery/2026/a%20b.png')
+      expect(tree.mediaSkipped).toContainEqual(expect.objectContaining({ sourceId: '12' }))
+    },
+    TIMEOUT,
+  )
+
+  it(
+    'records a page that fails to load and keeps the rest of the tree',
+    async () => {
+      const failing = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+        if (new URL(url).pathname === '/api/pages/13') return new Response('{}', { status: 500 })
+        return fetchImpl(input, init)
+      }) as typeof fetch
+      const tree = await loadBookStackTree(new BookStackClient(BASE, 'id', 'secret', failing), { book: '7' }, { baseUrl: BASE, drawio: null, maxBytes: MAX_BYTES })
+      expect(tree.failed).toEqual([expect.objectContaining({ sourceId: '13' })])
+      expect(find(tree.root, '12').title).toBeTruthy()
+      expect(search(tree.root, '13')).toBeNull()
+    },
+    60_000,
+  )
+
+  it(
+    'puts a shelf above its books',
+    async () => {
+      const tree = await loadBookStackTree(client(), { shelf: '2' }, { baseUrl: BASE, drawio: null, maxBytes: MAX_BYTES })
+      expect(tree.root.map((n) => n.sourceRef.id)).toEqual(['shelf:2'])
+      expect(tree.root[0]!.children.map((n) => n.sourceRef.id)).toEqual(['book:7'])
+    },
+    TIMEOUT,
+  )
+
+  it(
+    'downloads media whose absolute URL names another host for the same BookStack',
+    async () => {
+      // BookStack writes absolute URLs from its own APP_URL; f451 may reach it
+      // under another address (container network, proxy). Fetch via BASE.
+      const fetched: string[] = []
+      const publicHost = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url)
+        fetched.push(url.origin)
+        const file = JSON_ROUTES[url.pathname]
+        if (file === 'page-12.json' || file === 'page-13.json') {
+          const body = fixture(file).replaceAll('src=\\"/uploads/', 'src=\\"http://public.example/uploads/')
+          return new Response(body, { status: 200, headers: { 'Content-Type': 'application/json' } })
+        }
+        return fetchImpl(input, init)
+      }) as typeof fetch
+      const tree = await loadBookStackTree(new BookStackClient(BASE, 'id', 'secret', publicHost), { book: '7' }, {
+        baseUrl: BASE,
+        drawio: null,
+        maxBytes: MAX_BYTES,
+      })
+      expect(find(tree.root, '12').markdown).toContain('![x](_media/a-b.png)')
+      expect(find(tree.root, '13').markdown).toContain('_media/d.png')
+      expect(fetched).not.toContain('http://public.example')
+    },
+    TIMEOUT,
+  )
+
+  it(
+    'links skipped media under the URL BookStack wrote, not the internal base URL',
+    async () => {
+      const publicHost = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url)
+        if (url.pathname === '/api/pages/12') {
+          const body = fixture('page-12.json').replaceAll('src=\\"/uploads/', 'src=\\"http://public.example/uploads/')
+          return new Response(body, { status: 200, headers: { 'Content-Type': 'application/json' } })
+        }
+        if (url.pathname === '/api/attachments' && url.searchParams.get('filter[uploaded_to]') === '12') {
+          const a = { id: 5, name: 'Doc', extension: 'pdf', uploaded_to: 12, external: false, order: 0, created_at: '', updated_at: '' }
+          return Response.json({ data: [a], total: 1 })
+        }
+        if (url.pathname === '/api/attachments/5') {
+          return Response.json({
+            id: 5, name: 'Doc', extension: 'pdf', uploaded_to: 12, external: false, order: 0, created_at: '', updated_at: '',
+            content: Buffer.from([1, 2, 3, 4]).toString('base64'),
+            links: { html: '<a target="_blank" href="http://public.example/attachments/5">Doc</a>', markdown: '[Doc](http://public.example/attachments/5)' },
+          })
+        }
+        return fetchImpl(input, init)
+      }) as typeof fetch
+      const tree = await loadBookStackTree(new BookStackClient(BASE, 'id', 'secret', publicHost), { book: '7' }, {
+        baseUrl: BASE,
+        drawio: null,
+        maxBytes: 2,
+      })
+      const p12 = find(tree.root, '12')
+      expect(p12.markdown).toContain('http://public.example/uploads/images/gallery/2026/a%20b.png')
+      expect(p12.markdown).toContain('[Doc](http://public.example/attachments/5)')
+      expect(p12.markdown).not.toContain('https://b/uploads/')
+      expect(p12.markdown).not.toContain('https://b/attachments/')
+    },
+    TIMEOUT,
+  )
+
+  it(
+    'resolves an absolute link on BookStack\'s public host as an internal link',
+    async () => {
+      // BookStack reports content urls from its APP_URL, which differs from BASE.
+      const publicHost = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url)
+        if (url.pathname === '/api/books/7') {
+          const book = JSON.parse(fixture('book-7.json')) as { contents: Array<{ slug: string; url?: string; pages?: Array<{ slug: string; url?: string }> }> }
+          for (const item of book.contents) {
+            if (item.pages) for (const p of item.pages) p.url = `http://public.example/books/guide/page/${p.slug}`
+            else item.url = `http://public.example/books/guide/page/${item.slug}`
+          }
+          return Response.json(book)
+        }
+        if (url.pathname === '/api/pages/12') {
+          const body = fixture('page-12.json').replace('href=\\"/books/guide/page/next\\"', 'href=\\"http://public.example/books/guide/page/next\\"')
+          return new Response(body, { status: 200, headers: { 'Content-Type': 'application/json' } })
+        }
+        return fetchImpl(input, init)
+      }) as typeof fetch
+      const tree = await loadBookStackTree(new BookStackClient(BASE, 'id', 'secret', publicHost), { book: '7' }, {
+        baseUrl: BASE,
+        drawio: null,
+        maxBytes: MAX_BYTES,
+      })
+      const p12 = find(tree.root, '12')
+      expect(p12.markdown).toContain('[Next](source:13|http://public.example/books/guide/page/next)')
+      expect(p12.sourceRef.url).toBe('http://public.example/books/guide/page/start')
+    },
+    TIMEOUT,
+  )
+
+  it(
+    'never fetches a drawing whose source is not BookStack media, and reports it',
+    async () => {
+      const fetched: string[] = []
+      const internal = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url)
+        fetched.push(url.href)
+        if (url.pathname === '/api/pages/13') {
+          const body = fixture('page-13.json').replaceAll('src=\\"/uploads/images/drawio/d.png\\"', 'src=\\"http://10.0.0.5/admin/export\\"')
+          return new Response(body, { status: 200, headers: { 'Content-Type': 'application/json' } })
+        }
+        return fetchImpl(input, init)
+      }) as typeof fetch
+      const tree = await loadBookStackTree(new BookStackClient(BASE, 'id', 'secret', internal), { book: '7' }, {
+        baseUrl: BASE,
+        drawio: null,
+        maxBytes: MAX_BYTES,
+      })
+      expect(fetched.some((u) => u.startsWith('http://10.0.0.5'))).toBe(false)
+      expect(tree.mediaSkipped).toContainEqual(expect.objectContaining({ sourceId: '13', reason: expect.stringContaining('not BookStack media') }))
+    },
+    TIMEOUT,
+  )
+
+  it(
+    'reports a drawing that cannot be downloaded',
+    async () => {
+      const noDrawing = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+        if (new URL(url).pathname === '/uploads/images/drawio/d.png') return new Response('{}', { status: 404 })
+        return fetchImpl(input, init)
+      }) as typeof fetch
+      const tree = await loadBookStackTree(new BookStackClient(BASE, 'id', 'secret', noDrawing), { book: '7' }, {
+        baseUrl: BASE,
+        drawio: null,
+        maxBytes: MAX_BYTES,
+      })
+      expect(tree.mediaSkipped).toContainEqual(expect.objectContaining({ sourceId: '13', name: 'd.png' }))
+    },
+    TIMEOUT,
+  )
+
+  it('loads nothing past the selector when the signal is already aborted', async () => {
+    const fetched: string[] = []
+    const recording = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url)
+      fetched.push(url.pathname)
+      return fetchImpl(input, init)
+    }) as typeof fetch
+    const controller = new AbortController()
+    controller.abort()
+    const tree = await loadBookStackTree(new BookStackClient(BASE, 'id', 'secret', recording), { book: '7' }, {
+      baseUrl: BASE,
+      drawio: null,
+      maxBytes: MAX_BYTES,
+      signal: controller.signal,
+    })
+    expect(fetched).toEqual(['/api/books/7'])
+    expect(tree.root).toEqual([])
+    expect(tree.failed).toEqual([])
+  })
+
+  it('rejects an unknown book', async () => {
+    await expect(
+      loadBookStackTree(client(), { book: '99' }, { baseUrl: BASE, drawio: null, maxBytes: MAX_BYTES }),
+    ).rejects.toThrow('book not found: 99')
+  })
+})

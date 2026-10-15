@@ -53,6 +53,47 @@ export function wikiPageHref(space: string, pageId: string): string {
   return `/wiki/${encodeURIComponent(space)}/${encodeURIComponent(pageId)}`
 }
 
+/**
+ * Inverse of {@link wikiPageHref}: reads `/wiki/<enc space>/<enc pageId>` with
+ * an optional `#section` (decoded) back into its parts. A query string is
+ * dropped. Anything else — absolute URLs, `/wiki/x`, sub-routes such as
+ * `/wiki/x/y/edit`, malformed percent escapes — yields `null`. Only paths
+ * starting with `/wiki/` are accepted, so other origins can never match.
+ */
+/** Space-level routes that share the `/wiki/<space>/<segment>` shape with pages. */
+const SPACE_ROUTES = new Set(['report', 'graph', 'schema', 'templates', 'import', 'reviews'])
+
+export function parseWikiPageHref(
+  href: string,
+): { space: string; pageId: string; section: string | null } | null {
+  const hashAt = href.indexOf('#')
+  const beforeHash = hashAt >= 0 ? href.slice(0, hashAt) : href
+  const rawHash = hashAt >= 0 ? href.slice(hashAt + 1) : ''
+  const queryAt = beforeHash.indexOf('?')
+  const path = queryAt >= 0 ? beforeHash.slice(0, queryAt) : beforeHash
+  if (!path.startsWith('/wiki/')) return null
+  const segments = path.slice('/wiki/'.length).split('/')
+  if (segments.length !== 2) return null
+  const [rawSpace, rawPageId] = segments
+  if (!rawSpace || !rawPageId || SPACE_ROUTES.has(rawPageId)) return null
+  try {
+    return {
+      space: decodeURIComponent(rawSpace),
+      pageId: decodeURIComponent(rawPageId),
+      section: rawHash ? decodeURIComponent(rawHash) : null,
+    }
+  } catch {
+    return null
+  }
+}
+
+/** API path of a page's hover preview (#100), e.g.
+ *  `apiPagePreviewPath('home', 'setup')` → `/api/pages/home/preview?section=setup`. */
+export function apiPagePreviewPath(pageId: string, section?: string | null): string {
+  const base = `/api/pages/${encodeURIComponent(pageId)}/preview`
+  return section ? `${base}?section=${encodeURIComponent(section)}` : base
+}
+
 /** API-Pfad für den Seitenbaum eines Space, z. B. `/api/spaces/demo/tree`. */
 export function apiSpaceTreePath(space: string): string {
   return `/api/spaces/${encodeURIComponent(space)}/tree`
@@ -91,6 +132,60 @@ export function wikiMetadataSchemaHref(space: string): string {
  *  z. B. `wikiTemplatesHref('demo')` → `/wiki/demo/templates`. */
 export function wikiTemplatesHref(space: string): string {
   return `${wikiSpaceHref(space)}/templates`
+}
+
+/** Href of a space's import/export page (#128), e.g.
+ *  `wikiImportHref('demo')` → `/wiki/demo/import`. */
+export function wikiImportHref(space: string): string {
+  return `${wikiSpaceHref(space)}/import`
+}
+
+/** Href of a space's review overview (#131), e.g.
+ *  `wikiReviewsHref('demo')` → `/wiki/demo/reviews`. */
+export function wikiReviewsHref(space: string): string {
+  return `${wikiSpaceHref(space)}/reviews`
+}
+
+/** API path of a space's open reviews (#131), e.g. `/api/spaces/demo/reviews`. */
+export function apiSpaceReviewsPath(space: string): string {
+  return `/api/spaces/${encodeURIComponent(space)}/reviews`
+}
+
+/** API path that releases a page's draft (`POST /api/pages/:id/release`). */
+export function apiPageReleasePath(pageId: string): string {
+  return `/api/pages/${encodeURIComponent(pageId)}/release`
+}
+
+/** API path of the BookStack instances the operator allows (#128). */
+export function apiImportInstancesPath(): string {
+  return '/api/import/instances'
+}
+
+/** API path that lists the books and shelves of a BookStack instance (#128). */
+export function apiImportCatalogPath(): string {
+  return '/api/import/bookstack/catalog'
+}
+
+/** API path that starts a BookStack import into a space (#128), e.g.
+ *  `/api/spaces/demo/import/bookstack`. */
+export function apiSpaceImportPath(space: string): string {
+  return `/api/spaces/${encodeURIComponent(space)}/import/bookstack`
+}
+
+/** API path that starts a BookStack export of a space (#128), e.g.
+ *  `/api/spaces/demo/export/bookstack`. */
+export function apiSpaceExportPath(space: string): string {
+  return `/api/spaces/${encodeURIComponent(space)}/export/bookstack`
+}
+
+/** API path of an import/export job (#128), e.g. `/api/jobs/<id>`. */
+export function apiJobPath(id: string): string {
+  return `/api/jobs/${encodeURIComponent(id)}`
+}
+
+/** API path that cancels an import/export job (#128). */
+export function apiJobCancelPath(id: string): string {
+  return `${apiJobPath(id)}/cancel`
 }
 
 /** API-Pfad der Vorlagen-Liste eines Space (`GET .../templates`), z. B.
@@ -179,4 +274,11 @@ export function mediaHref(pageId: string, relPath: string, ref: 'main' | 'draft'
 export function apiPageRawPath(pageId: string, opts?: { download?: boolean }): string {
   const base = `/api/pages/${encodeURIComponent(pageId)}/raw`
   return opts?.download ? `${base}?download=1` : base
+}
+
+/** API path of a page's backlinks with excerpts (`GET /api/pages/:id/backlinks`,
+ *  f451#97), e.g. `apiPageBacklinksPath('home')` → `/api/pages/home/backlinks`.
+ *  Encoding as in {@link wikiPageHref}. */
+export function apiPageBacklinksPath(pageId: string): string {
+  return `/api/pages/${encodeURIComponent(pageId)}/backlinks`
 }

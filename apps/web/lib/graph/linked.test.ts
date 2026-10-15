@@ -8,20 +8,22 @@ const node = (id: string, title: string) => ({
 const edge = (from: string, to: string, type: GraphEdgeType = 'link') => ({ from, to, type, label: '' })
 
 describe('linkedPages', () => {
-  it('empty graph → two empty groups', () => {
-    expect(linkedPages({ nodes: [], edges: [] }, 'a')).toEqual({ linksTo: [], linkedFrom: [] })
+  it('empty graph → empty group', () => {
+    expect(linkedPages({ nodes: [], edges: [] }, 'a')).toEqual({ linksTo: [] })
   })
 
-  it('centre only → two empty groups', () => {
-    expect(linkedPages({ nodes: [node('a', 'A')], edges: [] }, 'a')).toEqual({ linksTo: [], linkedFrom: [] })
+  it('centre only → empty group', () => {
+    expect(linkedPages({ nodes: [node('a', 'A')], edges: [] }, 'a')).toEqual({ linksTo: [] })
   })
 
-  it('A→B and B→A: B appears once in each group', () => {
+  it('A→B and B→A: B appears once, incoming edges are left to the backlinks section', () => {
     const graph: GraphData = { nodes: [node('a', 'A'), node('b', 'B')], edges: [edge('a', 'b'), edge('b', 'a')] }
-    expect(linkedPages(graph, 'a')).toEqual({
-      linksTo: [{ id: 'b', title: 'B' }],
-      linkedFrom: [{ id: 'b', title: 'B' }],
-    })
+    expect(linkedPages(graph, 'a')).toEqual({ linksTo: [{ id: 'b', title: 'B' }] })
+  })
+
+  it('ignores incoming edges', () => {
+    const graph: GraphData = { nodes: [node('a', 'A'), node('b', 'B')], edges: [edge('b', 'a'), edge('b', 'a', 'relation')] }
+    expect(linkedPages(graph, 'a')).toEqual({ linksTo: [] })
   })
 
   it('a duplicate edge (link and relation to the same page) counts once', () => {
@@ -35,17 +37,17 @@ describe('linkedPages', () => {
   it('ignores hierarchy and tag edges', () => {
     const graph: GraphData = {
       nodes: [node('a', 'A'), node('b', 'B'), node('c', 'C')],
-      edges: [edge('a', 'b', 'hierarchy'), edge('c', 'a', 'tag')],
+      edges: [edge('a', 'b', 'hierarchy'), edge('a', 'c', 'tag')],
     }
-    expect(linkedPages(graph, 'a')).toEqual({ linksTo: [], linkedFrom: [] })
+    expect(linkedPages(graph, 'a')).toEqual({ linksTo: [] })
   })
 
   it('ignores a self-edge', () => {
     const graph: GraphData = { nodes: [node('a', 'A')], edges: [edge('a', 'a'), edge('a', 'a', 'relation')] }
-    expect(linkedPages(graph, 'a')).toEqual({ linksTo: [], linkedFrom: [] })
+    expect(linkedPages(graph, 'a')).toEqual({ linksTo: [] })
   })
 
-  it('sorts each group by title', () => {
+  it('sorts by title', () => {
     const graph: GraphData = {
       nodes: [node('a', 'A'), node('z', 'Zeta'), node('m', 'Mu'), node('b', 'Beta')],
       edges: [edge('a', 'z'), edge('a', 'm'), edge('a', 'b')],

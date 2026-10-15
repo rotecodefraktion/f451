@@ -46,8 +46,8 @@ nothing is silently lost.
 
 From the editor's status bar you can **Discard** the draft, **Reset to last
 release**, go **Back to reading view**, **Save as template …**, or
-**Export as Markdown**. **Delete page** removes the page from the
-repository entirely.
+**Export as Markdown**. **Delete page** requests the removal of
+the page through a review (see [Deleting a page](#deleting-a-page)).
 
 See [[editor-reference]] for formatting, wikilinks, images and diagrams.
 
@@ -80,6 +80,22 @@ release** checkbox. Ticked, it stores an unchangeable copy of this version
 with its attachments, which stays readable even after the page has been
 edited many times. Frozen versions are marked in the version list (see
 [[reading-and-navigating]]).
+
+## Deleting a page
+
+**Delete page** does not remove anything right away. It opens a review that
+deletes the whole folder: the page, all its subpages, their images and media,
+and their releases. The pages stay visible until a reviewer approves; the
+review overview marks the review as **will be deleted**, and the review page
+lists the pages that will disappear instead of showing a comparison.
+Discarding the review keeps everything. A page that was never released is
+simply discarded, without a review.
+
+Deletion is refused for the space's root page, for a page with saved draft
+changes (discard or release them first), and when a subpage has its own open
+draft or is locked by someone else — the dialog names them. If pages were
+added to the folder after you asked, the release is refused; discard the
+review and request deletion again.
 
 ## Edit conflicts
 

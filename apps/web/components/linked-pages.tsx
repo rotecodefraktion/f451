@@ -8,32 +8,27 @@ export interface LinkedPagesProps {
   space: string
 }
 
-/** Linked pages as a plain list, split by direction — the phone's stand-in
- *  for the mini graph (f451#1). Both stay in the DOM; `66-telefon.css`
- *  decides which one shows, so server and client render the same markup.
- *  Server Component: the rail around it is one too. */
+/** Outgoing links as a plain list — the phone's stand-in for the mini graph
+ *  (f451#1). Both stay in the DOM; `66-telefon.css` decides which one shows,
+ *  so server and client render the same markup. Incoming links are not listed
+ *  here: the backlinks section (`backlinks.tsx`, f451#97) covers them on every
+ *  screen size. Server Component: the rail around it is one too. */
 export async function LinkedPages({ groups, space }: LinkedPagesProps) {
-  const { linksTo, linkedFrom } = groups
-  if (linksTo.length === 0 && linkedFrom.length === 0) return null
+  const { linksTo } = groups
+  if (linksTo.length === 0) return null
   const { t } = await getT()
-  const sections = [
-    { key: 'linksTo', heading: t('read.rail.linksTo'), pages: linksTo },
-    { key: 'linkedFrom', heading: t('read.rail.linkedFrom'), pages: linkedFrom },
-  ].filter((s) => s.pages.length > 0)
   return (
     <div className="linked-pages">
-      {sections.map((s) => (
-        <div className="linked-group" key={s.key}>
-          <h5>{s.heading}</h5>
-          <ul>
-            {s.pages.map((p) => (
-              <li key={p.id}>
-                <Link href={wikiPageHref(space, p.id)}>{p.title}</Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
+      <div className="linked-group">
+        <h5>{t('read.rail.linksTo')}</h5>
+        <ul>
+          {linksTo.map((p) => (
+            <li key={p.id}>
+              <Link href={wikiPageHref(space, p.id)}>{p.title}</Link>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   )
 }

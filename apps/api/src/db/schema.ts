@@ -112,6 +112,12 @@ export const pages = pgTable(
      * betroffene Zeilen deshalb direkt gezielt statt über `indexChangedFiles`.
      */
     orderKey: integer('order_key'),
+    /**
+     * Set only on `ref='draft'` rows: the draft branch deletes this page's
+     * folder and a deletion review is (to be) open (f451#155). Derivable from
+     * Git — the page file is absent on the draft branch.
+     */
+    pendingDeletion: boolean('pending_deletion').notNull().default(false),
     searchVector: tsvector('search_vector'),
   },
   (table) => [
@@ -158,6 +164,10 @@ export const edges = pgTable(
     // (Indexer) schreibt `ref: 'main'` seither explizit statt sich auf den
     // Spalten-Default zu verlassen.
     ref: text('ref').notNull().default('main'),
+    // Plain-text excerpt around the link for the backlinks panel (f451#97),
+    // derived from Git like everything in this table. '' for non-link edges and
+    // for rows indexed before this column existed, until the next reindex.
+    context: text('context').notNull().default(''),
   },
   (table) => [
     primaryKey({ columns: [table.fromPageId, table.rawTarget, table.type, table.label] }),

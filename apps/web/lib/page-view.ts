@@ -115,6 +115,13 @@ export function formatUpdatedAt(iso: string, locale: Locale): string {
  * (s. `apps/api/src/routes/pages.ts#resolveWorkflowField`) — für alle
  * anderen bleibt es beim reinen `archived`-Fall.
  */
+/** Text of the draft notice in the reading view. An open deletion review
+ *  (#155) says so instead of the usual "in review". */
+export function draftNoticeText(t: T, workflow: { state: 'working' | 'review'; deletion?: boolean }): string {
+  if (workflow.state === 'review' && workflow.deletion) return t('read.notices.deletionInReview')
+  return workflow.state === 'review' ? t('read.notices.draftInReview') : t('read.notices.draftPending')
+}
+
 export function pageStatusLabel(t: T, archived: boolean, workflowState: 'working' | 'review' | null): string {
   if (workflowState === 'review') return t('read.status.review')
   if (workflowState === 'working') return t('read.status.draft')

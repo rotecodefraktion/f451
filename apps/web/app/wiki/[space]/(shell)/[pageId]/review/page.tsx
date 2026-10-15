@@ -1,12 +1,12 @@
 import { cookies } from 'next/headers'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import type { MarkdownDiff } from '@f451/markdown'
 import { DiffView } from '../../../../../../components/review/diff-view'
 import { ReviewView } from '../../../../../../components/review/review-view'
 import { ApiError, apiFetch } from '../../../../../../lib/api'
 import { getT } from '../../../../../../lib/i18n/server.js'
 import { changedBlocks, dchangeModifierClass, railLabel } from '../../../../../../lib/review/diff-view-model'
-import { decodeRouteParam, wikiPageReviewHref, wikiSpaceHref } from '../../../../../../lib/urls'
+import { decodeRouteParam, wikiPageHref, wikiPageReviewHref, wikiSpaceHref } from '../../../../../../lib/urls'
 
 interface ReviewPageProps {
   params: Promise<{ space: string; pageId: string }>
@@ -29,13 +29,24 @@ interface ReviewPageProps {
 interface ReviewResponse {
   pr: { number: number; url: string; state: string; mergeable: boolean | null; title: string }
   authorName: string
-  diff: MarkdownDiff
+  /** Absent for a deletion review (#155). */
+  diff?: MarkdownDiff
   page: { id: string; space: string; title: string }
+  /** Deletion review (#155): the pages that disappear on release and the
+   *  number of files removed. Replaces the diff. */
+  deletion?: { pages: Array<{ id: string; title: string; path: string }>; files: number }
   versioning: boolean
   version?: string
   /** `version` is the implicit 0.1.0 (page on main, never released with a version). */
   implicitVersion?: boolean
 }
+
+const WARN_ICON = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+    <path d="M12 3 2 20h20L12 3Z" strokeLinejoin="round" />
+    <path d="M12 10v4M12 17v.01" strokeLinecap="round" />
+  </svg>
+)
 
 const CLOCK_ICON = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
@@ -125,6 +136,9 @@ export default async function ReviewPage({ params }: ReviewPageProps) {
     })
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) {
+      // No open review (any more): after a release the page lives on at its
+      // own address, so old review links (import list, PR body) still work.
+      if (await isReadablePage(pageId, cookieHeader)) redirect(wikiPageHref(spaceId, pageId))
       notFound()
     }
     return (
@@ -139,8 +153,8 @@ export default async function ReviewPage({ params }: ReviewPageProps) {
     )
   }
 
-  const { pr, authorName, diff, page } = data
-  const changes = changedBlocks(diff.blocks)
+  const { pr, authorName, diff, page, deletion } = data
+  const changes = diff ? changedBlocks(diff.blocks) : []
 
   return (
     <>
@@ -158,6 +172,7 @@ export default async function ReviewPage({ params }: ReviewPageProps) {
               {CLOCK_ICON}
               {t('review.status.review')}
             </span>
+            {deletion ? <span className="chip error">{t('review.deletion.status')}</span> : null}
           </div>
           <div className="rmeta">
             <span className="who">
@@ -182,15 +197,36 @@ export default async function ReviewPage({ params }: ReviewPageProps) {
           </div>
         </div>
 
-        <DiffView diff={diff} />
+        {deletion ? (
+          <div className="notice warn notice-stack" role="note">
+            <div className="notice-row">
+              <span className="ic">{WARN_ICON}</span>
+              <div className="txt">
+                <b>{t('review.deletion.heading')}</b> {t('review.deletion.intro')}
+              </div>
+            </div>
+            <ul className="notice-list">
+              {deletion.pages.map((p) => (
+                <li key={p.id}>
+                  <a href={wikiPageHref(spaceId, p.id)}>{p.title}</a> <code>{p.path}</code>
+                </li>
+              ))}
+            </ul>
+            <p>{t('review.deletion.files', { count: deletion.files })}</p>
+          </div>
+        ) : diff ? (
+          <DiffView diff={diff} />
+        ) : null}
 
+        {/* A deletion has no version to bump: the version section is hidden. */}
         <ReviewView
           pageId={pageId}
           space={spaceId}
           pr={pr}
-          versioning={data.versioning}
+          versioning={deletion ? false : data.versioning}
           currentVersion={data.version}
           implicitVersion={data.implicitVersion}
+          deletion={deletion !== undefined}
         />
       </main>
 
@@ -203,20 +239,29 @@ export default async function ReviewPage({ params }: ReviewPageProps) {
               Eigenklasse `.rsum .s` (drei der 17 aus Bestandsaufnahme §2.3)
               und hingen als Alias am `.chip`. Jetzt tragen sie den Baustein
               selbst. */}
-          <div className="rsum">
-            <span className="chip released">
-              {ADD_SUMMARY_ICON}
-              {diff.summary.added}
-            </span>
-            <span className="chip review">
-              {CHG_SUMMARY_ICON}
-              {diff.summary.changed}
-            </span>
-            <span className="chip error">
-              {RM_SUMMARY_ICON}
-              {diff.summary.removed}
-            </span>
-          </div>
+          {diff ? (
+            <div className="rsum">
+              <span className="chip released">
+                {ADD_SUMMARY_ICON}
+                {diff.summary.added}
+              </span>
+              <span className="chip review">
+                {CHG_SUMMARY_ICON}
+                {diff.summary.changed}
+              </span>
+              <span className="chip error">
+                {RM_SUMMARY_ICON}
+                {diff.summary.removed}
+              </span>
+            </div>
+          ) : deletion ? (
+            <div className="rsum">
+              <span className="chip error">
+                {RM_SUMMARY_ICON}
+                {deletion.pages.length}
+              </span>
+            </div>
+          ) : null}
           {changes.length > 0 ? (
             <ul className="changes">
               {changes.map((block) => {
@@ -265,4 +310,15 @@ export default async function ReviewPage({ params }: ReviewPageProps) {
       </aside>
     </>
   )
+}
+
+/** Whether the published page can be read; any failure counts as no (the
+ *  page route has the same gates, so this reveals nothing new). */
+async function isReadablePage(pageId: string, cookie: string | undefined): Promise<boolean> {
+  try {
+    await apiFetch(`/api/pages/${encodeURIComponent(pageId)}`, { cookie })
+    return true
+  } catch {
+    return false
+  }
 }

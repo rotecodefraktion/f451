@@ -1,11 +1,23 @@
 import { describe, expect, it } from 'vitest'
 import {
+  apiImportCatalogPath,
+  apiImportInstancesPath,
+  apiJobCancelPath,
+  apiJobPath,
+  apiSpaceExportPath,
+  apiSpaceImportPath,
+  wikiImportHref,
+  wikiReviewsHref,
+  apiSpaceReviewsPath,
+  apiPageReleasePath,
+  apiPagePreviewPath,
   apiPageRawPath,
   apiSpaceGraphPath,
   apiSpaceMetadataSchemaPath,
   apiSpaceTreePath,
   decodeRouteParam,
   mediaHref,
+  parseWikiPageHref,
   wikiGraphHref,
   wikiMetadataSchemaHref,
   wikiPageEditHref,
@@ -188,5 +200,89 @@ describe('wikiPageVersionsHref', () => {
   it('führt ohne Version zur Liste, mit Version zum Vergleich', () => {
     expect(wikiPageVersionsHref('demo', 'p-overview')).toBe('/wiki/demo/p-overview/versions')
     expect(wikiPageVersionsHref('demo', 'p-overview', '1.2.0')).toBe('/wiki/demo/p-overview/versions?from=1.2.0')
+  })
+})
+
+describe('parseWikiPageHref (#100)', () => {
+  it('rejects space-level routes that look like pages', () => {
+    for (const r of ['report', 'graph', 'schema', 'templates', 'import']) expect(parseWikiPageHref(`/wiki/demo/${r}`)).toBeNull()
+  })
+
+  it('round-trips wikiPageHref, including ids with `:` and `/`', () => {
+    expect(parseWikiPageHref(wikiPageHref('my space', NASTY_ID))).toEqual({
+      space: 'my space',
+      pageId: NASTY_ID,
+      section: null,
+    })
+  })
+
+  it('decodes the hash into the section, umlauts included', () => {
+    const href = `${wikiPageHref('demo', 'p-overview')}#${encodeURIComponent('größe-ändern')}`
+    expect(parseWikiPageHref(href)).toEqual({ space: 'demo', pageId: 'p-overview', section: 'größe-ändern' })
+  })
+
+  it('drops a query string', () => {
+    expect(parseWikiPageHref('/wiki/demo/p-overview?x=1#a')).toEqual({
+      space: 'demo',
+      pageId: 'p-overview',
+      section: 'a',
+    })
+  })
+
+  it('rejects sub-routes and the space start page', () => {
+    expect(parseWikiPageHref(wikiPageEditHref('demo', 'p-overview'))).toBeNull()
+    expect(parseWikiPageHref(wikiPageVersionsHref('demo', 'p-overview', '1.0.0'))).toBeNull()
+    expect(parseWikiPageHref('/wiki/demo')).toBeNull()
+    expect(parseWikiPageHref('/wiki/demo/')).toBeNull()
+  })
+
+  it('rejects external and non-wiki links', () => {
+    expect(parseWikiPageHref('https://example.org/wiki/demo/p-overview')).toBeNull()
+    expect(parseWikiPageHref('//example.org/wiki/demo/p-overview')).toBeNull()
+    expect(parseWikiPageHref('#setup')).toBeNull()
+    expect(parseWikiPageHref('/media/home/a.png')).toBeNull()
+  })
+
+  it('rejects malformed escapes', () => {
+    expect(parseWikiPageHref('/wiki/demo/%E0%A4%A')).toBeNull()
+  })
+})
+
+describe('apiPagePreviewPath (#100)', () => {
+  it('encodes the id and appends the section only when given', () => {
+    expect(apiPagePreviewPath(NASTY_ID)).toBe('/api/pages/path%3Ademo%2Fa%2Fb.md/preview')
+    expect(apiPagePreviewPath('home', 'größe')).toBe(`/api/pages/home/preview?section=${encodeURIComponent('größe')}`)
+    expect(apiPagePreviewPath('home', null)).toBe('/api/pages/home/preview')
+  })
+})
+
+describe('import/export URLs (#128)', () => {
+  it('parseWikiPageHref treats /wiki/<space>/import as a space route', () => {
+    expect(parseWikiPageHref('/wiki/s/import')).toBeNull()
+  })
+
+  it('encodes the space in the page href and the space-level API paths', () => {
+    expect(wikiImportHref('a/b')).toBe('/wiki/a%2Fb/import')
+    expect(apiSpaceImportPath('a/b')).toBe('/api/spaces/a%2Fb/import/bookstack')
+    expect(apiSpaceExportPath('a/b')).toBe('/api/spaces/a%2Fb/export/bookstack')
+  })
+
+  it('builds the fixed and job paths', () => {
+    expect(apiImportInstancesPath()).toBe('/api/import/instances')
+    expect(apiImportCatalogPath()).toBe('/api/import/bookstack/catalog')
+    expect(apiJobPath('j 1')).toBe('/api/jobs/j%201')
+    expect(apiJobCancelPath('j1')).toBe('/api/jobs/j1/cancel')
+  })
+})
+
+describe('review overview URLs (#131)', () => {
+  it('parseWikiPageHref treats /wiki/<space>/reviews as a space route', () => {
+    expect(parseWikiPageHref('/wiki/s/reviews')).toBeNull()
+  })
+
+  it('encodes the space and the page id', () => {
+    expect(wikiReviewsHref('a/b')).toBe('/wiki/a%2Fb/reviews')
+    expect(apiSpaceReviewsPath('a/b')).toBe('/api/spaces/a%2Fb/reviews')
+    expect(apiPageReleasePath(NASTY_ID)).toBe('/api/pages/path%3Ademo%2Fa%2Fb.md/release')
   })
 })
