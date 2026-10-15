@@ -1,7 +1,9 @@
 # Import and export
 
-f451 imports from BookStack as drafts with reviews, and exports a space or
-subtree to BookStack as a book (see [BookStack export](#bookstack-export)).
+f451 imports from BookStack, from a Markdown folder and from an Obsidian vault
+as drafts with reviews, and exports a space or subtree to BookStack as a book
+(see [BookStack export](#bookstack-export) and
+[File import](#file-import-markdown-folder-and-obsidian-vault)).
 
 ## What an import does
 
@@ -167,6 +169,121 @@ recognised as their origin.
 
 Each run writes `export-report.md` to `--out`: created, updated and failed
 pages, stale pages, missing media and the number of broken links.
+
+## File import: Markdown folder and Obsidian vault
+
+Imports a folder of Markdown notes, or an Obsidian vault, from a directory or a
+ZIP archive. The same rules as for BookStack apply: drafts and reviews, nothing
+is published before release, `--update` finds earlier pages, nothing is ever
+deleted.
+
+### Command
+
+```
+f451-import markdown <dir|zip> --space <space> [options]
+f451-import obsidian <dir|zip> --space <space> [options]
+```
+
+A path ending in `.zip` is read as an archive, anything else as a folder.
+Only `F451_URL` and `F451_TOKEN` (write scope) are needed. The options are
+`--space`, `--parent`, `--update`, `--release`, `--dry-run` and `--out`, with
+the meaning given under [BookStack import](#command). Output and exit codes are
+the same.
+
+### From the web UI
+
+The import panel has a source switch "BookStack | File". Choose the format
+(Markdown folder or Obsidian vault), select a `.zip` file and set the same
+options as for BookStack. Progress, cancelling and the review links work as
+before. No operator switch is needed: the upload fetches no remote address. The
+panel shows the file import even when no BookStack allow-list is set. Anyone
+with write access to the space can use it.
+
+The upload is `POST /api/spaces/:space/import/file` (browser session only), a
+multipart request with the fields `file` (the ZIP), `format` (`markdown` or
+`obsidian`), `parentId`, `update`, `release` and `dryRun` (`"true"` or
+`"false"`). It answers `202 { jobId }`; `400` for a missing field or an archive
+that is not accepted (the reason is in the message); `413` when the file is
+larger than the limit. `GET /api/import/instances` returns
+`fileImport: { maxUploadMb }`. The upload is kept in a temporary file that is
+deleted when the job ends, fails or is cancelled.
+
+### Mapping
+
+| Source | f451 |
+|---|---|
+| Note `A/B.md` | Page "B" below page "A" |
+| Folder | Page titled with the folder name |
+| Folder note | Content of the folder's page |
+| Frontmatter `title` | Page title (else the file name without `.md`) |
+| `tags` and inline `#tags` | Page tags |
+| Other frontmatter fields | Dropped, counted in the report |
+| Image or file referenced by a page | Media of that page (`_media/`); a file used by several pages is copied to each |
+| Link to a `.md` file | Link to the imported page |
+
+A folder note is, in this order: `A/A.md`, `A.md` next to `A/`, `A/index.md`,
+`A/README.md`. It does not become a page of its own. A folder without one gets
+an empty page. Siblings are ordered by title, case-insensitive, folders and
+notes mixed. A single top-level folder that wraps the whole archive is removed.
+
+Skipped: `.obsidian/`, `.trash/`, every path segment starting with `.`,
+`__MACOSX/` entries, symlinks, `.canvas` files and Excalidraw drawings
+(`*.excalidraw.md`, `*.excalidraw`). Canvas files and drawings are listed in
+the report.
+
+Each page records its origin as `markdown:<path>` or `obsidian:<path>`. A
+re-import with `--update` finds pages by it; a renamed file is a new page.
+
+#### Obsidian syntax
+
+Only for `obsidian`:
+
+| Obsidian | f451 |
+|---|---|
+| `[[Note]]`, `[[Note\|Text]]`, `[[Note#Heading]]` | Internal link |
+| `![[image.png]]`, `![[image.png\|300]]` | Image (size dropped) |
+| `![[Note]]`, `![[Note#Heading]]`, `![[Note#^block]]` | Link to the note |
+| `![[file.pdf]]` (any non-image) | Link to the file in `_media/` |
+| Callout `> [!type]± Title` | GFM alert; the fold marker goes, a custom title becomes a bold first line |
+| `==text==` | `**text**` |
+| `%%comment%%`, block id `^id` | Removed |
+| ` ```dataview ` block | Stays a code block |
+| `$…$` math | Stays text |
+
+Links resolve as in Obsidian: a path when the target contains `/`, otherwise a
+unique file name. When several notes share the name, the one in the linking
+note's folder wins, else the shortest path; the case is reported. A link
+without a target stays plain text and is listed as unresolved.
+
+Callout types: NOTE for note, info, abstract, summary, tldr, todo, example,
+quote, cite; TIP for tip, hint, success, check, done; IMPORTANT for important,
+question, help, faq; WARNING for warning, caution, attention, bug; CAUTION for
+danger, error, failure, fail, missing. Unknown types become NOTE.
+
+Inside a table cell, a link with an alias is written `[[id\|text]]`.
+
+Links to a heading currently land at the top of the page
+([#163](https://github.com/rotecodefraktion/f451/issues/163)).
+
+### Limits
+
+- The upload is limited to `F451_IMPORT_MAX_UPLOAD_MB` (default 200); larger
+  files answer 413.
+- An archive is rejected, with a reason, when it has an entry path with `..`, a
+  leading `/`, a drive letter or a backslash; duplicate paths; encryption;
+  unsupported compression; or is split. It is also rejected as a possible zip
+  bomb when it has more than 20,000 entries or unpacks to more than 10 times its
+  size or beyond the unpacked-size limit.
+- Referenced files missing from the archive are skipped and reported; the
+  reference stays as text.
+- Dataview results, math rendering, aliases and canvas conversion are not
+  supported.
+
+### Report additions
+
+Besides the usual lists, the report names frontmatter fields that were dropped
+(with counts), attachments that no page references, wikilinks that could not be
+resolved, ambiguous link targets, and skipped canvas and Excalidraw files.
 
 ## From the web UI
 
