@@ -903,6 +903,7 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
         access,
         canWrite,
         getUserProvider: userProvider,
+        publicBaseUrl: opts.publicBaseUrl,
       })
       // Seitenanlage (Phase 2d Task 5, `POST /api/pages`) teilt sich dieselben
       // Deps/Gate-Basis (`resolveNewPageWriteContext`, `routes/drafts.ts`).

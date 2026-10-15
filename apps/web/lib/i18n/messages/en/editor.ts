@@ -18,6 +18,8 @@ export const editor: Messages['editor'] = {
     loadFailed: 'The draft could not be loaded.',
     discardFailed: 'The draft could not be discarded — please try again.',
     deletePageFailed: 'The page could not be deleted — please try again.',
+    deletePageRefused: 'The page cannot be deleted: {reason}',
+    deletePageBusyPages: 'Affected pages: {pages}',
     reviewNoDraft: 'There is currently no draft for this page — a review cannot be requested.',
     reviewNoChanges: 'This draft has no changes yet — edit the page first, or discard the draft.',
     reviewFailed: 'The review could not be requested — please try again.',
@@ -28,7 +30,12 @@ export const editor: Messages['editor'] = {
   confirm: {
     discardResetRecovery: 'Really discard the recovered draft content? It cannot be restored afterwards.',
     discardDraft: 'Really discard the draft? All unsaved changes will be lost irrevocably.',
-    deletePage: 'Really delete this page? The content will be irrevocably removed from the repository.',
+    deletePage:
+      'Delete this page? The deletion is submitted for review; the page stays visible until it is released.',
+    deletePageWithSubpages_one:
+      'Delete this page and {count} subpage? The deletion is submitted for review; the pages stay visible until it is released.',
+    deletePageWithSubpages_other:
+      'Delete this page and {count} subpages? The deletion is submitted for review; the pages stay visible until it is released.',
     resetToLastRelease:
       'Really reset the draft to the last released state? All unpublished changes will be lost irrevocably.',
   },

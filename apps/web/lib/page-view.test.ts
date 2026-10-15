@@ -4,7 +4,7 @@ import { de } from './i18n/messages/de/index.js'
 import { en } from './i18n/messages/en/index.js'
 import type { DotPaths, Params } from './i18n/format.js'
 import type { Messages } from './i18n/types.js'
-import { buildBreadcrumb, formatUpdatedAt, pageStatusLabel, relationLabel, sectionSlugs } from './page-view.js'
+import { buildBreadcrumb, draftNoticeText, formatUpdatedAt, pageStatusLabel, relationLabel, sectionSlugs } from './page-view.js'
 
 const tDe = (key: DotPaths<Messages>, params?: Params) => translate(de, key, params)
 const tEn = (key: DotPaths<Messages>, params?: Params) => translate(en, key, params)
@@ -114,6 +114,19 @@ describe('pageStatusLabel', () => {
     expect(pageStatusLabel(tEn, false, 'working')).toBe('Draft')
     expect(pageStatusLabel(tEn, false, null)).toBe('Released')
     expect(pageStatusLabel(tEn, true, null)).toBe('Archived')
+  })
+})
+
+describe('draftNoticeText', () => {
+  it('names an open deletion review instead of the usual review text', () => {
+    expect(draftNoticeText(tEn, { state: 'review', deletion: true })).toMatch(/^Deletion waiting for review/)
+    expect(draftNoticeText(tDe, { state: 'review', deletion: true })).toMatch(/^Löschung wartet auf Review/)
+  })
+
+  it('keeps the draft texts otherwise', () => {
+    expect(draftNoticeText(tEn, { state: 'review' })).toBe('A draft of this page exists — it is in review.')
+    expect(draftNoticeText(tEn, { state: 'review', deletion: false })).toBe('A draft of this page exists — it is in review.')
+    expect(draftNoticeText(tEn, { state: 'working' })).toBe('A draft of this page exists — not yet released.')
   })
 })
 

@@ -2,9 +2,25 @@ import type { MetadataSchema } from '@f451/markdown'
 import { cookies } from 'next/headers'
 import { EditorRoot } from '../../../../../../components/editor/editor-root'
 import type { PageData } from '../../../../../../components/page-view'
+import type { TreeNodeData } from '../../../../../../components/tree'
 import { ApiError, apiFetch } from '../../../../../../lib/api'
 import { getFrame } from '../../../../../../lib/resolved-theme'
-import { decodeRouteParam, wikiPageEditHref, wikiPageHref } from '../../../../../../lib/urls'
+import { apiSpaceTreePath, decodeRouteParam, wikiPageEditHref, wikiPageHref } from '../../../../../../lib/urls'
+
+/** All descendants of `pageId` in the space tree (0 when not found). */
+function countSubpages(nodes: TreeNodeData[], pageId: string): number {
+  const countAll = (list: TreeNodeData[]): number => list.reduce((sum, n) => sum + 1 + countAll(n.children), 0)
+  const find = (list: TreeNodeData[]): TreeNodeData | null => {
+    for (const node of list) {
+      if (node.id === pageId) return node
+      const hit = find(node.children)
+      if (hit) return hit
+    }
+    return null
+  }
+  const node = find(nodes)
+  return node ? countAll(node.children) : 0
+}
 
 interface EditPageProps {
   params: Promise<{ space: string; pageId: string }>
@@ -84,6 +100,12 @@ export default async function EditPage({ params }: EditPageProps) {
     `/api/spaces/${encodeURIComponent(spaceId)}/metadata-schema`,
     { cookie: cookieHeader },
   ).catch(() => null)
+  // Subpages deleted along with the page, for the delete confirmation (#155).
+  // Same tree request as the space layout; a failure only drops the count.
+  const subpageCountPromise = apiFetch<TreeNodeData[]>(apiSpaceTreePath(spaceId), { cookie: cookieHeader }).then(
+    (tree) => countSubpages(tree, pageId),
+    () => 0,
+  )
 
   let title: string
   try {
@@ -110,6 +132,7 @@ export default async function EditPage({ params }: EditPageProps) {
   }
 
   const metadataSchema = await metadataSchemaPromise
+  const subpageCount = await subpageCountPromise
   // Frame switch `--status-bar: bottom` (f451#60): save state at the foot of `.main`.
   const { statusBar } = await getFrame({ hasTree: true })
 
@@ -121,6 +144,7 @@ export default async function EditPage({ params }: EditPageProps) {
         title={title}
         metadataSchema={metadataSchema}
         statusBarBottom={statusBar}
+        subpageCount={subpageCount}
       />
     </main>
   )

@@ -303,15 +303,54 @@ export async function discardDraft(pageId: string): Promise<void> {
   await request<void>(`/api/pages/${encodeURIComponent(pageId)}/draft`, { method: 'DELETE' })
 }
 
-/** `DELETE /api/pages/:id` (Feature „Seite löschen") — löscht die Seite
- *  vollständig (main-Commit, Index, ein evtl. offener Draft), `200 {ok:true}`.
- *  Fehler laufen über das etablierte {@link ClientApiError}-Muster der Datei
- *  (403 ohne Schreibrecht, 502 bei Provider-Fehler) — kein diskriminiertes
- *  Ergebnis nötig, die Aufrufstelle (`status-bar.tsx`) fragt bereits per
- *  Bestätigungsdialog nach, ein Fehlschlag zeigt schlicht eine Fehlermeldung
- *  (Muster {@link discardDraft}s Aufrufer in `editor-root.tsx`). */
-export async function deletePage(pageId: string): Promise<void> {
-  await request<{ ok: boolean }>(`/api/pages/${encodeURIComponent(pageId)}`, { method: 'DELETE' })
+/** A page named in a deletion refusal (`subpage_busy`). */
+export interface DeletionPageRef {
+  id: string
+  title: string
+  path: string
+}
+
+/** Result of {@link deletePage} (#155). Success carries the opened review, or
+ *  `review: null` when a never-released page was discarded instead. A 409 is
+ *  an expected refusal (`root_page`, `draft_pending`, `subpage_busy`), not a
+ *  throw: the editor shows `reason` and, for busy subpages, their titles. */
+export type DeletePageResult =
+  | { ok: true; review: { number: number; url: string } | null }
+  | { ok: false; status: 409; code: string; reason: string; pages: DeletionPageRef[] }
+
+/** `DELETE /api/pages/:id` — requests deletion of the page and its whole
+ *  folder through a review (#155). `200 {ok, review?}` | `409 {status, reason,
+ *  pages?}`. Every other failure (403 without write access, 502 provider
+ *  error, …) throws {@link ClientApiError}. */
+export async function deletePage(pageId: string): Promise<DeletePageResult> {
+  const path = `/api/pages/${encodeURIComponent(pageId)}`
+  const res = await rawFetch(path, { method: 'DELETE' })
+
+  if (res.status === 401) {
+    redirectToLogin()
+    throw new SessionExpiredError()
+  }
+
+  if (res.status === 409) {
+    const body = (await readJsonBody(res)) as
+      | { status?: string; reason?: string; pages?: DeletionPageRef[] }
+      | undefined
+    return {
+      ok: false,
+      status: 409,
+      code: body?.status ?? 'conflict',
+      reason: body?.reason ?? 'Die Seite kann gerade nicht gelöscht werden.',
+      pages: Array.isArray(body?.pages) ? body.pages : [],
+    }
+  }
+
+  if (!res.ok) {
+    const body = await readJsonBody(res)
+    throw new ClientApiError(res.status, `API antwortete mit ${res.status} für ${path}`, body)
+  }
+
+  const data = (await res.json()) as { ok: boolean; review?: { number: number; url: string } }
+  return { ok: true, review: data.review ?? null }
 }
 
 /** Erfolgs-Shape von `POST /api/pages/:id/move` (Phase 3.2). `id` bleibt
@@ -689,6 +728,9 @@ export interface ReleaseInfo {
    *  gesetzt, wenn der Space versioniert ist (der Dialog hat dann `bump`
    *  mitgeschickt, s. `ReleaseOptions`). Fehlt in unversionierten Spaces. */
   version?: string
+  /** Only for a released deletion (#155): the parent page id to go to, or
+   *  `null` for the space root. Absent for every other release. */
+  redirect?: string | null
 }
 
 /** Optionen für {@link releasePage}. Bewusst EIN Optionsobjekt statt
@@ -720,7 +762,7 @@ export interface ReleaseOptions {
 export type ReleasePageResult =
   | { ok: true; result: ReleaseInfo }
   | { ok: false; status: 403; error: string }
-  | { ok: false; status: 409; error: string; reason?: 'conflict' }
+  | { ok: false; status: 409; error: string; reason?: 'conflict' | 'scope_changed' }
   | { ok: false; status: 422; reason: 'no_changes' }
 
 /** `POST /api/pages/:id/release` — Freigeben & mergen. NUR client-api-Typ in
@@ -761,12 +803,22 @@ export async function releasePage(pageId: string, options: ReleaseOptions = {}):
   }
 
   if (res.status === 409) {
-    const body = (await readJsonBody(res)) as { error?: string; reason?: 'conflict' } | undefined
+    const body = (await readJsonBody(res)) as { error?: string; status?: string; reason?: string } | undefined
+    // Deletion review (#155): `{error:<text>, reason:'scope_changed'}` —
+    // pages were added under the folder since the request.
+    if (body?.reason === 'scope_changed') {
+      return {
+        ok: false,
+        status: 409,
+        error: body.error ?? 'Seit dem Löschantrag sind Seiten hinzugekommen — Review verwerfen und neu beantragen.',
+        reason: 'scope_changed',
+      }
+    }
     return {
       ok: false,
       status: 409,
       error: body?.error ?? 'Kein offener Pull Request vorhanden.',
-      reason: body?.reason,
+      reason: body?.reason === 'conflict' ? 'conflict' : undefined,
     }
   }
 
@@ -1124,8 +1176,11 @@ export async function saveMetadataSchema(space: string, schema: MetadataSchema):
 export interface ReviewDiffInfo {
   pr: { number: number; url: string; state: string; mergeable: boolean | null; title: string }
   authorName: string
-  diff: MarkdownDiff
+  /** Absent for a deletion review (#155), which carries `deletion` instead. */
+  diff?: MarkdownDiff
   page: { id: string; space: string; title: string }
+  /** Set for a deletion review: the pages that disappear and the file count. */
+  deletion?: { pages: DeletionPageRef[]; files: number }
 }
 
 /** Diskriminiertes Ergebnis von {@link getReview} — 404 („kein offenes

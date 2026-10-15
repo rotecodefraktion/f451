@@ -1,0 +1,1 @@
+ALTER TABLE "pages" ADD COLUMN "pending_deletion" boolean DEFAULT false NOT NULL;

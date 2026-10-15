@@ -86,7 +86,9 @@ export const read = {
   notices: {
     draftInReview: 'Es existiert ein Entwurf dieser Seite — er ist im Review.',
     draftPending: 'Es existiert ein Entwurf dieser Seite — noch nicht freigegeben.',
+    deletionInReview: 'Löschung wartet auf Review — die Seite und ihre Unterseiten verschwinden mit der Freigabe.',
     viewDraft: 'Entwurf ansehen →',
+    viewReview: 'Review ansehen →',
     lockedBySuffix: 'bearbeitet gerade den Entwurf.',
     parseErrorTitle: 'Diese Seite enthält Verarbeitungsfehler',
     frontmatterTitle: 'Hinweise zum Seitenkopf (Frontmatter)',

@@ -11,6 +11,8 @@ export interface DraftRow {
   path: string
   lastAuthor: string | null
   updatedAt: Date
+  /** The draft branch deletes the page folder (f451#155). */
+  pendingDeletion: boolean
 }
 
 export interface OpenReview {
@@ -37,6 +39,7 @@ export async function openReviews(
       path: pages.path,
       lastAuthor: pages.lastAuthor,
       updatedAt: pages.updatedAt,
+      pendingDeletion: pages.pendingDeletion,
     })
     .from(pages)
     .where(and(eq(pages.spaceId, space.id), eq(pages.ref, 'draft')))

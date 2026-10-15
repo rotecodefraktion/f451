@@ -11,6 +11,8 @@ export interface ReviewItem {
   title: string
   path: string
   isNew: boolean
+  /** The review deletes the page and its subpages (#155). */
+  isDeletion: boolean
   lastAuthor: string | null
   updatedAt: string
   prNumber: number

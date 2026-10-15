@@ -7,6 +7,7 @@ function item(id: string): ReviewItem {
     title: `Title ${id}`,
     path: `${id}.md`,
     isNew: false,
+    isDeletion: false,
     lastAuthor: null,
     updatedAt: '2026-10-15T10:00:00.000Z',
     prNumber: 1,

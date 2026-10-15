@@ -147,15 +147,51 @@ describe('discardDraft', () => {
 })
 
 describe('deletePage', () => {
-  it('ruft DELETE /api/pages/:id auf und löst bei 200 {ok:true} ohne Rückgabewert auf', async () => {
-    const fetchMock = mockFetch(async () => jsonResponse(200, { ok: true }))
+  it('requests deletion with DELETE /api/pages/:id and returns the opened review', async () => {
+    const fetchMock = mockFetch(async () =>
+      jsonResponse(200, { ok: true, review: { number: 7, url: 'https://git.example/pulls/7' } }),
+    )
     vi.stubGlobal('fetch', fetchMock)
 
-    await expect(deletePage('home')).resolves.toBeUndefined()
+    await expect(deletePage('home')).resolves.toEqual({
+      ok: true,
+      review: { number: 7, url: 'https://git.example/pulls/7' },
+    })
     const [url, init] = fetchMock.mock.calls[0]
     expect(url).toBe('/api/pages/home')
     expect((init as RequestInit).method).toBe('DELETE')
     expect((init as RequestInit).credentials).toBe('same-origin')
+  })
+
+  it('returns review null when a draft-only page was discarded', async () => {
+    const fetchMock = mockFetch(async () => jsonResponse(200, { ok: true }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(deletePage('home')).resolves.toEqual({ ok: true, review: null })
+  })
+
+  it('returns a 409 refusal with reason and busy pages instead of throwing', async () => {
+    const pages = [{ id: 'sub', title: 'Sub', path: 'a/sub/index.md' }]
+    const fetchMock = mockFetch(async () =>
+      jsonResponse(409, { status: 'subpage_busy', reason: 'Subpages are being edited.', pages }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(deletePage('home')).resolves.toEqual({
+      ok: false,
+      status: 409,
+      code: 'subpage_busy',
+      reason: 'Subpages are being edited.',
+      pages,
+    })
+  })
+
+  it('returns a 409 refusal without pages as an empty list', async () => {
+    const fetchMock = mockFetch(async () => jsonResponse(409, { status: 'root_page', reason: 'Root page.' }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await deletePage('home')
+    expect(result).toEqual({ ok: false, status: 409, code: 'root_page', reason: 'Root page.', pages: [] })
   })
 
   it('kodiert die pageId (Fallback-Id mit Slash/Doppelpunkt)', async () => {
@@ -506,6 +542,31 @@ describe('releasePage', () => {
     const result = await releasePage('home')
 
     expect(result).toEqual({ ok: false, status: 409, error: 'kein offener Pull Request vorhanden', reason: undefined })
+  })
+
+  it('returns redirect of a released deletion', async () => {
+    const fetchMock = mockFetch(async () => jsonResponse(200, { mergeSha: 'abc', redirect: 'parent' }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await releasePage('home')
+
+    expect(result).toEqual({ ok: true, result: { mergeSha: 'abc', redirect: 'parent' } })
+  })
+
+  it('maps 409 scope_changed of a deletion to its reason text', async () => {
+    const fetchMock = mockFetch(async () =>
+      jsonResponse(409, { error: 'Pages were added since the request.', reason: 'scope_changed' }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await releasePage('home')
+
+    expect(result).toEqual({
+      ok: false,
+      status: 409,
+      error: 'Pages were added since the request.',
+      reason: 'scope_changed',
+    })
   })
 
   it('liefert bei 422 (Fix #11: offener PR ohne Commits gegenüber main) ein ok:false-Ergebnis statt zu werfen', async () => {

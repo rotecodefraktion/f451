@@ -21,6 +21,7 @@ export const reviews: Messages['reviews'] = {
   kinds: {
     new: 'new',
     changed: 'changed',
+    deletion: 'will be deleted',
   },
   unknownAuthor: '—',
   bump: 'Version bump',

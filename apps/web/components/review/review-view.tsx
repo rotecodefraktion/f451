@@ -11,7 +11,7 @@ import {
   type UpdateDraftStrategy,
 } from '../../lib/editor/client-api'
 import { useT } from '../../lib/i18n/provider.js'
-import { wikiPageHref } from '../../lib/urls'
+import { wikiPageHref, wikiSpaceHref } from '../../lib/urls'
 
 export interface ReviewViewProps {
   pageId: string
@@ -28,6 +28,9 @@ export interface ReviewViewProps {
   currentVersion?: string
   /** `currentVersion` is the implicit 0.1.0: the page exists on main but was never released with a version. */
   implicitVersion?: boolean
+  /** Deletion review (#155): no version section; after the release the API
+   *  names the page to go to (`redirect`), since this page is gone. */
+  deletion?: boolean
 }
 
 const WARN_ICON = (
@@ -95,7 +98,15 @@ type UpdateFailure = { message: string; preservedContent?: string }
  * NIE mit einem stehengebliebenen Client-Override überschreibt: der Effekt
  * unten setzt den Override zurück, sobald neue `pr`-Props hereinkommen.
  */
-export function ReviewView({ pageId, space, pr, versioning = false, currentVersion, implicitVersion = false }: ReviewViewProps) {
+export function ReviewView({
+  pageId,
+  space,
+  pr,
+  versioning = false,
+  currentVersion,
+  implicitVersion = false,
+  deletion = false,
+}: ReviewViewProps) {
   const router = useRouter()
   const { t } = useT()
   const [comment, setComment] = useState('')
@@ -113,6 +124,9 @@ export function ReviewView({ pageId, space, pr, versioning = false, currentVersi
   const [actionError, setActionError] = useState<string | null>(null)
   const [approveWarning, setApproveWarning] = useState<string | null>(null)
   const [mergeSuccessNotice, setMergeSuccessNotice] = useState(false)
+  // Where to go after the release: the page itself, or for a deletion the
+  // parent page / space root the API names in `redirect` (#155).
+  const [afterReleaseHref, setAfterReleaseHref] = useState(() => wikiPageHref(space, pageId))
   const [conflictOverride, setConflictOverride] = useState(false)
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false)
   const [updateSubmitting, setUpdateSubmitting] = useState(false)
@@ -163,6 +177,14 @@ export function ReviewView({ pageId, space, pr, versioning = false, currentVersi
           setActionError(result.error)
           return
         }
+        const redirect = result.result.redirect
+        const target =
+          redirect === undefined
+            ? wikiPageHref(space, pageId)
+            : redirect === null
+              ? wikiSpaceHref(space)
+              : wikiPageHref(space, redirect)
+        setAfterReleaseHref(target)
         if (result.result.approveWarning) {
           // KEIN Auto-Navigate: die Warnung darf nicht durch eine sofortige
           // Weiterleitung "verschluckt" werden (kein stiller Verlust, Muster
@@ -182,7 +204,7 @@ export function ReviewView({ pageId, space, pr, versioning = false, currentVersi
         // `refresh()` invalidiert den Router-Cache der aktuellen Route
         // (inkl. Layout) und erzwingt einen frischen Server-Fetch — wie ein
         // Reload, aber ohne den Soft-Navigation-Vorteil zu verlieren.
-        router.push(wikiPageHref(space, pageId))
+        router.push(target)
         router.refresh()
       })
       .catch((err: unknown) => {
@@ -298,14 +320,14 @@ export function ReviewView({ pageId, space, pr, versioning = false, currentVersi
             {approveWarning}
           </div>
           <span className="grow" />
-          <a href={wikiPageHref(space, pageId)}>{t('review.notices.backToReading')}</a>
+          <a href={afterReleaseHref}>{deletion ? t('review.deletion.continue') : t('review.notices.backToReading')}</a>
         </div>
       ) : null}
 
       {mergeSuccessNotice ? (
         <div className="notice rel" role="status">
           <span className="ic">{CHECK_ICON}</span>
-          <span className="txt">{t('review.notices.mergedSuccess')}</span>
+          <span className="txt">{deletion ? t('review.deletion.mergedSuccess') : t('review.notices.mergedSuccess')}</span>
         </div>
       ) : null}
 
@@ -339,7 +361,7 @@ export function ReviewView({ pageId, space, pr, versioning = false, currentVersi
             Task 3) — die Vorschau hier kann deshalb NIE von der später
             vergebenen Nummer abweichen, weil keine zweite Implementierung
             existiert, die auseinanderlaufen könnte. */}
-        {versioning ? (
+        {versioning && !deletion ? (
           <fieldset className="card version-bump">
             <legend>{t('review.version.legend')}</legend>
             {/* Erstfreigabe (Befund 5, Final-Review): OHNE aktuelle Version
