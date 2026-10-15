@@ -2,7 +2,9 @@ import { parseArgs as nodeParseArgs } from 'node:util'
 
 export interface ParsedArgs {
   command: 'import' | 'export'
-  source: 'bookstack'
+  source: 'bookstack' | 'markdown' | 'obsidian'
+  /** Folder or `.zip` for the `markdown` and `obsidian` sources. */
+  path?: string
   book?: string
   shelf?: string
   page?: string
@@ -15,6 +17,10 @@ export interface ParsedArgs {
 }
 
 export const USAGE = `Usage: f451-import bookstack (--book <id|slug> | --shelf <id|slug> | --page <id>) --space <space> [options]
+       f451-import markdown <dir|zip> --space <space> [options]
+       f451-import obsidian <dir|zip> --space <space> [options]
+
+A path ending in .zip is read as an archive, anything else as a folder.
 
 Options:
   --parent <pageId>   import below this page
@@ -32,6 +38,7 @@ Export options:
   --out <dir>         directory for the report (default: .)
 
 Environment: F451_URL, F451_TOKEN, BOOKSTACK_URL, BOOKSTACK_TOKEN_ID, BOOKSTACK_TOKEN_SECRET
+             (markdown and obsidian need only F451_URL and F451_TOKEN)
 `
 
 export class UsageError extends Error {
@@ -71,6 +78,33 @@ function parseExport(
   return result
 }
 
+function parseFileImport(
+  source: 'markdown' | 'obsidian',
+  values: Record<string, string | boolean | undefined>,
+  positionals: string[],
+): ParsedArgs {
+  const path = positionals[1]
+  if (!path) throw new UsageError(`missing path for ${source}`)
+  if (positionals.length > 2) throw new UsageError(`unexpected argument: ${positionals[2]}`)
+  for (const o of ['book', 'shelf', 'page']) {
+    if (values[o] !== undefined) throw new UsageError(`--${o} is not valid for ${source}`)
+  }
+  if (typeof values.space !== 'string' || !values.space) throw new UsageError('--space is required')
+
+  const result: ParsedArgs = {
+    command: 'import',
+    source,
+    path,
+    space: values.space,
+    update: values.update === true,
+    release: values.release === true,
+    dryRun: values['dry-run'] === true,
+  }
+  if (typeof values.parent === 'string') result.parent = values.parent
+  if (typeof values.out === 'string') result.out = values.out
+  return result
+}
+
 export function parseArgs(argv: string[]): ParsedArgs {
   let parsed
   try {
@@ -98,6 +132,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
 
   const command = positionals[0]
   if (command === 'export') return parseExport(values, positionals)
+  if (command === 'markdown' || command === 'obsidian') return parseFileImport(command, values, positionals)
   if (command !== 'bookstack') {
     throw new UsageError(command ? `unknown command: ${command}` : 'missing command')
   }
