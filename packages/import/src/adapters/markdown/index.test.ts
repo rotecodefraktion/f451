@@ -1,0 +1,252 @@
+import { describe, expect, it } from 'vitest'
+import type { FileSource } from '../../files/source.js'
+import type { ImportNode } from '../../model.js'
+import { rewriteLinks } from '../../links.js'
+import { loadMarkdownFolderTree, loadObsidianTree } from './index.js'
+
+const enc = new TextEncoder()
+const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47])
+
+function memSource(files: Record<string, string | Uint8Array>): FileSource {
+  return {
+    list: async () => Object.keys(files).sort(),
+    read: async (path) => {
+      const v = files[path]
+      if (v === undefined) throw new Error(`not listed: ${path}`)
+      return typeof v === 'string' ? enc.encode(v) : v
+    },
+  }
+}
+
+function find(nodes: ImportNode[], title: string): ImportNode {
+  for (const n of nodes) {
+    if (n.title === title) return n
+    const hit = n.children.length ? findOrNull(n.children, title) : null
+    if (hit) return hit
+  }
+  throw new Error(`no page ${title}`)
+}
+
+function findOrNull(nodes: ImportNode[], title: string): ImportNode | null {
+  try {
+    return find(nodes, title)
+  } catch {
+    return null
+  }
+}
+
+describe('loadMarkdownFolderTree', () => {
+  const files = {
+    'README.md': [
+      '# Readme',
+      '',
+      '[Guide](docs/Guide.md#install), [Docs](docs/index.md), [ext](https://example.com)',
+      '',
+      '![logo](img/logo%20big.png) ![gone](img/gone.png) [missing](nope.md)',
+    ].join('\n'),
+    'docs/index.md': '# Docs index\n\nAll docs.\n',
+    'docs/Guide.md': '---\ntitle: The Guide\ntags: setup, intro\nauthor: someone\n---\nBack [home](../README.md). ![x](<../img/logo big.png>)\n\nTagged #guide, not `#code`.\n',
+    'img/logo big.png': PNG,
+    'img/unused.png': PNG,
+    '.git/HEAD': 'ref: refs/heads/main',
+  }
+
+  it('builds the tree with folder notes, titles and order; a folder without notes is no page', async () => {
+    const tree = await loadMarkdownFolderTree(memSource(files))
+    expect(tree.root.map((n) => n.title)).toEqual(['docs', 'README'])
+    const docs = tree.root[0]
+    expect(docs.sourceRef).toEqual({ type: 'markdown', id: 'markdown:docs/' })
+    expect(docs.markdown).toBe('# Docs index\n\nAll docs.\n')
+    expect(docs.children.map((n) => n.title)).toEqual(['The Guide'])
+    expect(docs.children[0].sourceRef.id).toBe('markdown:docs/Guide.md')
+    expect(tree.root.map((n) => n.order)).toEqual([0, 1])
+  })
+
+  it('turns links to notes into placeholders the writer resolves', async () => {
+    const tree = await loadMarkdownFolderTree(memSource(files))
+    const readme = find(tree.root, 'README')
+    expect(readme.markdown).toContain('[Guide](source:markdown:docs/Guide.md|docs/Guide.md#install)')
+    expect(readme.markdown).toContain('[Docs](source:markdown:docs/|docs/index.md)')
+    expect(readme.markdown).toContain('[ext](https://example.com)')
+    const guide = find(tree.root, 'The Guide')
+    expect(guide.markdown).toContain('[home](source:markdown:README.md|../README.md)')
+    const ids = new Map([['markdown:docs/Guide.md', 'p-guide'], ['markdown:docs/', 'p-docs']])
+    const written = rewriteLinks(readme.markdown, ids)
+    expect(written).toContain('[[p-guide|Guide]]')
+    expect(written).toContain('[[p-docs|Docs]]')
+  })
+
+  it('copies attachments to each page, reports missing and unreferenced ones', async () => {
+    const tree = await loadMarkdownFolderTree(memSource(files))
+    const readme = find(tree.root, 'README')
+    const guide = find(tree.root, 'The Guide')
+    expect(readme.markdown).toContain('![logo](_media/logo-big.png)')
+    expect(readme.media).toEqual([
+      { name: 'logo-big.png', bytes: PNG, mime: 'image/png', kind: 'image', ref: '_media/logo-big.png' },
+    ])
+    expect(guide.media.map((m) => m.name)).toEqual(['logo-big.png'])
+    expect(readme.markdown).toContain('![gone](img/gone.png)')
+    expect(tree.mediaSkipped).toEqual([{ sourceId: 'markdown:README.md', name: 'img/gone.png', reason: 'not in the archive' }])
+    expect(tree.unresolved).toEqual([{ sourceId: 'markdown:README.md', target: 'nope.md' }])
+    expect(tree.unreferenced).toEqual(['img/unused.png'])
+  })
+
+  it('takes title and tags from the frontmatter and inline tags, and counts the rest', async () => {
+    const tree = await loadMarkdownFolderTree(memSource(files))
+    const guide = find(tree.root, 'The Guide')
+    expect(guide.tags).toEqual(['setup', 'intro', 'guide'])
+    expect(guide.markdown.startsWith('# The Guide\n')).toBe(true)
+    expect(guide.markdown).not.toContain('author')
+    expect(tree.droppedFrontmatter).toEqual({ author: 1 })
+  })
+
+  it('skips dot paths, canvas files and Excalidraw drawings', async () => {
+    const tree = await loadMarkdownFolderTree(
+      memSource({ 'a.md': 'a', '.obsidian/x.md': 'x', 'b.canvas': '{}', 'c.excalidraw.md': 'c' }),
+    )
+    expect(tree.root.map((n) => n.title)).toEqual(['a'])
+    expect(tree.mediaSkipped.map((m) => m.name)).toEqual(['b.canvas', 'c.excalidraw.md'])
+    expect(tree.unreferenced).toEqual([])
+  })
+
+  // Review focus 4.
+  it('strips a UTF-8 BOM and fails undecodable notes without stopping', async () => {
+    const tree = await loadMarkdownFolderTree(
+      memSource({
+        'bom.md': '﻿---\ntitle: With BOM\n---\nText\n',
+        'broken.md': new Uint8Array([0x23, 0x20, 0xff, 0xfe, 0x41]),
+        'ok.md': 'fine',
+      }),
+    )
+    expect(tree.root.map((n) => n.title)).toEqual(['ok', 'With BOM'])
+    expect(find(tree.root, 'With BOM').markdown).toBe('# With BOM\n\nText\n')
+    expect(tree.failed).toEqual([{ sourceId: 'markdown:broken.md', title: 'broken', reason: 'not valid UTF-8' }])
+  })
+})
+
+describe('loadObsidianTree', () => {
+  const vault = {
+    'Home.md': [
+      '---',
+      'title: Start',
+      'tags: [a, "#b"]',
+      'aliases: [x]',
+      '---',
+      'See [[Project Plan]], [[sub/Deep|deep one]], [[Plan]], [[Roadmap]] and [[note]].',
+      '',
+      '![[pic.png|300]]',
+      '',
+      '![[doc.pdf]]',
+      '',
+      '![[gone.png]]',
+      '',
+      '![[Project Plan#Goals]]',
+      '',
+      '> [!info] Heads up',
+      '> ==Important== text %%secret%% ^blk1',
+      '',
+      '```',
+      '[[Project Plan]] ==no==',
+      '```',
+    ].join('\n'),
+    'Project Plan.md': '## Goals\n',
+    'Plan.md': '---\ntitle: Roadmap\n---\nThe plan.\n',
+    'Note.md': 'upper',
+    'sub/Deep.md': 'Deep ![[pic.png]]',
+    'attachments/pic.png': PNG,
+    'attachments/doc.pdf': enc.encode('%PDF'),
+    'attachments/unused.png': PNG,
+    '.obsidian/app.json': '{}',
+  }
+
+  it('builds pages from notes only; the attachment folder is no page', async () => {
+    const tree = await loadObsidianTree(memSource(vault))
+    expect(tree.root.map((n) => n.title)).toEqual(['Note', 'Project Plan', 'Roadmap', 'Start', 'sub'])
+    expect(find(tree.root, 'sub').children.map((n) => n.title)).toEqual(['Deep'])
+    expect(find(tree.root, 'Start').sourceRef).toEqual({ type: 'obsidian', id: 'obsidian:Home.md' })
+    expect(find(tree.root, 'Start').tags).toEqual(['a', 'b'])
+    expect(tree.droppedFrontmatter).toEqual({ aliases: 1 })
+  })
+
+  it('resolves wikilinks by file name, not by title, and keeps the link text', async () => {
+    const tree = await loadObsidianTree(memSource(vault))
+    const home = find(tree.root, 'Start').markdown
+    expect(home).toContain('[Project Plan](source:obsidian:Project%20Plan.md|/Project%20Plan.md)')
+    expect(home).toContain('[deep one](source:obsidian:sub/Deep.md|/sub/Deep.md)')
+    // Review focus 2: `Plan.md` has the title "Roadmap"; `[[Roadmap]]` does not resolve.
+    expect(home).toContain('[Plan](source:obsidian:Plan.md|/Plan.md)')
+    expect(home).toContain('Roadmap and')
+    expect(tree.unresolved).toEqual([{ sourceId: 'obsidian:Home.md', target: 'Roadmap' }])
+    // Review focus 3: case-insensitive match.
+    expect(home).toContain('[note](source:obsidian:Note.md|/Note.md)')
+  })
+
+  it('converts embeds to images and links', async () => {
+    const tree = await loadObsidianTree(memSource(vault))
+    const start = find(tree.root, 'Start')
+    expect(start.markdown).toContain('![pic.png](_media/pic.png)')
+    expect(start.markdown).toContain('[doc.pdf](_media/doc.pdf)')
+    expect(start.markdown).toContain('[Project Plan](source:obsidian:Project%20Plan.md|/Project%20Plan.md#Goals)')
+    expect(start.markdown).toContain('gone.png')
+    expect(start.media.map((m) => [m.name, m.kind, m.mime])).toEqual([
+      ['pic.png', 'image', 'image/png'],
+      ['doc.pdf', 'file', 'application/pdf'],
+    ])
+    // A shared attachment is copied to every page that uses it.
+    expect(find(tree.root, 'Deep').media.map((m) => m.name)).toEqual(['pic.png'])
+    expect(tree.mediaSkipped).toEqual([{ sourceId: 'obsidian:Home.md', name: 'gone.png', reason: 'not in the archive' }])
+    expect(tree.unreferenced).toEqual(['attachments/unused.png'])
+  })
+
+  it('converts callouts, highlights, comments and block ids, but not code', async () => {
+    const tree = await loadObsidianTree(memSource(vault))
+    const md = find(tree.root, 'Start').markdown
+    expect(md).toContain('> [!NOTE]\n> **Heads up**\n> **Important** text')
+    expect(md).not.toContain('secret')
+    expect(md).not.toContain('^blk1')
+    expect(md).toContain('```\n[[Project Plan]] ==no==\n```')
+  })
+
+  it('prefers the exact case when two notes differ only in case', async () => {
+    const tree = await loadObsidianTree(memSource({ 'a.md': '[[case]] [[CASE]]', 'case.md': 'x', 'Case.md': 'y' }))
+    const md = find(tree.root, 'a').markdown
+    expect(md).toContain('[case](source:obsidian:case.md|/case.md)')
+    // No exact-case file `CASE.md`: both match case-insensitively, the shortest wins.
+    expect(md).toMatch(/\[CASE\]\(source:obsidian:(case|Case)\.md\|/)
+  })
+
+  it('resolves duplicate names by folder, then by shortest path, and reports the latter', async () => {
+    const tree = await loadObsidianTree(
+      memSource({
+        'Linker.md': '[[Dup]] [[y/z/Dup]]',
+        'x/Dup.md': 'x',
+        'y/z/Dup.md': 'yz',
+        'y/z/Other.md': '[[Dup]]',
+      }),
+    )
+    const linker = find(tree.root, 'Linker').markdown
+    expect(linker).toContain('[Dup](source:obsidian:x/Dup.md|')
+    expect(linker).toContain('[y/z/Dup](source:obsidian:y/z/Dup.md|')
+    expect(find(tree.root, 'Other').markdown).toContain('[Dup](source:obsidian:y/z/Dup.md|')
+    expect(tree.ambiguous).toEqual([{ sourceId: 'obsidian:Linker.md', target: 'Dup.md', chosen: 'x/Dup.md' }])
+  })
+
+  // Review focus 1: notes at the root, attachments in `attachments/`.
+  it('creates no page for an attachment folder next to root notes', async () => {
+    const tree = await loadObsidianTree(
+      memSource({ 'One.md': '![[a.png]]', 'Two.md': 'two', 'attachments/a.png': PNG }),
+    )
+    expect(tree.root.map((n) => n.title)).toEqual(['One', 'Two'])
+    expect(tree.root.every((n) => n.children.length === 0)).toBe(true)
+    expect(tree.unreferenced).toEqual([])
+  })
+
+  // Review focus 5.
+  it('imports A.md next to A/ as the folder page', async () => {
+    const tree = await loadObsidianTree(memSource({ 'A.md': 'Folder text', 'A/child.md': 'c' }))
+    expect(tree.root).toHaveLength(1)
+    expect(tree.root[0].sourceRef.id).toBe('obsidian:A/')
+    expect(tree.root[0].markdown).toBe('# A\n\nFolder text\n')
+    expect(tree.root[0].children.map((n) => n.title)).toEqual(['child'])
+  })
+})

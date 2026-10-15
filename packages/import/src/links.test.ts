@@ -9,6 +9,10 @@ describe('rewriteLinks', () => {
   it('falls back to the source URL for unknown targets', () => {
     expect(rewriteLinks('[Old](source:99|https://b/old)', ids)).toBe('[Old](https://b/old)')
   })
+  it('keeps an escaped separator, so a wikilink in a table cell does not split it', () => {
+    expect(rewriteLinks('| [Setup](source:12\\|https://b/x) |', ids)).toBe('| [[p-abc\\|Setup]] |')
+    expect(rewriteLinks('| [Old](source:99\\|https://b/old) |', ids)).toBe('| [Old](https://b/old) |')
+  })
   it('leaves ordinary links alone', () => {
     expect(rewriteLinks('[x](https://e.com) ![i](_media/a.png)', ids)).toBe('[x](https://e.com) ![i](_media/a.png)')
   })

@@ -46,6 +46,14 @@ export interface ImportTree {
   failed: Array<{ sourceId: string; title: string; reason: string }>
   /** Media the adapter did not download (too large, download failed). */
   mediaSkipped: Array<{ sourceId: string; name: string; reason: string }>
+  /** File imports: frontmatter keys without an f451 equivalent, counted by key. */
+  droppedFrontmatter?: Record<string, number>
+  /** File imports: attachments no page references. */
+  unreferenced?: string[]
+  /** File imports: links whose target is not part of the import; they stay text. */
+  unresolved?: Array<{ sourceId: string; target: string }>
+  /** Obsidian: link targets matching several files; `chosen` is the path used. */
+  ambiguous?: Array<{ sourceId: string; target: string; chosen: string }>
 }
 
 export interface ImportTarget {

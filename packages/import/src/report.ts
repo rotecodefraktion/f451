@@ -15,6 +15,10 @@ export interface ImportReport {
   mediaSkipped: Array<{ sourceId: string; name: string; reason: string }>
   droppedHtml: Record<string, number>
   drawingsAsPng: string[]
+  droppedFrontmatter?: Record<string, number>
+  unreferenced?: string[]
+  unresolved?: Array<{ sourceId: string; target: string }>
+  ambiguous?: Array<{ sourceId: string; target: string; chosen: string }>
 }
 
 export function emptyReport(): ImportReport {
@@ -40,6 +44,19 @@ export function renderReport(r: ImportReport): string {
     // Keys are HTML tag names (`span`, `!--` for comments) or constructs
     // such as `colspan` and `tableBlock`.
     out += '## Content without a Markdown equivalent\n\n' + dropped.map(([t, n]) => `- \`${t}\`: ${n}`).join('\n') + '\n\n'
+  }
+  const frontmatter = Object.entries(r.droppedFrontmatter ?? {})
+  if (frontmatter.length) {
+    out += '## Frontmatter fields dropped\n\n' + frontmatter.map(([k, n]) => `- \`${k}\`: ${n}`).join('\n') + '\n\n'
+  }
+  if (r.unresolved?.length) {
+    out += `## Links without a target (kept as text) (${r.unresolved.length})\n\n` + r.unresolved.map((u) => `- ${u.target} on ${u.sourceId}`).join('\n') + '\n\n'
+  }
+  if (r.ambiguous?.length) {
+    out += `## Ambiguous links (${r.ambiguous.length})\n\n` + r.ambiguous.map((a) => `- ${a.target} on ${a.sourceId} → ${a.chosen}`).join('\n') + '\n\n'
+  }
+  if (r.unreferenced?.length) {
+    out += `## Attachments no page references (${r.unreferenced.length})\n\n` + r.unreferenced.map((u) => `- ${u}`).join('\n') + '\n\n'
   }
   if (r.drawingsAsPng.length) {
     out += `## Drawings kept as PNG (no draw.io container)\n\n` + r.drawingsAsPng.map((d) => `- ${d}`).join('\n') + '\n'

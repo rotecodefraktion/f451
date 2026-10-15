@@ -177,6 +177,10 @@ export async function importTree(
   report.drawingsAsPng = tree.drawingsAsPng
   report.failed.push(...tree.failed.map((f) => ({ sourceId: f.sourceId, title: f.title, reason: f.reason })))
   report.mediaSkipped.push(...tree.mediaSkipped)
+  if (tree.droppedFrontmatter) report.droppedFrontmatter = tree.droppedFrontmatter
+  if (tree.unreferenced) report.unreferenced = tree.unreferenced
+  if (tree.unresolved) report.unresolved = tree.unresolved
+  if (tree.ambiguous) report.ambiguous = tree.ambiguous
 
   const entries = flattenTree(tree)
   onEvent({ kind: 'start', pages: entries.length })

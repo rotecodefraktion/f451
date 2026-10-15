@@ -1,5 +1,6 @@
 export * from './model.js'
 export * from './adapters/bookstack/index.js'
+export { loadMarkdownTree, loadMarkdownFolderTree, loadObsidianTree } from './adapters/markdown/index.js'
 export { importTree } from './writer.js'
 export { flattenTree } from './order.js'
 export { F451Api, F451ApiError } from './api.js'
