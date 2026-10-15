@@ -1,5 +1,6 @@
 import type { ImportMedia } from '../../model.js'
 import type { BookStackClient } from './client.js'
+import { trimTrailingSlashes } from '../../url.js'
 
 export interface MediaOptions {
   baseUrl: string
@@ -90,7 +91,7 @@ export function bookStackMediaUrl(src: string, baseUrl: string): string | null {
   }
   if (url.protocol !== 'http:' && url.protocol !== 'https:') return null
   // BookStack under a path prefix (`https://ex.org/wiki`) writes it into its URLs.
-  const prefix = new URL(`${baseUrl}/`).pathname.replace(/\/+$/, '')
+  const prefix = trimTrailingSlashes(new URL(`${baseUrl}/`).pathname)
   const path = prefix && url.pathname.startsWith(`${prefix}/`) ? url.pathname.slice(prefix.length) : url.pathname
   if (!MEDIA_PATH.test(path)) return null
   return `${baseUrl}${path}${url.search}`
@@ -141,7 +142,7 @@ export async function collectMedia(
   pageId: number,
   opts: MediaOptions,
 ): Promise<MediaResult> {
-  const baseUrl = opts.baseUrl.replace(/\/+$/, '')
+  const baseUrl = trimTrailingSlashes(opts.baseUrl)
   const used = opts.usedNames ?? new Set<string>()
   const media: ImportMedia[] = []
   const skipped: MediaResult['skipped'] = []

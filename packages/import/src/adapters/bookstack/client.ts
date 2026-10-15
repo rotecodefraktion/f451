@@ -13,6 +13,7 @@ import type {
   BookStackTag,
   BookStackSearchHit,
 } from './types.js'
+import { trimTrailingSlashes } from '../../url.js'
 
 /** BookStack's default API limit is 180 requests per minute. */
 const MAX_REQUESTS_PER_SECOND = 3
@@ -38,7 +39,7 @@ export class BookStackClient {
     private readonly fetchImpl: typeof fetch = fetch,
     opts: { sleep?: (ms: number) => Promise<void> } = {},
   ) {
-    this.baseUrl = baseUrl.replace(/\/+$/, '')
+    this.baseUrl = trimTrailingSlashes(baseUrl)
     this.sleepImpl = opts.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)))
   }
 

@@ -5,6 +5,7 @@ import TurndownService from 'turndown'
 import { gfm } from '@joplin/turndown-plugin-gfm'
 import { fromHtml } from 'hast-util-from-html'
 import { toHtml } from 'hast-util-to-html'
+import { trimTrailingSlashes } from '../../url.js'
 
 // In Node, turndown parses HTML with its bundled DOM (domino), so no browser
 // environment is needed.
@@ -592,8 +593,8 @@ function addDetailsSummaryRule(turndown: TurndownService): void {
 /** BookStack internal links → `[text](source:<id>|<url>)` placeholders, or
  *  absolute URLs if the target is not part of the import */
 function addInternalLinkRule(turndown: TurndownService, context: ConversionContext): void {
-  const base = context.baseUrl.replace(/\/+$/, '')
-  const bases = [base, ...(context.publicBases ?? []).map((b) => b.replace(/\/+$/, ''))].filter((b) => b !== '')
+  const base = trimTrailingSlashes(context.baseUrl)
+  const bases = [base, ...(context.publicBases ?? []).map((b) => trimTrailingSlashes(b))].filter((b) => b !== '')
 
   const internalPath = (href: string): string | null => {
     let path: string | null = null

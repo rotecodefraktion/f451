@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import type { BookStackClient } from '../../adapters/bookstack/client.js'
 import { diagramXml } from '../../svg-diagram.js'
 import { rasterizeSvg, withMxfileChunk } from './raster.js'
+import { trimTrailingSlashes } from '../../url.js'
 
 type MediaClient = Pick<
   BookStackClient,
@@ -96,7 +97,7 @@ export async function uploadAttachments(
   /** name → BookStack attachment URL, for rewriting links to the file. */
   const urls = new Map<string, string>()
   if (files.length === 0) return urls
-  const url = (id: number) => `${baseUrl.replace(/\/+$/, '')}/attachments/${id}`
+  const url = (id: number) => `${trimTrailingSlashes(baseUrl)}/attachments/${id}`
   const present = new Map((await client.getAttachmentsForPage(bsPageId)).data.map((a) => [a.name, a.id] as const))
   for (const file of files) {
     const existing = present.get(file.name)

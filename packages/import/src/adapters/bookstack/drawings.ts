@@ -8,6 +8,7 @@ import type { ImportMedia } from '../../model.js'
 import type { BookStackClient } from './client.js'
 import type { DrawingRef } from './html-to-md.js'
 import { baseName, bookStackMediaUrl, slugifyFileName, uniqueName } from './media.js'
+import { trimTrailingSlashes } from '../../url.js'
 
 export interface DrawioRenderer {
   /** draw.io XML in, SVG with the diagram embedded in `content` out. */
@@ -141,7 +142,7 @@ export async function convertDrawings(
   client: BookStackClient,
   opts: { baseUrl: string; drawio: DrawioRenderer | null; usedNames?: Set<string> },
 ): Promise<DrawingsResult> {
-  const baseUrl = opts.baseUrl.replace(/\/+$/, '')
+  const baseUrl = trimTrailingSlashes(opts.baseUrl)
   const used = opts.usedNames ?? new Set<string>()
   const media: ImportMedia[] = []
   const asPng: string[] = []

@@ -17,6 +17,11 @@ describe('normalizeMarkdown', () => {
     expect(dropped).toEqual({ span: 1 })
   })
 
+  it('leaves no tag behind when stripping one reveals another', () => {
+    const { markdown } = normalizeMarkdown('<div>a <<b>script>alert(1)<</b>/script> <!<!-- x -->-- y --> b</div>\n')
+    expect(markdown).not.toMatch(/<script|<!--/)
+  })
+
   it('drops an HTML comment without a trace in the text', () => {
     const { markdown, dropped } = normalizeMarkdown('a\n\n<!-- note -->\n\nb\n')
     expect(markdown).toBe('a\n\nb\n')
