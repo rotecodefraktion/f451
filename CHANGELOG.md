@@ -84,6 +84,10 @@ configuration beyond the new optional `F451_IMPORT_BOOKSTACK_URLS`.
 - Import jobs revoke their token when the API shuts down mid-run (#144); the
   import panel survives malformed job responses, and the editor retries a
   failed Mermaid load (#148).
+- Import: the text of raw HTML is read with an HTML parser, so markup that
+  hides a tag (`<<b>script>`) can no longer reach the Markdown as HTML; base
+  URLs are trimmed without a backtracking regular expression (CodeQL, #160,
+  #161).
 
 ## [1.2.14] — 2026-10-10
 
