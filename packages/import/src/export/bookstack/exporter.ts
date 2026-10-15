@@ -7,6 +7,7 @@ import { planBook, type ExportPage } from './tree.js'
 import { pageResolver, renderForBookStack, type HtmlContext } from './html.js'
 import { isGalleryImage, mediaRefs, uploadAttachments, uploadImages } from './media.js'
 import { emptyExportReport, type ExportReport } from './report.js'
+import { trimTrailingSlashes } from '../../url.js'
 
 export interface ExportOptions {
   space: string
@@ -281,7 +282,7 @@ export async function exportToBookStack(
   // Links readers follow use BookStack's public base when a response revealed
   // it (f451 may reach BookStack under an internal address); API calls keep
   // the configured one.
-  let base = target.publicBase ?? opts.bookstackUrl.replace(/\/+$/, '')
+  let base = target.publicBase ?? trimTrailingSlashes(opts.bookstackUrl)
 
   // 3. Chapters.
   //    A chapter BookStack refuses fails its pages; the other chapters go on.

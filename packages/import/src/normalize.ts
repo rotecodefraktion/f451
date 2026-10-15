@@ -20,7 +20,12 @@ export function normalizeMarkdown(markdown: string): { markdown: string; dropped
         // A closing tag belongs to an opening one already counted.
         if (!node.value.startsWith('</')) dropped[tag] = (dropped[tag] ?? 0) + 1
         if (!parent || index === undefined) return
-        const text = node.value.replace(/<!--[\s\S]*?-->/g, '').replace(/<[^>]+>/g, '')
+        // Repeated until stable: one pass can leave a tag behind, e.g. `<<b>script>`.
+        let text = node.value
+        for (let prev = ''; prev !== text; ) {
+          prev = text
+          text = text.replace(/<!--[\s\S]*?-->/g, '').replace(/<[^>]+>/g, '')
+        }
         if (text.trim() === '') {
           parent.children.splice(index, 1)
           return [SKIP, index]

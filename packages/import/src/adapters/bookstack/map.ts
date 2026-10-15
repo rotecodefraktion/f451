@@ -6,6 +6,7 @@ import { htmlToMarkdown, type ConversionContext } from './html-to-md.js'
 import { collectMedia } from './media.js'
 import { publicBaseOf } from './public-base.js'
 import type { BookStackBookContents, BookStackTag } from './types.js'
+import { trimTrailingSlashes } from '../../url.js'
 
 export interface BookStackSelector {
   shelf?: string
@@ -143,7 +144,7 @@ export async function loadBookStackTree(
   selector: BookStackSelector,
   opts: BookStackLoadOptions,
 ): Promise<ImportTree> {
-  const baseUrl = opts.baseUrl.replace(/\/+$/, '')
+  const baseUrl = trimTrailingSlashes(opts.baseUrl)
   const index = new PageIndex(baseUrl)
   const aborted = () => opts.signal?.aborted === true
   const plans = await planScope(client, selector, baseUrl, index, aborted)

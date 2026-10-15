@@ -2,6 +2,7 @@ import type { TreeNode } from '../../api.js'
 import { parsePage, renderHtml } from '@f451/markdown'
 import { fromHtml } from 'hast-util-from-html'
 import { toHtml } from 'hast-util-to-html'
+import { trimTrailingSlashes } from '../../url.js'
 
 export interface HtmlContext {
   /** f451 page id → BookStack page URL for pages in this export (second pass). */
@@ -61,7 +62,7 @@ function isBlankText(node: HNode): boolean {
 }
 
 function f451PageUrl(ctx: HtmlContext, pageId: string): string {
-  const base = ctx.f451Url.replace(/\/+$/, '')
+  const base = trimTrailingSlashes(ctx.f451Url)
   return `${base}/wiki/${encodeURIComponent(ctx.space)}/${encodeURIComponent(pageId)}`
 }
 
