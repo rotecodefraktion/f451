@@ -19,7 +19,9 @@ describe('normalizeMarkdown', () => {
 
   it('leaves no tag behind when stripping one reveals another', () => {
     const { markdown } = normalizeMarkdown('<div>a <<b>script>alert(1)<</b>/script> <!<!-- x -->-- y --> b</div>\n')
-    expect(markdown).not.toMatch(/<script|<!--/)
+    // Revealed tags stay text: every `<` that could open one is escaped.
+    expect(markdown).not.toMatch(/(^|[^\\])<\s*(script|!--)/i)
+    expect(normalizeMarkdown(markdown).dropped).toEqual({})
   })
 
   it('drops an HTML comment without a trace in the text', () => {
