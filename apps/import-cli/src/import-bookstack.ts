@@ -8,6 +8,7 @@ import {
   importTree,
   loadBookStackTree,
   renderReport,
+  type ImportTree,
 } from '@f451/import'
 import { UsageError, type ParsedArgs } from './args.js'
 
@@ -41,6 +42,16 @@ export async function runBookStackImport(
     { book: args.book, shelf: args.shelf, page: args.page },
     { baseUrl: need('BOOKSTACK_URL'), drawio, maxBytes: 10 * 1024 * 1024 },
   )
+  return writeTreeAndReport(tree, args, f451, out)
+}
+
+/** Writes an adapter's tree to f451 (or the dry-run files) and prints the report; shared by all import sources. */
+export async function writeTreeAndReport(
+  tree: ImportTree,
+  args: ParsedArgs,
+  f451: F451Api,
+  out: NodeJS.WriteStream,
+): Promise<number> {
   const report = await importTree(
     tree,
     { space: args.space, parentId: args.parent },

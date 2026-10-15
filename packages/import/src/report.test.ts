@@ -27,6 +27,25 @@ describe('renderReport', () => {
     expect(out).toContain('- B (2) → p-b: cancelled before content, draft discarded')
     expect(out).toContain('- C (3): cancelled')
   })
+
+  it('shows the file-import sections only when present', () => {
+    const r = emptyReport()
+    const plain = renderReport(r)
+    expect(plain).not.toContain('Frontmatter')
+    expect(plain).not.toContain('without a target')
+    expect(plain).not.toContain('Ambiguous')
+    expect(plain).not.toContain('Attachments')
+    r.droppedFrontmatter = { aliases: 2 }
+    r.unresolved = [{ sourceId: 'obsidian:a.md', target: 'Missing' }]
+    r.ambiguous = [{ sourceId: 'obsidian:a.md', target: 'Dup', chosen: 'x/Dup.md' }]
+    r.unreferenced = ['attachments/old.png']
+    const out = renderReport(r)
+    expect(out).toContain('- `aliases`: 2')
+    expect(out).toContain('## Links without a target (kept as text) (1)')
+    expect(out).toContain('- Missing on obsidian:a.md')
+    expect(out).toContain('- Dup on obsidian:a.md → x/Dup.md')
+    expect(out).toContain('- attachments/old.png')
+  })
 })
 
 describe('renderExportReport', () => {

@@ -91,6 +91,13 @@ describe('parsePage', () => {
   })
 })
 
+describe('parsePage: wikilink in a table cell', () => {
+  it('reads [[id\\|alias]] in a cell as one wikilink and keeps the table intact', () => {
+    const p = parsePage('| Page | Note |\n| --- | --- |\n| [[p-abc\\|Setup]] | x |\n')
+    expect(p.links.map((l) => [l.kind, l.rawTarget, l.text])).toEqual([['wikilink', 'p-abc', 'Setup']])
+  })
+})
+
 describe('parsePage: link context', () => {
   const contextOf = (md: string): string[] => parsePage(md).links.map((l) => l.context)
 

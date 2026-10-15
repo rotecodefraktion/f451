@@ -9,7 +9,7 @@ import { randomUUID } from 'node:crypto'
  * the user sees it while the job is kept.
  */
 
-export type JobKind = 'import-bookstack' | 'export-bookstack'
+export type JobKind = 'import-bookstack' | 'import-file' | 'export-bookstack'
 export type JobStatus = 'running' | 'done' | 'failed' | 'cancelled'
 /** `link`: where `pageId` can be opened now — the published page or its open review. */
 export interface JobEvent { status: string; title: string; pageId?: string; reason?: string; link?: 'page' | 'review' }

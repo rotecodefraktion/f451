@@ -138,6 +138,12 @@ function buildConnectOptions(): AuthOptions['connect'] {
 // `DEFAULT_MAX_UPLOAD_MB` zurück.
 const maxUploadMbEnv = process.env.F451_MAX_UPLOAD_MB ? Number(process.env.F451_MAX_UPLOAD_MB) : undefined
 const maxUploadMb = maxUploadMbEnv !== undefined && Number.isFinite(maxUploadMbEnv) ? maxUploadMbEnv : undefined
+// File import (#90): ZIP upload limit, same pattern; must be positive.
+const importMaxUploadMbEnv = process.env.F451_IMPORT_MAX_UPLOAD_MB ? Number(process.env.F451_IMPORT_MAX_UPLOAD_MB) : undefined
+const importMaxUploadMb =
+  importMaxUploadMbEnv !== undefined && Number.isFinite(importMaxUploadMbEnv) && importMaxUploadMbEnv > 0
+    ? importMaxUploadMbEnv
+    : undefined
 
 // Rate-Limits (Task 2, Spec §7) — nur das Anfrage-MAXIMUM ist per Env
 // konfigurierbar (Muster `maxUploadMb` oben), das Zeitfenster ist fest 60s
@@ -210,6 +216,8 @@ const app = buildApp({
   trustProxy,
   // Web import/export (#128): BookStack instances the API may talk to; empty → feature off.
   importBookstackUrls: parseInstances(process.env.F451_IMPORT_BOOKSTACK_URLS),
+  // File import (#90): upload limit in MiB; unset or invalid → default 200.
+  importMaxUploadMb,
 })
 
 // Fastifys Pino-Logger hat die Signatur `(mergingObject, msg)` — umgekehrt zur

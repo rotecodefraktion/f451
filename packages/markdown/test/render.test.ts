@@ -24,6 +24,14 @@ describe('renderHtml', () => {
     expect(html).toContain('<a href="/pages/id-.._runbooks_index.md">Runbook</a>')
   })
 
+  it('renders [[id\\|alias]] in a table cell as one resolved link and keeps the columns', () => {
+    const html = renderHtml('| Page | Note |\n| --- | --- |\n| [[p-abc\\|Setup]] | x |\n', resolve)
+    expect(html.match(/<a /g)).toHaveLength(1)
+    expect(html).toContain('<a href="/pages/id-p-abc">Setup</a>')
+    expect(html.match(/<th[ >]/g)).toHaveLength(2)
+    expect(html.match(/<td[ >]/g)).toHaveLength(2)
+  })
+
   it('markiert nicht auflösbare interne Links als broken-link (kein href)', () => {
     const html = renderHtml('[[fehlt/seite]]', resolve)
     expect(html).toContain('class="broken-link"')

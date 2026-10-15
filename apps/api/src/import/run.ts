@@ -6,9 +6,13 @@ import {
   exportToBookStack,
   importTree,
   loadBookStackTree,
+  loadMarkdownFolderTree,
+  loadObsidianTree,
   renderExportReport,
   renderReport,
   type BookStackSelector,
+  type FileSource,
+  type ImportTree,
 } from '@f451/import'
 import { generateApiToken, generateSessionId, hashApiToken } from '../auth/crypto.js'
 import type { Db } from '../db/client.js'
@@ -53,6 +57,21 @@ export interface ImportParams extends RunCommon {
   parentId?: string
   update: boolean
   release: boolean
+}
+
+/** Import of an uploaded ZIP (Markdown folder or Obsidian vault). The archive
+ *  is already validated (`zipSource`); `cleanup` removes the upload's temp
+ *  file and runs when the job ends, whatever the outcome. */
+export interface FileImportParams {
+  userId: string
+  space: string
+  format: 'markdown' | 'obsidian'
+  source: FileSource
+  cleanup: () => Promise<void>
+  parentId?: string
+  update: boolean
+  release: boolean
+  dryRun: boolean
 }
 
 export interface ExportParams extends RunCommon {
@@ -180,28 +199,57 @@ export function importRun(deps: RunDeps, p: ImportParams): JobRun {
         maxBytes: MAX_MEDIA_BYTES,
         signal,
       })
-      const report = await importTree(
-        tree,
-        { space: p.space, ...(p.parentId ? { parentId: p.parentId } : {}) },
-        f451,
-        { update: p.update, release: p.release, dryRun: p.dryRun, signal },
-        (e) => {
-          if (e.kind === 'start') progress.start(e.pages)
-          else if (e.kind === 'phase') progress.phase(e.phase)
-          else if (e.kind === 'page') pageEvent(progress, e, importEventLink(e, p))
-        },
-      )
-      return {
-        report: renderReport(report),
-        counts: {
-          created: report.created.length,
-          updated: report.updated.length,
-          skipped: report.skipped.length,
-          failed: report.failed.length,
-          cancelled: report.cancelled.length,
-        },
-      }
+      return writeTree(tree, f451, p, signal, progress)
     })
+  }
+}
+
+/** Writes a loaded tree through the API (drafts and reviews) and turns the
+ *  writer's report into the job result. Shared by all import runners. */
+async function writeTree(
+  tree: ImportTree,
+  f451: F451Api,
+  p: { space: string; parentId?: string; update: boolean; release: boolean; dryRun: boolean },
+  signal: AbortSignal,
+  progress: JobProgress,
+): Promise<JobResult> {
+  const report = await importTree(
+    tree,
+    { space: p.space, ...(p.parentId ? { parentId: p.parentId } : {}) },
+    f451,
+    { update: p.update, release: p.release, dryRun: p.dryRun, signal },
+    (e) => {
+      if (e.kind === 'start') progress.start(e.pages)
+      else if (e.kind === 'phase') progress.phase(e.phase)
+      else if (e.kind === 'page') pageEvent(progress, e, importEventLink(e, p))
+    },
+  )
+  return {
+    report: renderReport(report),
+    counts: {
+      created: report.created.length,
+      updated: report.updated.length,
+      skipped: report.skipped.length,
+      failed: report.failed.length,
+      cancelled: report.cancelled.length,
+    },
+  }
+}
+
+export function fileImportRun(deps: RunDeps, p: FileImportParams): JobRun {
+  return async (signal, progress, jobId): Promise<JobResult> => {
+    try {
+      return await withJobToken(deps.db, p.userId, 'write', jobId, async (token) => {
+        const f451 = new F451Api('http://internal', token, deps.selfFetch)
+        progress.phase('reading')
+        // The loaders take no signal (the archive is local); a cancel while
+        // reading takes effect in importTree, which reports the pages as cancelled.
+        const tree = p.format === 'obsidian' ? await loadObsidianTree(p.source) : await loadMarkdownFolderTree(p.source)
+        return writeTree(tree, f451, p, signal, progress)
+      })
+    } finally {
+      await p.cleanup()
+    }
   }
 }
 

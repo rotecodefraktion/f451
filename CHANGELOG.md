@@ -8,6 +8,19 @@ with a new major version.
 
 ## [Unreleased]
 
+### Added
+- File import: `f451-import markdown` and `f451-import obsidian` import a
+  Markdown folder or an Obsidian vault (directory or ZIP) as drafts with
+  reviews, and the web import panel accepts the same as a ZIP upload (#90,
+  #92, #103). Wikilinks, embeds, callouts, highlights and tags are converted.
+  New route `POST /api/spaces/:space/import/file`; new optional setting
+  `F451_IMPORT_MAX_UPLOAD_MB` (default 200). See
+  [docs/import-export.md](docs/import-export.md).
+
+### Fixed
+- A wikilink with an alias inside a table cell is written `[[id\|text]]`, so
+  the pipe no longer splits the cell.
+
 ## [1.3.0] — 2026-10-15
 
 Import from and export to BookStack, from the command line and the web UI;

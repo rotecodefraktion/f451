@@ -89,4 +89,45 @@ describe('Wikilinks respektieren aliasDivider "|"', () => {
     const md = '[[betrieb/monitoring|Monitoring]]\n'
     expect(stringifyMarkdown(parseMarkdownTree(md))).toBe(md)
   })
+
+  it('escapes the alias divider inside a table cell: [[target\\|alias]]', () => {
+    const md = '| Page | Note |\n| --- | --- |\n| [[p-abc\\|Setup]] | x |\n'
+    const tree = parseMarkdownTree(md)
+    const out = stringifyMarkdown(tree)
+    expect(out).toContain('[[p-abc\\|Setup]]')
+    expect(out).not.toContain('[[p-abc\\\\')
+    expect(stringifyMarkdown(parseMarkdownTree(out))).toBe(out)
+  })
+
+  it('keeps the divider unescaped outside a table, also next to a table', () => {
+    const md = '[[p-abc|Setup]]\n\n| Page |\n| --- |\n| [[p-def\\|Other]] |\n'
+    const out = stringifyMarkdown(parseMarkdownTree(md))
+    expect(out).toContain('[[p-abc|Setup]]\n')
+    expect(out).toContain('[[p-def\\|Other]]')
+  })
+
+  it('builds the cell form from a tree with a clean target (editor path)', () => {
+    const tree = {
+      type: 'root',
+      children: [
+        {
+          type: 'table',
+          align: [null],
+          children: [
+            { type: 'tableRow', children: [{ type: 'tableCell', children: [{ type: 'text', value: 'Page' }] }] },
+            {
+              type: 'tableRow',
+              children: [
+                {
+                  type: 'tableCell',
+                  children: [{ type: 'wikiLink', value: 'p-abc', data: { alias: 'Setup' } }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }
+    expect(stringifyMarkdown(tree as never)).toContain('| [[p-abc\\|Setup]] |')
+  })
 })

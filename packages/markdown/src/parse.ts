@@ -6,6 +6,7 @@ import remarkWikiLink from 'remark-wiki-link'
 import { visitParents } from 'unist-util-visit-parents'
 import { parseFrontmatterBlock } from './frontmatter.js'
 import { createSlugger } from './slug.js'
+import { remarkWikiLinkTableCells } from './wikilink-table.js'
 import type {
   ExtractedLink,
   PageFrontmatter,
@@ -51,6 +52,7 @@ export const markdownProcessor = unified()
   .use(remarkFrontmatter, ['yaml'])
   .use(remarkGfm)
   .use(remarkWikiLink, { aliasDivider: '|' })
+  .use(remarkWikiLinkTableCells)
 
 /** Extrahiert den sichtbaren Text eines Inline-Knotens rekursiv
  *  (mdast-util-to-string-Logik, aber ohne die Dependency). */

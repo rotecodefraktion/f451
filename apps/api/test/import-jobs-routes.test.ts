@@ -1,3 +1,6 @@
+import { readdir } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { crc32 } from 'node:zlib'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { and, eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
@@ -75,6 +78,71 @@ function fakeBookStack(): { factory: BookStackFactory; releaseBook2: () => void 
   }
 }
 
+/** A minimal ZIP with STORED entries. Written by hand because `fflate` is a
+ *  dependency of `@f451/import`, not of the API; names are taken as given, so
+ *  a test can build a zip-slip archive. */
+function storedZip(files: Record<string, string>): Buffer {
+  const locals: Buffer[] = []
+  const centrals: Buffer[] = []
+  let offset = 0
+  for (const [name, text] of Object.entries(files)) {
+    const nameBytes = Buffer.from(name, 'utf8')
+    const data = Buffer.from(text, 'utf8')
+    const crc = crc32(data)
+    const local = Buffer.alloc(30)
+    local.writeUInt32LE(0x04034b50, 0)
+    local.writeUInt16LE(20, 4)
+    local.writeUInt16LE(0x0800, 6) // UTF-8 names
+    local.writeUInt16LE(0, 8) // stored
+    local.writeUInt32LE(crc, 14)
+    local.writeUInt32LE(data.length, 18)
+    local.writeUInt32LE(data.length, 22)
+    local.writeUInt16LE(nameBytes.length, 26)
+    locals.push(local, nameBytes, data)
+
+    const central = Buffer.alloc(46)
+    central.writeUInt32LE(0x02014b50, 0)
+    central.writeUInt16LE(20, 4)
+    central.writeUInt16LE(20, 6)
+    central.writeUInt16LE(0x0800, 8)
+    central.writeUInt16LE(0, 10)
+    central.writeUInt32LE(crc, 16)
+    central.writeUInt32LE(data.length, 20)
+    central.writeUInt32LE(data.length, 24)
+    central.writeUInt16LE(nameBytes.length, 28)
+    central.writeUInt32LE(offset, 42)
+    centrals.push(central, nameBytes)
+
+    offset += local.length + nameBytes.length + data.length
+  }
+  const cd = Buffer.concat(centrals)
+  const count = Object.keys(files).length
+  const eocd = Buffer.alloc(22)
+  eocd.writeUInt32LE(0x06054b50, 0)
+  eocd.writeUInt16LE(count, 8)
+  eocd.writeUInt16LE(count, 10)
+  eocd.writeUInt32LE(cd.length, 12)
+  eocd.writeUInt32LE(offset, 16)
+  return Buffer.concat([...locals, cd, eocd])
+}
+
+/** A real `multipart/form-data` body. `file` goes first on purpose: the route
+ *  must also see text fields that follow the file. */
+async function uploadBody(
+  zip: Buffer,
+  fields: Record<string, string>,
+): Promise<{ payload: Buffer; headers: Record<string, string> }> {
+  const form = new FormData()
+  form.append('file', new Blob([zip], { type: 'application/zip' }), 'vault.zip')
+  for (const [k, v] of Object.entries(fields)) form.append(k, v)
+  const req = new Request('http://upload.local/', { method: 'POST', body: form })
+  return { payload: Buffer.from(await req.arrayBuffer()), headers: { 'content-type': req.headers.get('content-type')! } }
+}
+
+async function importTempFiles(): Promise<string[]> {
+  return (await readdir(tmpdir())).filter((n) => n.startsWith('f451-import-'))
+}
+
 describe.sequential('import/export job routes (#128)', () => {
   let pg: PgTestInstance
   let forgejo: ForgejoTestInstance
@@ -148,7 +216,8 @@ describe.sequential('import/export job routes (#128)', () => {
       },
     }
     app = buildApp({ ...base, importBookstackUrls: [INSTANCE], importBookstack: bookstack.factory })
-    appOff = buildApp({ ...base, importBookstack: bookstack.factory })
+    // Also serves the 413 test of the file import with a 1 MiB limit.
+    appOff = buildApp({ ...base, importBookstack: bookstack.factory, importMaxUploadMb: 1 })
     await Promise.all([app.ready(), appOff.ready()])
 
     writerSession = (await createSession(db, writerUserId)).id
@@ -190,7 +259,7 @@ describe.sequential('import/export job routes (#128)', () => {
     it('lists no instances', async () => {
       const res = await appOff.inject({ method: 'GET', url: '/api/import/instances', cookies: cookiesOf(writerSession) })
       expect(res.statusCode).toBe(200)
-      expect(res.json()).toEqual({ bookstack: [] })
+      expect(res.json()).toEqual({ bookstack: [], fileImport: { maxUploadMb: 1 } })
     })
 
     it('answers 400 on all three POST routes for any instance', async () => {
@@ -217,7 +286,7 @@ describe.sequential('import/export job routes (#128)', () => {
 
   it('lists the configured instances', async () => {
     const res = await app.inject({ method: 'GET', url: '/api/import/instances', cookies: cookiesOf(writerSession) })
-    expect(res.json()).toEqual({ bookstack: [INSTANCE] })
+    expect(res.json()).toEqual({ bookstack: [INSTANCE], fileImport: { maxUploadMb: 200 } })
   })
 
   it('catalog: unknown instance → 400', async () => {
@@ -344,5 +413,85 @@ describe.sequential('import/export job routes (#128)', () => {
   it('unknown job id → 404', async () => {
     const res = await app.inject({ method: 'GET', url: '/api/jobs/does-not-exist', cookies: cookiesOf(writerSession) })
     expect(res.statusCode).toBe(404)
+  })
+
+  describe('file import (#90)', () => {
+    const vault = {
+      'Welcome.md': '# Welcome\n\nSee [[Detail]] and [[Missing note]].\n',
+      'Notes/Detail.md': '---\ntags: [demo]\n---\n# Detail\n\n> [!note] Heads up\n> Body.\n',
+    }
+    const flags = { format: 'obsidian', update: 'false', release: 'false', dryRun: 'false' }
+
+    async function upload(target: FastifyInstance, session: string, spaceId: string, zip: Buffer, fields = flags) {
+      const { payload, headers } = await uploadBody(zip, fields)
+      return target.inject({
+        method: 'POST',
+        url: `/api/spaces/${spaceId}/import/file`,
+        cookies: cookiesOf(session),
+        headers,
+        payload,
+      })
+    }
+
+    async function newTempFiles(before: string[]): Promise<string[]> {
+      return (await importTempFiles()).filter((n) => !before.includes(n))
+    }
+
+    it('a vault ZIP runs to done; pages exist as drafts with open reviews; the temp file is gone', async () => {
+      const before = await importTempFiles()
+      const res = await upload(app, writerSession, space.id, storedZip(vault))
+      expect(res.statusCode).toBe(202)
+      const { jobId } = res.json() as { jobId: string }
+
+      const job = await waitForJob(writerSession, jobId)
+      expect(job.status).toBe('done')
+      expect(job.kind).toBe('import-file')
+      // Welcome, the folder page "Notes" and Detail.
+      expect(job.counts.created).toBe(3)
+      expect(job.counts.failed).toBe(0)
+      expect(job.events).toHaveLength(3)
+      for (const e of job.events) {
+        expect(e.status).toBe('created')
+        expect(e.pageId).toBeTruthy()
+        expect(e.link).toBe('review')
+      }
+      expect(job.report).toContain('# Import report')
+
+      expect(await newTempFiles(before)).toEqual([])
+    }, 120_000)
+
+    it('over the upload limit → 413, no temp file left', async () => {
+      const before = await importTempFiles()
+      const big = Buffer.alloc(1024 * 1024 + 4096, 0x61)
+      const res = await upload(appOff, writerSession, space.id, big)
+      expect(res.statusCode).toBe(413)
+      expect(await newTempFiles(before)).toEqual([])
+    })
+
+    it('a zip-slip archive or a non-ZIP → 400 with the reason, no job, no temp file left', async () => {
+      const before = await importTempFiles()
+      const slip = await upload(app, writerSession, space.id, storedZip({ '../evil.md': '# Evil\n' }))
+      expect(slip.statusCode).toBe(400)
+      expect(slip.json()).toMatchObject({ status: 'bad_request' })
+      expect((slip.json() as { reason: string }).reason).toContain('unsafe path')
+
+      const notZip = await upload(app, writerSession, space.id, Buffer.from('plain text, not an archive'))
+      expect(notZip.statusCode).toBe(400)
+      expect((notZip.json() as { reason: string }).reason).toContain('not a ZIP')
+
+      expect(await newTempFiles(before)).toEqual([])
+    })
+
+    it('bad fields → 400', async () => {
+      const zip = storedZip(vault)
+      expect((await upload(app, writerSession, space.id, zip, { ...flags, format: 'html' })).statusCode).toBe(400)
+      expect((await upload(app, writerSession, space.id, zip, { ...flags, dryRun: 'yes' })).statusCode).toBe(400)
+    })
+
+    it('read-only access → 403, no read access → 404', async () => {
+      const zip = storedZip(vault)
+      expect((await upload(app, readerSession, space.id, zip)).statusCode).toBe(403)
+      expect((await upload(app, writerSession, privateSpace.id, zip)).statusCode).toBe(404)
+    })
   })
 })
