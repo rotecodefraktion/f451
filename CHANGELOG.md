@@ -36,8 +36,12 @@ with a new major version.
 ### Changed
 - The import client waits for the time given in `Retry-After` on a `429` instead
   of failing the page (#128).
+- Deleting a page goes through a review instead of committing to main, and
+  removes the whole folder: subpages, media and releases (#155). The pages
+  stay visible until the review is released.
 
 ### Fixed
+- Deleting a page with subpages left them orphaned (#155).
 - A page released before its parent folder page stayed at the root of the tree.
   The incremental index now re-resolves the parent of pages below a page that
   appears or goes away (#133). `POST /admin/reindex` repairs trees indexed
