@@ -12,6 +12,7 @@ import rehypeStringify from 'rehype-stringify'
 import { visit } from 'unist-util-visit'
 import { parseImageAltSize } from './image-size.js'
 import { createSlugger } from './slug.js'
+import { remarkWikiLinkTableCells } from './wikilink-table.js'
 import { remarkAlerts } from './alerts.js'
 import { matchYoutubeParagraph } from './youtube.js'
 import { rehypeCodeLang } from './code-lang.js'
@@ -366,6 +367,7 @@ export function renderHtml(markdown: string, opts: RenderOptions): string {
     .use(remarkFrontmatter, ['yaml'])
     .use(remarkGfm)
     .use(remarkWikiLink, { aliasDivider: '|' })
+    .use(remarkWikiLinkTableCells)
     .use(remarkResolveLinks, opts)
     .use(remarkAlerts)
     .use(remarkYoutubeEmbeds)

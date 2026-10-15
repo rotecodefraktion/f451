@@ -6,6 +6,7 @@ import remarkWikiLink from 'remark-wiki-link'
 import { defaultHandlers } from 'mdast-util-to-markdown'
 import type { Handle } from 'mdast-util-to-markdown'
 import { markdownProcessor } from './parse.js'
+import { remarkWikiLinkTableCells } from './wikilink-table.js'
 import type { MdastRoot } from './types.js'
 
 /** mdast-Zugang für den Editor (Phase 2b, Task 2+): derselbe Prozessor wie parsePage,
@@ -30,6 +31,8 @@ export function parseMarkdownTree(markdown: string): MdastRoot {
 // 0.6.5-API) manuell durchgetestet (siehe stringify.test.ts) — er funktioniert trotz
 // API-Versionssprungs, weil sein handler nur `context.enter/exit` und eine eigene
 // `safe()`-Kopie nutzt, die beide mit dem neuen `state`-Objekt kompatibel sind.
+// remarkWikiLinkTableCells wraps that handler: inside a table cell the alias divider
+// is written escaped (`[[target\|alias]]`), see wikilink-table.ts.
 //
 // Zwei Fallstricke, die eigene Handler brauchen (s.u.): GFM-Autolink-Literale (nackte
 // URLs) und der GFM-Alert-Marker `[!TYP]` als erste Blockquote-Zeile.
@@ -129,6 +132,7 @@ const stringifyProcessor = unified()
   .use(remarkFrontmatter, ['yaml'])
   .use(remarkGfm)
   .use(remarkWikiLink, { aliasDivider: '|' })
+  .use(remarkWikiLinkTableCells)
 
 /** Serialisiert einen mdast-Baum kanonisch zu Markdown-Text (siehe Konfigurations-
  *  Kommentar oben). Kanonizitäts-Gesetz (getestet über den gesamten Golden-Korpus):
