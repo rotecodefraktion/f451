@@ -115,7 +115,7 @@ describe('htmlToMarkdown', () => {
 
   it('converts details/summary to a NOTE alert with bold title', () => {
     const result = md('<details><summary>Click me</summary><p>Hidden content</p></details>')
-    expect(result).toContain('> [!NOTE] **Click me**\n> Hidden content')
+    expect(result).toContain('> [!NOTE]\n> **Click me**\n>\n> Hidden content')
     expect(result).not.toContain('[!example]')
   })
 

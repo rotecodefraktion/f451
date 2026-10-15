@@ -85,6 +85,12 @@ describe('buildStructure', () => {
     expect(other.map((n) => n.sourceId).sort()).toEqual(['html:A.html', 'html:A/', 'html:index.html'])
   })
 
+  it('names an HTML folder page by its index title, else by the folder', () => {
+    const titles: Record<string, string> = { 'docs/index.html': 'Documentation', 'raw/index.html': 'index' }
+    const plan = buildStructure(['docs/index.html', 'raw/index.html', 'raw/x.html'], (p) => titles[p] ?? 'x', 'html')
+    expect(plan.map((n) => n.title)).toEqual(['Documentation', 'raw'])
+  })
+
   // Review focus 5: `A.md` next to `A/` is the folder note, so one page only.
   it('makes A.md next to A/ one page, not two with the same title', () => {
     const plan = buildStructure(['A.md', 'A/child.md'], fileTitle, 'obsidian')

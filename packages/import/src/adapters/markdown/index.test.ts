@@ -279,7 +279,7 @@ describe('loadHtmlTree', () => {
 
   it('builds the tree from HTML files; index.html is the folder page, a root index.html an ordinary page', async () => {
     const tree = await loadHtmlTree(memSource(site))
-    expect(tree.root.map((n) => n.title)).toEqual(['docs', 'Welcome'])
+    expect(tree.root.map((n) => n.title)).toEqual(['Docs', 'Welcome'])
     const docs = tree.root[0]
     expect(docs.sourceRef).toEqual({ type: 'html', id: 'html:docs/' })
     expect(docs.markdown).toContain('All docs')
@@ -307,7 +307,7 @@ describe('loadHtmlTree', () => {
     expect(home).toContain('[Guide](source:html:docs/guide.html|./docs/guide.html#install)')
     expect(home).toContain('[Query](source:html:docs/guide.html|docs/guide.html#s)')
     expect(home).toContain('[ext](https://example.com/)')
-    expect(find(tree.root, 'docs').markdown).toContain('[home](source:html:index.html|../index.html)')
+    expect(find(tree.root, 'Docs').markdown).toContain('[home](source:html:index.html|../index.html)')
     expect(tree.unresolved).toEqual([{ sourceId: 'html:index.html', target: 'missing.html' }])
     const written = rewriteLinks(home, new Map([['html:docs/', 'p-docs']]))
     expect(written).toContain('[[p-docs|Docs]]')

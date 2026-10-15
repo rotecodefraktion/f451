@@ -135,6 +135,12 @@ export function buildStructure(notes: string[], titleOf: (notePath: string) => s
       const node: PlanNode = { sourceId: sourceIdFor(flavor, f, true), title: baseOf(f), folder: f, children: build(f) }
       const note = folderNote.get(f)
       if (note) node.notePath = note
+      // An HTML folder page is named by its index page's title; a bare `index`
+      // (no <title>, no <h1>) keeps the folder name.
+      if (note && flavor === 'html') {
+        const t = titleOf(note)
+        if (t !== stripNoteExt(baseOf(note), flavor)) node.title = t
+      }
       nodes.push(node)
     }
     for (const n of childNotes.get(dir) ?? []) {

@@ -10,7 +10,7 @@
 export const importMessages = {
   pageTitle: 'Import und Export',
   intro:
-    'Übernimmt einen Markdown-Ordner, einen Obsidian-Vault oder Inhalte aus BookStack in diesen Space oder schreibt Seiten des Space nach BookStack. Der Lauf geht im Hintergrund weiter, auch wenn diese Seite geschlossen wird.',
+    'Übernimmt einen Markdown-Ordner, einen Obsidian-Vault, einen HTML-Ordner oder Inhalte aus BookStack in diesen Space oder schreibt Seiten des Space nach BookStack. Der Lauf geht im Hintergrund weiter, auch wenn diese Seite geschlossen wird.',
   tabsLabel: 'Richtung',
   tabs: {
     import: 'Import',
