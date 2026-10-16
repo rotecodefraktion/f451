@@ -585,7 +585,8 @@ function addDetailsSummaryRule(turndown: TurndownService): void {
       const summaryEl = (node as HTMLElement).querySelector('summary')
       const title = (summaryEl?.textContent || '').trim().replace(/\s+/g, ' ') || 'Details'
       const body = content.trim()
-      return `\n> [!NOTE] **${title}**\n${body ? `${quote(body)}\n` : ''}\n`
+      // Title and body are separate paragraphs, or they would run together on one line.
+      return `\n> [!NOTE]\n> **${title}**\n${body ? `>\n${quote(body)}\n` : ''}\n`
     },
   })
 }

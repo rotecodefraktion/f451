@@ -559,6 +559,7 @@ export function ImportPanel({ space, instances, maxUploadMb }: ImportPanelProps)
                   >
                     <option value="markdown">{t('import.fileFormats.markdown')}</option>
                     <option value="obsidian">{t('import.fileFormats.obsidian')}</option>
+                    <option value="html">{t('import.fileFormats.html')}</option>
                   </select>
                   <span className="caret" aria-hidden="true">
                     ▾

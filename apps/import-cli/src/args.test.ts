@@ -86,7 +86,22 @@ describe('parseArgs', () => {
     })
   })
 
+  it('parses an html folder import', () => {
+    expect(parseArgs(['html', 'site', '--space', 's', '--parent', 'p1'])).toEqual({
+      command: 'import',
+      source: 'html',
+      path: 'site',
+      space: 's',
+      parent: 'p1',
+      update: false,
+      release: false,
+      dryRun: false,
+    })
+  })
+
   it('rejects invalid file imports', () => {
+    expect(() => parseArgs(['html', '--space', 's'])).toThrow(UsageError)
+    expect(() => parseArgs(['html', 'site', '--space', 's', '--book', '7'])).toThrow(UsageError)
     expect(() => parseArgs(['markdown', '--space', 's'])).toThrow(UsageError)
     expect(() => parseArgs(['obsidian', 'v'])).toThrow(UsageError)
     expect(() => parseArgs(['markdown', 'a', 'b', '--space', 's'])).toThrow(UsageError)

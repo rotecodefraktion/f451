@@ -7,11 +7,22 @@ import { parse as parseYaml } from 'yaml'
 import type { FileSource } from '../../files/source.js'
 import type { ImportMedia, ImportNode, ImportTree } from '../../model.js'
 import { normalizeMarkdown } from '../../normalize.js'
+import { htmlToMarkdown } from '../bookstack/html-to-md.js'
 import { mimeFor } from '../bookstack/media.js'
 import { convertCallouts } from './callouts.js'
+import { readHtmlNote } from './html.js'
 import { collectInlineTags, isImagePath, normalizePath, rewriteLinksAndMedia, VaultIndex, type LinkContext } from './links.js'
 import { obsidianPrepass } from './obsidian.js'
-import { baseOf, buildStructure, classifyPaths, dirOf, sourceIdFor, type Flavor, type PlanNode } from './structure.js'
+import {
+  baseOf,
+  buildStructure,
+  classifyPaths,
+  dirOf,
+  sourceIdFor,
+  stripNoteExt,
+  type Flavor,
+  type PlanNode,
+} from './structure.js'
 
 export type { Flavor } from './structure.js'
 
@@ -73,8 +84,18 @@ function readNote(text: string, fallbackTitle: string, dropped: Record<string, n
   return { title, body, tags }
 }
 
-/** Loads a Markdown folder or an Obsidian vault into an `ImportTree`. Notes
- *  that cannot be read or decoded are listed in `failed`; the rest continues. */
+/** Reads an HTML file into a note: title and content root, converted to
+ *  Markdown; constructs Markdown cannot express are counted in `dropped`. */
+function readHtml(bytes: Uint8Array, fallbackTitle: string, dropped: Record<string, number>): NoteData {
+  const { title, html } = readHtmlNote(bytes, fallbackTitle)
+  const converted = htmlToMarkdown(html, { baseUrl: '', resolveInternalLink: () => null })
+  for (const [k, n] of Object.entries(converted.dropped)) dropped[k] = (dropped[k] ?? 0) + n
+  return { title, body: converted.markdown, tags: [] }
+}
+
+/** Loads a Markdown folder, an Obsidian vault or an HTML folder into an
+ *  `ImportTree`. Notes that cannot be read, decoded or converted are listed
+ *  in `failed`; the rest continues. */
 export async function loadMarkdownTree(src: FileSource, opts: { flavor: Flavor }): Promise<ImportTree> {
   const { flavor } = opts
   const droppedFrontmatter: Record<string, number> = {}
@@ -92,18 +113,26 @@ export async function loadMarkdownTree(src: FileSource, opts: { flavor: Flavor }
     ambiguous,
   }
 
-  const { notes, attachments, skipped } = classifyPaths(await src.list())
+  const { notes, attachments, skipped } = classifyPaths(await src.list(), flavor)
   for (const s of skipped) tree.mediaSkipped.push({ sourceId: sourceIdFor(flavor, s.path), name: s.path, reason: s.reason })
 
   const data = new Map<string, NoteData>()
   const unreadable = new Map<string, string>()
   for (const path of notes) {
-    const fallbackTitle = baseOf(path).replace(/\.md$/i, '')
+    const fallbackTitle = stripNoteExt(baseOf(path), flavor)
     let bytes: Uint8Array
     try {
       bytes = await src.read(path)
     } catch (e) {
       unreadable.set(path, e instanceof Error ? e.message : String(e))
+      continue
+    }
+    if (flavor === 'html') {
+      try {
+        data.set(path, readHtml(bytes, fallbackTitle, tree.droppedHtml))
+      } catch (e) {
+        unreadable.set(path, e instanceof Error ? e.message : String(e))
+      }
       continue
     }
     let text: string
@@ -116,16 +145,18 @@ export async function loadMarkdownTree(src: FileSource, opts: { flavor: Flavor }
     data.set(path, readNote(text, fallbackTitle, droppedFrontmatter))
   }
 
-  const plan = buildStructure(notes, (p) => data.get(p)?.title ?? baseOf(p).replace(/\.md$/i, ''), flavor)
+  const plan = buildStructure(notes, (p) => data.get(p)?.title ?? stripNoteExt(baseOf(p), flavor), flavor)
   const pageIds = new Map<string, string>()
+  const folderIds = new Map<string, string>()
   const collectIds = (nodes: PlanNode[]): void => {
     for (const n of nodes) {
       if (n.notePath) pageIds.set(n.notePath, n.sourceId)
+      if (n.folder) folderIds.set(n.folder, n.sourceId)
       collectIds(n.children)
     }
   }
   collectIds(plan)
-  const index = new VaultIndex(notes, attachments, pageIds)
+  const index = new VaultIndex(notes, attachments, pageIds, folderIds)
 
   const bytesCache = new Map<string, Promise<Uint8Array>>()
   const readOnce = (path: string): Promise<Uint8Array> => {
@@ -181,7 +212,8 @@ export async function loadMarkdownTree(src: FileSource, opts: { flavor: Flavor }
     for (const a of ctx.ambiguous) ambiguous.push({ sourceId, ...a })
     for (const t of ctx.missing) tree.mediaSkipped.push({ sourceId, name: t, reason: NOT_IN_ARCHIVE })
 
-    const tags = [...new Set([...(note?.tags ?? []), ...collectInlineTags(ast)])]
+    // HTML pages carry no tags; a `#word` in their text is just text.
+    const tags = flavor === 'html' ? [] : [...new Set([...(note?.tags ?? []), ...collectInlineTags(ast)])]
     const first = ast.children[0]
     if (!(first && first.type === 'heading' && first.depth === 1)) {
       ast.children.unshift({ type: 'heading', depth: 1, children: [{ type: 'text', value: title }] })
@@ -246,4 +278,8 @@ export function loadMarkdownFolderTree(src: FileSource): Promise<ImportTree> {
 
 export function loadObsidianTree(src: FileSource): Promise<ImportTree> {
   return loadMarkdownTree(src, { flavor: 'obsidian' })
+}
+
+export function loadHtmlTree(src: FileSource): Promise<ImportTree> {
+  return loadMarkdownTree(src, { flavor: 'html' })
 }

@@ -1,6 +1,6 @@
 import type { Root, Link, Image, Definition, Parent, RootContent } from 'mdast'
 import { visit, SKIP } from 'unist-util-visit'
-import { baseOf, dirOf } from './structure.js'
+import { baseOf, dirOf, isNoteName, type Flavor } from './structure.js'
 import { slugifyFileName, uniqueName } from '../bookstack/media.js'
 
 const IMAGE_EXT = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'avif'])
@@ -40,6 +40,8 @@ export class VaultIndex {
     readonly attachments: string[],
     /** Note path → source id of the page that carries it (folder notes map to their folder). */
     private readonly pageIds: Map<string, string>,
+    /** Folder path → source id of its folder page. */
+    private readonly folderIds: Map<string, string> = new Map(),
   ) {
     this.all = [...notes, ...attachments]
     for (const p of this.all) {
@@ -57,6 +59,10 @@ export class VaultIndex {
 
   pageIdOf(notePath: string): string | undefined {
     return this.pageIds.get(notePath)
+  }
+
+  folderPageIdOf(folder: string): string | undefined {
+    return this.folderIds.get(folder)
   }
 
   /** Exact path, else a case-insensitive match. */
@@ -92,7 +98,7 @@ export class VaultIndex {
 }
 
 export interface LinkContext {
-  flavor: 'markdown' | 'obsidian'
+  flavor: Flavor
   notePath: string
   index: VaultIndex
   /** Names already used in this page's `_media/`. */
@@ -122,15 +128,25 @@ function encodeDest(url: string): string {
 /** Resolves a local link destination to a file of the source. Tries the path
  *  as written and percent-decoded, relative to the note, then to the root;
  *  the Obsidian flavor finally looks the name up like a wikilink. */
-function resolvePath(raw: string, ctx: LinkContext): string | null {
+function variantsOf(raw: string): string[] {
   const variants = [raw]
   const decoded = decode(raw)
   if (decoded !== null && decoded !== raw) variants.push(decoded)
+  return variants
+}
+
+/** The normalised paths a local destination may mean: relative to the note,
+ *  then to the root (root-relative `/x` only to the root). */
+function candidatePaths(v: string, dir: string): string[] {
+  const tries = v.startsWith('/') ? [v] : [dir ? `${dir}/${v}` : v, v]
+  return tries.map(normalizePath).filter((p): p is string => p !== null)
+}
+
+function resolvePath(raw: string, ctx: LinkContext): string | null {
+  const variants = variantsOf(raw)
   const dir = dirOf(ctx.notePath)
   for (const v of variants) {
-    const tries = v.startsWith('/') ? [v] : [dir ? `${dir}/${v}` : v, v]
-    for (const t of tries) {
-      const p = normalizePath(t)
+    for (const p of candidatePaths(v, dir)) {
       const hit = p ? ctx.index.find(p) : null
       if (hit) return hit
     }
@@ -143,6 +159,18 @@ function resolvePath(raw: string, ctx: LinkContext): string | null {
         if (hit.ambiguous) ctx.ambiguous.push({ target: v, chosen: hit.path })
         return hit.path
       }
+    }
+  }
+  return null
+}
+
+/** Resolves a link to a folder (`docs/`, `docs`) to its folder page's id. */
+function resolveFolder(raw: string, ctx: LinkContext): string | null {
+  const dir = dirOf(ctx.notePath)
+  for (const v of variantsOf(raw)) {
+    for (const p of candidatePaths(v, dir)) {
+      const id = p ? ctx.index.folderPageIdOf(p) : undefined
+      if (id) return id
     }
   }
   return null
@@ -163,16 +191,20 @@ function rewrite(url: string, isImage: boolean, ctx: LinkContext): string | null
   const hash = url.indexOf('#')
   const pathPart = (hash < 0 ? url : url.slice(0, hash)).split('?')[0]
   if (!pathPart) return null
+  // The query means nothing inside the wiki; the anchor is kept.
+  const dest = encodeDest(pathPart + (hash < 0 ? '' : url.slice(hash)))
   const target = resolvePath(pathPart, ctx)
   if (!target) {
+    const folderId = isImage ? null : resolveFolder(pathPart, ctx)
+    if (folderId) return `source:${folderId}|${dest}`
     const shown = decode(pathPart) ?? pathPart
-    if (/\.md$/i.test(shown)) ctx.unresolved.push(shown)
+    if (isNoteName(shown, ctx.flavor)) ctx.unresolved.push(shown)
     else if (isImage || extOf(shown)) ctx.missing.push(shown)
     return null
   }
   if (ctx.index.isNote(target)) {
     if (isImage) return null
-    return `source:${ctx.index.pageIdOf(target)}|${encodeDest(url)}`
+    return `source:${ctx.index.pageIdOf(target)}|${dest}`
   }
   return `_media/${mediaName(target, ctx)}`
 }

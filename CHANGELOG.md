@@ -16,6 +16,10 @@ with a new major version.
   New route `POST /api/spaces/:space/import/file`; new optional setting
   `F451_IMPORT_MAX_UPLOAD_MB` (default 200). See
   [docs/import-export.md](docs/import-export.md).
+- File import: `f451-import html` and the format "HTML folder" in the import
+  panel import a folder or ZIP of HTML files (#92). Content comes from
+  `<main>`, `<article>` or `<body>`; relative links and media are resolved,
+  nothing is fetched. Notion moved to its own enhancement (#165).
 
 ### Fixed
 - A wikilink with an alias inside a table cell is written `[[id\|text]]`, so

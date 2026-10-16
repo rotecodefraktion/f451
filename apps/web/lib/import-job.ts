@@ -125,7 +125,7 @@ export function exceedsUploadLimit(bytes: number, maxUploadMb: number): boolean 
   return bytes > maxUploadMb * 1024 * 1024
 }
 
-export type FileFormat = 'markdown' | 'obsidian'
+export type FileFormat = 'markdown' | 'obsidian' | 'html'
 
 export interface FileImportOptions {
   format: FileFormat

@@ -2,8 +2,8 @@ import { parseArgs as nodeParseArgs } from 'node:util'
 
 export interface ParsedArgs {
   command: 'import' | 'export'
-  source: 'bookstack' | 'markdown' | 'obsidian'
-  /** Folder or `.zip` for the `markdown` and `obsidian` sources. */
+  source: 'bookstack' | 'markdown' | 'obsidian' | 'html'
+  /** Folder or `.zip` for the `markdown`, `obsidian` and `html` sources. */
   path?: string
   book?: string
   shelf?: string
@@ -19,6 +19,7 @@ export interface ParsedArgs {
 export const USAGE = `Usage: f451-import bookstack (--book <id|slug> | --shelf <id|slug> | --page <id>) --space <space> [options]
        f451-import markdown <dir|zip> --space <space> [options]
        f451-import obsidian <dir|zip> --space <space> [options]
+       f451-import html <dir|zip> --space <space> [options]
 
 A path ending in .zip is read as an archive, anything else as a folder.
 
@@ -38,7 +39,7 @@ Export options:
   --out <dir>         directory for the report (default: .)
 
 Environment: F451_URL, F451_TOKEN, BOOKSTACK_URL, BOOKSTACK_TOKEN_ID, BOOKSTACK_TOKEN_SECRET
-             (markdown and obsidian need only F451_URL and F451_TOKEN)
+             (markdown, obsidian and html need only F451_URL and F451_TOKEN)
 `
 
 export class UsageError extends Error {
@@ -79,7 +80,7 @@ function parseExport(
 }
 
 function parseFileImport(
-  source: 'markdown' | 'obsidian',
+  source: 'markdown' | 'obsidian' | 'html',
   values: Record<string, string | boolean | undefined>,
   positionals: string[],
 ): ParsedArgs {
@@ -132,7 +133,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
 
   const command = positionals[0]
   if (command === 'export') return parseExport(values, positionals)
-  if (command === 'markdown' || command === 'obsidian') return parseFileImport(command, values, positionals)
+  if (command === 'markdown' || command === 'obsidian' || command === 'html') return parseFileImport(command, values, positionals)
   if (command !== 'bookstack') {
     throw new UsageError(command ? `unknown command: ${command}` : 'missing command')
   }
