@@ -61,6 +61,9 @@ importers:
       pg:
         specifier: ^8.22.0
         version: 8.22.0
+      undici:
+        specifier: ^7.0.0
+        version: 7.28.0
       yaml:
         specifier: ^2.6.0
         version: 2.9.0
@@ -89,9 +92,6 @@ importers:
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
-      undici:
-        specifier: ^7.0.0
-        version: 7.28.0
       vitest:
         specifier: ^3.0.0
         version: 3.2.7(@types/debug@4.1.13)(@types/node@22.20.1)(tsx@4.23.0)(yaml@2.9.0)

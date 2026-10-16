@@ -32,6 +32,8 @@ import { registerReviewRoutes } from './routes/reviews.js'
 import { registerBrokenLinksRoutes } from './routes/broken-links.js'
 import { registerCreatePageRoute } from './routes/create-page.js'
 import { DEFAULT_IMPORT_MAX_UPLOAD_MB, registerImportJobRoutes } from './routes/import-jobs.js'
+import { registerExportOfficeRoutes } from './routes/export-office.js'
+import { longTimeoutFetch } from './export/office.js'
 import { JobRegistry } from './import/jobs.js'
 import { injectFetch, type BookStackFactory } from './import/run.js'
 import { TempFiles } from './import/temp-files.js'
@@ -177,7 +179,7 @@ export interface AppOptions {
   /** Office import (#88): base URL of the convert service (`F451_CONVERT_URL`,
    *  read in `server.ts`). Unset → Office formats are off. */
   convertUrl?: string
-  /** Test hook: replaces the HTTP converter built from `convertUrl`; setting it turns Office import on. */
+  /** Test hook: replaces the HTTP converters built from `convertUrl`; setting it turns Office import and export on. */
   importConverter?: Converter
 }
 
@@ -931,6 +933,13 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
         providerRegistry: opts.providerRegistry,
         globalTemplates: opts.globalTemplates,
       })
+      // Convert service (#88): one client for the import and the instant
+      // export; the export job gets one with long timeouts. The test hook
+      // replaces both.
+      const converter = opts.importConverter ?? (opts.convertUrl ? httpConverter(opts.convertUrl) : null)
+      const jobConverter =
+        opts.importConverter ?? (opts.convertUrl ? httpConverter(opts.convertUrl, longTimeoutFetch()) : null)
+      const selfFetch = injectFetch(app)
       // Import/export jobs from the web UI (#128): same gate as page creation
       // (`resolveNewPageWriteContext`); the jobs write through this app's own
       // routes with a short-lived PAT of the user.
@@ -945,9 +954,21 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
         tempFiles: importTempFiles,
         jobs,
         publicBaseUrl: opts.publicBaseUrl ?? '',
-        selfFetch: injectFetch(app),
+        selfFetch,
         bookstack: opts.importBookstack ?? ((url, tokenId, tokenSecret) => new BookStackClient(url, tokenId, tokenSecret)),
-        converter: opts.importConverter ?? (opts.convertUrl ? httpConverter(opts.convertUrl) : null),
+        converter,
+      })
+      // Office export (spec 2026-10-16-office-export): instant download, job
+      // and its result file; read access is enough. Shares the job registry.
+      registerExportOfficeRoutes(app, {
+        db,
+        spaces: opts.spaces,
+        access,
+        jobs,
+        publicBaseUrl: opts.publicBaseUrl ?? '',
+        selfFetch,
+        converter,
+        jobConverter,
       })
       // Seite verschieben/umbenennen (Phase 3.2, `POST /api/pages/:id/move`)
       // teilt sich dieselbe Gate-Basis (`resolveWriteContext`, `routes/drafts.ts`).

@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { rm } from 'node:fs/promises'
 
 /**
  * In-memory registry for import and export jobs started from the web UI.
@@ -9,7 +10,7 @@ import { randomUUID } from 'node:crypto'
  * the user sees it while the job is kept.
  */
 
-export type JobKind = 'import-bookstack' | 'import-file' | 'export-bookstack'
+export type JobKind = 'import-bookstack' | 'import-file' | 'export-bookstack' | 'export-file'
 export type JobStatus = 'running' | 'done' | 'failed' | 'cancelled'
 /** `link`: where `pageId` can be opened now — the published page or its open review. */
 export interface JobEvent { status: string; title: string; pageId?: string; reason?: string; link?: 'page' | 'review' }
@@ -22,7 +23,11 @@ export interface JobView {
   phase: string | null
 }
 export interface JobProgress { start(total: number): void; page(e: JobEvent): void; phase(name: string): void }
-export interface JobResult { report: string; counts: Record<string, number> }
+/** A result file of a job (Office export): a temp file the registry owns from
+ *  settlement on and removes after `fileKeepMs`, on shutdown, or right away
+ *  when the job did not end as `done`. */
+export interface JobFile { path: string; name: string; contentType: string }
+export interface JobResult { report: string; counts: Record<string, number>; file?: JobFile }
 /** `id` is the job's own id (used e.g. to label the job token). */
 export type JobRun = (signal: AbortSignal, progress: JobProgress, id: string) => Promise<JobResult>
 export type StartResult =
@@ -33,6 +38,12 @@ export type StartResult =
 const MAX_EVENTS = 200
 const DEFAULT_MAX_RUNNING = 3
 const DEFAULT_KEEP_MS = 24 * 60 * 60 * 1000
+const DEFAULT_FILE_KEEP_MS = 60 * 60 * 1000
+
+/** Never throws: a leftover temp file must not fail anything. */
+async function removeFile(path: string): Promise<void> {
+  await rm(path, { force: true }).catch(() => undefined)
+}
 
 interface Job {
   id: string
@@ -51,18 +62,27 @@ interface Job {
   controller: AbortController
   /** Resolves once the run has settled and the record is updated; never rejects. */
   settled: Promise<void>
+  /** Result file of a `done` job until it expires. */
+  file: JobFile | null
+  fileTimer: ReturnType<typeof setTimeout> | null
 }
 
 export class JobRegistry {
   private readonly jobs = new Map<string, Job>()
   private readonly maxRunning: number
   private readonly keepMs: number
+  private readonly fileKeepMs: number
   private readonly now: () => number
   private readonly newId: () => string
+  /** Set by `shutdown()`: a run that settles afterwards loses its file at once. */
+  private closed = false
 
-  constructor(opts: { maxRunning?: number; keepMs?: number; now?: () => number; newId?: () => string } = {}) {
+  constructor(
+    opts: { maxRunning?: number; keepMs?: number; fileKeepMs?: number; now?: () => number; newId?: () => string } = {},
+  ) {
     this.maxRunning = opts.maxRunning ?? DEFAULT_MAX_RUNNING
     this.keepMs = opts.keepMs ?? DEFAULT_KEEP_MS
+    this.fileKeepMs = opts.fileKeepMs ?? DEFAULT_FILE_KEEP_MS
     this.now = opts.now ?? Date.now
     this.newId = opts.newId ?? randomUUID
   }
@@ -93,6 +113,8 @@ export class JobRegistry {
       phase: null,
       controller: new AbortController(),
       settled: Promise.resolve(),
+      file: null,
+      fileTimer: null,
     }
     this.jobs.set(job.id, job)
 
@@ -121,11 +143,20 @@ export class JobRegistry {
     // Not awaited: the job runs in the background, its settlement updates the record.
     // Kept so that shutdown() can wait for it.
     job.settled = promise.then(
-      (result) => {
+      async (result) => {
         job.status = signal.aborted ? 'cancelled' : 'done'
         job.report = result.report
         job.counts = { ...result.counts }
         job.finishedAt = this.now()
+        if (result.file) {
+          if (job.status === 'done' && !this.closed) {
+            job.file = { ...result.file }
+            job.fileTimer = setTimeout(() => void this.dropFile(job), this.fileKeepMs)
+            job.fileTimer.unref?.()
+          } else {
+            await removeFile(result.file.path)
+          }
+        }
       },
       (e: unknown) => {
         job.status = 'failed'
@@ -161,34 +192,59 @@ export class JobRegistry {
     }
   }
 
+  /** The result file of a `done` job of this user; null otherwise (unknown,
+   *  another user's, not done, no file, or the file has expired). */
+  file(userId: string, id: string): JobFile | null {
+    this.prune()
+    const job = this.jobs.get(id)
+    if (!job || job.userId !== userId || job.status !== 'done' || !job.file) return null
+    return { ...job.file }
+  }
+
   /**
    * App shutdown: abort every running job and wait until their runs have settled
    * (so their `finally` blocks, e.g. revoking the job token, still reach the
-   * database), but no longer than `timeoutMs`.
+   * database), but no longer than `timeoutMs`. Then removes every result file;
+   * a run that settles later removes its own file (`closed`).
    */
   async shutdown(timeoutMs = 5000): Promise<void> {
+    this.closed = true
     const pending: Promise<void>[] = []
     for (const job of this.jobs.values()) {
       if (job.status !== 'running') continue
       job.controller.abort()
       pending.push(job.settled)
     }
-    if (pending.length === 0) return
-    let timer: ReturnType<typeof setTimeout> | undefined
-    const timeout = new Promise<void>((resolve) => {
-      timer = setTimeout(resolve, timeoutMs)
-    })
-    try {
-      await Promise.race([Promise.all(pending).then(() => undefined), timeout])
-    } finally {
-      clearTimeout(timer)
+    if (pending.length > 0) {
+      let timer: ReturnType<typeof setTimeout> | undefined
+      const timeout = new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, timeoutMs)
+      })
+      try {
+        await Promise.race([Promise.all(pending).then(() => undefined), timeout])
+      } finally {
+        clearTimeout(timer)
+      }
     }
+    await Promise.all([...this.jobs.values()].map((job) => this.dropFile(job)))
+  }
+
+  /** Removes the job's result file, if it still has one. */
+  private async dropFile(job: Job): Promise<void> {
+    if (job.fileTimer) clearTimeout(job.fileTimer)
+    job.fileTimer = null
+    const file = job.file
+    job.file = null
+    if (file) await removeFile(file.path)
   }
 
   private prune(): void {
     const now = this.now()
     for (const [id, job] of this.jobs) {
-      if (job.finishedAt !== null && now - job.finishedAt >= this.keepMs) this.jobs.delete(id)
+      if (job.finishedAt === null) continue
+      // Normally the timer has done this already; covers an injected clock.
+      if (job.file && now - job.finishedAt >= this.fileKeepMs) void this.dropFile(job)
+      if (now - job.finishedAt >= this.keepMs) this.jobs.delete(id)
     }
   }
 }

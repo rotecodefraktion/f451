@@ -1,8 +1,13 @@
+import { randomUUID } from 'node:crypto'
+import { rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import {
   BookStackClient,
   F451Api,
+  exportOffice,
   exportToBookStack,
   importTree,
   loadBookStackTree,
@@ -20,6 +25,7 @@ import {
 import { generateApiToken, generateSessionId, hashApiToken } from '../auth/crypto.js'
 import type { Db } from '../db/client.js'
 import { apiTokens } from '../db/schema.js'
+import { OFFICE_CONTENT_TYPES, renderOfficeExportReport, type OfficeFormat } from '../export/office.js'
 import type { JobEvent, JobProgress, JobResult, JobRun } from './jobs.js'
 
 /**
@@ -87,6 +93,23 @@ export interface ExportParams extends RunCommon {
   pageId?: string
   bookId?: number
 }
+
+/** Office export of a page (and its subpages) to a temp file (spec 2026-10-16-office-export §4). */
+export interface ExportFileParams {
+  userId: string
+  space: string
+  pageId: string
+  subpages: boolean
+  format: OfficeFormat
+}
+
+export interface ExportFileDeps extends Pick<RunDeps, 'db' | 'selfFetch' | 'publicBaseUrl'> {
+  /** Convert client whose `fetch` outlasts the job's conversion timeout. */
+  converter: Converter
+}
+
+/** Per-conversion timeout the job passes to the convert service. */
+export const EXPORT_JOB_TIMEOUT_S = 600
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const MAX_MEDIA_BYTES = 10 * 1024 * 1024
@@ -319,5 +342,52 @@ export function exportRun(deps: RunDeps, p: ExportParams): JobRun {
         },
       }
     })
+  }
+}
+
+const EXPORT_CANCELLED: JobResult = { report: '# Export report\n\nCancelled.\n', counts: { cancelled: 0 } }
+
+/**
+ * Background Office export: no page limit, the long conversion timeout, the
+ * result written to `os.tmpdir()/f451-export-<uuid>.<ext>`. The registry owns
+ * the file from settlement on. A cancel stops before the conversion; one that
+ * arrives during the conversion still leaves no file behind.
+ */
+export function exportFileRun(deps: ExportFileDeps, p: ExportFileParams): JobRun {
+  return async (signal, progress, jobId): Promise<JobResult> => {
+    progress.phase('exporting')
+    let out: Awaited<ReturnType<typeof exportOffice>>
+    try {
+      out = await withJobToken(deps.db, p.userId, 'read', jobId, (token) =>
+        exportOffice(new F451Api('http://internal', token, deps.selfFetch), deps.converter, {
+          space: p.space,
+          pageId: p.pageId,
+          subpages: p.subpages,
+          format: p.format,
+          publicBaseUrl: deps.publicBaseUrl,
+          timeoutS: EXPORT_JOB_TIMEOUT_S,
+          signal,
+        }),
+      )
+    } catch (err) {
+      // exportOffice throws the abort reason when cancelled between pages or
+      // before the conversion; the registry marks the job `cancelled`.
+      if (signal.aborted) return EXPORT_CANCELLED
+      throw err
+    }
+    if (signal.aborted) return EXPORT_CANCELLED
+
+    const path = join(tmpdir(), `f451-export-${randomUUID()}.${p.format}`)
+    try {
+      await writeFile(path, out.file)
+    } catch (err) {
+      await rm(path, { force: true }).catch(() => undefined)
+      throw err
+    }
+    return {
+      report: renderOfficeExportReport(out.fileName, out.report),
+      counts: { pages: out.report.pages },
+      file: { path, name: out.fileName, contentType: OFFICE_CONTENT_TYPES[p.format] },
+    }
   }
 }
