@@ -28,6 +28,13 @@ with a new major version.
   service reads `CONVERT_QUEUE`, `CONVERT_TIMEOUT_S`, `CONVERT_MAX_TIMEOUT_S`
   and `CONVERT_MAX_MB`. `GET /api/import/instances` reports
   `fileImport.office`. See [docs/import-export.md](docs/import-export.md).
+- Office export: a page, or a page with its subpages, as Word, PowerPoint, Excel
+  or PDF (#88). Button "Export as …" in the page view (instant download, up to
+  200 pages), target "File" in the import/export panel (background job, no page
+  limit), `f451-import export office` and the MCP tool `export_page`. New routes
+  `GET /api/pages/:id/export`, `POST /api/spaces/:space/export/file` and
+  `GET /api/jobs/:id/file`; uses the convert service of the Office import. See
+  [docs/import-export.md](docs/import-export.md).
 
 ### Fixed
 - A wikilink with an alias inside a table cell is written `[[id\|text]]`, so

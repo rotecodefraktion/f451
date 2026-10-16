@@ -131,6 +131,35 @@ describe('parseArgs', () => {
     expect(() => parseArgs(['office', '--space', 's'])).toThrow(UsageError)
   })
 
+  it('parses an office export', () => {
+    expect(parseArgs(['export', 'office', '--space', 's', '--page', 'p1', '--format', 'docx'])).toEqual({
+      command: 'export',
+      source: 'office',
+      space: 's',
+      page: 'p1',
+      format: 'docx',
+      subpages: false,
+      update: false,
+      release: false,
+      dryRun: false,
+    })
+    expect(
+      parseArgs(['export', 'office', '--space', 's', '--page', 'p1', '--format', 'pdf', '--subpages', '--out', 'x.pdf']),
+    ).toMatchObject({ format: 'pdf', subpages: true, out: 'x.pdf' })
+  })
+
+  it('rejects invalid office exports', () => {
+    expect(() => parseArgs(['export', 'office', '--page', 'p1', '--format', 'docx'])).toThrow(UsageError)
+    expect(() => parseArgs(['export', 'office', '--space', 's', '--format', 'docx'])).toThrow(UsageError)
+    expect(() => parseArgs(['export', 'office', '--space', 's', '--page', 'p1'])).toThrow(UsageError)
+    expect(() => parseArgs(['export', 'office', '--space', 's', '--page', 'p1', '--format', 'odt'])).toThrow(UsageError)
+    expect(() => parseArgs(['export', 'office', '--space', 's', '--page', 'p1', '--format', 'pdf', '--dry-run'])).toThrow(
+      UsageError,
+    )
+    expect(() => parseArgs(['export', 'bookstack', '--space', 's', '--format', 'pdf'])).toThrow(UsageError)
+    expect(() => parseArgs(['markdown', 'd', '--space', 's', '--subpages'])).toThrow(UsageError)
+  })
+
   it('ignores the separator pnpm passes through', () => {
     expect(parseArgs(['--', 'bookstack', '--book', '7', '--space', 's']).book).toBe('7')
   })

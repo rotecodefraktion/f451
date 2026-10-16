@@ -387,6 +387,65 @@ ZIP archives; they pass the same entry, ratio and size checks as an uploaded ZIP
 before LibreOffice sees them. Settings and memory: see
 [deploy/BETRIEB.md](../deploy/BETRIEB.md).
 
+## Office export
+
+Exports a page, or a page with all its subpages as **one** document, as Word
+(`docx`), PowerPoint (`pptx`), Excel (`xlsx`) or PDF (`pdf`). The same convert
+service as for the Office import does the conversion; without `F451_CONVERT_URL`
+the entries are hidden and the routes answer `400` ("export not configured").
+Only the **published** version is exported, never drafts or open reviews. Read
+access to the space is enough; without access the answer is `404`.
+
+### Formats
+
+- **Word and PDF:** the page title is a heading; with subpages the headings shift
+  by the depth below the start page (capped at heading 6). Tables, code blocks,
+  lists and images are kept; footnotes become real footnotes. A GFM alert becomes
+  a bordered one-cell table. Links to pages inside the export are links within the
+  document, links to other wiki pages are absolute URLs. Attachments other than
+  images are links, not embedded.
+- **PowerPoint:** the start page is the title slide, every `##` section one slide;
+  each subpage starts with a section slide. The block `> [!NOTE]` with the first
+  paragraph **Speaker notes** becomes the speaker notes. Content that does not fit
+  on a slide overflows; the report counts slides with more than 12 lines.
+- **Excel:** every GFM table becomes one sheet (named after the nearest heading,
+  cut to 31 characters). Numbers, percentages and ISO dates become typed cells;
+  anything that only looks like a number (`1.2.3`, `0049 170 1234567`) stays text.
+  Without a table the answer is `422` ("no tables to export").
+
+### Triggers
+
+- **Page view:** the button "Export as …" opens a dialog with the format and
+  "with subpages"; the download starts at once
+  (`GET /api/pages/:id/export?format=docx|pptx|xlsx|pdf&subpages=0|1`).
+- **Import/export panel:** the export target "File" runs a background job
+  (`POST /api/spaces/:space/export/file` with `{ pageId, format, subpages }`),
+  shows progress and, when done, a download link
+  (`GET /api/jobs/:id/file`, only for the user who started the job). The file is
+  deleted after one hour or on shutdown.
+- **Command line:**
+
+  ```
+  f451-import export office --space <space> --page <pageId> --format <docx|pptx|xlsx|pdf> [--subpages] [--out <file>]
+  ```
+
+  Needs `F451_URL` and `F451_TOKEN`; the file name comes from the response unless
+  `--out` is given.
+- **MCP:** the tool `export_page` (`page_id`, `format`, `subpages`) returns the
+  file as an embedded resource (Base64) up to 20 MB.
+
+### Limits
+
+The instant download stops at 200 pages (`413`) and after 2 minutes (`504`); both
+answers point to the panel export, which has no page limit (the convert service's
+own timeout still applies, 10 minutes per conversion).
+
+### What is not exported
+
+Drafts, whole spaces (only the subpages of a start page), Mermaid diagrams (they
+stay code blocks), templates, a title page and a table of contents. The look is
+LibreOffice's default.
+
 ## From the web UI
 
 Signed-in users can run the BookStack import and export from the space sidebar

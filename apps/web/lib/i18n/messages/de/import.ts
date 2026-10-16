@@ -10,7 +10,7 @@
 export const importMessages = {
   pageTitle: 'Import und Export',
   intro:
-    'Übernimmt einen Markdown-Ordner, einen Obsidian-Vault, einen HTML-Ordner, Word-, PowerPoint- und Excel-Dateien oder Inhalte aus BookStack in diesen Space oder schreibt Seiten des Space nach BookStack. Der Lauf geht im Hintergrund weiter, auch wenn diese Seite geschlossen wird.',
+    'Übernimmt einen Markdown-Ordner, einen Obsidian-Vault, einen HTML-Ordner, Word-, PowerPoint- und Excel-Dateien oder Inhalte aus BookStack in diesen Space oder gibt Seiten des Space nach BookStack oder als Word-, PowerPoint-, Excel- oder PDF-Datei aus. Der Lauf geht im Hintergrund weiter, auch wenn diese Seite geschlossen wird.',
   tabsLabel: 'Richtung',
   tabs: {
     import: 'Import',
@@ -59,6 +59,33 @@ export const importMessages = {
   startPageIdHint: 'Leer lassen, um den ganzen Space zu exportieren.',
   bookId: 'In bestehendes Buch (ID, optional)',
   bookIdHint: 'Leer lassen, um ein neues Buch anzulegen.',
+  exportTargetLabel: 'Ziel',
+  exportTargets: {
+    bookstack: 'BookStack',
+    file: 'Datei',
+  },
+  exportFormatLabel: 'Dateiformat',
+  exportFormats: {
+    docx: 'Word (.docx)',
+    pptx: 'PowerPoint (.pptx)',
+    xlsx: 'Excel (.xlsx)',
+    pdf: 'PDF (.pdf)',
+  },
+  exportFileStartPage: 'Seite (ID)',
+  exportFileStartPageHint: 'Die Seite, die exportiert wird. Ihre ID steht im Frontmatter oder in der Adresse der Seite.',
+  exportSubpages: 'Mit Unterseiten',
+  downloadFile: 'Datei herunterladen',
+  /** Export dialog in the page view (`components/export-dialog.tsx`). */
+  exportDialog: {
+    menu: 'Exportieren als …',
+    heading: 'Seite exportieren',
+    format: 'Dateiformat',
+    subpages: 'mit Unterseiten',
+    download: 'Herunterladen',
+    close: 'Schließen',
+    largeHint: 'Große Äste mit vielen Seiten lassen sich im Import-/Export-Bereich als Hintergrundlauf exportieren.',
+    panelLink: 'Zum Import-/Export-Bereich',
+  },
   start: 'Starten',
   starting: 'Startet …',
   running: 'Läuft …',
@@ -97,6 +124,7 @@ export const importMessages = {
     missingFields: 'Bitte Instanz, Token-ID, Token-Secret und eine Quelle angeben.',
     invalidNumber: 'Bitte eine ganze Zahl angeben.',
     missingFile: 'Bitte ein ZIP-Archiv auswählen.',
+    missingStartPage: 'Bitte die ID der Seite angeben, die exportiert werden soll.',
     tooLarge: 'Die Datei ist größer als die erlaubten {max} MB.',
     badArchive: 'Das Archiv wurde abgelehnt.',
     catalogFailed: 'Die Bücher konnten nicht geladen werden.',

@@ -16,6 +16,7 @@
  */
 import { useEffect, useId, useState, type FormEvent } from 'react'
 import {
+  EXPORT_FORMATS,
   eventHref,
   exceedsUploadLimit,
   fileAccept,
@@ -25,6 +26,7 @@ import {
   progressPercent,
   reportFileName,
   storageKey,
+  type ExportFormat,
   type FileFormat,
   type JobView,
   type PanelState,
@@ -35,8 +37,10 @@ import { waitingReviews } from '../lib/reviews-state'
 import {
   apiImportCatalogPath,
   apiJobCancelPath,
+  apiJobFilePath,
   apiJobPath,
   apiSpaceExportPath,
+  apiSpaceFileExportPath,
   apiSpaceFileImportPath,
   apiSpaceImportPath,
   wikiReviewsHref,
@@ -46,6 +50,7 @@ const POLL_MS = 1000
 
 type Tab = 'import' | 'export'
 type Origin = 'bookstack' | 'file'
+type ExportTarget = 'bookstack' | 'file'
 type SourceKind = 'book' | 'shelf' | 'page'
 
 interface Catalog {
@@ -164,6 +169,9 @@ export function ImportPanel({ space, instances, maxUploadMb, office }: ImportPan
   const [dryRun, setDryRun] = useState(false)
   const [startPageId, setStartPageId] = useState('')
   const [bookId, setBookId] = useState('')
+  const [exportTarget, setExportTarget] = useState<ExportTarget>(hasBookstack ? 'bookstack' : 'file')
+  const [exportFormat, setExportFormat] = useState<ExportFormat>('docx')
+  const [exportSubpages, setExportSubpages] = useState(false)
 
   const [starting, setStarting] = useState(false)
   const [cancelling, setCancelling] = useState(false)
@@ -262,6 +270,7 @@ export function ImportPanel({ space, instances, maxUploadMb, office }: ImportPan
   }
 
   const isFileImport = tab === 'import' && origin === 'file' && hasFile
+  const isFileExport = tab === 'export' && exportTarget === 'file' && office
 
   function switchOrigin(next: Origin) {
     setOrigin(next)
@@ -282,7 +291,15 @@ export function ImportPanel({ space, instances, maxUploadMb, office }: ImportPan
     event.preventDefault()
     setNotice(null)
     let request: () => Promise<CallResult>
-    if (isFileImport) {
+    if (isFileExport) {
+      const page = startPageId.trim()
+      if (!page) {
+        setNotice({ tone: 'error', text: t('import.errors.missingStartPage') })
+        return
+      }
+      const payload = { pageId: page, format: exportFormat, subpages: exportSubpages }
+      request = () => postJson(apiSpaceFileExportPath(space), payload)
+    } else if (isFileImport) {
       const built = buildFileForm()
       if ('error' in built) {
         setNotice({ tone: 'error', text: built.error })
@@ -450,6 +467,11 @@ export function ImportPanel({ space, instances, maxUploadMb, office }: ImportPan
           </>
         )}
         <div className="btn-row">
+          {view.kind === 'export-file' && view.status === 'done' && (
+            <a className="btn primary" href={apiJobFilePath(view.id)} download>
+              {t('import.downloadFile')}
+            </a>
+          )}
           {view.report !== null && (
             <button type="button" className="btn" onClick={() => downloadReport(view)}>
               {t('import.download')}
@@ -465,7 +487,7 @@ export function ImportPanel({ space, instances, maxUploadMb, office }: ImportPan
 
   return (
     <form className="import-panel" onSubmit={onStart} noValidate>
-      {hasBookstack && (
+      {(hasBookstack || office) && (
         <div className="segmented import-tabs" role="group" aria-label={t('import.tabsLabel')}>
           <button type="button" aria-pressed={tab === 'import'} onClick={() => setTab('import')}>
             {t('import.tabs.import')}
@@ -486,7 +508,18 @@ export function ImportPanel({ space, instances, maxUploadMb, office }: ImportPan
         </div>
       )}
 
-      {!isFileImport && (
+      {tab === 'export' && hasBookstack && office && (
+        <div className="segmented import-tabs" role="group" aria-label={t('import.exportTargetLabel')}>
+          <button type="button" aria-pressed={exportTarget === 'bookstack'} onClick={() => setExportTarget('bookstack')}>
+            {t('import.exportTargets.bookstack')}
+          </button>
+          <button type="button" aria-pressed={exportTarget === 'file'} onClick={() => setExportTarget('file')}>
+            {t('import.exportTargets.file')}
+          </button>
+        </div>
+      )}
+
+      {!isFileImport && !isFileExport && (
         <>
           <div className="field">
             <label className="label" htmlFor={id('instance')}>
@@ -673,6 +706,49 @@ export function ImportPanel({ space, instances, maxUploadMb, office }: ImportPan
             <span>{t('import.release')}</span>
           </label>
         </>
+      ) : isFileExport ? (
+        <>
+          <div className="field">
+            <label className="label" htmlFor={id('export-page')}>
+              {t('import.exportFileStartPage')}
+            </label>
+            <input
+              id={id('export-page')}
+              className="input"
+              autoComplete="off"
+              spellCheck={false}
+              value={startPageId}
+              onChange={(e) => setStartPageId(e.target.value)}
+            />
+            <span className="hint">{t('import.exportFileStartPageHint')}</span>
+          </div>
+          <div className="field">
+            <label className="label" htmlFor={id('export-format')}>
+              {t('import.exportFormatLabel')}
+            </label>
+            <div className="selectwrap">
+              <select
+                id={id('export-format')}
+                className="select"
+                value={exportFormat}
+                onChange={(e) => setExportFormat(e.target.value as ExportFormat)}
+              >
+                {EXPORT_FORMATS.map((f) => (
+                  <option key={f} value={f}>
+                    {t(`import.exportFormats.${f}`)}
+                  </option>
+                ))}
+              </select>
+              <span className="caret" aria-hidden="true">
+                ▾
+              </span>
+            </div>
+          </div>
+          <label className="check">
+            <input type="checkbox" checked={exportSubpages} onChange={(e) => setExportSubpages(e.target.checked)} />
+            <span>{t('import.exportSubpages')}</span>
+          </label>
+        </>
       ) : (
         <>
           <div className="field">
@@ -705,10 +781,12 @@ export function ImportPanel({ space, instances, maxUploadMb, office }: ImportPan
           </div>
         </>
       )}
-      <label className="check">
-        <input type="checkbox" checked={dryRun} onChange={(e) => setDryRun(e.target.checked)} />
-        <span>{t('import.dryRun')}</span>
-      </label>
+      {!isFileExport && (
+        <label className="check">
+          <input type="checkbox" checked={dryRun} onChange={(e) => setDryRun(e.target.checked)} />
+          <span>{t('import.dryRun')}</span>
+        </label>
+      )}
 
       {noticeBlock}
       <div className="btn-row">

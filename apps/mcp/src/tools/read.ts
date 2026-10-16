@@ -11,7 +11,32 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import { tokenFromExtra } from '../auth.js'
-import { apiRequest, F451Error } from '../client.js'
+import { apiRequest, F451Error, type BinaryResponse } from '../client.js'
+
+const EXPORT_FORMATS = ['docx', 'pptx', 'xlsx', 'pdf'] as const
+
+/** Größte Datei, die `export_page` als eingebettete Ressource zurückgibt. */
+export const MAX_EXPORT_BYTES = 20 * 1024 * 1024
+
+/** Dateiname aus `Content-Disposition` (`filename*` UTF-8 vor `filename`), ohne Verzeichnisanteil. */
+export function fileNameFromDisposition(header: string | null): string | null {
+  if (!header) return null
+  let name: string | null = null
+  const star = /filename\*\s*=\s*UTF-8''([^;]+)/i.exec(header)
+  if (star) {
+    try {
+      name = decodeURIComponent(star[1]!.trim())
+    } catch {
+      name = null
+    }
+  }
+  if (name === null) {
+    const plain = /filename\s*=\s*"((?:[^"\\]|\\.)*)"/i.exec(header) ?? /filename\s*=\s*([^;]+)/i.exec(header)
+    if (plain) name = plain[1]!.replace(/\\(.)/g, '$1').trim()
+  }
+  const base = name?.split(/[\\/]/).pop()
+  return base ? base : null
+}
 
 /** MCP-Rückgabeform für Erfolg: JSON lesbar eingerückt als Text-Content. */
 function ok(data: unknown) {
@@ -166,6 +191,54 @@ export function registerReadTools(server: McpServer): void {
           ? apiRequest(token, `/api/pages/${encodeURIComponent(id)}/graph`, { query: { depth, types } })
           : apiRequest(token, `/api/spaces/${encodeURIComponent(space!)}/graph`, { query: { types } })
       }),
+  )
+
+  server.registerTool(
+    'export_page',
+    {
+      title: 'Seite als Office-Datei exportieren',
+      description:
+        'Exportiert die veröffentlichte Fassung einer Seite (optional samt Unterseiten) als Word (docx), PowerPoint (pptx), ' +
+        'Excel (xlsx) oder PDF und liefert die Datei als eingebettete Ressource (Base64, bis 20 MB). ' +
+        'Entwürfe fließen nie ein. xlsx enthält nur Tabellen (keine Tabelle → Fehler). ' +
+        'Bei sehr vielen Seiten oder langer Laufzeit antwortet die API mit einem Fehler; dann muss der Nutzer den ' +
+        'Export im Import-/Export-Bereich von f451 im Browser starten. Ohne eingerichteten Convert-Dienst nicht verfügbar.',
+      inputSchema: {
+        page_id: z.string().min(1).describe('Seiten-ID der Startseite.'),
+        format: z.enum(EXPORT_FORMATS).describe('Zielformat: docx, pptx, xlsx oder pdf.'),
+        subpages: z.boolean().optional().describe('Unterseiten mitexportieren (Standard: nein).'),
+      },
+    },
+    async ({ page_id, format, subpages }, extra) => {
+      try {
+        const file = await apiRequest<BinaryResponse>(tokenFromExtra(extra), `/api/pages/${encodeURIComponent(page_id)}/export`, {
+          query: { format, subpages: subpages ? '1' : '0' },
+          accept: 'binary',
+        })
+        if (file.data.byteLength > MAX_EXPORT_BYTES) {
+          throw new Error(
+            `Die Datei ist größer als ${MAX_EXPORT_BYTES / (1024 * 1024)} MB und kann nicht übertragen werden. ` +
+              'Bitte den Export im Import-/Export-Bereich von f451 im Browser starten.',
+          )
+        }
+        const name = fileNameFromDisposition(file.disposition) ?? `export.${format}`
+        return {
+          content: [
+            { type: 'text' as const, text: `${name} (${file.data.byteLength} Bytes)` },
+            {
+              type: 'resource' as const,
+              resource: {
+                uri: `f451-export:///${encodeURIComponent(name)}`,
+                mimeType: file.contentType,
+                blob: Buffer.from(file.data).toString('base64'),
+              },
+            },
+          ],
+        }
+      } catch (error) {
+        return fail(error)
+      }
+    },
   )
 
   server.registerTool(

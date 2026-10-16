@@ -84,6 +84,10 @@ function describeError(status: number, body: ApiErrorBody, retryAfterSec?: numbe
       return `Konflikt: Der Draft wurde zwischenzeitlich geändert. Bitte den aktuellen Stand (currentSha/currentContent aus dieser Antwort) als neue Basis nehmen und die eigene Änderung darauf neu aufsetzen — nicht blind überschreiben. ${reason}`.trim()
     case 422:
       return `Die Aktion ist im aktuellen Zustand der Seite nicht möglich. ${reason}`.trim()
+    case 413:
+      return `Der Export ist zu groß für den direkten Abruf. Bitte im Import-/Export-Bereich von f451 (Browser) als Hintergrundlauf exportieren. ${reason}`.trim()
+    case 504:
+      return `Der Export dauerte zu lange. Bitte im Import-/Export-Bereich von f451 (Browser) als Hintergrundlauf exportieren. ${reason}`.trim()
     case 429:
       return retryAfterSec !== undefined
         ? `Zu viele Anfragen (Rate-Limit der f451-API). Frühestens in ${retryAfterSec} s erneut versuchen und danach langsamer abfragen.`
@@ -113,7 +117,15 @@ export interface RequestOptions {
   /** Query-Parameter; `undefined`/`null`-Werte werden weggelassen. */
   query?: Record<string, string | number | boolean | undefined | null>
   /** Erwartetes Antwortformat. `text` für `/raw` (liefert `text/markdown`). */
-  accept?: 'json' | 'text'
+  accept?: 'json' | 'text' | 'binary'
+}
+
+/** Antwort mit `accept: 'binary'` (Dateidownload, z.B. Office-Export). */
+export interface BinaryResponse {
+  data: Uint8Array
+  contentType: string
+  /** Wert des `Content-Disposition`-Headers, falls vorhanden. */
+  disposition: string | null
 }
 
 /**
@@ -134,7 +146,8 @@ export async function apiRequest<T = unknown>(
 
   const headers: Record<string, string> = {
     authorization: `Bearer ${token}`,
-    accept: options.accept === 'text' ? 'text/markdown, text/plain' : 'application/json',
+    accept:
+      options.accept === 'text' ? 'text/markdown, text/plain' : options.accept === 'binary' ? '*/*' : 'application/json',
   }
   if (options.body !== undefined) headers['content-type'] = 'application/json'
 
@@ -170,6 +183,13 @@ export async function apiRequest<T = unknown>(
     throw new F451Error(describeError(res.status, body, retryAfterSec), res.status, body)
   }
 
+  if (options.accept === 'binary') {
+    return {
+      data: new Uint8Array(await res.arrayBuffer()),
+      contentType: res.headers.get('content-type') ?? 'application/octet-stream',
+      disposition: res.headers.get('content-disposition'),
+    } satisfies BinaryResponse as T
+  }
   if (options.accept === 'text') return (await res.text()) as T
   if (res.status === 204) return undefined as T
   return (await res.json()) as T

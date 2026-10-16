@@ -10,7 +10,11 @@
 
 import { wikiPageHref, wikiPageReviewHref } from './urls'
 
-export type JobKind = 'import-bookstack' | 'import-file' | 'export-bookstack'
+export type JobKind = 'import-bookstack' | 'import-file' | 'export-bookstack' | 'export-file'
+
+/** Formats of the Office export (f451#88); the order is the display order. */
+export const EXPORT_FORMATS = ['docx', 'pptx', 'xlsx', 'pdf'] as const
+export type ExportFormat = (typeof EXPORT_FORMATS)[number]
 export type JobStatus = 'running' | 'done' | 'failed' | 'cancelled'
 
 export interface JobEvent {
@@ -93,7 +97,7 @@ export function progressPercent(view: JobView): number {
 
 /** File name for the "Download report" button. */
 export function reportFileName(kind: JobView['kind']): string {
-  return kind === 'export-bookstack' ? 'export-report.md' : 'import-report.md'
+  return kind === 'export-bookstack' || kind === 'export-file' ? 'export-report.md' : 'import-report.md'
 }
 
 /** What `GET /api/import/instances` offers: the BookStack allow-list and,
