@@ -54,6 +54,8 @@ export interface ImportTree {
   unresolved?: Array<{ sourceId: string; target: string }>
   /** Obsidian: link targets matching several files; `chosen` is the path used. */
   ambiguous?: Array<{ sourceId: string; target: string; chosen: string }>
+  /** Office imports: sheets cut at the row limit; `rows` is the sheet's row count. */
+  truncated?: Array<{ sourceId: string; sheet: string; rows: number }>
 }
 
 export interface ImportTarget {

@@ -19,6 +19,7 @@ export interface ImportReport {
   unreferenced?: string[]
   unresolved?: Array<{ sourceId: string; target: string }>
   ambiguous?: Array<{ sourceId: string; target: string; chosen: string }>
+  truncated?: Array<{ sourceId: string; sheet: string; rows: number }>
 }
 
 export function emptyReport(): ImportReport {
@@ -54,6 +55,9 @@ export function renderReport(r: ImportReport): string {
   }
   if (r.ambiguous?.length) {
     out += `## Ambiguous links (${r.ambiguous.length})\n\n` + r.ambiguous.map((a) => `- ${a.target} on ${a.sourceId} → ${a.chosen}`).join('\n') + '\n\n'
+  }
+  if (r.truncated?.length) {
+    out += `## Sheets cut at the row limit (${r.truncated.length})\n\n` + r.truncated.map((t) => `- ${t.sheet} on ${t.sourceId}: ${t.rows} rows`).join('\n') + '\n\n'
   }
   if (r.unreferenced?.length) {
     out += `## Attachments no page references (${r.unreferenced.length})\n\n` + r.unreferenced.map((u) => `- ${u}`).join('\n') + '\n\n'

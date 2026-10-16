@@ -181,6 +181,7 @@ export async function importTree(
   if (tree.unreferenced) report.unreferenced = tree.unreferenced
   if (tree.unresolved) report.unresolved = tree.unresolved
   if (tree.ambiguous) report.ambiguous = tree.ambiguous
+  if (tree.truncated) report.truncated = tree.truncated
 
   const entries = flattenTree(tree)
   onEvent({ kind: 'start', pages: entries.length })
