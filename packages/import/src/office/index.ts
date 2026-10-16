@@ -121,6 +121,11 @@ function headingText(h: Heading): string {
   return out
 }
 
+/** OOXML/ODF packages are mostly XML, which compresses far better than the
+ *  files of a part A archive: a long text document passes ratio 10 easily.
+ *  The unpacked cap stays below the convert service's 1 GB memory limit. */
+const OFFICE_PACKAGE_LIMITS: Partial<ZipLimits> = { maxRatio: 100, maxUnpackedBytes: 512 * 1024 * 1024 }
+
 function tryZip(bytes: Uint8Array, limits?: Partial<ZipLimits>): FileSource | null {
   try {
     return zipSource(bytes, limits)
@@ -138,7 +143,7 @@ async function prepareFile(path: string, bytes: Uint8Array, opts: OfficeTreeOpti
   let pkg: FileSource | null = null
   if (ZIP_BASED.has(ext)) {
     try {
-      pkg = zipSource(bytes, opts.limits)
+      pkg = zipSource(bytes, { ...OFFICE_PACKAGE_LIMITS, ...opts.limits })
     } catch (e) {
       if (e instanceof ArchiveRejectedError) throw new Error(`rejected before conversion: ${e.message}`)
       throw e
