@@ -234,7 +234,7 @@ async function chartsToSvg(
   }
   for (const name of charts.keys()) {
     const svg = await readNonEmpty(join(svgDir, `${name}.svg`))
-    if (svg) files[`media/${name}.svg`] = svg
+    if (svg) files[`media/${name}.svg`] = cropToGraphic(svg)
     else failed.add(name)
   }
   return failed
@@ -371,4 +371,24 @@ async function readNonEmpty(path: string): Promise<Uint8Array | null> {
   } catch {
     return null
   }
+}
+
+/** Draw places a metafile on a whole default page (Letter), so the chart sits
+ *  in a large empty canvas. The export marks the graphic's frame as
+ *  `<rect class="BoundingBox" …>` inside `<g class="Graphic">` (directly or in
+ *  one more `<g>`); the SVG is cut
+ *  to that frame (viewBox in 1/100 mm, size in mm). Left as is without one. */
+export function cropToGraphic(svg: Uint8Array): Uint8Array {
+  const text = new TextDecoder().decode(svg)
+  const box = /<g class="Graphic">\s*(?:<g\b[^>]*>\s*)?<rect class="BoundingBox"[^>]*?\sx="(\d+)" y="(\d+)" width="(\d+)" height="(\d+)"/.exec(text)
+  if (!box) return svg
+  const [x, y, w, h] = box.slice(1).map(Number)
+  if (!w || !h) return svg
+  const cropped = text.replace(/<svg\b[^>]*>/, (tag) =>
+    tag
+      .replace(/\swidth="[^"]*"/, ` width="${w / 100}mm"`)
+      .replace(/\sheight="[^"]*"/, ` height="${h / 100}mm"`)
+      .replace(/\sviewBox="[^"]*"/, ` viewBox="${x} ${y} ${w} ${h}"`),
+  )
+  return new TextEncoder().encode(cropped)
 }

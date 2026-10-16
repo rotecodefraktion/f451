@@ -3,7 +3,7 @@ import { chmod, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs
 import { tmpdir } from 'node:os'
 import { delimiter, join } from 'node:path'
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate'
-import { ConvertError, runSoffice } from './soffice.js'
+import { ConvertError, cropToGraphic, runSoffice } from './soffice.js'
 
 // A fake `soffice` on the PATH. Behaviour per FAKE_SOFFICE_MODE:
 // ok (default), svgfail (no SVG output), empty (writes nothing),
@@ -212,5 +212,21 @@ describe('runSoffice export', () => {
     const e = await rejection(runSoffice({ bytes: bundle, name: 'bundle.zip' }, 'docx', { timeoutS: 10, workRoot }))
     expect(e.status).toBe(400)
     expect(await readdir(workRoot)).toEqual([])
+  })
+})
+
+describe('cropToGraphic', () => {
+  const enc = (s: string) => new TextEncoder().encode(s)
+  const dec = (b: Uint8Array) => new TextDecoder().decode(b)
+
+  it('cuts the page-sized SVG to the graphic frame', () => {
+    const svg = '<svg version="1.2" width="215.9mm" height="279.4mm" viewBox="0 0 21590 27940"><g class="Graphic">\n <g id="id3">\n  <rect class="BoundingBox" stroke="none" fill="none" x="3175" y="8890" width="15240" height="10160"/></g></g></svg>'
+    const out = dec(cropToGraphic(enc(svg)))
+    expect(out).toContain('width="152.4mm" height="101.6mm" viewBox="3175 8890 15240 10160"')
+  })
+
+  it('leaves an SVG without a graphic frame as it is', () => {
+    const svg = '<svg width="1mm" height="1mm" viewBox="0 0 100 100"></svg>'
+    expect(dec(cropToGraphic(enc(svg)))).toBe(svg)
   })
 })
