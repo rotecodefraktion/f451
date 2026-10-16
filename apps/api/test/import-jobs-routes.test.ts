@@ -1,12 +1,13 @@
-import { readdir } from 'node:fs/promises'
+import { readdir, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
+import { fileURLToPath } from 'node:url'
 import { crc32 } from 'node:zlib'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { and, eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { ForgejoProvider, type RepoRef } from '@f451/git-provider'
 import { startForgejo, type ForgejoTestInstance, type ForgejoTestUser } from '@f451/git-provider/testing'
-import { BookStackClient } from '@f451/import'
+import { BookStackClient, type Converter } from '@f451/import'
 import { buildApp, type AppOptions } from '../src/app.js'
 import { upsertProviderAccount } from '../src/auth/connect.js'
 import { SESSION_COOKIE_NAME, createSession } from '../src/auth/sessions.js'
@@ -126,14 +127,30 @@ function storedZip(files: Record<string, string>): Buffer {
   return Buffer.concat([...locals, cd, eocd])
 }
 
+const REPORT_FIXTURE = fileURLToPath(new URL('../../../packages/import/test-fixtures/office/report/', import.meta.url))
+
+/** A `Converter` answering every file with the prepared `report` fixture
+ *  (no LibreOffice involved). */
+async function stubConverter(): Promise<Converter> {
+  const html = await readFile(`${REPORT_FIXTURE}document.html`, 'utf8')
+  const odf = new Uint8Array(await readFile(`${REPORT_FIXTURE}document.odt`))
+  return {
+    toHtml: async () => ({ html, media: new Map(), odf, odfExt: 'odt' }),
+    fromBundle: async () => {
+      throw new Error('not used by the import')
+    },
+  }
+}
+
 /** A real `multipart/form-data` body. `file` goes first on purpose: the route
  *  must also see text fields that follow the file. */
 async function uploadBody(
   zip: Buffer,
   fields: Record<string, string>,
+  fileName = 'vault.zip',
 ): Promise<{ payload: Buffer; headers: Record<string, string> }> {
   const form = new FormData()
-  form.append('file', new Blob([zip], { type: 'application/zip' }), 'vault.zip')
+  form.append('file', new Blob([zip], { type: 'application/zip' }), fileName)
   for (const [k, v] of Object.entries(fields)) form.append(k, v)
   const req = new Request('http://upload.local/', { method: 'POST', body: form })
   return { payload: Buffer.from(await req.arrayBuffer()), headers: { 'content-type': req.headers.get('content-type')! } }
@@ -215,7 +232,12 @@ describe.sequential('import/export job routes (#128)', () => {
         connect: { forgejo: { baseUrl: forgejo.baseUrl, clientId: 'x', clientSecret: 'y' } },
       },
     }
-    app = buildApp({ ...base, importBookstackUrls: [INSTANCE], importBookstack: bookstack.factory })
+    app = buildApp({
+      ...base,
+      importBookstackUrls: [INSTANCE],
+      importBookstack: bookstack.factory,
+      importConverter: await stubConverter(),
+    })
     // Also serves the 413 test of the file import with a 1 MiB limit.
     appOff = buildApp({ ...base, importBookstack: bookstack.factory, importMaxUploadMb: 1 })
     await Promise.all([app.ready(), appOff.ready()])
@@ -259,7 +281,7 @@ describe.sequential('import/export job routes (#128)', () => {
     it('lists no instances', async () => {
       const res = await appOff.inject({ method: 'GET', url: '/api/import/instances', cookies: cookiesOf(writerSession) })
       expect(res.statusCode).toBe(200)
-      expect(res.json()).toEqual({ bookstack: [], fileImport: { maxUploadMb: 1 } })
+      expect(res.json()).toEqual({ bookstack: [], fileImport: { maxUploadMb: 1, office: false } })
     })
 
     it('answers 400 on all three POST routes for any instance', async () => {
@@ -286,7 +308,7 @@ describe.sequential('import/export job routes (#128)', () => {
 
   it('lists the configured instances', async () => {
     const res = await app.inject({ method: 'GET', url: '/api/import/instances', cookies: cookiesOf(writerSession) })
-    expect(res.json()).toEqual({ bookstack: [INSTANCE], fileImport: { maxUploadMb: 200 } })
+    expect(res.json()).toEqual({ bookstack: [INSTANCE], fileImport: { maxUploadMb: 200, office: true } })
   })
 
   it('catalog: unknown instance → 400', async () => {
@@ -422,8 +444,15 @@ describe.sequential('import/export job routes (#128)', () => {
     }
     const flags = { format: 'obsidian', update: 'false', release: 'false', dryRun: 'false' }
 
-    async function upload(target: FastifyInstance, session: string, spaceId: string, zip: Buffer, fields = flags) {
-      const { payload, headers } = await uploadBody(zip, fields)
+    async function upload(
+      target: FastifyInstance,
+      session: string,
+      spaceId: string,
+      zip: Buffer,
+      fields = flags,
+      fileName?: string,
+    ) {
+      const { payload, headers } = await uploadBody(zip, fields, fileName)
       return target.inject({
         method: 'POST',
         url: `/api/spaces/${spaceId}/import/file`,
@@ -479,6 +508,48 @@ describe.sequential('import/export job routes (#128)', () => {
         expect(e.link).toBe('review')
       }
     }, 120_000)
+
+    describe('format=office (#88)', () => {
+      const office = { ...flags, format: 'office' }
+      // Minimal OOXML package: passes the ZIP check, the stub converter does the rest.
+      const docx = storedZip({ 'word/document.xml': '<w:document/>' })
+      // The stub answers every file with the same document title, so the split
+      // run goes below the first run's page instead of colliding with it.
+      let firstPageId = ''
+
+      it('a single .docx runs to done (one page)', async () => {
+        const before = await importTempFiles()
+        const res = await upload(app, writerSession, space.id, docx, office, 'report.docx')
+        expect(res.statusCode).toBe(202)
+        const job = await waitForJob(writerSession, (res.json() as { jobId: string }).jobId)
+        expect(job.status).toBe('done')
+        expect(job.counts.created).toBe(1)
+        expect(job.counts.failed).toBe(0)
+        expect(await newTempFiles(before)).toEqual([])
+        firstPageId = job.events[0].pageId ?? ''
+      }, 120_000)
+
+      it('split=1 adds one child page per chapter', async () => {
+        const res = await upload(app, writerSession, space.id, docx, { ...office, split: '1', parentId: firstPageId }, 'report-split.docx')
+        expect(res.statusCode).toBe(202)
+        const job = await waitForJob(writerSession, (res.json() as { jobId: string }).jobId)
+        expect(job.status).toBe('done')
+        // The file page and its two chapters ("Einleitung", "Ergebnis").
+        expect(job.counts.created).toBe(3)
+        expect(job.counts.failed).toBe(0)
+      }, 120_000)
+
+      it('a file that is neither a ZIP nor an Office file → 400', async () => {
+        const res = await upload(app, writerSession, space.id, Buffer.from('x'), office, 'notes.txt')
+        expect(res.statusCode).toBe(400)
+      })
+
+      it('without a convert service → 400', async () => {
+        const res = await upload(appOff, writerSession, space.id, docx, office, 'report.docx')
+        expect(res.statusCode).toBe(400)
+        expect((res.json() as { reason: string }).reason).toContain('convert service')
+      })
+    })
 
     it('over the upload limit → 413, no temp file left', async () => {
       const before = await importTempFiles()

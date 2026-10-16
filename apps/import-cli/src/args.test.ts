@@ -109,6 +109,28 @@ describe('parseArgs', () => {
     expect(() => parseArgs(['markdown', 'd', '--space', 's', '--page', '3'])).toThrow(UsageError)
   })
 
+  it('parses an office import', () => {
+    expect(parseArgs(['office', 'report.docx', '--space', 's'])).toEqual({
+      command: 'import',
+      source: 'office',
+      path: 'report.docx',
+      space: 's',
+      update: false,
+      release: false,
+      dryRun: false,
+    })
+    expect(
+      parseArgs(['office', 'docs.zip', '--space', 's', '--split', '--convert-url', 'http://convert:8080']),
+    ).toMatchObject({ source: 'office', path: 'docs.zip', split: true, convertUrl: 'http://convert:8080' })
+  })
+
+  it('rejects --split and --convert-url outside office', () => {
+    expect(() => parseArgs(['markdown', 'd', '--space', 's', '--split'])).toThrow(UsageError)
+    expect(() => parseArgs(['html', 'd', '--space', 's', '--convert-url', 'http://x'])).toThrow(UsageError)
+    expect(() => parseArgs(['bookstack', '--book', '7', '--space', 's', '--split'])).toThrow(UsageError)
+    expect(() => parseArgs(['office', '--space', 's'])).toThrow(UsageError)
+  })
+
   it('ignores the separator pnpm passes through', () => {
     expect(parseArgs(['--', 'bookstack', '--book', '7', '--space', 's']).book).toBe('7')
   })

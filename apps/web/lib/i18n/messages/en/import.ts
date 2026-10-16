@@ -5,7 +5,7 @@ import type { Messages } from '../../types.js'
 export const importMessages: Messages['import'] = {
   pageTitle: 'Import and export',
   intro:
-    'Brings a Markdown folder, an Obsidian vault, an HTML folder or content from BookStack into this space, or writes pages of this space to BookStack. A run keeps going in the background even if you close this page.',
+    'Brings a Markdown folder, an Obsidian vault, an HTML folder, Word, PowerPoint and Excel files or content from BookStack into this space, or writes pages of this space to BookStack. A run keeps going in the background even if you close this page.',
   tabsLabel: 'Direction',
   tabs: {
     import: 'Import',
@@ -21,9 +21,13 @@ export const importMessages: Messages['import'] = {
     markdown: 'Markdown folder',
     obsidian: 'Obsidian vault',
     html: 'HTML folder',
+    office: 'Office files',
   },
   file: 'ZIP archive',
+  fileOffice: 'File or ZIP archive',
   fileHint: 'Upload the folder or vault as a ZIP archive, at most {max} MB.',
+  fileHintOffice: 'Upload a Word, PowerPoint or Excel file (LibreOffice formats too) or a ZIP archive of them, at most {max} MB.',
+  splitOffice: 'Split (chapters, slides, sheets)',
   instance: 'BookStack instance',
   tokenId: 'Token ID',
   tokenSecret: 'Token secret',

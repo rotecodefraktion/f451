@@ -46,6 +46,15 @@ describe('renderReport', () => {
     expect(out).toContain('- Dup on obsidian:a.md → x/Dup.md')
     expect(out).toContain('- attachments/old.png')
   })
+
+  it('lists sheets cut at the row limit only when present', () => {
+    const r = emptyReport()
+    expect(renderReport(r)).not.toContain('row limit')
+    r.truncated = [{ sourceId: 'office:book.xlsx@1', sheet: 'Daten', rows: 2500 }]
+    const out = renderReport(r)
+    expect(out).toContain('## Sheets cut at the row limit (1)')
+    expect(out).toContain('- Daten on office:book.xlsx@1: 2500 rows')
+  })
 })
 
 describe('renderExportReport', () => {

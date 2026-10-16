@@ -9,9 +9,11 @@ import {
   loadHtmlTree,
   loadMarkdownFolderTree,
   loadObsidianTree,
+  loadOfficeTree,
   renderExportReport,
   renderReport,
   type BookStackSelector,
+  type Converter,
   type FileSource,
   type ImportTree,
 } from '@f451/import'
@@ -41,6 +43,8 @@ export interface RunDeps {
   bookstack: BookStackFactory
   /** Absolute f451 base URL for links in exported pages ('' when unset). */
   publicBaseUrl: string
+  /** Convert service client for `format=office`; null when `F451_CONVERT_URL` is unset. */
+  converter: Converter | null
 }
 
 interface RunCommon {
@@ -66,7 +70,11 @@ export interface ImportParams extends RunCommon {
 export interface FileImportParams {
   userId: string
   space: string
-  format: 'markdown' | 'obsidian' | 'html'
+  format: 'markdown' | 'obsidian' | 'html' | 'office'
+  /** `office` only: split text at H1, one page per slide and sheet. */
+  split?: boolean
+  /** `office` only: language of generated names (the space's language). */
+  lang?: 'de' | 'en'
   source: FileSource
   cleanup: () => Promise<void>
   parentId?: string
@@ -245,12 +253,31 @@ export function fileImportRun(deps: RunDeps, p: FileImportParams): JobRun {
         progress.phase('reading')
         // The loaders take no signal (the archive is local); a cancel while
         // reading takes effect in importTree, which reports the pages as cancelled.
-        const tree =
-          p.format === 'obsidian'
-            ? await loadObsidianTree(p.source)
-            : p.format === 'html'
-              ? await loadHtmlTree(p.source)
-              : await loadMarkdownFolderTree(p.source)
+        let tree: ImportTree
+        if (p.format === 'office') {
+          if (!deps.converter) throw new Error('The convert service is not configured.')
+          // Conversions run one by one; a cancel stops before the next file.
+          try {
+            tree = await loadOfficeTree(p.source, {
+              converter: deps.converter,
+              split: p.split === true,
+              lang: p.lang ?? 'de',
+              signal,
+            })
+          } catch (err) {
+            // The loader throws when cancelled between two conversions; the
+            // registry turns a settled job with an aborted signal into `cancelled`.
+            if (signal.aborted) return { report: '# Import report\n\nCancelled while converting.\n', counts: { cancelled: 0 } }
+            throw err
+          }
+        } else {
+          tree =
+            p.format === 'obsidian'
+              ? await loadObsidianTree(p.source)
+              : p.format === 'html'
+                ? await loadHtmlTree(p.source)
+                : await loadMarkdownFolderTree(p.source)
+        }
         return writeTree(tree, f451, p, signal, progress)
       })
     } finally {

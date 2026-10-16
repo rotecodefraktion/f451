@@ -10,7 +10,7 @@
 export const importMessages = {
   pageTitle: 'Import und Export',
   intro:
-    'Übernimmt einen Markdown-Ordner, einen Obsidian-Vault, einen HTML-Ordner oder Inhalte aus BookStack in diesen Space oder schreibt Seiten des Space nach BookStack. Der Lauf geht im Hintergrund weiter, auch wenn diese Seite geschlossen wird.',
+    'Übernimmt einen Markdown-Ordner, einen Obsidian-Vault, einen HTML-Ordner, Word-, PowerPoint- und Excel-Dateien oder Inhalte aus BookStack in diesen Space oder schreibt Seiten des Space nach BookStack. Der Lauf geht im Hintergrund weiter, auch wenn diese Seite geschlossen wird.',
   tabsLabel: 'Richtung',
   tabs: {
     import: 'Import',
@@ -26,9 +26,13 @@ export const importMessages = {
     markdown: 'Markdown-Ordner',
     obsidian: 'Obsidian-Vault',
     html: 'HTML-Ordner',
+    office: 'Office-Dateien',
   },
   file: 'ZIP-Archiv',
+  fileOffice: 'Datei oder ZIP-Archiv',
   fileHint: 'Den Ordner oder Vault als ZIP-Archiv hochladen, höchstens {max} MB.',
+  fileHintOffice: 'Eine Word-, PowerPoint- oder Excel-Datei (auch LibreOffice) oder ein ZIP-Archiv davon hochladen, höchstens {max} MB.',
+  splitOffice: 'Aufteilen (Kapitel, Folien, Blätter)',
   instance: 'BookStack-Instanz',
   tokenId: 'Token-ID',
   tokenSecret: 'Token-Secret',

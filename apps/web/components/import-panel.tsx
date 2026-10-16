@@ -18,6 +18,7 @@ import { useEffect, useId, useState, type FormEvent } from 'react'
 import {
   eventHref,
   exceedsUploadLimit,
+  fileAccept,
   fileImportForm,
   isJobView,
   nextState,
@@ -128,9 +129,11 @@ export interface ImportPanelProps {
   instances: string[]
   /** Upload limit of the file import in MB; null → file import is off. */
   maxUploadMb: number | null
+  /** The API has a convert service: offer the Office format. */
+  office: boolean
 }
 
-export function ImportPanel({ space, instances, maxUploadMb }: ImportPanelProps) {
+export function ImportPanel({ space, instances, maxUploadMb, office }: ImportPanelProps) {
   const { t, messages } = useT()
   const uid = useId()
   const id = (name: string) => `${uid}-${name}`
@@ -145,6 +148,7 @@ export function ImportPanel({ space, instances, maxUploadMb }: ImportPanelProps)
   const [origin, setOrigin] = useState<Origin>(hasBookstack ? 'bookstack' : 'file')
   const [fileFormat, setFileFormat] = useState<FileFormat>('markdown')
   const [file, setFile] = useState<File | null>(null)
+  const [split, setSplit] = useState(false)
   const [instance, setInstance] = useState(instances[0] ?? '')
   const [tokenId, setTokenId] = useState('')
   const [tokenSecret, setTokenSecret] = useState('')
@@ -271,7 +275,7 @@ export function ImportPanel({ space, instances, maxUploadMb }: ImportPanelProps)
     if (maxUploadMb !== null && exceedsUploadLimit(file.size, maxUploadMb)) {
       return { error: t('import.errors.tooLarge', { max: maxUploadMb }) }
     }
-    return { form: fileImportForm(file, file.name, { format: fileFormat, parentId, update, release, dryRun }) }
+    return { form: fileImportForm(file, file.name, { format: fileFormat, split, parentId, update, release, dryRun }) }
   }
 
   async function onStart(event: FormEvent) {
@@ -555,11 +559,15 @@ export function ImportPanel({ space, instances, maxUploadMb }: ImportPanelProps)
                     id={id('file-format')}
                     className="select"
                     value={fileFormat}
-                    onChange={(e) => setFileFormat(e.target.value as FileFormat)}
+                    onChange={(e) => {
+                      setFileFormat(e.target.value as FileFormat)
+                      setFile(null)
+                    }}
                   >
                     <option value="markdown">{t('import.fileFormats.markdown')}</option>
                     <option value="obsidian">{t('import.fileFormats.obsidian')}</option>
                     <option value="html">{t('import.fileFormats.html')}</option>
+                    {office && <option value="office">{t('import.fileFormats.office')}</option>}
                   </select>
                   <span className="caret" aria-hidden="true">
                     ▾
@@ -568,17 +576,29 @@ export function ImportPanel({ space, instances, maxUploadMb }: ImportPanelProps)
               </div>
               <div className="field">
                 <label className="label" htmlFor={id('file')}>
-                  {t('import.file')}
+                  {t(fileFormat === 'office' ? 'import.fileOffice' : 'import.file')}
                 </label>
                 <input
+                  // Remounted per format so a file chosen for another format is dropped.
+                  key={fileFormat}
                   id={id('file')}
                   className="input"
                   type="file"
-                  accept=".zip,application/zip"
+                  accept={fileAccept(fileFormat)}
                   onChange={(e) => setFile(e.target.files?.[0] ?? null)}
                 />
-                {maxUploadMb !== null && <span className="hint">{t('import.fileHint', { max: maxUploadMb })}</span>}
+                {maxUploadMb !== null && (
+                  <span className="hint">
+                    {t(fileFormat === 'office' ? 'import.fileHintOffice' : 'import.fileHint', { max: maxUploadMb })}
+                  </span>
+                )}
               </div>
+              {fileFormat === 'office' && (
+                <label className="check">
+                  <input type="checkbox" checked={split} onChange={(e) => setSplit(e.target.checked)} />
+                  <span>{t('import.splitOffice')}</span>
+                </label>
+              )}
             </>
           ) : (
             <>

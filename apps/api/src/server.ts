@@ -218,6 +218,8 @@ const app = buildApp({
   importBookstackUrls: parseInstances(process.env.F451_IMPORT_BOOKSTACK_URLS),
   // File import (#90): upload limit in MiB; unset or invalid → default 200.
   importMaxUploadMb,
+  // Office import (#88): convert service; unset or empty → Office formats off.
+  convertUrl: process.env.F451_CONVERT_URL?.trim() || undefined,
 })
 
 // Fastifys Pino-Logger hat die Signatur `(mergingObject, msg)` — umgekehrt zur

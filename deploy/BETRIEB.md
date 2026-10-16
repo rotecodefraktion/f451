@@ -90,6 +90,7 @@ Web-seitig gibt es genau EINE `NEXT_PUBLIC_*`-Variable (grep über
 | `F451_MAX_UPLOAD_MB` | nein | `10` | Größenlimit (MiB) für Media-Uploads in Entwürfe. |
 | `F451_IMPORT_BOOKSTACK_URLS` | no | — (feature off) | Comma-separated base URLs of the BookStack instances the API may contact for import/export from the web UI (operator allow-list; anything else is rejected with 400). Empty or unset keeps the feature off and hides the sidebar entry. See `docs/import-export.md`. |
 | `F451_IMPORT_MAX_UPLOAD_MB` | no | `200` | Size limit (MiB) for the ZIP upload of the file import (Markdown folder, Obsidian vault) in the web UI; larger files answer 413. No allow-list is needed: the upload fetches no remote address. See `docs/import-export.md`. |
+| `F451_CONVERT_URL` | no | — (Office import off) | Base URL of the convert service (e.g. `http://convert:8080`, internal network only). Set → the file import offers "Office files" (Word, PowerPoint, Excel); unset or empty → the format is hidden and `format=office` answers 400. The `convert` service itself reads `CONVERT_QUEUE`, `CONVERT_TIMEOUT_S`, `CONVERT_MAX_TIMEOUT_S` and `CONVERT_MAX_MB` — see "Convert service" below. |
 | `F451_RATE_LIMIT_AUTH_MAX` | nein | `10` | Anfragen/Minute PRO Auth-Route und Client-IP (6 Routen, je EIGENER Zähler — kein Gesamtbudget). |
 | `F451_RATE_LIMIT_SEARCH_MAX` | nein | `60` | Anfragen/Minute für `GET /api/search` pro Client-IP; Aufrufe mit API-Token zählen pro Nutzer. |
 | `F451_RATE_LIMIT_API_TOKEN_MAX` | nein | `300` | Anfragen/Minute für alle Aufrufe mit API-Token (`/api`, `/media`), pro Nutzer über alle seine Tokens. Überschreitung → 429 mit `Retry-After`. |
@@ -114,6 +115,22 @@ weiter, `web` wiederum proxyt `/api`/`/auth`/`/admin`/`/media` intern an `api`
   ob `req.ip` in den Logs die ECHTE Client-IP zeigt (korrekte Hop-Zahl) oder
   die gefälschte (Hop-Zahl zu hoch — Rate-Limits umgehbar) bzw. immer dieselbe
   Proxy-IP (Hop-Zahl zu niedrig — Rate-Limits treffen alle Nutzer gemeinsam).
+
+### Convert service (`deploy/wiki/docker-compose.yml`, service `convert`)
+
+LibreOffice headless behind a small HTTP wrapper (`apps/convert`); it turns Word,
+PowerPoint and Excel files into HTML for the Office import (#88). It sits on its
+own internal network `convert` that only `api` joins: no egress, no published
+port. The API finds it through `F451_CONVERT_URL` (compose default
+`http://convert:8080`; set the variable empty to switch the Office import off).
+Memory is capped at 1 GB (`mem_limit: 1g`); conversions run one at a time.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `CONVERT_QUEUE` | `20` | Requests that may wait; more are rejected. |
+| `CONVERT_TIMEOUT_S` | `60` | Time limit of one conversion (also ends a hung LibreOffice, e.g. a password prompt). |
+| `CONVERT_MAX_TIMEOUT_S` | `600` | Upper bound for the `timeout` a caller may ask for. |
+| `CONVERT_MAX_MB` | `200` | Request body limit; larger files answer 413. |
 
 ### Web (`deploy/wiki/docker-compose.yml`, Service `web`, Laufzeit)
 

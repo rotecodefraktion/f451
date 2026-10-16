@@ -1,4 +1,6 @@
-export type Flavor = 'markdown' | 'obsidian' | 'html'
+import { OFFICE_EXTENSIONS } from '../../office/kinds.js'
+
+export type Flavor = 'markdown' | 'obsidian' | 'html' | 'office'
 
 /** A page to build: a note, or a folder (whose content may come from a folder note). */
 export interface PlanNode {
@@ -22,6 +24,7 @@ const NOTE_EXT: Record<Flavor, RegExp> = {
   markdown: /\.md$/i,
   obsidian: /\.md$/i,
   html: /\.html?$/i,
+  office: new RegExp(`\\.(${Object.values(OFFICE_EXTENSIONS).flat().join('|')})$`, 'i'),
 }
 
 /** True if the path (or file name) has the note extension of the flavor. */
@@ -51,7 +54,7 @@ function encodeIdPath(path: string): string {
   )
 }
 
-/** `markdown:<path>` / `obsidian:<path>` / `html:<path>`; folders end in `/`. */
+/** `markdown:<path>` / `obsidian:<path>` / `html:<path>` / `office:<path>`; folders end in `/`. */
 export function sourceIdFor(flavor: Flavor, path: string, folder = false): string {
   return `${flavor}:${encodeIdPath(path)}${folder ? '/' : ''}`
 }
@@ -59,14 +62,16 @@ export function sourceIdFor(flavor: Flavor, path: string, folder = false): strin
 /** Sorts the listing into notes, attachments and files to skip. Paths with a
  *  segment starting with `.` (`.obsidian/`, `.trash/`, `.git/`) are skipped
  *  silently; for Markdown and Obsidian, canvas files and Excalidraw drawings
- *  are reported. For HTML, `.md` files are attachments like any other file. */
+ *  are reported. For HTML and Office, `.md` files are attachments like any
+ *  other file and nothing else is skipped. */
 export function classifyPaths(paths: string[], flavor: Flavor): Classified {
   const out: Classified = { notes: [], attachments: [], skipped: [] }
+  const markdownLike = flavor === 'markdown' || flavor === 'obsidian'
   for (const path of paths) {
     if (path.split('/').some((s) => s.startsWith('.'))) continue
     const lower = path.toLowerCase()
-    if (flavor !== 'html' && lower.endsWith('.canvas')) out.skipped.push({ path, reason: 'canvas files are not converted' })
-    else if (flavor !== 'html' && (lower.endsWith('.excalidraw.md') || lower.endsWith('.excalidraw')))
+    if (markdownLike && lower.endsWith('.canvas')) out.skipped.push({ path, reason: 'canvas files are not converted' })
+    else if (markdownLike && (lower.endsWith('.excalidraw.md') || lower.endsWith('.excalidraw')))
       out.skipped.push({ path, reason: 'Excalidraw drawings are not converted' })
     else if (isNoteName(path, flavor)) out.notes.push(path)
     else out.attachments.push(path)
@@ -84,8 +89,9 @@ function byTitle(a: PlanNode, b: PlanNode): number {
  *  below it becomes a page; a folder without notes (an attachment folder)
  *  does not. A folder note — `A/A.md`, `A.md` next to `A/`, `A/index.md`,
  *  `A/README.md`, first match — supplies the folder page's content and is not
- *  a page of its own. For HTML only `A/index.html`, then `A/index.htm` count.
- *  Siblings are ordered by title, case-insensitively. */
+ *  a page of its own. For HTML only `A/index.html`, then `A/index.htm` count;
+ *  Office imports have no folder notes. Siblings are ordered by title,
+ *  case-insensitively. */
 export function buildStructure(notes: string[], titleOf: (notePath: string) => string, flavor: Flavor): PlanNode[] {
   const noteSet = new Set(notes)
   const folders = new Set<string>()
@@ -102,7 +108,9 @@ export function buildStructure(notes: string[], titleOf: (notePath: string) => s
     const name = baseOf(folder)
     const parent = dirOf(folder)
     const candidates =
-      flavor === 'html'
+      flavor === 'office'
+        ? []
+        : flavor === 'html'
         ? [`${folder}/index.html`, `${folder}/index.htm`]
         : [
             `${folder}/${name}.md`,
