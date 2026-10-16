@@ -2,9 +2,13 @@ import { parseArgs as nodeParseArgs } from 'node:util'
 
 export interface ParsedArgs {
   command: 'import' | 'export'
-  source: 'bookstack' | 'markdown' | 'obsidian' | 'html'
-  /** Folder or `.zip` for the `markdown`, `obsidian` and `html` sources. */
+  source: 'bookstack' | 'markdown' | 'obsidian' | 'html' | 'office'
+  /** Folder, `.zip` or (`office` only) a single Office file. */
   path?: string
+  /** `office` only: split text at H1, one page per slide / sheet. */
+  split?: boolean
+  /** `office` only: URL of the convert service (`--convert-url`). */
+  convertUrl?: string
   book?: string
   shelf?: string
   page?: string
@@ -20,8 +24,14 @@ export const USAGE = `Usage: f451-import bookstack (--book <id|slug> | --shelf <
        f451-import markdown <dir|zip> --space <space> [options]
        f451-import obsidian <dir|zip> --space <space> [options]
        f451-import html <dir|zip> --space <space> [options]
+       f451-import office <file|dir|zip> --space <space> [--split] [--convert-url <url>] [options]
 
-A path ending in .zip is read as an archive, anything else as a folder.
+A path ending in .zip is read as an archive, anything else as a folder
+(office: a single Office file is read as one file).
+
+Office options:
+  --split               text at H1, one page per slide and per sheet (default: one page per file)
+  --convert-url <url>   convert service (default: F451_CONVERT_URL; if unset, a local soffice on the PATH)
 
 Options:
   --parent <pageId>   import below this page
@@ -39,7 +49,8 @@ Export options:
   --out <dir>         directory for the report (default: .)
 
 Environment: F451_URL, F451_TOKEN, BOOKSTACK_URL, BOOKSTACK_TOKEN_ID, BOOKSTACK_TOKEN_SECRET
-             (markdown, obsidian and html need only F451_URL and F451_TOKEN)
+             (markdown, obsidian, html and office need only F451_URL and F451_TOKEN;
+             office also reads F451_CONVERT_URL)
 `
 
 export class UsageError extends Error {
@@ -57,7 +68,7 @@ function parseExport(
     throw new UsageError(positionals[1] ? `unknown export target: ${positionals[1]}` : 'missing export target')
   }
   if (positionals.length > 2) throw new UsageError(`unexpected argument: ${positionals[2]}`)
-  for (const o of ['shelf', 'parent', 'update', 'release']) {
+  for (const o of ['shelf', 'parent', 'update', 'release', 'split', 'convert-url']) {
     if (values[o] !== undefined) throw new UsageError(`--${o} is not valid for export`)
   }
   if (typeof values.space !== 'string' || !values.space) throw new UsageError('--space is required')
@@ -80,7 +91,7 @@ function parseExport(
 }
 
 function parseFileImport(
-  source: 'markdown' | 'obsidian' | 'html',
+  source: 'markdown' | 'obsidian' | 'html' | 'office',
   values: Record<string, string | boolean | undefined>,
   positionals: string[],
 ): ParsedArgs {
@@ -89,6 +100,11 @@ function parseFileImport(
   if (positionals.length > 2) throw new UsageError(`unexpected argument: ${positionals[2]}`)
   for (const o of ['book', 'shelf', 'page']) {
     if (values[o] !== undefined) throw new UsageError(`--${o} is not valid for ${source}`)
+  }
+  if (source !== 'office') {
+    for (const o of ['split', 'convert-url']) {
+      if (values[o] !== undefined) throw new UsageError(`--${o} is not valid for ${source}`)
+    }
   }
   if (typeof values.space !== 'string' || !values.space) throw new UsageError('--space is required')
 
@@ -103,6 +119,8 @@ function parseFileImport(
   }
   if (typeof values.parent === 'string') result.parent = values.parent
   if (typeof values.out === 'string') result.out = values.out
+  if (values.split === true) result.split = true
+  if (typeof values['convert-url'] === 'string') result.convertUrl = values['convert-url']
   return result
 }
 
@@ -124,6 +142,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
         update: { type: 'boolean' },
         release: { type: 'boolean' },
         'dry-run': { type: 'boolean' },
+        split: { type: 'boolean' },
+        'convert-url': { type: 'string' },
       },
     })
   } catch (e) {
@@ -133,11 +153,16 @@ export function parseArgs(argv: string[]): ParsedArgs {
 
   const command = positionals[0]
   if (command === 'export') return parseExport(values, positionals)
-  if (command === 'markdown' || command === 'obsidian' || command === 'html') return parseFileImport(command, values, positionals)
+  if (command === 'markdown' || command === 'obsidian' || command === 'html' || command === 'office') {
+    return parseFileImport(command, values, positionals)
+  }
   if (command !== 'bookstack') {
     throw new UsageError(command ? `unknown command: ${command}` : 'missing command')
   }
   if (positionals.length > 1) throw new UsageError(`unexpected argument: ${positionals[1]}`)
+  for (const o of ['split', 'convert-url'] as const) {
+    if (values[o] !== undefined) throw new UsageError(`--${o} is not valid for bookstack`)
+  }
 
   const selectors = [values.book, values.shelf, values.page].filter((v) => v !== undefined)
   if (selectors.length !== 1) throw new UsageError('exactly one of --book, --shelf, --page is required')

@@ -3,7 +3,15 @@ import { readFile } from 'node:fs/promises'
 import { pipeline } from 'node:stream/promises'
 import type { FastifyInstance, FastifyReply } from 'fastify'
 import type {} from '@fastify/multipart'
-import { ArchiveRejectedError, BookStackApiError, zipSource, type BookStackSelector, type FileSource } from '@f451/import'
+import {
+  ArchiveRejectedError,
+  BookStackApiError,
+  OFFICE_EXTENSIONS,
+  zipSource,
+  type BookStackSelector,
+  type Converter,
+  type FileSource,
+} from '@f451/import'
 import { requireBrowserSession } from '../auth/sessions.js'
 import type { Db } from '../db/client.js'
 import { findInstance } from '../import/instances.js'
@@ -29,6 +37,8 @@ export interface ImportJobsDeps extends NewPageGateDeps {
   selfFetch: typeof fetch
   /** Tests inject a fake. */
   bookstack: BookStackFactory
+  /** Convert service client (`F451_CONVERT_URL`); null → Office import is off. */
+  converter: Converter | null
 }
 
 interface Credentials {
@@ -128,6 +138,18 @@ const fileImportSchema = {
 /** `POST /api/spaces/:space/import/file` takes the ZIP in this multipart field;
  *  the text fields are `format`, `parentId`, `update`, `release`, `dryRun`. */
 const FILE_FIELD = 'file'
+const OFFICE_EXTENSION_LIST: readonly string[] = Object.values(OFFICE_EXTENSIONS).flat()
+
+/** Lower-case extension of an upload name without the dot ('' if none). */
+function uploadExtension(name: string): string {
+  const m = /\.([a-z0-9]+)$/i.exec(name)
+  return m ? m[1]!.toLowerCase() : ''
+}
+
+/** Final path segment of a client-supplied file name. */
+function uploadBaseName(name: string): string {
+  return name.split(/[\\/]/).pop() ?? ''
+}
 /** Upper bound on text fields per request (unknown ones are ignored). */
 const MAX_FIELDS = 20
 
@@ -214,13 +236,17 @@ export function registerImportJobRoutes(app: FastifyInstance, deps: ImportJobsDe
     selfFetch: deps.selfFetch,
     bookstack: deps.bookstack,
     publicBaseUrl: deps.publicBaseUrl,
+    converter: deps.converter,
   }
 
   app.register(async (instance) => {
     instance.get(
       '/api/import/instances',
       { schema: { tags: ['import'] }, preHandler: requireBrowserSession },
-      async () => ({ bookstack: deps.instances, fileImport: { maxUploadMb: deps.fileImportMaxUploadMb } }),
+      async () => ({
+        bookstack: deps.instances,
+        fileImport: { maxUploadMb: deps.fileImportMaxUploadMb, office: deps.converter !== null },
+      }),
     )
 
     instance.post<{ Body: Credentials }>(
@@ -316,6 +342,7 @@ export function registerImportJobRoutes(app: FastifyInstance, deps: ImportJobsDe
             // or after the file.
             const fields: Record<string, string> = {}
             let gotFile = false
+            let uploadName = ''
             try {
               const parts = req.parts({ limits: { fileSize: maxBytes, files: 1, fields: MAX_FIELDS } })
               for await (const part of parts) {
@@ -327,6 +354,7 @@ export function registerImportJobRoutes(app: FastifyInstance, deps: ImportJobsDe
                   part.file.resume()
                   continue
                 }
+                uploadName = uploadBaseName(part.filename)
                 out = createWriteStream(tempFile)
                 await pipeline(part.file, out)
                 if (part.file.truncated) return uploadTooLarge(held, maxMb)
@@ -339,9 +367,13 @@ export function registerImportJobRoutes(app: FastifyInstance, deps: ImportJobsDe
             if (!gotFile) return badRequest(held, `Multipart field "${FILE_FIELD}" is missing.`)
 
             const format = fields.format
-            if (format !== 'markdown' && format !== 'obsidian' && format !== 'html') {
-              return badRequest(held, 'format must be "markdown", "obsidian" or "html".')
+            if (format !== 'markdown' && format !== 'obsidian' && format !== 'html' && format !== 'office') {
+              return badRequest(held, 'format must be "markdown", "obsidian", "html" or "office".')
             }
+            if (format === 'office' && !deps.converter) {
+              return badRequest(held, 'Office import is not available: no convert service is configured.')
+            }
+            const split = fields.split === '1' || fields.split === 'true'
             const update = parseFlag(fields.update)
             const release = parseFlag(fields.release)
             const dryRun = parseFlag(fields.dryRun)
@@ -352,7 +384,23 @@ export function registerImportJobRoutes(app: FastifyInstance, deps: ImportJobsDe
 
             let source: FileSource
             try {
-              source = zipSource(await readFile(tempFile))
+              const bytes = await readFile(tempFile)
+              const ext = uploadExtension(uploadName)
+              if (format === 'office' && ext !== 'zip') {
+                // A single Office file (itself a ZIP for OOXML/ODF; the loader checks it).
+                if (!OFFICE_EXTENSION_LIST.includes(ext)) {
+                  return badRequest(held, 'Upload a .zip or an Office file (' + OFFICE_EXTENSION_LIST.join(', ') + ').')
+                }
+                source = {
+                  list: async () => [uploadName],
+                  read: async (p) => {
+                    if (p !== uploadName) throw new Error(`not in the source: ${p}`)
+                    return bytes
+                  },
+                }
+              } else {
+                source = zipSource(bytes)
+              }
             } catch (err) {
               if (err instanceof ArchiveRejectedError) return badRequest(held, err.message)
               throw err
@@ -367,6 +415,9 @@ export function registerImportJobRoutes(app: FastifyInstance, deps: ImportJobsDe
                 space: gate.space.id,
                 format,
                 source,
+                ...(format === 'office'
+                  ? { split, lang: gate.space.defaultLang === 'de' ? ('de' as const) : ('en' as const) }
+                  : {}),
                 cleanup: () => deps.tempFiles.remove(tempFile),
                 ...(parentId ? { parentId } : {}),
                 update,

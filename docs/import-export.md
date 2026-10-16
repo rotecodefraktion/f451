@@ -317,6 +317,76 @@ Besides the usual lists, the report names frontmatter fields that were dropped
 (with counts), attachments that no page references, wikilinks that could not be
 resolved, ambiguous link targets, and skipped canvas and Excalidraw files.
 
+## File import: Office files
+
+Imports Word, PowerPoint and Excel documents, and the LibreOffice equivalents,
+as pages. LibreOffice does the conversion in a separate **convert service**; f451
+turns its HTML into Markdown. The same rules as for the other file imports apply:
+drafts and reviews, nothing is published before release, `--update` finds earlier
+pages, nothing is ever deleted.
+
+| Kind | Extensions |
+|---|---|
+| Text | `.docx` `.doc` `.odt` `.rtf` |
+| Slides | `.pptx` `.ppt` `.odp` |
+| Sheets | `.xlsx` `.xls` `.ods` |
+
+### Command
+
+```
+f451-import office <file|dir|zip> --space <space> [--split] [--convert-url <url>] [options]
+```
+
+The source is one Office file, a directory or a ZIP archive. In a directory or
+ZIP, folders become pages as for the other file imports; files that are not
+Office files are attachments. The options of `markdown` apply. The converter is
+the service at `--convert-url` or `F451_CONVERT_URL`; if neither is set, a
+`soffice` on the `PATH` does the same work locally.
+
+### From the web UI
+
+The format "Office files" appears in the file import only when the operator
+has configured the convert service (`F451_CONVERT_URL`, see
+[deploy/BETRIEB.md](../deploy/BETRIEB.md)). The file input takes a `.zip` or a
+single Office file, and the checkbox "Split (chapters, slides, sheets)" turns
+splitting on. Upload: `POST /api/spaces/:space/import/file` with `format=office`
+and, for splitting, `split=1`. Without the service `format=office` answers
+`400`, and `GET /api/import/instances` returns `fileImport.office: false`.
+
+### Mapping
+
+- **One page per file** by default; the title is the document's title property,
+  else the file name without extension. With **split**, a text document gets one
+  child page per heading 1 (what comes before the first one stays on the file
+  page), a presentation one per slide (title of the slide, else "Folie n" / "Slide n"
+  in the space language) and a workbook one per sheet. A re-import with `--update`
+  matches the parts by position, so inserting a slide shifts the later ones.
+- **Charts** (and other drawn objects such as SmartArt) become SVG images; where the
+  chart's data can be read, a Markdown table with the values follows the image.
+- **Sheets** become tables with the displayed (recalculated) values, not the
+  formulas. Empty sheets are skipped; very long sheets are cut and the report says
+  so.
+- **Images** become page media. **Video and audio** embedded in the file are page
+  media too and are listed under the heading "Anhänge" at the end of the page (on
+  the slide's page when split).
+- Links between Office files of the same ZIP point to the imported pages.
+
+### What is dropped
+
+Macros and everything else the Markdown dialect cannot express (layout, fonts,
+colours, animations) are not imported. The report lists what was dropped, with counts. A file that LibreOffice
+cannot open (corrupt, password-protected, too slow) is listed as failed; the
+other files of the run are still imported.
+
+### The convert service
+
+`apps/convert` wraps a headless LibreOffice behind `POST /convert`. It runs in its
+own container on an internal network that only the API can reach, converts one
+file at a time, and refuses files above `CONVERT_MAX_MB`. OOXML and ODF files are
+ZIP archives; they pass the same entry, ratio and size checks as an uploaded ZIP
+before LibreOffice sees them. Settings and memory: see
+[deploy/BETRIEB.md](../deploy/BETRIEB.md).
+
 ## From the web UI
 
 Signed-in users can run the BookStack import and export from the space sidebar

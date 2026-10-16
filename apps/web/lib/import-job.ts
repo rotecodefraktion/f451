@@ -102,6 +102,8 @@ export interface ImportOffer {
   bookstack: string[]
   /** Upload limit in MB; null → this API has no file import. */
   maxUploadMb: number | null
+  /** The API has a convert service: Office files can be imported. */
+  office: boolean
 }
 
 /** Reads an answer of `GET /api/import/instances` defensively (unknown
@@ -112,7 +114,7 @@ export function parseImportOffer(body: unknown): ImportOffer {
   const file = b.fileImport && typeof b.fileImport === 'object' ? (b.fileImport as Record<string, unknown>) : null
   const mb = file?.maxUploadMb
   const maxUploadMb = typeof mb === 'number' && Number.isFinite(mb) && mb > 0 ? mb : null
-  return { bookstack, maxUploadMb }
+  return { bookstack, maxUploadMb, office: maxUploadMb !== null && file?.office === true }
 }
 
 /** Whether the import page and its sidebar link are offered at all. */
@@ -125,10 +127,21 @@ export function exceedsUploadLimit(bytes: number, maxUploadMb: number): boolean 
   return bytes > maxUploadMb * 1024 * 1024
 }
 
-export type FileFormat = 'markdown' | 'obsidian' | 'html'
+export type FileFormat = 'markdown' | 'obsidian' | 'html' | 'office'
+
+/** Office extensions the `office` format accepts besides a ZIP
+ *  (mirrors `OFFICE_EXTENSIONS` of `@f451/import`). */
+export const OFFICE_ACCEPT = '.docx,.doc,.odt,.rtf,.pptx,.ppt,.odp,.xlsx,.xls,.ods'
+
+/** `accept` attribute of the file input for a format. */
+export function fileAccept(format: FileFormat): string {
+  return format === 'office' ? `.zip,application/zip,${OFFICE_ACCEPT}` : '.zip,application/zip'
+}
 
 export interface FileImportOptions {
   format: FileFormat
+  /** `office` only: split text at H1, one page per slide and sheet. */
+  split?: boolean
   parentId: string
   update: boolean
   release: boolean
@@ -143,6 +156,7 @@ export interface FileImportOptions {
 export function fileImportForm(file: Blob, fileName: string, opts: FileImportOptions): FormData {
   const form = new FormData()
   form.append('format', opts.format)
+  if (opts.format === 'office' && opts.split) form.append('split', '1')
   const parent = opts.parentId.trim()
   if (parent) form.append('parentId', parent)
   form.append('update', String(opts.update))

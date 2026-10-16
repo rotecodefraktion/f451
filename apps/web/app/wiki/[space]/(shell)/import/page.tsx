@@ -39,7 +39,7 @@ export default async function ImportPage({ params }: ImportPageProps) {
     <main className="main full doc-pad">
       <h1 className="import-title">{t('import.pageTitle')}</h1>
       <p className="import-intro">{t('import.intro')}</p>
-      <ImportPanel space={spaceId} instances={offer.bookstack} maxUploadMb={offer.maxUploadMb} />
+      <ImportPanel space={spaceId} instances={offer.bookstack} maxUploadMb={offer.maxUploadMb} office={offer.office} />
     </main>
   )
 }

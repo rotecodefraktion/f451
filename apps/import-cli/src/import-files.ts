@@ -1,19 +1,35 @@
-import { readFile } from 'node:fs/promises'
+import { readFile, stat } from 'node:fs/promises'
+import { basename } from 'node:path'
 import {
   ArchiveRejectedError,
   F451Api,
   folderSource,
+  httpConverter,
   loadHtmlTree,
   loadMarkdownFolderTree,
   loadObsidianTree,
+  loadOfficeTree,
+  localConverter,
   zipSource,
   type FileSource,
+  type ImportTree,
 } from '@f451/import'
 import { UsageError, type ParsedArgs } from './args.js'
 import { writeTreeAndReport } from './import-bookstack.js'
 
-/** A path ending in `.zip` is read as an archive, anything else as a folder. */
-async function openSource(path: string): Promise<FileSource> {
+/** A path ending in `.zip` is read as an archive, a directory as a folder; for
+ *  `office`, any other file is a source of exactly that one file. */
+async function openSource(path: string, single: boolean): Promise<FileSource> {
+  if (single && !path.toLowerCase().endsWith('.zip') && (await stat(path)).isFile()) {
+    const name = basename(path)
+    return {
+      list: async () => [name],
+      read: async (p) => {
+        if (p !== name) throw new Error(`not in the source: ${p}`)
+        return readFile(path)
+      },
+    }
+  }
   if (!path.toLowerCase().endsWith('.zip')) return folderSource(path)
   try {
     return zipSource(await readFile(path))
@@ -35,12 +51,22 @@ export async function runFileImport(
   }
   if (!args.path) throw new UsageError('missing path')
   const f451 = new F451Api(need('F451_URL'), need('F451_TOKEN'))
-  const src = await openSource(args.path)
-  const tree =
-    args.source === 'obsidian'
-      ? await loadObsidianTree(src)
-      : args.source === 'html'
-        ? await loadHtmlTree(src)
-        : await loadMarkdownFolderTree(src)
+  const src = await openSource(args.path, args.source === 'office')
+  let tree: ImportTree
+  if (args.source === 'office') {
+    const url = args.convertUrl ?? env.F451_CONVERT_URL
+    tree = await loadOfficeTree(src, {
+      converter: url ? httpConverter(url) : localConverter(),
+      split: args.split === true,
+      onFile: (path, i, total) => out.write(`Converting ${path} (${i + 1}/${total})\n`),
+    })
+  } else {
+    tree =
+      args.source === 'obsidian'
+        ? await loadObsidianTree(src)
+        : args.source === 'html'
+          ? await loadHtmlTree(src)
+          : await loadMarkdownFolderTree(src)
+  }
   return writeTreeAndReport(tree, args, f451, out)
 }

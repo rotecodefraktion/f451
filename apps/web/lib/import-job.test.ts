@@ -111,19 +111,23 @@ describe('storageKey and reportFileName', () => {
 describe('parseImportOffer and importAvailable', () => {
   it('reads the allow-list and the file import limit', () => {
     const offer = parseImportOffer({ bookstack: ['https://a', 3], fileImport: { maxUploadMb: 200 } })
-    expect(offer).toEqual({ bookstack: ['https://a'], maxUploadMb: 200 })
+    expect(offer).toEqual({ bookstack: ['https://a'], maxUploadMb: 200, office: false })
     expect(importAvailable(offer)).toBe(true)
+  })
+  it('reads the Office flag of the file import', () => {
+    expect(parseImportOffer({ fileImport: { maxUploadMb: 200, office: true } }).office).toBe(true)
+    expect(parseImportOffer({ fileImport: { maxUploadMb: 200, office: 'yes' } }).office).toBe(false)
   })
   it('treats a missing or malformed file import as absent', () => {
     expect(parseImportOffer({ bookstack: [] }).maxUploadMb).toBeNull()
     expect(parseImportOffer({ fileImport: { maxUploadMb: '200' } }).maxUploadMb).toBeNull()
     expect(parseImportOffer({ fileImport: { maxUploadMb: 0 } }).maxUploadMb).toBeNull()
-    expect(parseImportOffer(null)).toEqual({ bookstack: [], maxUploadMb: null })
+    expect(parseImportOffer(null)).toEqual({ bookstack: [], maxUploadMb: null, office: false })
   })
   it('offers the page with either source', () => {
-    expect(importAvailable({ bookstack: [], maxUploadMb: 50 })).toBe(true)
-    expect(importAvailable({ bookstack: ['https://a'], maxUploadMb: null })).toBe(true)
-    expect(importAvailable({ bookstack: [], maxUploadMb: null })).toBe(false)
+    expect(importAvailable({ bookstack: [], maxUploadMb: 50, office: false })).toBe(true)
+    expect(importAvailable({ bookstack: ['https://a'], maxUploadMb: null, office: false })).toBe(true)
+    expect(importAvailable({ bookstack: [], maxUploadMb: null, office: false })).toBe(false)
   })
 })
 

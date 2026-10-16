@@ -20,6 +20,14 @@ with a new major version.
   panel import a folder or ZIP of HTML files (#92). Content comes from
   `<main>`, `<article>` or `<body>`; relative links and media are resolved,
   nothing is fetched. Notion moved to its own enhancement (#165).
+- Office import: `f451-import office` and the format "Office files" in the
+  import panel import Word, PowerPoint and Excel files (and the LibreOffice
+  formats), single or as a ZIP, with optional splitting into chapters, slides
+  and sheets (#88). A new `convert` service (headless LibreOffice, internal
+  network only) does the conversion; new setting `F451_CONVERT_URL`, and the
+  service reads `CONVERT_QUEUE`, `CONVERT_TIMEOUT_S`, `CONVERT_MAX_TIMEOUT_S`
+  and `CONVERT_MAX_MB`. `GET /api/import/instances` reports
+  `fileImport.office`. See [docs/import-export.md](docs/import-export.md).
 
 ### Fixed
 - A wikilink with an alias inside a table cell is written `[[id\|text]]`, so

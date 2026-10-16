@@ -35,7 +35,7 @@ import { DEFAULT_IMPORT_MAX_UPLOAD_MB, registerImportJobRoutes } from './routes/
 import { JobRegistry } from './import/jobs.js'
 import { injectFetch, type BookStackFactory } from './import/run.js'
 import { TempFiles } from './import/temp-files.js'
-import { BookStackClient } from '@f451/import'
+import { BookStackClient, httpConverter, type Converter } from '@f451/import'
 import { registerDeletePageRoute } from './routes/delete-page.js'
 import { registerDraftsRoutes } from './routes/drafts.js'
 import { createClassificationGate } from './auth/classification-gate.js'
@@ -174,6 +174,11 @@ export interface AppOptions {
   importMaxUploadMb?: number
   /** Test hook: replaces the real `BookStackClient` for import/export jobs. */
   importBookstack?: BookStackFactory
+  /** Office import (#88): base URL of the convert service (`F451_CONVERT_URL`,
+   *  read in `server.ts`). Unset → Office formats are off. */
+  convertUrl?: string
+  /** Test hook: replaces the HTTP converter built from `convertUrl`; setting it turns Office import on. */
+  importConverter?: Converter
 }
 
 /** Default-Anfragebudget (Task 2, Spec §7) — siehe `AppOptions.rateLimits`.
@@ -942,6 +947,7 @@ export function buildApp(opts: AppOptions = {}): FastifyInstance {
         publicBaseUrl: opts.publicBaseUrl ?? '',
         selfFetch: injectFetch(app),
         bookstack: opts.importBookstack ?? ((url, tokenId, tokenSecret) => new BookStackClient(url, tokenId, tokenSecret)),
+        converter: opts.importConverter ?? (opts.convertUrl ? httpConverter(opts.convertUrl) : null),
       })
       // Seite verschieben/umbenennen (Phase 3.2, `POST /api/pages/:id/move`)
       // teilt sich dieselbe Gate-Basis (`resolveWriteContext`, `routes/drafts.ts`).
