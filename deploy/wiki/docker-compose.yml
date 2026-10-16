@@ -87,10 +87,37 @@ services:
       api:
         condition: service_healthy
 
+  # Convert service (Office import/export): LibreOffice headless behind a small
+  # HTTP wrapper. Only on the internal `convert` network — no egress, no
+  # published port; reachable from `api` alone.
+  convert:
+    build:
+      context: ../..
+      dockerfile: apps/convert/Dockerfile
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /work
+      - /tmp
+    mem_limit: 1g
+    environment:
+      # Empty = the defaults of apps/convert (20 waiting, 200 MB, 60 s, 600 s).
+      CONVERT_QUEUE: ${CONVERT_QUEUE:-}
+      CONVERT_MAX_MB: ${CONVERT_MAX_MB:-}
+      CONVERT_TIMEOUT_S: ${CONVERT_TIMEOUT_S:-}
+      CONVERT_MAX_TIMEOUT_S: ${CONVERT_MAX_TIMEOUT_S:-}
+    expose:
+      - "8080"
+    networks:
+      - convert
+
   api:
     build:
       context: ../..
       dockerfile: apps/api/Dockerfile
+    networks:
+      - default
+      - convert
     # Ohne Wiederanlaufregel bleibt der Dienst nach JEDEM Absturz tot — real
     # passiert bei einem Postgres-Neustart (s. `api/src/db/pool-errors.ts`).
     restart: unless-stopped
@@ -122,6 +149,9 @@ services:
       F451_INSTANCE_CONFIG: ${F451_INSTANCE_CONFIG:-}
       # BookStack instances for import/export from the web UI (#128); empty = off.
       F451_IMPORT_BOOKSTACK_URLS: ${F451_IMPORT_BOOKSTACK_URLS:-}
+      # Convert service for Office import (#88). Defaults to the service of this
+      # stack; set it to an empty value in .env to turn Office formats off.
+      F451_CONVERT_URL: ${F451_CONVERT_URL-http://convert:8080}
       # Auth/OIDC (Phase 1d) — ohne F451_OIDC_ISSUER bleibt Auth deaktiviert
       # (Bestandsverhalten, alles offen).
       F451_OIDC_ISSUER: ${F451_OIDC_ISSUER:-}
@@ -184,6 +214,11 @@ services:
       retries: 10
     volumes:
       - pg-data:/var/lib/postgresql/data
+
+networks:
+  # No route out: LibreOffice cannot fetch linked remote content.
+  convert:
+    internal: true
 
 volumes:
   pg-data:
