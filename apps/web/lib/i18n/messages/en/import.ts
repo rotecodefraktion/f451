@@ -5,7 +5,7 @@ import type { Messages } from '../../types.js'
 export const importMessages: Messages['import'] = {
   pageTitle: 'Import and export',
   intro:
-    'Brings a Markdown folder, an Obsidian vault, an HTML folder or content from BookStack into this space, or writes pages of this space to BookStack. A run keeps going in the background even if you close this page.',
+    'Brings a Markdown folder, an Obsidian vault, an HTML folder, Word, PowerPoint and Excel files or content from BookStack into this space, or writes pages of this space to BookStack. A run keeps going in the background even if you close this page.',
   tabsLabel: 'Direction',
   tabs: {
     import: 'Import',
