@@ -9,7 +9,7 @@ const ROOT_PATH = 'index.md'
 
 const visible = (nodes: TreeNode[]): TreeNode[] => nodes.filter((n) => !n.archived)
 
-function find(nodes: TreeNode[], id: string): TreeNode | null {
+export function find(nodes: TreeNode[], id: string): TreeNode | null {
   for (const n of nodes) {
     if (n.id === id) return n
     const hit = find(n.children, id)

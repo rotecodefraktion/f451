@@ -6,6 +6,23 @@ export type { OfficeTreeOptions } from './office/index.js'
 export { httpConverter, localConverter, ConvertError } from './office/converter.js'
 export type { Converter, HtmlBundle } from './office/converter.js'
 export { OFFICE_EXTENSIONS } from './office/kinds.js'
+export {
+  exportOffice,
+  exportFileName,
+  loadExportPages,
+  buildHtmlBundle,
+  buildFodp,
+  buildFods,
+  TooManyPagesError,
+  NoTablesError,
+  ExportPageNotFoundError,
+} from './office/export/index.js'
+export type {
+  OfficeExportOptions,
+  OfficeExportReport,
+  ExportPageSource,
+  ExportContext,
+} from './office/export/index.js'
 export { importTree } from './writer.js'
 export { flattenTree } from './order.js'
 export { F451Api, F451ApiError } from './api.js'
