@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { strToU8, zipSync } from 'fflate'
+import { strToU8, unzipSync, zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import type { FileSource } from '../files/source.js'
 import type { ImportNode } from '../model.js'
@@ -145,6 +145,69 @@ describe('loadOfficeTree — text', () => {
     const report = tree.root.find((n) => n.title === 'Quartalsbericht')!
     expect(report.markdown).toContain('[die Präsentation](source:office:deck.pptx|deck.pptx)')
     expect(tree.unresolved).toEqual([])
+  })
+})
+
+describe('loadOfficeTree — Word structure', () => {
+  const HTML =
+    '<html><body>' +
+    '<div id="Table of Contents1"><div id="TextSection"><p>TABLE OF CONTENTS</p></div>' +
+    '<p><a href="#_Toc1">1\tIntro\t3</a></p><p><a href="#_Toc2">1.1\tScope\t4</a></p></div>' +
+    '<h1><a name="_Toc1"></a>1Intro</h1><p>See <a href="#_Toc2">the scope</a> and <a href="#_Ref9">a bookmark</a>.</p>' +
+    '<h2><a name="_Toc2"></a>1.1<span>Scope</span> </h2><p>Text\u0001 here.</p>' +
+    '<h1>2Intro</h1><p>Back to <a href="#_Toc1">the intro</a>.</p>' +
+    '</body></html>'
+  const odt = zipSync({ 'content.xml': strToU8('<office:document-content/>') })
+  const docx = zipSync({
+    '[Content_Types].xml': strToU8('<Types/>'),
+    'word/document.xml': strToU8(
+      '<w:document><w:body><w:p><w:r><w:t>Status </w:t></w:r><w:del w:id="1"><w:r><w:delText>Final</w:delText></w:r></w:del></w:p></w:body></w:document>',
+    ),
+    'word/media/pad.bin': noise(500),
+  })
+  const run = async (split: boolean, seen: Uint8Array[] = []) => {
+    const conv: Converter = {
+      async toHtml(bytes) {
+        seen.push(bytes)
+        return { html: HTML, media: new Map(), odf: odt, odfExt: 'odt' }
+      },
+      async fromBundle() {
+        throw new Error('not used')
+      },
+    }
+    return loadOfficeTree(source({ 'g.docx': docx }), { converter: conv, split, limits: LIMITS })
+  }
+
+  it('accepts tracked changes before the conversion', async () => {
+    const seen: Uint8Array[] = []
+    const tree = await run(false, seen)
+    const xml = new TextDecoder().decode(unzipSync(seen[0])['word/document.xml'])
+    expect(xml).toContain('Status ')
+    expect(xml).not.toContain('Final')
+    expect(tree.droppedHtml.trackedChange).toBe(1)
+  })
+
+  it('drops the table of contents, separates outline numbers and links headings by their anchors', async () => {
+    const md = (await run(false)).root[0].markdown
+    expect(md).not.toContain('TABLE OF CONTENTS')
+    expect(md).not.toContain('_Toc')
+    expect(md).toContain('# 1 Intro\n')
+    expect(md).toContain('## 1.1 Scope\n')
+    expect(md).toContain('# 2 Intro\n')
+    expect(md).toContain('Back to [the intro](#1-intro).')
+    expect(md).toContain('See [the scope](#11-scope) and a bookmark.')
+    expect(md).toContain('Text here.')
+    expect(md).not.toMatch(/F451X|f451-heading/)
+  })
+
+  it('keeps only the text of a link to a heading on another page when splitting', async () => {
+    const tree = await run(true)
+    const [first, second] = tree.root[0].children
+    expect(first.title).toBe('1 Intro')
+    expect(first.markdown).toContain('See [the scope](#11-scope)')
+    expect(second.title).toBe('2 Intro')
+    expect(second.markdown).toContain('Back to the intro.')
+    expect(tree.root[0].children.map((c) => c.markdown).join('')).not.toMatch(/F451X|f451-heading/)
   })
 })
 
