@@ -19,12 +19,15 @@ import {
   type HNode,
 } from './hast.js'
 import { normaliseLists, unwrapHeadingLists } from './lists.js'
-import { stripTokens, type Tokens } from './tokens.js'
+import { HEADING_LINK, headingToken, stripTokens, type Tokens } from './tokens.js'
 
 export interface PrepassContext {
   tokens: Tokens
   dropped: Record<string, number>
   lang: Lang
+  /** All headings one level down (H1 → H2, capped at H6): on a single page
+   *  the page title is the only H1, and the outline starts at H2. */
+  shiftHeadings?: boolean
 }
 
 const NOTE_BODY = /^sd(foot|end)note(\d+)$/
@@ -77,12 +80,101 @@ function convertNotes(body: HElement, ctx: PrepassContext): void {
   replace(body)
 }
 
+/** Writer's table of contents section. The wiki shows its own outline, and
+ *  the entries' page numbers mean nothing on a web page. */
+const TOC_SECTION = /^(Table of Contents|Inhaltsverzeichnis)\d*$/
+const HEADING = /^h[1-6]$/
+/** Writer's page header and footer: repeated on every printed page. */
+const PAGE_FURNITURE = /^(header|footer)$/
+/** A drawing shape Writer rendered as a bitmap under its default name
+ *  (backgrounds, lines, decoration); pictures keep their own names. */
+const SHAPE_IMAGE = /^Shape\d+$/
+// C0 controls other than tab and line breaks (Word fields leave some behind).
+const CONTROL = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g
+
+function stripControls(node: HNode): void {
+  if (node.type === 'text' && node.value) node.value = node.value.replace(CONTROL, '')
+  for (const c of node.children ?? []) stripControls(c)
+}
+
+/** Inserts `s` after the first `offset` characters of `node`'s text. */
+function insertText(node: HNode, offset: number, s: string): void {
+  let left = offset
+  const visit = (n: HNode): boolean => {
+    if (n.type === 'text') {
+      const v = n.value ?? ''
+      if (left <= v.length) {
+        n.value = v.slice(0, left) + s + v.slice(left)
+        return true
+      }
+      left -= v.length
+      return false
+    }
+    return (n.children ?? []).some(visit)
+  }
+  visit(node)
+}
+
+/** Word's outline numbers reach the HTML glued to the heading text
+ *  ("3.1General"). A number counts as outline number when it has as many
+ *  parts as the heading level, and only in a document with at least two
+ *  such headings, so a lone "3D printing" stays as it is. */
+function separateHeadingNumbers(body: HElement): void {
+  const glued: Array<{ heading: HElement; at: number }> = []
+  for (const h of findAll(body, (e) => HEADING.test(e.tagName))) {
+    const m = /^(\s*)(\d+(?:\.\d+)*)\.?(?=\p{L})/u.exec(textOf(h))
+    if (m && m[2].split('.').length === Number(h.tagName[1])) glued.push({ heading: h, at: m[0].length })
+  }
+  if (glued.length < 2) return
+  for (const g of glued) insertText(g.heading, g.at, ' ')
+}
+
+/** Links to a bookmark inside a heading (Word's `_Toc…` and `_Ref…`
+ *  bookmarks) point at that heading through a token the page conversion
+ *  turns into the heading's anchor; links to any other bookmark keep only
+ *  their text. */
+function linkHeadings(body: HElement): void {
+  const target = new Map<string, number>()
+  let n = 0
+  for (const h of findAll(body, (e) => HEADING.test(e.tagName))) {
+    n++
+    for (const a of findAll(h, (e) => e.tagName === 'a')) {
+      const name = prop(a, 'name') || prop(a, 'id')
+      if (name) target.set(name, n)
+    }
+    h.children.push(txt(headingToken(n)))
+  }
+  unwrapWhere(body, (e) => {
+    if (e.tagName !== 'a') return false
+    const href = prop(e, 'href')
+    if (!href.startsWith('#')) return false
+    let name = href.slice(1)
+    try {
+      name = decodeURIComponent(name)
+    } catch {
+      // keep it as written
+    }
+    const id = target.get(name)
+    if (id === undefined) return true
+    e.properties.href = `${HEADING_LINK}${id}`
+    return false
+  })
+}
+
 /** The body's blocks with wrapping `div`s (sections, header, footer) unwrapped. */
 function topLevel(nodes: HNode[]): HNode[] {
   return nodes.flatMap((n) => (isElement(n, 'div') ? topLevel(n.children) : [n]))
 }
 
 export function textPrepass(body: HElement, ctx: PrepassContext): OfficeDoc {
+  removeWhere(body, (n) => isElement(n, 'div') && TOC_SECTION.test(prop(n, 'id')))
+  bump(ctx.dropped, 'pageHeaderFooter', removeWhere(body, (n) => isElement(n, 'div') && PAGE_FURNITURE.test(prop(n, 'title'))))
+  bump(
+    ctx.dropped,
+    'shape',
+    removeWhere(body, (n) => isElement(n, 'img') && SHAPE_IMAGE.test(prop(n, 'name')) && /\.gif$/i.test(prop(n, 'src'))),
+  )
+  stripControls(body)
   // Writer writes comments (annotations) as HTML comments.
   bump(ctx.dropped, 'comment', removeWhere(body, (n) => n.type === 'comment'))
   // Tracked changes: deletions go, insertions stay as plain text.
@@ -91,6 +183,8 @@ export function textPrepass(body: HElement, ctx: PrepassContext): OfficeDoc {
 
   convertNotes(body, ctx)
   unwrapHeadingLists(body)
+  separateHeadingNumbers(body)
+  linkHeadings(body)
   normaliseLists(body, false)
   for (const table of findAll(body, (e) => e.tagName === 'table')) promoteHeader(table)
 
@@ -101,6 +195,9 @@ export function textPrepass(body: HElement, ctx: PrepassContext): OfficeDoc {
     if (isElement(n, 'h1')) parts.push({ heading: n, nodes: [] })
     else if (parts.length) parts[parts.length - 1].nodes.push(n)
     else intro.push(n)
+  }
+  if (ctx.shiftHeadings) {
+    for (const h of findAll(body, (e) => HEADING.test(e.tagName))) h.tagName = `h${Math.min(Number(h.tagName[1]) + 1, 6)}`
   }
   return {
     intro: serialize(intro),
