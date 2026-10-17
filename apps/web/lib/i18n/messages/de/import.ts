@@ -119,6 +119,7 @@ export const importMessages = {
     skipped: 'übersprungen',
     failed: 'fehlgeschlagen',
     cancelled: 'abgebrochen',
+    pages: 'Seiten',
   },
   errors: {
     missingFields: 'Bitte Instanz, Token-ID, Token-Secret und eine Quelle angeben.',

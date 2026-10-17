@@ -111,6 +111,7 @@ export const importMessages: Messages['import'] = {
     skipped: 'skipped',
     failed: 'failed',
     cancelled: 'cancelled',
+    pages: 'pages',
   },
   errors: {
     missingFields: 'Please enter the instance, token ID, token secret and a source.',
