@@ -1,8 +1,15 @@
 import { parseArgs as nodeParseArgs } from 'node:util'
 
+export type OfficeExportFormat = 'docx' | 'pptx' | 'xlsx' | 'pdf'
+
 export interface ParsedArgs {
   command: 'import' | 'export'
+  /** With `command: 'export'`: `bookstack` or `office` (Office file export). */
   source: 'bookstack' | 'markdown' | 'obsidian' | 'html' | 'office'
+  /** `export office` only. */
+  format?: OfficeExportFormat
+  /** `export office` only: include the subpages of `--page`. */
+  subpages?: boolean
   /** Folder, `.zip` or (`office` only) a single Office file. */
   path?: string
   /** `office` only: split text at H1, one page per slide / sheet. */
@@ -48,6 +55,14 @@ Export options:
   --dry-run           write nothing to BookStack; write the rendered HTML (<pageId>.html) to --out
   --out <dir>         directory for the report (default: .)
 
+       f451-import export office --space <space> --page <pageId> --format <docx|pptx|xlsx|pdf> [--subpages] [--out <file>]
+
+Office export options (needs a convert service on the server; large exports: use the panel):
+  --page <pageId>     the page to export (required)
+  --format <format>   docx, pptx, xlsx or pdf (required)
+  --subpages          include the subpages
+  --out <file>        target file (default: the name the server suggests, in the current directory)
+
 Environment: F451_URL, F451_TOKEN, BOOKSTACK_URL, BOOKSTACK_TOKEN_ID, BOOKSTACK_TOKEN_SECRET
              (markdown, obsidian, html and office need only F451_URL and F451_TOKEN;
              office also reads F451_CONVERT_URL)
@@ -60,15 +75,44 @@ export class UsageError extends Error {
   }
 }
 
+const OFFICE_EXPORT_FORMATS = ['docx', 'pptx', 'xlsx', 'pdf']
+
+function parseOfficeExport(values: Record<string, string | boolean | undefined>, positionals: string[]): ParsedArgs {
+  if (positionals.length > 2) throw new UsageError(`unexpected argument: ${positionals[2]}`)
+  for (const o of ['book', 'shelf', 'parent', 'update', 'release', 'split', 'convert-url', 'dry-run']) {
+    if (values[o] !== undefined) throw new UsageError(`--${o} is not valid for export office`)
+  }
+  if (typeof values.space !== 'string' || !values.space) throw new UsageError('--space is required')
+  if (typeof values.page !== 'string' || !values.page) throw new UsageError('--page is required')
+  if (typeof values.format !== 'string' || !OFFICE_EXPORT_FORMATS.includes(values.format)) {
+    throw new UsageError(`--format must be one of ${OFFICE_EXPORT_FORMATS.join(', ')}`)
+  }
+
+  const result: ParsedArgs = {
+    command: 'export',
+    source: 'office',
+    space: values.space,
+    page: values.page,
+    format: values.format as OfficeExportFormat,
+    subpages: values.subpages === true,
+    update: false,
+    release: false,
+    dryRun: false,
+  }
+  if (typeof values.out === 'string') result.out = values.out
+  return result
+}
+
 function parseExport(
   values: Record<string, string | boolean | undefined>,
   positionals: string[],
 ): ParsedArgs {
+  if (positionals[1] === 'office') return parseOfficeExport(values, positionals)
   if (positionals[1] !== 'bookstack') {
     throw new UsageError(positionals[1] ? `unknown export target: ${positionals[1]}` : 'missing export target')
   }
   if (positionals.length > 2) throw new UsageError(`unexpected argument: ${positionals[2]}`)
-  for (const o of ['shelf', 'parent', 'update', 'release', 'split', 'convert-url']) {
+  for (const o of ['shelf', 'parent', 'update', 'release', 'split', 'convert-url', 'format', 'subpages']) {
     if (values[o] !== undefined) throw new UsageError(`--${o} is not valid for export`)
   }
   if (typeof values.space !== 'string' || !values.space) throw new UsageError('--space is required')
@@ -98,7 +142,7 @@ function parseFileImport(
   const path = positionals[1]
   if (!path) throw new UsageError(`missing path for ${source}`)
   if (positionals.length > 2) throw new UsageError(`unexpected argument: ${positionals[2]}`)
-  for (const o of ['book', 'shelf', 'page']) {
+  for (const o of ['book', 'shelf', 'page', 'format', 'subpages']) {
     if (values[o] !== undefined) throw new UsageError(`--${o} is not valid for ${source}`)
   }
   if (source !== 'office') {
@@ -144,6 +188,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
         'dry-run': { type: 'boolean' },
         split: { type: 'boolean' },
         'convert-url': { type: 'string' },
+        format: { type: 'string' },
+        subpages: { type: 'boolean' },
       },
     })
   } catch (e) {
@@ -160,7 +206,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
     throw new UsageError(command ? `unknown command: ${command}` : 'missing command')
   }
   if (positionals.length > 1) throw new UsageError(`unexpected argument: ${positionals[1]}`)
-  for (const o of ['split', 'convert-url'] as const) {
+  for (const o of ['split', 'convert-url', 'format', 'subpages'] as const) {
     if (values[o] !== undefined) throw new UsageError(`--${o} is not valid for bookstack`)
   }
 

@@ -1,5 +1,6 @@
 import { placeFootnotes, type Classification } from '@f451/markdown'
 import { Breadcrumb } from './breadcrumb'
+import { ExportDialog } from './export-dialog'
 import { PageBody } from './page-body'
 import { ReadingPosition } from './reading-position'
 import { StatusBarBottom } from './status-bar-bottom'
@@ -148,7 +149,7 @@ function initials(name: string): string {
  * Kommentar zu `dangerouslySetInnerHTML` und YouTube-Klick-zu-Player s. dort,
  * `components/page-body.tsx`).
  */
-export async function PageView({ data }: { data: PageData }) {
+export async function PageView({ data, officeExport = false }: { data: PageData; officeExport?: boolean }) {
   const { t, locale } = await getT()
   const crumbs = buildBreadcrumb(data.space, data.path, data.title)
   // Abschnitte der GANZEN Seite für die Positionsanzeige des Kolumnentitels —
@@ -228,6 +229,8 @@ export async function PageView({ data }: { data: PageData }) {
           Button käme niemand mehr in den Editor, um `archived` zu entfernen.
           Only when the archived chip is the one shown (no draft/review). */}
       {workflow === null && data.archived ? <UnarchiveButton pageId={data.id} /> : null}
+      {/* Office export (f451#88): only when the convert service is configured. */}
+      {officeExport ? <ExportDialog space={data.space} pageId={data.id} /> : null}
       {!data.archived ? (
         <a className="btn primary" href={wikiPageEditHref(data.space, data.id)}>
           {EDIT_ICON}

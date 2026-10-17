@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { parseArgs } from './args.js'
 import { runBookStackExport } from './export-bookstack.js'
+import { runOfficeExport } from './export-office.js'
 import { runBookStackImport } from './import-bookstack.js'
 import { runFileImport } from './import-files.js'
 
@@ -9,7 +10,9 @@ async function main(): Promise<void> {
     const args = parseArgs(process.argv.slice(2))
     process.exitCode =
       args.command === 'export'
-        ? await runBookStackExport(args, process.env, process.stdout)
+        ? args.source === 'office'
+          ? await runOfficeExport(args, process.env, process.stdout)
+          : await runBookStackExport(args, process.env, process.stdout)
         : args.source === 'bookstack'
           ? await runBookStackImport(args, process.env, process.stdout)
           : await runFileImport(args, process.env, process.stdout)

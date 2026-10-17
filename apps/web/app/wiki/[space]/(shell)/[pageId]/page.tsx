@@ -7,8 +7,9 @@ import { ApiError, apiFetch } from '../../../../../lib/api'
 import type { Backlink } from '../../../../../lib/backlinks'
 import type { GraphData } from '../../../../../lib/graph/types'
 import { getT } from '../../../../../lib/i18n/server.js'
+import { parseImportOffer } from '../../../../../lib/import-job'
 import { formatUpdatedAt, pageStatusLabel } from '../../../../../lib/page-view'
-import { apiPageBacklinksPath, decodeRouteParam, wikiPageHref } from '../../../../../lib/urls'
+import { apiImportInstancesPath, apiPageBacklinksPath, decodeRouteParam, wikiPageHref } from '../../../../../lib/urls'
 
 interface PageProps {
   params: Promise<{ space: string; pageId: string }>
@@ -70,8 +71,9 @@ export default async function WikiPage({ params }: PageProps) {
   let miniGraph: GraphData | null
   let metadataSchema: MetadataSchema | null
   let backlinks: Backlink[] | null
+  let officeExport: boolean
   try {
-    ;[data, miniGraph, metadataSchema, backlinks] = await Promise.all([
+    ;[data, miniGraph, metadataSchema, backlinks, officeExport] = await Promise.all([
       apiFetch<PageData | { redirectTo: string }>(`/api/pages/${encodeURIComponent(pageId)}`, {
         cookie: cookieHeader,
       }),
@@ -84,6 +86,11 @@ export default async function WikiPage({ params }: PageProps) {
       apiFetch<{ backlinks: Backlink[] }>(apiPageBacklinksPath(pageId), { cookie: cookieHeader }).then(
         (r) => r.backlinks,
         () => null,
+      ),
+      // Office export entry (f451#88): fail-soft, off when the offer cannot be read.
+      apiFetch<unknown>(apiImportInstancesPath(), { cookie: cookieHeader }).then(
+        (r) => parseImportOffer(r).office,
+        () => false,
       ),
     ])
   } catch (err) {
@@ -108,7 +115,7 @@ export default async function WikiPage({ params }: PageProps) {
 
   return (
     <>
-      <PageView data={data} />
+      <PageView data={data} officeExport={officeExport} />
       <Rail
         headings={data.headings}
         tags={data.tags}

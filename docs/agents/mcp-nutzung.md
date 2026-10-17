@@ -83,7 +83,7 @@ zeichnet.
 
 | Zweck | Werkzeuge |
 |---|---|
-| Orientieren und lesen | `list_spaces`, `get_tree`, `search_wiki`, `read_page`, `get_page_source`, `get_graph`, `list_broken_links` |
+| Orientieren und lesen | `list_spaces`, `get_tree`, `search_wiki`, `read_page`, `get_page_source`, `get_graph`, `list_broken_links`, `export_page` |
 | Schreiben im Review-Weg | `create_page`, `edit_page`, `update_page_draft`, `discard_page_draft`, `request_review`, `request_changes`, `release_page` |
 | Anhänge | `save_diagram`, `attach_file` |
 

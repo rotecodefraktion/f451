@@ -184,6 +184,22 @@ export function apiSpaceExportPath(space: string): string {
   return `/api/spaces/${encodeURIComponent(space)}/export/bookstack`
 }
 
+/** API path that starts an Office export job of a space (f451#88). */
+export function apiSpaceFileExportPath(space: string): string {
+  return `/api/spaces/${encodeURIComponent(space)}/export/file`
+}
+
+/** Instant Office export of a page (f451#88), e.g.
+ *  `/api/pages/home/export?format=docx&subpages=1`. */
+export function apiPageExportPath(pageId: string, format: string, subpages: boolean): string {
+  return `/api/pages/${encodeURIComponent(pageId)}/export?format=${encodeURIComponent(format)}&subpages=${subpages ? '1' : '0'}`
+}
+
+/** Result file of a finished export job (f451#88). */
+export function apiJobFilePath(id: string): string {
+  return `/api/jobs/${encodeURIComponent(id)}/file`
+}
+
 /** API path of an import/export job (#128), e.g. `/api/jobs/<id>`. */
 export function apiJobPath(id: string): string {
   return `/api/jobs/${encodeURIComponent(id)}`
