@@ -104,8 +104,9 @@ describe('loadOfficeTree — text', () => {
     const md = page.markdown
     expect(md.startsWith('# Quartalsbericht\n')).toBe(true)
     expect(md).toContain('Vorwort vor dem ersten Kapitel.')
-    expect(md).toContain('# Einleitung')
-    expect(md).toContain('# Ergebnis')
+    // One page: the page title is the only H1, the chapters move one level down.
+    expect(md).toContain('\n## Einleitung\n')
+    expect(md).toContain('\n## Ergebnis\n')
     expect(md).toContain('Fußnote[^1]')
     expect(md).toContain('[^1]: Quelle: Archiv.')
     expect(md).toContain('Ende.[^e1]')
@@ -151,11 +152,14 @@ describe('loadOfficeTree — text', () => {
 describe('loadOfficeTree — Word structure', () => {
   const HTML =
     '<html><body>' +
+    '<div title="header"><p><img src="media/logo.png" name="Grafik 1"></p></div>' +
+    '<p><img src="media/s.gif" name="Shape1" alt="Shape1"></p><p>Cover title</p>' +
     '<div id="Table of Contents1"><div id="TextSection"><p>TABLE OF CONTENTS</p></div>' +
     '<p><a href="#_Toc1">1\tIntro\t3</a></p><p><a href="#_Toc2">1.1\tScope\t4</a></p></div>' +
     '<h1><a name="_Toc1"></a>1Intro</h1><p>See <a href="#_Toc2">the scope</a> and <a href="#_Ref9">a bookmark</a>.</p>' +
     '<h2><a name="_Toc2"></a>1.1<span>Scope</span> </h2><p>Text\u0001 here.</p>' +
     '<h1>2Intro</h1><p>Back to <a href="#_Toc1">the intro</a>.</p>' +
+    '<div title="footer"><p>Internal 1 | 8</p></div>' +
     '</body></html>'
   const odt = zipSync({ 'content.xml': strToU8('<office:document-content/>') })
   const docx = zipSync({
@@ -191,13 +195,23 @@ describe('loadOfficeTree — Word structure', () => {
     const md = (await run(false)).root[0].markdown
     expect(md).not.toContain('TABLE OF CONTENTS')
     expect(md).not.toContain('_Toc')
-    expect(md).toContain('# 1 Intro\n')
-    expect(md).toContain('## 1.1 Scope\n')
-    expect(md).toContain('# 2 Intro\n')
+    expect(md).toContain('\n## 1 Intro\n')
+    expect(md).toContain('\n### 1.1 Scope\n')
+    expect(md).toContain('\n## 2 Intro\n')
     expect(md).toContain('Back to [the intro](#1-intro).')
     expect(md).toContain('See [the scope](#11-scope) and a bookmark.')
     expect(md).toContain('Text here.')
     expect(md).not.toMatch(/F451X|f451-heading/)
+  })
+
+  it('drops the page header and footer and drawing shapes Writer rendered as images', async () => {
+    const tree = await run(false)
+    const md = tree.root[0].markdown
+    expect(md).toContain('Cover title')
+    expect(md).not.toContain('Internal 1')
+    expect(md).not.toMatch(/logo\.png|s\.gif|Shape1/)
+    expect(tree.droppedHtml.pageHeaderFooter).toBe(2)
+    expect(tree.droppedHtml.shape).toBe(1)
   })
 
   it('keeps only the text of a link to a heading on another page when splitting', async () => {

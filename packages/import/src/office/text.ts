@@ -25,6 +25,9 @@ export interface PrepassContext {
   tokens: Tokens
   dropped: Record<string, number>
   lang: Lang
+  /** All headings one level down (H1 → H2, capped at H6): on a single page
+   *  the page title is the only H1, and the outline starts at H2. */
+  shiftHeadings?: boolean
 }
 
 const NOTE_BODY = /^sd(foot|end)note(\d+)$/
@@ -81,6 +84,11 @@ function convertNotes(body: HElement, ctx: PrepassContext): void {
  *  the entries' page numbers mean nothing on a web page. */
 const TOC_SECTION = /^(Table of Contents|Inhaltsverzeichnis)\d*$/
 const HEADING = /^h[1-6]$/
+/** Writer's page header and footer: repeated on every printed page. */
+const PAGE_FURNITURE = /^(header|footer)$/
+/** A drawing shape Writer rendered as a bitmap under its default name
+ *  (backgrounds, lines, decoration); pictures keep their own names. */
+const SHAPE_IMAGE = /^Shape\d+$/
 // C0 controls other than tab and line breaks (Word fields leave some behind).
 const CONTROL = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g
 
@@ -160,6 +168,12 @@ function topLevel(nodes: HNode[]): HNode[] {
 
 export function textPrepass(body: HElement, ctx: PrepassContext): OfficeDoc {
   removeWhere(body, (n) => isElement(n, 'div') && TOC_SECTION.test(prop(n, 'id')))
+  bump(ctx.dropped, 'pageHeaderFooter', removeWhere(body, (n) => isElement(n, 'div') && PAGE_FURNITURE.test(prop(n, 'title'))))
+  bump(
+    ctx.dropped,
+    'shape',
+    removeWhere(body, (n) => isElement(n, 'img') && SHAPE_IMAGE.test(prop(n, 'name')) && /\.gif$/i.test(prop(n, 'src'))),
+  )
   stripControls(body)
   // Writer writes comments (annotations) as HTML comments.
   bump(ctx.dropped, 'comment', removeWhere(body, (n) => n.type === 'comment'))
@@ -181,6 +195,9 @@ export function textPrepass(body: HElement, ctx: PrepassContext): OfficeDoc {
     if (isElement(n, 'h1')) parts.push({ heading: n, nodes: [] })
     else if (parts.length) parts[parts.length - 1].nodes.push(n)
     else intro.push(n)
+  }
+  if (ctx.shiftHeadings) {
+    for (const h of findAll(body, (e) => HEADING.test(e.tagName))) h.tagName = `h${Math.min(Number(h.tagName[1]) + 1, 6)}`
   }
   return {
     intro: serialize(intro),

@@ -249,7 +249,7 @@ async function prepareFile(path: string, bytes: Uint8Array, opts: OfficeTreeOpti
   let doc: OfficeDoc
   let truncated: Prepared['truncated'] = []
   if (kind === 'text') {
-    doc = textPrepass(body, { tokens, dropped, lang })
+    doc = textPrepass(body, { tokens, dropped, lang, shiftHeadings: !opts.split })
   } else if (kind === 'slides') {
     doc = slidesPrepass(body, {
       tokens,
