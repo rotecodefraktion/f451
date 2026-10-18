@@ -33,20 +33,25 @@ export function readSource(content: string): SourceRef | null {
 }
 
 /** Keeps everything f451 wrote into the frontmatter (id, classification,
- *  metadata, version …); only `tags` and the body come from the source. */
-export function mergeIntoExisting(existing: string, p: { tags: string[]; body: string }): string {
+ *  metadata, version …); only `title`, `tags` and the body come from the
+ *  source, so a renamed source renames the page. */
+export function mergeIntoExisting(existing: string, p: { title: string; tags: string[]; body: string }): string {
   const { yaml } = split(existing)
   const data = (yaml ? (parseYaml(yaml) as Record<string, unknown>) : {}) ?? {}
+  data.title = p.title
   if (p.tags.length) data.tags = p.tags
   else delete data.tags
   return join(data, p.body)
 }
 
-/** True if `existing` already has exactly this body and these tags, i.e. an
- *  update would change nothing the import owns. */
-export function importUnchanged(existing: string, p: { tags: string[]; body: string }): boolean {
+/** True if `existing` already has exactly this title, body and these tags,
+ *  i.e. an update would change nothing the import owns. */
+export function importUnchanged(existing: string, p: { title: string; tags: string[]; body: string }): boolean {
   const { yaml, body } = split(existing)
   const data = (yaml ? (parseYaml(yaml) as Record<string, unknown> | null) : null) ?? {}
   const tags = Array.isArray(data.tags) ? data.tags.map(String) : []
-  return body === p.body && tags.length === p.tags.length && tags.every((t, i) => t === p.tags[i])
+  const title = data.title === undefined || data.title === null ? '' : String(data.title)
+  return (
+    title === p.title && body === p.body && tags.length === p.tags.length && tags.every((t, i) => t === p.tags[i])
+  )
 }

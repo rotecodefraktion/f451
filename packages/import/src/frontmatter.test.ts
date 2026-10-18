@@ -28,22 +28,32 @@ describe('readSource', () => {
 describe('mergeIntoExisting', () => {
   it('keeps the f451 frontmatter, replaces tags and body', () => {
     const existing = '---\nid: p-abc\ntitle: T\ntags:\n  - old\nclassification: internal\nsource:\n  type: bookstack\n  id: "12"\n---\n\nold body\n'
-    const out = mergeIntoExisting(existing, { tags: ['new'], body: 'new body\n' })
+    const out = mergeIntoExisting(existing, { title: 'T', tags: ['new'], body: 'new body\n' })
     expect(out).toContain('id: p-abc')
+    expect(out).toContain('title: T')
     expect(out).toContain('classification: internal')
     expect(out).toContain('tags:\n  - new')
     expect(out).not.toContain('old')
     expect(out.endsWith('---\n\nnew body\n')).toBe(true)
+  })
+  it('writes a changed title', () => {
+    const existing = '---\nid: p-abc\ntitle: Old\n---\n\nbody\n'
+    const out = mergeIntoExisting(existing, { title: 'New name', tags: [], body: 'body\n' })
+    expect(out).toContain('title: New name')
+    expect(out).not.toContain('Old')
   })
 })
 
 describe('importUnchanged', () => {
   const existing = '---\nid: p-abc\ntitle: T\ntags:\n  - a\nversion: 1.0.0\n---\n\nbody\n'
   it('ignores front matter the import does not own', () => {
-    expect(importUnchanged(existing, { tags: ['a'], body: 'body\n' })).toBe(true)
+    expect(importUnchanged(existing, { title: 'T', tags: ['a'], body: 'body\n' })).toBe(true)
   })
   it('sees a changed body or tag list', () => {
-    expect(importUnchanged(existing, { tags: ['a'], body: 'other\n' })).toBe(false)
-    expect(importUnchanged(existing, { tags: ['a', 'b'], body: 'body\n' })).toBe(false)
+    expect(importUnchanged(existing, { title: 'T', tags: ['a'], body: 'other\n' })).toBe(false)
+    expect(importUnchanged(existing, { title: 'T', tags: ['a', 'b'], body: 'body\n' })).toBe(false)
+  })
+  it('sees a changed title', () => {
+    expect(importUnchanged(existing, { title: 'T2', tags: ['a'], body: 'body\n' })).toBe(false)
   })
 })

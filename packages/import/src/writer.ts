@@ -95,28 +95,31 @@ function describe(e: unknown): string {
 }
 
 /** Pages already in the space that came from the same source, keyed by source
- *  id. Only pages whose title matches an entry title are read (one `raw` each);
- *  a failing `raw` counts as "not a match". Also returns all page ids of the
- *  tree, so a stale `knownF451Id` can be ignored. */
+ *  id. Read (one `raw` each) are the pages whose title matches an entry title
+ *  and every page in the target subtree (below `target.parentId`, or the whole
+ *  space without one), so a page renamed at the source is still found. A page
+ *  moved out of the subtree is found by title only. A failing `raw` counts as
+ *  "not a match". Also returns all page ids of the tree, so a stale
+ *  `knownF451Id` can be ignored. */
 async function findExisting(
   api: WriterApi,
-  space: string,
+  target: ImportTarget,
   entries: FlatEntry[],
 ): Promise<{ bySource: Map<string, string>; pageIds: Set<string> }> {
   const bySource = new Map<string, string>()
   const pageIds = new Set<string>()
   const titles = new Set(entries.map((e) => e.node.title))
   const types = new Set(entries.map((e) => e.node.sourceRef.type))
-  const candidates: TreeNode[] = []
-  const walk = (nodes: TreeNode[]) => {
+  const candidates = new Map<string, TreeNode>() // id → node, each read once
+  const walk = (nodes: TreeNode[], inSubtree: boolean) => {
     for (const n of nodes) {
       pageIds.add(n.id)
-      if (titles.has(n.title)) candidates.push(n)
-      walk(n.children ?? [])
+      if (inSubtree || titles.has(n.title)) candidates.set(n.id, n)
+      walk(n.children ?? [], inSubtree || n.id === target.parentId)
     }
   }
-  walk(await api.tree(space))
-  for (const c of candidates) {
+  walk(await api.tree(target.space), !target.parentId)
+  for (const c of candidates.values()) {
     let content: string
     try {
       content = await api.raw(c.id)
@@ -215,7 +218,7 @@ export async function importTree(
     onEvent({ kind: 'done' })
     return report
   }
-  const existing = await findExisting(api, target.space, entries)
+  const existing = await findExisting(api, target, entries)
 
   // 1. pass one: create pages, parents before children
   const ids = new Map<string, string>() // sourceId → f451 id
@@ -356,8 +359,8 @@ export async function importTree(
       const markdown = rewriteLinks(replaceRefs(node.markdown, refs), ids)
       const content = isNew
         ? buildPageContent({ id: pageId, title: node.title, tags: node.tags, source: node.sourceRef, body: markdown })
-        : mergeIntoExisting(existingContent, { tags: node.tags, body: markdown })
-      if (!isNew && uploaded === 0 && importUnchanged(existingContent, { tags: node.tags, body: markdown })) {
+        : mergeIntoExisting(existingContent, { title: node.title, tags: node.tags, body: markdown })
+      if (!isNew && uploaded === 0 && importUnchanged(existingContent, { title: node.title, tags: node.tags, body: markdown })) {
         discardOnFail = false
         await api.discardDraft(pageId)
         skip(node, pageId, 'unchanged')

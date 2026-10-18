@@ -370,6 +370,75 @@ describe('importTree', () => {
     })
   })
 
+  describe('page renamed at the source', () => {
+    const oldRaw = (id: string) =>
+      `---\nid: ${id}\ntitle: Old name\nsource:\n  type: bookstack\n  id: "1"\n---\n\nsame body\n`
+    const target = { space: 's', parentId: 'p-book' }
+
+    function renamedApi(treeNodes: TreeNode[]) {
+      const api = fakeApi()
+      api.tree.mockResolvedValue(treeNodes)
+      api.raw.mockImplementation(async (id) => (id === 'p-book' ? '---\nid: p-book\ntitle: Book\n---\n\nx\n' : oldRaw(id)))
+      api.openDraft.mockImplementation(async (id) => ({ baseSha: `sha-${id}`, content: oldRaw(id) }))
+      return api
+    }
+    const below = (): TreeNode[] => [
+      { id: 'p-book', title: 'Book', path: 'book/index.md', archived: false, children: [
+        { id: 'p-old', title: 'Old name', path: 'book/old-name.md', archived: false, children: [] },
+      ] },
+    ]
+
+    it('updates the page under the same parent instead of creating one', async () => {
+      const api = renamedApi(below())
+
+      const report = await importTree(
+        tree([node('1', 'New name', { markdown: 'new body\n' })]),
+        target, api, { ...OPTS, update: true }, () => {},
+      )
+
+      expect(api.createPage).not.toHaveBeenCalled()
+      expect(api.raw).toHaveBeenCalledWith('p-old')
+      expect(report.created).toEqual([])
+      expect(report.updated).toEqual([{ sourceId: '1', title: 'New name', pageId: 'p-old' }])
+      const content = putFor(api, 'p-old')
+      expect(content).toContain('title: New name')
+      expect(content).not.toContain('Old name')
+    })
+
+    it('writes a draft when only the title changed', async () => {
+      const api = renamedApi(below())
+
+      const report = await importTree(
+        tree([node('1', 'New name', { markdown: 'same body\n' })]),
+        target, api, { ...OPTS, update: true }, () => {},
+      )
+
+      expect(report.skipped).toEqual([])
+      expect(api.discardDraft).not.toHaveBeenCalled()
+      expect(putFor(api, 'p-old')).toContain('title: New name')
+      expect(api.requestReview).toHaveBeenCalledWith('p-old')
+      expect(report.updated.map((r) => r.pageId)).toEqual(['p-old'])
+    })
+
+    it('creates a new page when the renamed page lies outside the target subtree', async () => {
+      const api = renamedApi([
+        { id: 'p-book', title: 'Book', path: 'book/index.md', archived: false, children: [] },
+        { id: 'p-elsewhere', title: 'Old name', path: 'old-name.md', archived: false, children: [] },
+      ])
+
+      const report = await importTree(
+        tree([node('1', 'New name', { markdown: 'new body\n' })]),
+        target, api, { ...OPTS, update: true }, () => {},
+      )
+
+      // Found by title only, and the title changed: a documented limit.
+      expect(api.raw).not.toHaveBeenCalledWith('p-elsewhere')
+      expect(api.createPage).toHaveBeenCalledWith({ space: 's', title: 'New name', parentId: 'p-book' })
+      expect(report.created.map((r) => r.pageId)).toEqual(['p-new name'])
+      expect(report.updated).toEqual([])
+    })
+  })
+
   it('skips media over the limit and follows renamed media paths', async () => {
     const api = fakeApi()
     api.uploadMedia.mockResolvedValue({ path: '_media/a-1.png', markdown: '', kind: 'image' })
