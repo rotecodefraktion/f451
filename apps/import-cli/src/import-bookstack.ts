@@ -8,6 +8,7 @@ import {
   importTree,
   loadBookStackTree,
   renderReport,
+  type ExistingScan,
   type ImportTree,
 } from '@f451/import'
 import { UsageError, type ParsedArgs } from './args.js'
@@ -51,12 +52,20 @@ export async function writeTreeAndReport(
   args: ParsedArgs,
   f451: F451Api,
   out: NodeJS.WriteStream,
+  /** File imports: the source's name as origin, and a scan made for the ID counter. */
+  extra: { origin?: string; existing?: ExistingScan } = {},
 ): Promise<number> {
   const report = await importTree(
     tree,
     { space: args.space, parentId: args.parent },
     f451,
-    { update: args.update, release: args.release, dryRun: args.dryRun },
+    {
+      update: args.update,
+      release: args.release,
+      dryRun: args.dryRun,
+      ...(extra.origin ? { origin: extra.origin } : {}),
+      ...(extra.existing ? { existing: extra.existing } : {}),
+    },
     (e) => {
       if (e.kind === 'start') out.write(`${e.pages} pages\n`)
       if (e.kind === 'page') {

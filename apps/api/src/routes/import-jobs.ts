@@ -426,6 +426,7 @@ export function registerImportJobRoutes(app: FastifyInstance, deps: ImportJobsDe
                 space: gate.space.id,
                 format,
                 source,
+                ...(uploadName ? { origin: uploadName } : {}),
                 ...(format === 'office'
                   ? { split, text, lang: gate.space.defaultLang === 'de' ? ('de' as const) : ('en' as const) }
                   : {}),

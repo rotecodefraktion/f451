@@ -11,7 +11,9 @@ import {
   loadObsidianTree,
   loadOfficeTree,
   localConverter,
+  scanExisting,
   zipSource,
+  type ExistingScan,
   type FileSource,
   type ImportTree,
 } from '@f451/import'
@@ -53,12 +55,16 @@ export async function runFileImport(
   if (!args.path) throw new UsageError('missing path')
   const f451 = new F451Api(need('F451_URL'), need('F451_TOKEN'))
   const src = await openSource(args.path, args.source === 'office')
+  // Marks the pages as coming from this source, like the upload name in the web UI.
+  const origin = basename(args.path)
   let tree: ImportTree
+  // Read once and handed on to the writer.
+  let scan: ExistingScan | undefined
   if (args.source === 'office') {
     const url = args.convertUrl ?? env.F451_CONVERT_URL
     // An own ID continues the counter of the target space.
-    const existing =
-      args.text?.mainName === 'id' ? await collectExistingNames(f451, args.space, args.parent) : undefined
+    if (args.text?.mainName === 'id') scan = await scanExisting(f451, args.space, args.parent)
+    const existing = scan ? collectExistingNames(scan, origin) : undefined
     tree = await loadOfficeTree(src, {
       converter: url ? httpConverter(url) : localConverter(),
       split: args.split === true,
@@ -74,5 +80,5 @@ export async function runFileImport(
           ? await loadHtmlTree(src)
           : await loadMarkdownFolderTree(src)
   }
-  return writeTreeAndReport(tree, args, f451, out)
+  return writeTreeAndReport(tree, args, f451, out, { ...(origin ? { origin } : {}), ...(scan ? { existing: scan } : {}) })
 }

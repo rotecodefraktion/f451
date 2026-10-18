@@ -3,6 +3,8 @@ export interface PageResult {
   title: string
   pageId?: string
   reason?: string
+  /** Updated pages only: the title the page had before, when it changed. */
+  previousTitle?: string
 }
 
 export interface ImportReport {
@@ -28,7 +30,7 @@ export function emptyReport(): ImportReport {
 
 function section(title: string, rows: PageResult[]): string {
   if (rows.length === 0) return ''
-  const lines = rows.map((r) => `- ${r.title} (${r.sourceId})${r.pageId ? ` → ${r.pageId}` : ''}${r.reason ? `: ${r.reason}` : ''}`)
+  const lines = rows.map((r) => `- ${r.title}${r.previousTitle ? ` (was "${r.previousTitle}")` : ''} (${r.sourceId})${r.pageId ? ` → ${r.pageId}` : ''}${r.reason ? `: ${r.reason}` : ''}`)
   return `## ${title} (${rows.length})\n\n${lines.join('\n')}\n\n`
 }
 

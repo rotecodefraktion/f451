@@ -1,7 +1,16 @@
 import { F451ApiError, type F451Api, type TreeNode } from './api.js'
-import { buildPageContent, importUnchanged, mergeIntoExisting, readSource } from './frontmatter.js'
+import { buildPageContent, importUnchanged, mergeIntoExisting, originOf, readSource } from './frontmatter.js'
 import { rewriteLinks } from './links.js'
-import type { ImportEvent, ImportMedia, ImportNode, ImportOptions, ImportTarget, ImportTree } from './model.js'
+import type {
+  ExistingScan,
+  ImportEvent,
+  ImportMedia,
+  ImportNode,
+  ImportOptions,
+  ImportTarget,
+  ImportTree,
+  SourceRef,
+} from './model.js'
 import { flattenTree, type FlatEntry } from './order.js'
 import { emptyReport, type ImportReport } from './report.js'
 import { diagramXml } from './svg-diagram.js'
@@ -94,42 +103,77 @@ function describe(e: unknown): string {
   return e instanceof Error ? e.message : String(e)
 }
 
-/** Pages already in the space that came from the same source, keyed by source
- *  id. Read (one `raw` each) are the pages whose title matches an entry title
- *  and every page in the target subtree (below `target.parentId`, or the whole
- *  space without one), so a page renamed at the source is still found. A page
- *  moved out of the subtree is found by title only. A failing `raw` counts as
- *  "not a match". Also returns all page ids of the tree, so a stale
- *  `knownF451Id` can be ignored. */
-async function findExisting(
-  api: WriterApi,
-  target: ImportTarget,
-  entries: FlatEntry[],
-): Promise<{ bySource: Map<string, string>; pageIds: Set<string> }> {
-  const bySource = new Map<string, string>()
-  const pageIds = new Set<string>()
-  const titles = new Set(entries.map((e) => e.node.title))
-  const types = new Set(entries.map((e) => e.node.sourceRef.type))
-  const candidates = new Map<string, TreeNode>() // id → node, each read once
+/** A failing `raw` counts as "no source". */
+async function readPageSource(api: Pick<WriterApi, 'raw'>, id: string): Promise<SourceRef | null> {
+  try {
+    return readSource(await api.raw(id))
+  } catch {
+    return null
+  }
+}
+
+/** Reads the target space once: the whole tree, and the frontmatter source of
+ *  every page in the target subtree (below `parentId`, or the whole space
+ *  without one). Shared by the writer and the ID counter of a Word import, so
+ *  no page is read twice. */
+export async function scanExisting(
+  api: Pick<WriterApi, 'tree' | 'raw'>,
+  space: string,
+  parentId?: string,
+): Promise<ExistingScan> {
+  const pages: ExistingScan['pages'] = []
   const walk = (nodes: TreeNode[], inSubtree: boolean) => {
     for (const n of nodes) {
-      pageIds.add(n.id)
-      if (inSubtree || titles.has(n.title)) candidates.set(n.id, n)
-      walk(n.children ?? [], inSubtree || n.id === target.parentId)
+      pages.push({ id: n.id, title: n.title, inSubtree })
+      walk(n.children ?? [], inSubtree || n.id === parentId)
     }
   }
-  walk(await api.tree(target.space), !target.parentId)
-  for (const c of candidates.values()) {
-    let content: string
-    try {
-      content = await api.raw(c.id)
-    } catch {
-      continue
-    }
-    const source = readSource(content)
-    if (source && types.has(source.type) && !bySource.has(source.id)) bySource.set(source.id, c.id)
+  walk(await api.tree(space), !parentId)
+  const sources = new Map<string, SourceRef | null>()
+  for (const p of pages) if (p.inSubtree) sources.set(p.id, await readPageSource(api, p.id))
+  return { pages, sources }
+}
+
+/** Finds the page an entry was imported to earlier. Source ids repeat across
+ *  sources (page 12 of two BookStack instances, README.md of two vaults), so a
+ *  page in the target subtree matches only with the same origin on both sides;
+ *  a page with the same title matches whatever its origin (as before origins
+ *  existed), which also covers a page moved out of the subtree. A stored page
+ *  without origin is thus found by title only. Besides the subtree, only pages
+ *  whose title equals an entry title are read. */
+async function findExisting(
+  api: WriterApi,
+  scan: ExistingScan,
+  entries: FlatEntry[],
+  originFor: (ref: SourceRef) => string | undefined,
+): Promise<{ match: (node: ImportNode) => string | undefined; pageIds: Set<string>; titles: Map<string, string> }> {
+  const sources = new Map(scan.sources)
+  const entryTitles = new Set(entries.map((e) => e.node.title))
+  for (const p of scan.pages) {
+    if (!sources.has(p.id) && entryTitles.has(p.title)) sources.set(p.id, await readPageSource(api, p.id))
   }
-  return { bySource, pageIds }
+  const key = (type: string, id: string) => `${type}\u0000${id}`
+  const bySource = new Map<string, Array<{ id: string; title: string; inSubtree: boolean; origin?: string }>>()
+  for (const p of scan.pages) {
+    const source = sources.get(p.id)
+    if (!source) continue
+    const k = key(source.type, source.id)
+    const origin = originOf(source)
+    const list = bySource.get(k) ?? []
+    list.push({ ...p, ...(origin ? { origin } : {}) })
+    bySource.set(k, list)
+  }
+  const match = (node: ImportNode): string | undefined => {
+    const list = bySource.get(key(node.sourceRef.type, node.sourceRef.id)) ?? []
+    const origin = originFor(node.sourceRef)
+    const byOrigin = origin ? list.find((p) => p.inSubtree && p.origin === origin) : undefined
+    return (byOrigin ?? list.find((p) => p.title === node.title))?.id
+  }
+  return {
+    match,
+    pageIds: new Set(scan.pages.map((p) => p.id)),
+    titles: new Map(scan.pages.map((p) => [p.id, p.title])),
+  }
 }
 
 /** One `reorder` per parent with at least two children whose f451 ids are
@@ -218,7 +262,16 @@ export async function importTree(
     onEvent({ kind: 'done' })
     return report
   }
-  const existing = await findExisting(api, target, entries)
+  // A source without an origin of its own (file imports) gets the run's.
+  const stamped = (ref: SourceRef): SourceRef =>
+    originOf(ref) || !opts.origin ? ref : { ...ref, origin: opts.origin }
+  const scan = opts.existing ?? (await scanExisting(api, target.space, target.parentId))
+  const existing = await findExisting(api, scan, entries, (ref) => originOf(stamped(ref)))
+  /** `previousTitle` for the report when an update renames the page. */
+  const renamed = (pageId: string, title: string) => {
+    const before = existing.titles.get(pageId)
+    return before !== undefined && before !== title ? { previousTitle: before } : {}
+  }
 
   // 1. pass one: create pages, parents before children
   const ids = new Map<string, string>() // sourceId → f451 id
@@ -227,7 +280,7 @@ export async function importTree(
     if (aborted()) break
     const sid = node.sourceRef.id
     const tagged = node.knownF451Id && existing.pageIds.has(node.knownF451Id) ? node.knownF451Id : undefined
-    const known = tagged ?? existing.bySource.get(sid)
+    const known = tagged ?? existing.match(node)
     if (known) {
       ids.set(sid, known)
       continue
@@ -300,7 +353,8 @@ export async function importTree(
       continue
     }
     if (opts.dryRun) {
-      ;(isNew ? report.created : report.updated).push({ sourceId: sid, title: node.title, pageId })
+      if (isNew) report.created.push({ sourceId: sid, title: node.title, pageId })
+      else report.updated.push({ sourceId: sid, title: node.title, pageId, ...renamed(pageId, node.title) })
       onEvent({ kind: 'page', sourceId: sid, title: node.title, status: isNew ? 'created' : 'updated', pageId })
       continue
     }
@@ -357,9 +411,15 @@ export async function importTree(
         }
       }
       const markdown = rewriteLinks(replaceRefs(node.markdown, refs), ids)
+      const source = stamped(node.sourceRef)
       const content = isNew
-        ? buildPageContent({ id: pageId, title: node.title, tags: node.tags, source: node.sourceRef, body: markdown })
-        : mergeIntoExisting(existingContent, { title: node.title, tags: node.tags, body: markdown })
+        ? buildPageContent({ id: pageId, title: node.title, tags: node.tags, source, body: markdown })
+        : mergeIntoExisting(existingContent, {
+            title: node.title,
+            tags: node.tags,
+            body: markdown,
+            ...(source.origin ? { origin: source.origin } : {}),
+          })
       if (!isNew && uploaded === 0 && importUnchanged(existingContent, { title: node.title, tags: node.tags, body: markdown })) {
         discardOnFail = false
         await api.discardDraft(pageId)
@@ -372,7 +432,8 @@ export async function importTree(
       discardOnFail = false
       await api.requestReview(pageId)
       if (opts.release) await api.release(pageId, { bump: 'major', note: `Imported from ${node.sourceRef.type}` })
-      ;(isNew ? report.created : report.updated).push({ sourceId: sid, title: node.title, pageId })
+      if (isNew) report.created.push({ sourceId: sid, title: node.title, pageId })
+      else report.updated.push({ sourceId: sid, title: node.title, pageId, ...renamed(pageId, node.title) })
       onEvent({ kind: 'page', sourceId: sid, title: node.title, status: isNew ? 'created' : 'updated', pageId })
     } catch (e) {
       let reason = describe(e)

@@ -35,7 +35,7 @@ export type {
   ExportPageSource,
   ExportContext,
 } from './office/export/index.js'
-export { importTree } from './writer.js'
+export { importTree, scanExisting } from './writer.js'
 export { flattenTree } from './order.js'
 export { F451Api, F451ApiError } from './api.js'
 export { renderReport, emptyReport } from './report.js'

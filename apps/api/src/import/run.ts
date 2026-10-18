@@ -18,8 +18,10 @@ import {
   loadOfficeTree,
   renderExportReport,
   renderReport,
+  scanExisting,
   type BookStackSelector,
   type Converter,
+  type ExistingScan,
   type FileSource,
   type ImportTree,
   type WordOptions,
@@ -86,6 +88,8 @@ export interface FileImportParams {
   /** `office` only: options for text documents (validated by the route). */
   text?: Partial<WordOptions>
   source: FileSource
+  /** File name of the upload; marks the pages as coming from this source. */
+  origin?: string
   cleanup: () => Promise<void>
   parentId?: string
   update: boolean
@@ -245,15 +249,23 @@ export function importRun(deps: RunDeps, p: ImportParams): JobRun {
 async function writeTree(
   tree: ImportTree,
   f451: F451Api,
-  p: { space: string; parentId?: string; update: boolean; release: boolean; dryRun: boolean },
+  p: { space: string; parentId?: string; update: boolean; release: boolean; dryRun: boolean; origin?: string },
   signal: AbortSignal,
   progress: JobProgress,
+  existing?: ExistingScan,
 ): Promise<JobResult> {
   const report = await importTree(
     tree,
     { space: p.space, ...(p.parentId ? { parentId: p.parentId } : {}) },
     f451,
-    { update: p.update, release: p.release, dryRun: p.dryRun, signal },
+    {
+      update: p.update,
+      release: p.release,
+      dryRun: p.dryRun,
+      signal,
+      ...(p.origin ? { origin: p.origin } : {}),
+      ...(existing ? { existing } : {}),
+    },
     (e) => {
       if (e.kind === 'start') progress.start(e.pages)
       else if (e.kind === 'phase') progress.phase(e.phase)
@@ -281,13 +293,15 @@ export function fileImportRun(deps: RunDeps, p: FileImportParams): JobRun {
         // The loaders take no signal (the archive is local); a cancel while
         // reading takes effect in importTree, which reports the pages as cancelled.
         let tree: ImportTree
+        // Read once and handed on to the writer.
+        let scan: ExistingScan | undefined
         if (p.format === 'office') {
           if (!deps.converter) throw new Error('The convert service is not configured.')
           // Conversions run one by one; a cancel stops before the next file.
           try {
             // An own ID continues the counter of the target space.
-            const existing =
-              p.text?.mainName === 'id' ? await collectExistingNames(f451, p.space, p.parentId) : undefined
+            if (p.text?.mainName === 'id') scan = await scanExisting(f451, p.space, p.parentId)
+            const existing = scan ? collectExistingNames(scan, p.origin) : undefined
             tree = await loadOfficeTree(p.source, {
               converter: deps.converter,
               split: p.split === true,
@@ -310,7 +324,7 @@ export function fileImportRun(deps: RunDeps, p: FileImportParams): JobRun {
                 ? await loadHtmlTree(p.source)
                 : await loadMarkdownFolderTree(p.source)
         }
-        return writeTree(tree, f451, p, signal, progress)
+        return writeTree(tree, f451, p, signal, progress, scan)
       })
     } finally {
       await p.cleanup()

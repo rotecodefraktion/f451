@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildPageContent, importUnchanged, mergeIntoExisting, readSource } from './frontmatter.js'
+import { buildPageContent, importUnchanged, mergeIntoExisting, originOf, readSource } from './frontmatter.js'
 
 const source = { type: 'bookstack', id: '12', url: 'https://b/books/a/page/x' }
 
@@ -23,6 +23,21 @@ describe('readSource', () => {
   it('returns null without a source block', () => {
     expect(readSource('---\nid: p-1\ntitle: T\n---\nx\n')).toBeNull()
   })
+  it('round-trips the origin', () => {
+    const withOrigin = { type: 'markdown', id: 'README.md', origin: 'vault-a.zip' }
+    const content = buildPageContent({ id: 'p-abc', title: 'T', tags: [], source: withOrigin, body: 'x\n' })
+    expect(content).toContain('source:\n  type: markdown\n  id: README.md\n  origin: vault-a.zip')
+    expect(readSource(content)).toEqual(withOrigin)
+  })
+})
+
+describe('originOf', () => {
+  it('prefers the origin, else derives it from the URL', () => {
+    expect(originOf({ type: 'markdown', id: 'a.md', origin: 'vault-a.zip' })).toBe('vault-a.zip')
+    expect(originOf(source)).toBe('https://b')
+    expect(originOf({ type: 'markdown', id: 'a.md' })).toBeUndefined()
+    expect(originOf({ type: 'bookstack', id: '1', url: 'not a url' })).toBeUndefined()
+  })
 })
 
 describe('mergeIntoExisting', () => {
@@ -41,6 +56,11 @@ describe('mergeIntoExisting', () => {
     const out = mergeIntoExisting(existing, { title: 'New name', tags: [], body: 'body\n' })
     expect(out).toContain('title: New name')
     expect(out).not.toContain('Old')
+  })
+  it('adds an origin to the source block, keeping type and id', () => {
+    const existing = '---\nid: p-abc\ntitle: T\nsource:\n  type: markdown\n  id: README.md\n---\n\nbody\n'
+    const out = mergeIntoExisting(existing, { title: 'T', tags: [], body: 'body\n', origin: 'vault-a.zip' })
+    expect(readSource(out)).toEqual({ type: 'markdown', id: 'README.md', origin: 'vault-a.zip' })
   })
 })
 

@@ -4,6 +4,10 @@ export interface SourceRef {
   type: string
   id: string
   url?: string
+  /** The import the page came from, so equal source ids of different sources
+   *  stay apart. BookStack leaves it unset (the origin of `url` serves);
+   *  file imports carry the upload's file name, stamped by the writer. */
+  origin?: string
 }
 
 export interface ImportMedia {
@@ -69,6 +73,22 @@ export interface ImportOptions {
   dryRun: boolean
   /** Checked between pages; an abort never interrupts a page in progress. */
   signal?: AbortSignal
+  /** Origin for every node whose source has none of its own (neither
+   *  `origin` nor a URL): the upload's file name of a file import. */
+  origin?: string
+  /** A `scanExisting` of the same target, made earlier by the caller; the
+   *  writer then reads only the pages the scan has not. */
+  existing?: ExistingScan
+}
+
+/** The target space as `scanExisting` found it. */
+export interface ExistingScan {
+  /** Every page of the space in tree order; `inSubtree` marks the pages below
+   *  the target parent (all pages without one). */
+  pages: Array<{ id: string; title: string; inSubtree: boolean }>
+  /** Frontmatter source of each page read so far (every page in the
+   *  subtree); null when it has none or could not be read. */
+  sources: Map<string, SourceRef | null>
 }
 
 export type ImportEvent =

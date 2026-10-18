@@ -1,5 +1,5 @@
-import type { F451Api, TreeNode } from '../api.js'
-import { readSource } from '../frontmatter.js'
+import { originOf } from '../frontmatter.js'
+import type { ExistingScan } from '../model.js'
 import { parseIdPattern, type WordOptions } from './naming.js'
 
 // Text options of a Word import as they arrive from the API form and the CLI
@@ -108,35 +108,23 @@ export function parseWordOptions(
   return { ok: true, text }
 }
 
-/** What the ID counter of a Word import needs from the target space: all page
- *  titles, and for pages in the target subtree (below `parentId`, or the whole
- *  space) that came from an Office import, source id → current title. */
-export async function collectExistingNames(
-  api: Pick<F451Api, 'tree' | 'raw'>,
-  space: string,
-  parentId?: string,
-): Promise<{ existingTitles: string[]; existingIds: Map<string, string> }> {
+/** What the ID counter of a Word import needs from the target space (a
+ *  `scanExisting` of it): all page titles, and for pages in the target subtree
+ *  that came from an Office import of the same `origin`, source id → current
+ *  title. Without `origin`, any Office page in the subtree counts. */
+export function collectExistingNames(
+  scan: ExistingScan,
+  origin?: string,
+): { existingTitles: string[]; existingIds: Map<string, string> } {
   const existingTitles: string[] = []
-  const inTarget: TreeNode[] = []
-  const walk = (nodes: TreeNode[], inSubtree: boolean) => {
-    for (const n of nodes) {
-      existingTitles.push(n.title)
-      if (inSubtree) inTarget.push(n)
-      walk(n.children ?? [], inSubtree || n.id === parentId)
-    }
-  }
-  walk(await api.tree(space), !parentId)
-
   const existingIds = new Map<string, string>()
-  for (const n of inTarget) {
-    let content: string
-    try {
-      content = await api.raw(n.id)
-    } catch {
-      continue
-    }
-    const source = readSource(content)
-    if (source && source.type === 'office' && !existingIds.has(source.id)) existingIds.set(source.id, n.title)
+  for (const p of scan.pages) {
+    existingTitles.push(p.title)
+    if (!p.inSubtree) continue
+    const source = scan.sources.get(p.id)
+    if (!source || source.type !== 'office' || existingIds.has(source.id)) continue
+    if (origin && originOf(source) !== origin) continue
+    existingIds.set(source.id, p.title)
   }
   return { existingTitles, existingIds }
 }
