@@ -103,13 +103,31 @@ function describe(e: unknown): string {
   return e instanceof Error ? e.message : String(e)
 }
 
-/** A failing `raw` counts as "no source". */
-async function readPageSource(api: Pick<WriterApi, 'raw'>, id: string): Promise<SourceRef | null> {
+/** The frontmatter source of a page. A page with no published version yet (an
+ *  earlier import still in review: `raw` answers 404) is read from its draft.
+ *  Any other failure counts as "no source". */
+async function readPageSource(api: Pick<WriterApi, 'raw' | 'getDraft'>, id: string): Promise<SourceRef | null> {
   try {
     return readSource(await api.raw(id))
+  } catch (e) {
+    if (!(e instanceof F451ApiError) || e.status !== 404) return null
+  }
+  try {
+    const draft = await api.getDraft(id)
+    return draft ? readSource(draft.content) : null
   } catch {
     return null
   }
+}
+
+/** Of the pages in the target subtree with one source type + id, those an
+ *  entry of `origin` may update: the pages with the same origin, else a page
+ *  without origin (imported before origins existed) if it is the only page
+ *  with that type + id there. A page with another origin never qualifies. */
+export function updatableInSubtree<T extends { origin?: string }>(pages: T[], origin: string | undefined): T[] {
+  const same = origin ? pages.filter((p) => p.origin === origin) : []
+  if (same.length > 0) return same
+  return pages.length === 1 && !pages[0]!.origin ? pages : []
 }
 
 /** Reads the target space once: the whole tree, and the frontmatter source of
@@ -117,7 +135,7 @@ async function readPageSource(api: Pick<WriterApi, 'raw'>, id: string): Promise<
  *  without one). Shared by the writer and the ID counter of a Word import, so
  *  no page is read twice. */
 export async function scanExisting(
-  api: Pick<WriterApi, 'tree' | 'raw'>,
+  api: Pick<WriterApi, 'tree' | 'raw' | 'getDraft'>,
   space: string,
   parentId?: string,
 ): Promise<ExistingScan> {
@@ -135,12 +153,13 @@ export async function scanExisting(
 }
 
 /** Finds the page an entry was imported to earlier. Source ids repeat across
- *  sources (page 12 of two BookStack instances, README.md of two vaults), so a
- *  page in the target subtree matches only with the same origin on both sides;
- *  a page with the same title matches whatever its origin (as before origins
- *  existed), which also covers a page moved out of the subtree. A stored page
- *  without origin is thus found by title only. Besides the subtree, only pages
- *  whose title equals an entry title are read. */
+ *  sources (page 12 of two BookStack instances, README.md of two vaults), so in
+ *  order: a page in the target subtree with the same origin; a page in the
+ *  subtree without origin (imported before origins existed) that is the only
+ *  one there with this type + id (`updatableInSubtree`; the update then adds
+ *  the origin); a page with the same title anywhere, whatever its origin,
+ *  which also covers a page moved out of the subtree. Besides the subtree,
+ *  only pages whose title equals an entry title are read. */
 async function findExisting(
   api: WriterApi,
   scan: ExistingScan,
@@ -165,9 +184,8 @@ async function findExisting(
   }
   const match = (node: ImportNode): string | undefined => {
     const list = bySource.get(key(node.sourceRef.type, node.sourceRef.id)) ?? []
-    const origin = originFor(node.sourceRef)
-    const byOrigin = origin ? list.find((p) => p.inSubtree && p.origin === origin) : undefined
-    return (byOrigin ?? list.find((p) => p.title === node.title))?.id
+    const inSubtree = updatableInSubtree(list.filter((p) => p.inSubtree), originFor(node.sourceRef))[0]
+    return (inSubtree ?? list.find((p) => p.title === node.title))?.id
   }
   return {
     match,
@@ -250,7 +268,8 @@ export async function importTree(
   // Checked between pages only: a page in progress is always finished.
   const aborted = () => opts.signal?.aborted === true
 
-  // 0. existing pages by source id (GET raw reads main). The lookup belongs to
+  // 0. existing pages by source id (GET raw reads main, the draft when a page
+  //    has no published version yet). The lookup belongs to
   //    the creating phase: it emits no page events either.
   onEvent({ kind: 'phase', phase: 'creating' })
   // Cancelled before anything happened: no reads against f451 either.

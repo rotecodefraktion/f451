@@ -1,6 +1,7 @@
 import type { F451Api, TreeNode } from '../api.js'
 import { originOf } from '../frontmatter.js'
 import type { ExistingScan, ImportNode, ImportTree } from '../model.js'
+import { updatableInSubtree } from '../writer.js'
 import { idIn, parseIdPattern, type WordOptions } from './naming.js'
 
 // Text options of a Word import as they arrive from the API form and the CLI
@@ -110,24 +111,38 @@ export function parseWordOptions(
   return { ok: true, text }
 }
 
+/** Office pages in the target subtree of `scan` by source id, narrowed to the
+ *  ones an import of `origin` updates, by the writer's rule
+ *  (`updatableInSubtree`): same origin, else a page without origin that is the
+ *  only one with its id. Without `origin`, every Office page counts. */
+function ownOfficePages(scan: ExistingScan, origin?: string): Map<string, Array<{ id: string; title: string }>> {
+  const bySource = new Map<string, Array<{ id: string; title: string; origin?: string }>>()
+  for (const p of scan.pages) {
+    if (!p.inSubtree) continue
+    const source = scan.sources.get(p.id)
+    if (!source || source.type !== 'office') continue
+    const o = originOf(source)
+    bySource.set(source.id, [...(bySource.get(source.id) ?? []), { id: p.id, title: p.title, ...(o ? { origin: o } : {}) }])
+  }
+  const own = new Map<string, Array<{ id: string; title: string }>>()
+  for (const [sourceId, pages] of bySource) {
+    const mine = origin ? updatableInSubtree(pages, origin) : pages
+    if (mine.length > 0) own.set(sourceId, mine)
+  }
+  return own
+}
+
 /** What the ID counter of a Word import needs from the target space (a
- *  `scanExisting` of it): all page titles, and for pages in the target subtree
- *  that came from an Office import of the same `origin`, source id → current
- *  title. Without `origin`, any Office page in the subtree counts. */
+ *  `scanExisting` of it): all page titles, and for the Office pages in the
+ *  target subtree the import updates (`ownOfficePages`), source id → current
+ *  title. */
 export function collectExistingNames(
   scan: ExistingScan,
   origin?: string,
 ): { existingTitles: string[]; existingIds: Map<string, string> } {
-  const existingTitles: string[] = []
+  const existingTitles = scan.pages.map((p) => p.title)
   const existingIds = new Map<string, string>()
-  for (const p of scan.pages) {
-    existingTitles.push(p.title)
-    if (!p.inSubtree) continue
-    const source = scan.sources.get(p.id)
-    if (!source || source.type !== 'office' || existingIds.has(source.id)) continue
-    if (origin && originOf(source) !== origin) continue
-    existingIds.set(source.id, p.title)
-  }
+  for (const [sourceId, pages] of ownOfficePages(scan, origin)) existingIds.set(sourceId, pages[0]!.title)
   return { existingTitles, existingIds }
 }
 
@@ -135,7 +150,7 @@ export function collectExistingNames(
  *  call) and warns (`duplicateId`) for each main page whose counter ID another
  *  page took since `scan` (a concurrent run with the same pattern), or that
  *  already carries it otherwise. The page the main page will update, found in
- *  `scan` by source id and `origin` like `collectExistingNames`, does not
+ *  `scan` by source id and `origin` (`ownOfficePages`), does not
  *  count. No lock: the pages are still written. A pattern without counter
  *  gives no warnings. */
 export async function duplicateIdWarnings(
@@ -160,15 +175,7 @@ export async function duplicateIdWarnings(
   if (mains.length === 0) return []
 
   const own = new Map<string, Set<string>>() // source id → page ids it may update
-  for (const p of scan.pages) {
-    if (!p.inSubtree) continue
-    const source = scan.sources.get(p.id)
-    if (!source || source.type !== 'office') continue
-    if (origin && originOf(source) !== origin) continue
-    const set = own.get(source.id) ?? new Set<string>()
-    set.add(p.id)
-    own.set(source.id, set)
-  }
+  for (const [sourceId, pages] of ownOfficePages(scan, origin)) own.set(sourceId, new Set(pages.map((p) => p.id)))
 
   const holders = new Map<string, Array<{ id: string; title: string }>>() // ID → pages carrying it
   const collect = (nodes: TreeNode[]) => {
