@@ -13,6 +13,8 @@ export {
   subTitle,
 } from './office/naming.js'
 export type { IdPattern } from './office/naming.js'
+export { parseWordOptions, hasWordOptions, collectExistingNames, WORD_OPTION_FIELDS } from './office/word-options.js'
+export type { WordOptionField, WordOptionFields } from './office/word-options.js'
 export { httpConverter, localConverter, ConvertError } from './office/converter.js'
 export type { Converter, HtmlBundle } from './office/converter.js'
 export { OFFICE_EXTENSIONS } from './office/kinds.js'

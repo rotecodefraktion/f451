@@ -16,11 +16,13 @@
  */
 import { useEffect, useId, useState, type FormEvent } from 'react'
 import {
+  DEFAULT_WORD_FORM,
   EXPORT_FORMATS,
   eventHref,
   exceedsUploadLimit,
   fileAccept,
   fileImportForm,
+  idPatternValid,
   isJobView,
   nextState,
   progressPercent,
@@ -31,6 +33,7 @@ import {
   type JobView,
   type PanelState,
   type PollResult,
+  type WordFormOptions,
 } from '../lib/import-job'
 import { useT } from '../lib/i18n/provider'
 import { waitingReviews } from '../lib/reviews-state'
@@ -47,6 +50,47 @@ import {
 } from '../lib/urls'
 
 const POLL_MS = 1000
+
+const LEVELS: Array<readonly [string, string]> = [
+  ['1', '1'],
+  ['2', '2'],
+  ['3', '3'],
+]
+
+/** A labelled select in the style of the form's other selects. */
+function OptionSelect({
+  inputId,
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  inputId: string
+  label: string
+  value: string
+  options: ReadonlyArray<readonly [string, string]>
+  onChange: (value: string) => void
+}) {
+  return (
+    <div className="field">
+      <label className="label" htmlFor={inputId}>
+        {label}
+      </label>
+      <div className="selectwrap">
+        <select id={inputId} className="select" value={value} onChange={(e) => onChange(e.target.value)}>
+          {options.map(([v, text]) => (
+            <option key={v} value={v}>
+              {text}
+            </option>
+          ))}
+        </select>
+        <span className="caret" aria-hidden="true">
+          ▾
+        </span>
+      </div>
+    </div>
+  )
+}
 
 type Tab = 'import' | 'export'
 type Origin = 'bookstack' | 'file'
@@ -154,6 +198,7 @@ export function ImportPanel({ space, instances, maxUploadMb, office }: ImportPan
   const [fileFormat, setFileFormat] = useState<FileFormat>('markdown')
   const [file, setFile] = useState<File | null>(null)
   const [split, setSplit] = useState(false)
+  const [word, setWord] = useState<WordFormOptions>(DEFAULT_WORD_FORM)
   const [instance, setInstance] = useState(instances[0] ?? '')
   const [tokenId, setTokenId] = useState('')
   const [tokenSecret, setTokenSecret] = useState('')
@@ -284,7 +329,12 @@ export function ImportPanel({ space, instances, maxUploadMb, office }: ImportPan
     if (maxUploadMb !== null && exceedsUploadLimit(file.size, maxUploadMb)) {
       return { error: t('import.errors.tooLarge', { max: maxUploadMb }) }
     }
-    return { form: fileImportForm(file, file.name, { format: fileFormat, split, parentId, update, release, dryRun }) }
+    if (fileFormat === 'office' && word.mainName === 'id') {
+      const pattern = word.idPattern.trim()
+      if (!pattern) return { error: t('import.errors.missingIdPattern') }
+      if (!idPatternValid(pattern)) return { error: t('import.errors.invalidIdPattern') }
+    }
+    return { form: fileImportForm(file, file.name, { format: fileFormat, split, word, parentId, update, release, dryRun }) }
   }
 
   async function onStart(event: FormEvent) {
@@ -631,6 +681,92 @@ export function ImportPanel({ space, instances, maxUploadMb, office }: ImportPan
                   <input type="checkbox" checked={split} onChange={(e) => setSplit(e.target.checked)} />
                   <span>{t('import.splitOffice')}</span>
                 </label>
+              )}
+              {fileFormat === 'office' && (
+                <div role="group" aria-labelledby={id('word')}>
+                  <span id={id('word')} className="label">
+                    {t('import.word.legend')}
+                  </span>
+                  <label className="check">
+                    <input
+                      type="checkbox"
+                      checked={word.numbering}
+                      onChange={(e) => setWord({ ...word, numbering: e.target.checked })}
+                    />
+                    <span>{t('import.word.numbering')}</span>
+                  </label>
+                  <OptionSelect
+                    inputId={id('word-main-name')}
+                    label={t('import.word.mainName')}
+                    value={word.mainName}
+                    options={(['title', 'file', 'id'] as const).map((v) => [v, t(`import.word.mainNames.${v}`)])}
+                    onChange={(v) => setWord({ ...word, mainName: v as WordFormOptions['mainName'] })}
+                  />
+                  {word.mainName === 'id' && (
+                    <>
+                      <div className="field">
+                        <label className="label" htmlFor={id('word-id-pattern')}>
+                          {t('import.word.idPattern')}
+                        </label>
+                        <input
+                          id={id('word-id-pattern')}
+                          className="input"
+                          type="text"
+                          maxLength={40}
+                          placeholder="DOC-###"
+                          value={word.idPattern}
+                          onChange={(e) => setWord({ ...word, idPattern: e.target.value })}
+                        />
+                        <span className="hint">{t('import.word.idPatternHint')}</span>
+                      </div>
+                      <OptionSelect
+                        inputId={id('word-id-display')}
+                        label={t('import.word.idDisplay')}
+                        value={word.idDisplay}
+                        options={(['id', 'id-title'] as const).map((v) => [v, t(`import.word.idDisplays.${v}`)])}
+                        onChange={(v) => setWord({ ...word, idDisplay: v as WordFormOptions['idDisplay'] })}
+                      />
+                    </>
+                  )}
+                  {split && (
+                    <>
+                      <OptionSelect
+                        inputId={id('word-split-level')}
+                        label={t('import.word.splitLevel')}
+                        value={word.splitLevel}
+                        options={LEVELS}
+                        onChange={(v) => setWord({ ...word, splitLevel: v as WordFormOptions['splitLevel'] })}
+                      />
+                      <OptionSelect
+                        inputId={id('word-sub-name')}
+                        label={t('import.word.subName')}
+                        value={word.subName}
+                        options={(['chapter', 'title-chapter', 'key-chapter', 'key-number'] as const).map((v) => [
+                          v,
+                          t(`import.word.subNames.${v}`),
+                        ])}
+                        onChange={(v) => setWord({ ...word, subName: v as WordFormOptions['subName'] })}
+                      />
+                      <label className="check">
+                        <input
+                          type="checkbox"
+                          checked={word.toc}
+                          onChange={(e) => setWord({ ...word, toc: e.target.checked })}
+                        />
+                        <span>{t('import.word.toc')}</span>
+                      </label>
+                      {word.toc && (
+                        <OptionSelect
+                          inputId={id('word-toc-depth')}
+                          label={t('import.word.tocDepth')}
+                          value={word.tocDepth}
+                          options={LEVELS}
+                          onChange={(v) => setWord({ ...word, tocDepth: v as WordFormOptions['tocDepth'] })}
+                        />
+                      )}
+                    </>
+                  )}
+                </div>
               )}
             </>
           ) : (

@@ -142,10 +142,40 @@ export function fileAccept(format: FileFormat): string {
   return format === 'office' ? `.zip,application/zip,${OFFICE_ACCEPT}` : '.zip,application/zip'
 }
 
+/** Word options of the panel (`office` only); the API validates them again. */
+export interface WordFormOptions {
+  numbering: boolean
+  mainName: 'title' | 'file' | 'id'
+  idPattern: string
+  idDisplay: 'id' | 'id-title'
+  subName: 'chapter' | 'title-chapter' | 'key-chapter' | 'key-number'
+  splitLevel: '1' | '2' | '3'
+  toc: boolean
+  tocDepth: '1' | '2' | '3'
+}
+
+export const DEFAULT_WORD_FORM: WordFormOptions = {
+  numbering: true,
+  mainName: 'title',
+  idPattern: '',
+  idDisplay: 'id-title',
+  subName: 'chapter',
+  splitLevel: '1',
+  toc: true,
+  tocDepth: '2',
+}
+
+/** Same rule as the API: 1–40 of letters, digits, `- _ .`, space and `#`, at most one run of `#`. */
+export function idPatternValid(pattern: string): boolean {
+  return /^[A-Za-z0-9\-_. #]{1,40}$/.test(pattern) && (pattern.match(/#+/g) ?? []).length <= 1
+}
+
 export interface FileImportOptions {
   format: FileFormat
   /** `office` only: split text at H1, one page per slide and sheet. */
   split?: boolean
+  /** `office` only: options for text documents. */
+  word?: WordFormOptions
   parentId: string
   update: boolean
   release: boolean
@@ -161,6 +191,22 @@ export function fileImportForm(file: Blob, fileName: string, opts: FileImportOpt
   const form = new FormData()
   form.append('format', opts.format)
   if (opts.format === 'office' && opts.split) form.append('split', '1')
+  if (opts.format === 'office' && opts.word) {
+    const w = opts.word
+    form.append('numbering', String(w.numbering))
+    form.append('mainName', w.mainName)
+    if (w.mainName === 'id') {
+      form.append('idPattern', w.idPattern.trim())
+      form.append('idDisplay', w.idDisplay)
+    }
+    // Only meaningful (and only accepted) with a split.
+    if (opts.split) {
+      form.append('splitLevel', w.splitLevel)
+      form.append('subName', w.subName)
+      form.append('toc', String(w.toc))
+      if (w.toc) form.append('tocDepth', w.tocDepth)
+    }
+  }
   const parent = opts.parentId.trim()
   if (parent) form.append('parentId', parent)
   form.append('update', String(opts.update))

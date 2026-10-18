@@ -353,6 +353,43 @@ splitting on. Upload: `POST /api/spaces/:space/import/file` with `format=office`
 and, for splitting, `split=1`. Without the service `format=office` answers
 `400`, and `GET /api/import/instances` returns `fileImport.office: false`.
 
+### Word options
+
+These apply to text documents (docx, odt, doc, rtf). In the web UI they sit in
+the group "Word" under the format; on the command line and in the upload they are
+fields of the same names.
+
+| UI | CLI | Upload field | Values (default) |
+|---|---|---|---|
+| Keep outline numbers | `--no-numbering` | `numbering` | `true`, `false` (`true`) |
+| Name of the main page | `--main-name` | `mainName` | `title`, `file`, `id` (`title`) |
+| ID pattern | `--id-pattern` | `idPattern` | e.g. `DOC-###`; required with `mainName=id` |
+| Display | `--id-display` | `idDisplay` | `id`, `id-title` (`id-title`) |
+| Subpage level | `--split-level` | `splitLevel` | `1`–`3` (`1`) |
+| Name of the subpages | `--sub-name` | `subName` | `chapter`, `title-chapter`, `key-chapter`, `key-number` (`chapter`) |
+| Table of contents | `--no-toc` | `toc` | `true`, `false` (`true`) |
+| TOC depth | `--toc-depth` | `tocDepth` | `1`–`3` (`2`) |
+
+- **Main page name.** `title` is the document title (else the file name), `file`
+  the file name. With `id` the page is named by the pattern: the run of `#` is a
+  counter with that minimum width, so `DOC-###` gives `DOC-001`, and `DOC-1000`
+  stays `DOC-1000`. The counter continues after the highest number among the
+  titles of the whole target space; files of one run get consecutive numbers in
+  the order of their paths. A page imported before keeps its number on
+  `--update`, as long as its title still follows the pattern. `id-title` names
+  the page `DOC-001 Title`. A pattern without `#` is a fixed ID. Pattern: 1–40
+  characters (letters, digits, `-`, `_`, `.`, space and `#`), at most one run of `#`.
+- **Subpages** (only with split). `splitLevel` is the heading level that starts a
+  subpage; at level 2 or 3 a heading of a lower level gets its own page holding
+  the text up to the next heading, so the pages nest. `subName` names them by
+  the chapter heading, `Title – Chapter`, `File or ID – Chapter` or
+  `File or ID.Number Chapter` (the outline number, else the position).
+- **Table of contents** (only with split). The main page gets a list of the
+  subpages and sections, down to `tocDepth`, after its introduction.
+- Split-only fields without split, `mainName=id` without a pattern, a bad value,
+  and any of these fields with another format answer `400` (the CLI refuses
+  the call with the same message).
+
 ### Mapping
 
 - **One page per file** by default; the title is the document's title property,

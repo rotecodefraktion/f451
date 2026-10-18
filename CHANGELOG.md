@@ -35,8 +35,19 @@ with a new major version.
   `GET /api/pages/:id/export`, `POST /api/spaces/:space/export/file` and
   `GET /api/jobs/:id/file`; uses the convert service of the Office import. See
   [docs/import-export.md](docs/import-export.md).
+- Word import options (#172): keep or drop the outline numbers, name the main
+  page by title, file name or an own ID with a counter (`DOC-###`), split at
+  heading level 1–3, name the subpages four ways and add a table of contents
+  to the main page. In the panel under "Office files", as `f451-import office`
+  flags (`--no-numbering`, `--main-name`, `--id-pattern`, `--id-display`,
+  `--sub-name`, `--split-level`, `--no-toc`, `--toc-depth`) and as fields of
+  `POST /api/spaces/:space/import/file`. See
+  [docs/import-export.md](docs/import-export.md).
 
 ### Fixed
+- Wikilinks with an anchor (`[[Page#Heading]]`) keep the anchor (#163).
+- An import update finds pages whose title was changed at the source, so a
+  renamed page is updated in place instead of created again (#172).
 - A wikilink with an alias inside a table cell is written `[[id\|text]]`, so
   the pipe no longer splits the cell.
 

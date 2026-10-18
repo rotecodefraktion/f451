@@ -131,6 +131,42 @@ describe('parseArgs', () => {
     expect(() => parseArgs(['office', '--space', 's'])).toThrow(UsageError)
   })
 
+  it('parses the Word options of an office import', () => {
+    expect(
+      parseArgs([
+        'office', 'guide.docx', '--space', 's', '--no-numbering', '--main-name', 'id', '--id-pattern', 'DOC-###',
+        '--id-display', 'id', '--split', '--sub-name', 'key-number', '--split-level', '2', '--no-toc',
+      ]),
+    ).toMatchObject({
+      split: true,
+      text: {
+        numbering: false, mainName: 'id', idPattern: 'DOC-###', idDisplay: 'id',
+        subName: 'key-number', splitLevel: 2, toc: false,
+      },
+    })
+    expect(parseArgs(['office', 'guide.docx', '--space', 's', '--split', '--toc-depth', '3'])).toMatchObject({
+      text: { tocDepth: 3 },
+    })
+    expect(parseArgs(['office', 'guide.docx', '--space', 's']).text).toBeUndefined()
+  })
+
+  it('rejects invalid Word options', () => {
+    const office = ['office', 'guide.docx', '--space', 's']
+    expect(() => parseArgs([...office, '--main-name', 'name'])).toThrow(UsageError)
+    expect(() => parseArgs([...office, '--main-name', 'id'])).toThrow(/idPattern/)
+    expect(() => parseArgs([...office, '--main-name', 'id', '--id-pattern', 'A#-#'])).toThrow(UsageError)
+    expect(() => parseArgs([...office, '--id-display', 'title'])).toThrow(UsageError)
+    expect(() => parseArgs([...office, '--sub-name', 'chapter'])).toThrow(/needs split/)
+    expect(() => parseArgs([...office, '--no-toc'])).toThrow(/needs split/)
+    expect(() => parseArgs([...office, '--split', '--split-level', '4'])).toThrow(UsageError)
+    expect(() => parseArgs([...office, '--split', '--toc-depth', '0'])).toThrow(UsageError)
+  })
+
+  it('rejects the Word options outside an office import', () => {
+    expect(() => parseArgs(['markdown', 'd', '--space', 's', '--no-numbering'])).toThrow(UsageError)
+    expect(() => parseArgs(['bookstack', '--book', '7', '--space', 's', '--main-name', 'file'])).toThrow(UsageError)
+  })
+
   it('parses an office export', () => {
     expect(parseArgs(['export', 'office', '--space', 's', '--page', 'p1', '--format', 'docx'])).toEqual({
       command: 'export',

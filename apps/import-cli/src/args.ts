@@ -1,4 +1,5 @@
 import { parseArgs as nodeParseArgs } from 'node:util'
+import { parseWordOptions, type WordOptions } from '@f451/import'
 
 export type OfficeExportFormat = 'docx' | 'pptx' | 'xlsx' | 'pdf'
 
@@ -14,6 +15,8 @@ export interface ParsedArgs {
   path?: string
   /** `office` only: split text at H1, one page per slide / sheet. */
   split?: boolean
+  /** `office` only: Word options given on the command line; unset ones take the defaults. */
+  text?: Partial<WordOptions>
   /** `office` only: URL of the convert service (`--convert-url`). */
   convertUrl?: string
   book?: string
@@ -39,6 +42,16 @@ A path ending in .zip is read as an archive, anything else as a folder
 Office options:
   --split               text at H1, one page per slide and per sheet (default: one page per file)
   --convert-url <url>   convert service (default: F451_CONVERT_URL; if unset, a local soffice on the PATH)
+
+Word options (office, text documents):
+  --no-numbering        drop the outline numbers of the headings
+  --main-name <name>    main page name: title (default), file or id (needs --id-pattern)
+  --id-pattern <p>      own ID with a counter, e.g. DOC-### (letters, digits, - _ . space, one run of #)
+  --id-display <d>      id-title (default: "DOC-001 Title") or id
+  --sub-name <name>     subpage name (with --split): chapter (default), title-chapter, key-chapter, key-number
+  --split-level <1-3>   heading level that starts a subpage (with --split; default 1)
+  --no-toc              no table of contents on the main page (with --split)
+  --toc-depth <1-3>     depth of the table of contents (with --split; default 2)
 
 Options:
   --parent <pageId>   import below this page
@@ -77,9 +90,21 @@ export class UsageError extends Error {
 
 const OFFICE_EXPORT_FORMATS = ['docx', 'pptx', 'xlsx', 'pdf']
 
+/** Flags of the Word import options (office import only). */
+const WORD_FLAGS = [
+  'no-numbering',
+  'main-name',
+  'id-pattern',
+  'id-display',
+  'sub-name',
+  'split-level',
+  'no-toc',
+  'toc-depth',
+] as const
+
 function parseOfficeExport(values: Record<string, string | boolean | undefined>, positionals: string[]): ParsedArgs {
   if (positionals.length > 2) throw new UsageError(`unexpected argument: ${positionals[2]}`)
-  for (const o of ['book', 'shelf', 'parent', 'update', 'release', 'split', 'convert-url', 'dry-run']) {
+  for (const o of ['book', 'shelf', 'parent', 'update', 'release', 'split', 'convert-url', 'dry-run', ...WORD_FLAGS]) {
     if (values[o] !== undefined) throw new UsageError(`--${o} is not valid for export office`)
   }
   if (typeof values.space !== 'string' || !values.space) throw new UsageError('--space is required')
@@ -112,7 +137,7 @@ function parseExport(
     throw new UsageError(positionals[1] ? `unknown export target: ${positionals[1]}` : 'missing export target')
   }
   if (positionals.length > 2) throw new UsageError(`unexpected argument: ${positionals[2]}`)
-  for (const o of ['shelf', 'parent', 'update', 'release', 'split', 'convert-url', 'format', 'subpages']) {
+  for (const o of ['shelf', 'parent', 'update', 'release', 'split', 'convert-url', 'format', 'subpages', ...WORD_FLAGS]) {
     if (values[o] !== undefined) throw new UsageError(`--${o} is not valid for export`)
   }
   if (typeof values.space !== 'string' || !values.space) throw new UsageError('--space is required')
@@ -146,7 +171,7 @@ function parseFileImport(
     if (values[o] !== undefined) throw new UsageError(`--${o} is not valid for ${source}`)
   }
   if (source !== 'office') {
-    for (const o of ['split', 'convert-url']) {
+    for (const o of ['split', 'convert-url', ...WORD_FLAGS]) {
       if (values[o] !== undefined) throw new UsageError(`--${o} is not valid for ${source}`)
     }
   }
@@ -165,6 +190,24 @@ function parseFileImport(
   if (typeof values.out === 'string') result.out = values.out
   if (values.split === true) result.split = true
   if (typeof values['convert-url'] === 'string') result.convertUrl = values['convert-url']
+  if (source === 'office') {
+    const str = (k: string) => (typeof values[k] === 'string' ? (values[k] as string) : undefined)
+    const parsed = parseWordOptions(
+      {
+        ...(values['no-numbering'] === true ? { numbering: 'false' } : {}),
+        ...(values['no-toc'] === true ? { toc: 'false' } : {}),
+        mainName: str('main-name'),
+        idPattern: str('id-pattern'),
+        idDisplay: str('id-display'),
+        subName: str('sub-name'),
+        splitLevel: str('split-level'),
+        tocDepth: str('toc-depth'),
+      },
+      values.split === true,
+    )
+    if (!parsed.ok) throw new UsageError(parsed.error)
+    if (Object.keys(parsed.text).length > 0) result.text = parsed.text
+  }
   return result
 }
 
@@ -188,6 +231,14 @@ export function parseArgs(argv: string[]): ParsedArgs {
         'dry-run': { type: 'boolean' },
         split: { type: 'boolean' },
         'convert-url': { type: 'string' },
+        'no-numbering': { type: 'boolean' },
+        'main-name': { type: 'string' },
+        'id-pattern': { type: 'string' },
+        'id-display': { type: 'string' },
+        'sub-name': { type: 'string' },
+        'split-level': { type: 'string' },
+        'no-toc': { type: 'boolean' },
+        'toc-depth': { type: 'string' },
         format: { type: 'string' },
         subpages: { type: 'boolean' },
       },
@@ -206,7 +257,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
     throw new UsageError(command ? `unknown command: ${command}` : 'missing command')
   }
   if (positionals.length > 1) throw new UsageError(`unexpected argument: ${positionals[1]}`)
-  for (const o of ['split', 'convert-url', 'format', 'subpages'] as const) {
+  for (const o of ['split', 'convert-url', 'format', 'subpages', ...WORD_FLAGS] as const) {
     if (values[o] !== undefined) throw new UsageError(`--${o} is not valid for bookstack`)
   }
 

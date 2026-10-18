@@ -7,6 +7,7 @@ import type { FastifyInstance } from 'fastify'
 import {
   BookStackClient,
   F451Api,
+  collectExistingNames,
   exportOffice,
   exportToBookStack,
   importTree,
@@ -21,6 +22,7 @@ import {
   type Converter,
   type FileSource,
   type ImportTree,
+  type WordOptions,
 } from '@f451/import'
 import { generateApiToken, generateSessionId, hashApiToken } from '../auth/crypto.js'
 import type { Db } from '../db/client.js'
@@ -81,6 +83,8 @@ export interface FileImportParams {
   split?: boolean
   /** `office` only: language of generated names (the space's language). */
   lang?: 'de' | 'en'
+  /** `office` only: options for text documents (validated by the route). */
+  text?: Partial<WordOptions>
   source: FileSource
   cleanup: () => Promise<void>
   parentId?: string
@@ -281,10 +285,15 @@ export function fileImportRun(deps: RunDeps, p: FileImportParams): JobRun {
           if (!deps.converter) throw new Error('The convert service is not configured.')
           // Conversions run one by one; a cancel stops before the next file.
           try {
+            // An own ID continues the counter of the target space.
+            const existing =
+              p.text?.mainName === 'id' ? await collectExistingNames(f451, p.space, p.parentId) : undefined
             tree = await loadOfficeTree(p.source, {
               converter: deps.converter,
               split: p.split === true,
               lang: p.lang ?? 'de',
+              ...(p.text ? { text: p.text } : {}),
+              ...(existing ?? {}),
               signal,
             })
           } catch (err) {

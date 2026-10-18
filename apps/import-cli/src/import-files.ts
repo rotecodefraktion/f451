@@ -3,6 +3,7 @@ import { basename } from 'node:path'
 import {
   ArchiveRejectedError,
   F451Api,
+  collectExistingNames,
   folderSource,
   httpConverter,
   loadHtmlTree,
@@ -55,9 +56,14 @@ export async function runFileImport(
   let tree: ImportTree
   if (args.source === 'office') {
     const url = args.convertUrl ?? env.F451_CONVERT_URL
+    // An own ID continues the counter of the target space.
+    const existing =
+      args.text?.mainName === 'id' ? await collectExistingNames(f451, args.space, args.parent) : undefined
     tree = await loadOfficeTree(src, {
       converter: url ? httpConverter(url) : localConverter(),
       split: args.split === true,
+      ...(args.text ? { text: args.text } : {}),
+      ...(existing ?? {}),
       onFile: (path, i, total) => out.write(`Converting ${path} (${i + 1}/${total})\n`),
     })
   } else {
