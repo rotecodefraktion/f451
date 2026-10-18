@@ -9,7 +9,8 @@ import { unified } from 'unified'
 import remarkParse from 'remark-parse'
 import remarkGfm from 'remark-gfm'
 import remarkStringify from 'remark-stringify'
-import type { Heading, Image, Link, Root } from 'mdast'
+import type { Heading, Image, Link, Root, Text } from 'mdast'
+import { createSlugger } from '@f451/markdown'
 import { visit } from 'unist-util-visit'
 import { htmlToMarkdown } from '../adapters/bookstack/html-to-md.js'
 import { mimeFor, slugifyFileName, uniqueName } from '../adapters/bookstack/media.js'
@@ -29,7 +30,8 @@ import { scanOdf } from './odf.js'
 import { sheetsPrepass } from './sheets.js'
 import { slidesPrepass } from './slides.js'
 import { textPrepass } from './text.js'
-import { Tokens } from './tokens.js'
+import { HEADING_LINK, stripTokens, takeHeadingTokens, Tokens } from './tokens.js'
+import { acceptTrackedChanges } from './revisions.js'
 
 export interface OfficeTreeOptions {
   converter: Converter
@@ -92,7 +94,7 @@ function safeDecode(s: string): string {
  *  relative links relative to `out/` (`deck.pptx` → `../in/deck.pptx`). This
  *  turns them back into links relative to the document. */
 export function fromOutDir(url: string): string {
-  if (!url || EXTERNAL.test(url) || url.startsWith('/')) return url
+  if (!url || EXTERNAL.test(url) || url.startsWith('/') || url.startsWith('#')) return url
   const cut = url.search(/[?#]/)
   const path = cut < 0 ? url : url.slice(0, cut)
   const rest = cut < 0 ? '' : url.slice(cut)
@@ -126,6 +128,42 @@ function headingText(h: Heading): string {
  *  The unpacked cap stays below the convert service's 1 GB memory limit. */
 const OFFICE_PACKAGE_LIMITS: Partial<ZipLimits> = { maxRatio: 100, maxUnpackedBytes: 512 * 1024 * 1024 }
 
+function plainText(node: { type: string; value?: string; children?: unknown[] }): string {
+  if (typeof node.value === 'string') return node.value
+  return Array.isArray(node.children) ? node.children.map((c) => plainText(c as typeof node)).join('') : ''
+}
+
+/** In-document links of the text pre-pass: each marked heading gets the slug
+ *  the renderer gives it on this page; a link to a heading on another page
+ *  keeps only its text. */
+function resolveHeadingLinks(ast: Root): void {
+  const slugger = createSlugger()
+  const slugs = new Map<number, string>()
+  visit(ast, 'heading', (h: Heading) => {
+    const ids: number[] = []
+    let last: Text | null = null
+    visit(h, 'text', (t: Text) => {
+      const taken = takeHeadingTokens(t.value)
+      ids.push(...taken.ids)
+      t.value = taken.text
+      last = t
+    })
+    // The token sat at the end; space before it would now trail the heading.
+    if (ids.length && last) (last as Text).value = (last as Text).value.trimEnd()
+    const slug = slugger(plainText(h))
+    for (const id of ids) slugs.set(id, slug)
+  })
+  visit(ast, 'link', (node: Link, index, parent) => {
+    if (!node.url.startsWith(HEADING_LINK)) return
+    const slug = slugs.get(Number(node.url.slice(HEADING_LINK.length)))
+    if (slug !== undefined) node.url = `#${slug}`
+    else if (parent && index !== undefined) {
+      parent.children.splice(index, 1, ...node.children)
+      return index
+    }
+  })
+}
+
 function tryZip(bytes: Uint8Array, limits?: Partial<ZipLimits>): FileSource | null {
   try {
     return zipSource(bytes, limits)
@@ -150,10 +188,13 @@ async function prepareFile(path: string, bytes: Uint8Array, opts: OfficeTreeOpti
     }
   }
 
-  const bundle = await opts.converter.toHtml(bytes, baseOf(path))
+  // LibreOffice would write deleted text of open revisions as plain text.
+  const accepted = acceptTrackedChanges(bytes, ext)
+  const bundle = await opts.converter.toHtml(accepted.bytes, baseOf(path))
   const scan = scanOdf(bundle.odf)
   const title = scan.title ?? stripNoteExt(baseOf(path), FLAVOR)
   const dropped: Record<string, number> = { ...scan.dropped }
+  if (accepted.changes) dropped.trackedChange = (dropped.trackedChange ?? 0) + accepted.changes
   const notices: Prepared['notices'] = []
   if (pkg && !dropped.macro && (await pkg.list()).some((p) => /(^|\/)vbaProject\.bin$/i.test(p))) dropped.macro = 1
 
@@ -208,7 +249,7 @@ async function prepareFile(path: string, bytes: Uint8Array, opts: OfficeTreeOpti
   let doc: OfficeDoc
   let truncated: Prepared['truncated'] = []
   if (kind === 'text') {
-    doc = textPrepass(body, { tokens, dropped, lang })
+    doc = textPrepass(body, { tokens, dropped, lang, shiftHeadings: !opts.split })
   } else if (kind === 'slides') {
     doc = slidesPrepass(body, {
       tokens,
@@ -355,8 +396,9 @@ export async function loadOfficeTree(src: FileSource, opts: OfficeTreeOptions): 
     })
 
     const first = ast.children[0]
-    if (first && first.type === 'heading' && sameTitle(headingText(first), title)) first.depth = 1
+    if (first && first.type === 'heading' && sameTitle(stripTokens(headingText(first)), title)) first.depth = 1
     else ast.children.unshift({ type: 'heading', depth: 1, children: [{ type: 'text', value: title }] })
+    resolveHeadingLinks(ast)
     const normalized = normalizeMarkdown(processor.stringify(ast))
     merge(tree.droppedHtml, normalized.dropped)
 

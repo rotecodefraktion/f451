@@ -4,6 +4,8 @@
 // untouched.
 
 const TOKEN = /F451X([BF])(\d+)X/g
+/** Marks a heading for in-document links; resolved by the page conversion. */
+const HEADING_TOKEN = /F451XH(\d+)X/g
 
 export class Tokens {
   private readonly blocks: string[] = []
@@ -46,5 +48,23 @@ export class Tokens {
 
 /** Removes tokens from text used as a title. */
 export function stripTokens(s: string): string {
-  return s.replace(TOKEN, '')
+  return s.replace(TOKEN, '').replace(HEADING_TOKEN, '')
 }
+
+/** The token that marks heading `n` (an index unique in the document). */
+export function headingToken(n: number): string {
+  return `F451XH${n}X`
+}
+
+/** Heading numbers of the tokens in `s`, and `s` without them. */
+export function takeHeadingTokens(s: string): { ids: number[]; text: string } {
+  const ids: number[] = []
+  const text = s.replace(HEADING_TOKEN, (_all, n: string) => {
+    ids.push(Number(n))
+    return ''
+  })
+  return { ids, text }
+}
+
+/** Link destination for a link to heading `n`. */
+export const HEADING_LINK = 'f451-heading:'
