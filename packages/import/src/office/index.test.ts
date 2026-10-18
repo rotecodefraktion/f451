@@ -321,7 +321,7 @@ describe('loadOfficeTree — Word options', () => {
   const HTML =
     '<html><body>' +
     '<p>F451XTNetwork Guide</p><p>Preface.</p>' +
-    '<h1>1Objective</h1><p>See <a href="#_Toc5">remote</a>.</p>' +
+    '<h1>1Overview</h1><p>See <a href="#_Toc5">remote</a>.</p>' +
     '<h2>1.1Scope</h2><p>Scope text.</p>' +
     '<h1>2Network Access</h1><p>Chapter two text.</p>' +
     '<h2><a name="_Toc5"></a>2.1Remote Access</h2><p>Remote text.</p>' +
@@ -352,7 +352,7 @@ describe('loadOfficeTree — Word options', () => {
   it('takes the title from the Title paragraph and lists the chapters in a table of contents', async () => {
     const [page] = (await run(true)).root
     expect(page.title).toBe('Network Guide')
-    expect(titles(page.children)).toEqual(['1 Objective', '2 Network Access', 'Annex'])
+    expect(titles(page.children)).toEqual(['1 Overview', '2 Network Access', 'Annex'])
     expect(page.children.map((c) => c.sourceRef.id)).toEqual([`${ID}@1`, `${ID}@2`, `${ID}@3`])
     expect(page.markdown).toContain(
       [
@@ -360,7 +360,7 @@ describe('loadOfficeTree — Word options', () => {
         '',
         '## Contents',
         '',
-        `- [1 Objective](source:${ID}@1|#)`,
+        `- [1 Overview](source:${ID}@1|#)`,
         `  - [1.1 Scope](source:${ID}@1#11-scope|#)`,
         `- [2 Network Access](source:${ID}@2|#)`,
         `  - [2.1 Remote Access](source:${ID}@2#21-remote-access|#)`,
@@ -379,7 +379,7 @@ describe('loadOfficeTree — Word options', () => {
 
   it('writes the table of contents to depth 1, in the document language, or not at all', async () => {
     const depth1 = (await run(true, { text: { tocDepth: 1 } })).root[0].markdown
-    expect(depth1).toContain(`- [1 Objective](source:${ID}@1|#)\n- [2 Network Access](source:${ID}@2|#)\n- [Annex](source:${ID}@3|#)`)
+    expect(depth1).toContain(`- [1 Overview](source:${ID}@1|#)\n- [2 Network Access](source:${ID}@2|#)\n- [Annex](source:${ID}@3|#)`)
     expect(depth1).not.toContain('#11-scope')
     // The text is English: the space language is only the fallback.
     const de = (await run(true, { lang: 'de' })).root[0].markdown
@@ -391,7 +391,7 @@ describe('loadOfficeTree — Word options', () => {
 
   it('drops the outline numbers when numbering is off; heading links still resolve', async () => {
     const md = (await run(false, { text: { numbering: false } })).root[0].markdown
-    expect(md).toContain('\n## Objective\n')
+    expect(md).toContain('\n## Overview\n')
     expect(md).toContain('\n### Scope\n')
     expect(md).toContain('\n### Remote Access\n')
     expect(md).toContain('See [remote](#remote-access).')
@@ -400,7 +400,7 @@ describe('loadOfficeTree — Word options', () => {
 
   it('nests the pages at split level 2 with dotted source ids', async () => {
     const [page] = (await run(true, { text: { splitLevel: 2 } })).root
-    expect(titles(page.children)).toEqual(['1 Objective', '2 Network Access', 'Annex'])
+    expect(titles(page.children)).toEqual(['1 Overview', '2 Network Access', 'Annex'])
     const [objective, network, annex] = page.children
     expect(titles(objective.children)).toEqual(['1.1 Scope'])
     expect(objective.children[0].sourceRef.id).toBe(`${ID}@1.1`)
@@ -435,19 +435,19 @@ describe('loadOfficeTree — Word options', () => {
   it('names the subpages by each pattern, with numbering on and off', async () => {
     const names = async (subName: 'chapter' | 'title-chapter' | 'key-chapter' | 'key-number', numbering: boolean) =>
       titles((await run(true, { text: { subName, numbering } })).root[0].children)
-    expect(await names('chapter', true)).toEqual(['1 Objective', '2 Network Access', 'Annex'])
-    expect(await names('chapter', false)).toEqual(['Objective', 'Network Access', 'Annex'])
+    expect(await names('chapter', true)).toEqual(['1 Overview', '2 Network Access', 'Annex'])
+    expect(await names('chapter', false)).toEqual(['Overview', 'Network Access', 'Annex'])
     expect(await names('title-chapter', true)).toEqual([
-      'Network Guide – 1 Objective',
+      'Network Guide – 1 Overview',
       'Network Guide – 2 Network Access',
       'Network Guide – Annex',
     ])
-    expect(await names('title-chapter', false)).toEqual(['Network Guide – Objective', 'Network Guide – Network Access', 'Network Guide – Annex'])
-    expect(await names('key-chapter', true)).toEqual(['net-guide – 1 Objective', 'net-guide – 2 Network Access', 'net-guide – Annex'])
-    expect(await names('key-chapter', false)).toEqual(['net-guide – Objective', 'net-guide – Network Access', 'net-guide – Annex'])
+    expect(await names('title-chapter', false)).toEqual(['Network Guide – Overview', 'Network Guide – Network Access', 'Network Guide – Annex'])
+    expect(await names('key-chapter', true)).toEqual(['net-guide – 1 Overview', 'net-guide – 2 Network Access', 'net-guide – Annex'])
+    expect(await names('key-chapter', false)).toEqual(['net-guide – Overview', 'net-guide – Network Access', 'net-guide – Annex'])
     // The chapter number also without numbering; a heading without one takes its position.
     for (const numbering of [true, false]) {
-      expect(await names('key-number', numbering)).toEqual(['net-guide.1 Objective', 'net-guide.2 Network Access', 'net-guide.3 Annex'])
+      expect(await names('key-number', numbering)).toEqual(['net-guide.1 Overview', 'net-guide.2 Network Access', 'net-guide.3 Annex'])
     }
   })
 
@@ -457,7 +457,7 @@ describe('loadOfficeTree — Word options', () => {
     const withId = await run(true, { text: { mainName: 'id', idPattern: 'DOC-###', subName: 'key-chapter' }, existingTitles })
     expect(withId.root[0].title).toBe('DOC-011 Network Guide')
     expect(withId.root[0].markdown.startsWith('# DOC-011 Network Guide\n')).toBe(true)
-    expect(withId.root[0].children[0].title).toBe('DOC-011 – 1 Objective')
+    expect(withId.root[0].children[0].title).toBe('DOC-011 – 1 Overview')
     const idOnly = await run(true, { text: { mainName: 'id', idPattern: 'DOC-###', idDisplay: 'id' }, existingTitles })
     expect(idOnly.root[0].title).toBe('DOC-011')
     expect(idOnly.root[0].markdown.startsWith('# Network Guide\n')).toBe(true)
