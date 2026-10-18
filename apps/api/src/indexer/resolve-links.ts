@@ -1,5 +1,5 @@
 import path from 'node:path'
-import type { RenderOptions } from '@f451/markdown'
+import { slugify, type RenderOptions } from '@f451/markdown'
 
 /**
  * Minimal-Sicht auf eine indexierte Seite, die für die Link-Auflösung nötig ist.
@@ -250,8 +250,27 @@ export function buildResolveLink(
       return { href: buildMediaUrl(pageId, target, ref) }
     }
     const tid = resolver.resolve(rawTarget, kind, sourcePath)
-    return tid ? { href: `/wiki/${encodeURIComponent(space)}/${encodeURIComponent(tid)}` } : null
+    if (!tid) return null
+    return { href: `/wiki/${encodeURIComponent(space)}/${encodeURIComponent(tid)}${headingHash(rawTarget)}` }
   }
+}
+
+/** The `#slug` part of a page link (#163): the fragment after the first `#`,
+ *  URL-decoded and slugified with the renderer's heading-id rule, so
+ *  `[[p-x#Some Heading]]` and `[[p-x#some-heading]]` land on the same id.
+ *  No fragment or an empty one → no hash. */
+function headingHash(rawTarget: string): string {
+  const hash = rawTarget.indexOf('#')
+  if (hash === -1) return ''
+  const fragment = rawTarget.slice(hash + 1)
+  let decoded = fragment
+  try {
+    decoded = decodeURIComponent(fragment)
+  } catch {
+    // Malformed percent-encoding: slugify the raw fragment instead.
+  }
+  const slug = slugify(decoded)
+  return slug.length === 0 ? '' : `#${slug}`
 }
 
 /**
