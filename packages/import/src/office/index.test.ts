@@ -128,7 +128,9 @@ describe('loadOfficeTree — text', () => {
     expect(page.markdown).toContain('Vorwort vor dem ersten Kapitel.')
     expect(page.markdown).not.toMatch(/^#+ Einleitung/m)
     // The table of contents follows the content before the first part.
-    expect(page.markdown.indexOf('Vorwort')).toBeLessThan(page.markdown.indexOf('\n## Contents\n'))
+    // Its heading is in the detected document language (tested separately).
+    const toc = page.markdown.search(/\n## Inhalt\n/)
+    expect(toc).toBeGreaterThan(page.markdown.indexOf('Vorwort'))
     expect(page.markdown).toContain('[Einleitung](source:office:report.docx@1|#)')
     expect(page.markdown).toContain('[Ergebnis](source:office:report.docx@2|#)')
     expect(titles(page.children)).toEqual(['Einleitung', 'Ergebnis'])
@@ -375,12 +377,13 @@ describe('loadOfficeTree — Word options', () => {
     expect(objective.markdown).toContain(`See [remote](source:${ID}@2#21-remote-access|#).`)
   })
 
-  it('writes the table of contents to depth 1, in the space language, or not at all', async () => {
+  it('writes the table of contents to depth 1, in the document language, or not at all', async () => {
     const depth1 = (await run(true, { text: { tocDepth: 1 } })).root[0].markdown
     expect(depth1).toContain(`- [1 Objective](source:${ID}@1|#)\n- [2 Network Access](source:${ID}@2|#)\n- [Annex](source:${ID}@3|#)`)
     expect(depth1).not.toContain('#11-scope')
+    // The text is English: the space language is only the fallback.
     const de = (await run(true, { lang: 'de' })).root[0].markdown
-    expect(de).toContain('\n## Inhalt\n')
+    expect(de).toContain('\n## Contents\n')
     const off = (await run(true, { text: { toc: false } })).root[0].markdown
     expect(off).not.toContain('## Contents')
     expect(off).not.toContain('source:')
@@ -475,6 +478,54 @@ describe('loadOfficeTree — Word options', () => {
   })
 })
 
+describe('loadOfficeTree — document language', () => {
+  // Invented German text, long enough to be detected.
+  const GERMAN =
+    'Dieses Handbuch beschreibt den Betrieb des Netzwerks an allen Standorten. Die Mitarbeiter finden hier die ' +
+    'wichtigsten Regeln für den Zugang, die Pflege der Geräte und die Meldung von Störungen.'
+  const docHtml =
+    '<html><body>' +
+    `<p>F451XTNetzhandbuch</p><p>${GERMAN}</p>` +
+    '<h1>1Zugang</h1><p>Jede Abteilung ist verpflichtet, die Vorgaben einzuhalten.</p>' +
+    '<h1>2Geräte</h1><p>Änderungen werden rechtzeitig mitgeteilt.</p>' +
+    '</body></html>'
+  const odt = zipSync({ 'content.xml': strToU8('<office:document-content/>') })
+  const odp = zipSync({ 'content.xml': strToU8('<office:document-content/>') })
+  const docx = zipSync({
+    '[Content_Types].xml': strToU8('<Types/>'),
+    'word/document.xml': strToU8('<w:document><w:body/></w:document>'),
+    'word/pad.bin': noise(500),
+  })
+  const pptx = zipSync({ '[Content_Types].xml': strToU8('<Types/>'), 'ppt/pad.bin': noise(500) })
+  // Two untitled slides with hardly any text.
+  const deckHtml = '<html><body><div><div><p>ok</p></div></div><div><div><p>x</p></div></div></body></html>'
+  const conv: Converter = {
+    async toHtml(_bytes, name) {
+      return name.endsWith('.pptx')
+        ? { html: deckHtml, media: new Map(), odf: odp, odfExt: 'odp' }
+        : { html: docHtml, media: new Map(), odf: odt, odfExt: 'odt' }
+    },
+    async fromBundle() {
+      throw new Error('not used')
+    },
+  }
+
+  it('names the table of contents in the language of a German document, whatever the fallback', async () => {
+    const tree = await loadOfficeTree(source({ 'netz.docx': docx }), { converter: conv, split: true, lang: 'en', limits: LIMITS })
+    const [page] = tree.root
+    expect(titles(page.children)).toEqual(['1 Zugang', '2 Geräte'])
+    expect(page.markdown).toContain('\n## Inhalt\n')
+    expect(page.markdown).not.toContain('## Contents')
+  })
+
+  it('falls back to the given language for an almost empty deck', async () => {
+    const de = await loadOfficeTree(source({ 'tiny.pptx': pptx }), { converter: conv, split: true, lang: 'de', limits: LIMITS })
+    expect(titles(de.root[0].children)).toEqual(['Folie 1', 'Folie 2'])
+    const en = await loadOfficeTree(source({ 'tiny.pptx': pptx }), { converter: conv, split: true, limits: LIMITS })
+    expect(titles(en.root[0].children)).toEqual(['Slide 1', 'Slide 2'])
+  })
+})
+
 describe('loadOfficeTree — slides', () => {
   const files = { 'deck.pptx': fixtureFile('deck.pptx') }
 
@@ -489,14 +540,15 @@ describe('loadOfficeTree — slides', () => {
     expect(md).not.toContain('–')
     // Slide number placeholder removed.
     expect(md).not.toMatch(/number>/)
-    expect(md).toContain('## Slide 3')
-    expect(section(md, '## Slide 3', '## Tabelle')).toContain('](_media/img-1.png)')
+    // The untitled slide's name follows the detected language of the deck.
+    const slide3 = md.match(/## Folie 3/)![0]
+    expect(section(md, slide3, '## Tabelle')).toContain('](_media/img-1.png)')
   })
 
   it('keeps the chart image with its data table and drops the table preview image', async () => {
     const tree = await loadOfficeTree(source(files), { converter: converter(), split: false, limits: LIMITS })
     const md = tree.root[0].markdown
-    const zahlen = section(md, '## Zahlen', '## Slide 3')
+    const zahlen = section(md, '## Zahlen', md.match(/## Folie 3/)![0])
     expect(zahlen).toContain('](_media/chart-1.svg)')
     expect(zahlen).toMatch(/^\|.*\|$/m)
     expect(zahlen).not.toContain('LibreOffice/')
@@ -507,16 +559,13 @@ describe('loadOfficeTree — slides', () => {
     expect(tree.mediaSkipped.filter((m) => m.name === 'chart data')).toEqual([])
   })
 
-  it('names untitled slides in the space language', async () => {
-    const tree = await loadOfficeTree(source(files), { converter: converter(), split: false, lang: 'de', limits: LIMITS })
-    expect(tree.root[0].markdown).toContain('## Folie 3')
-  })
-
   it('splits into one page per slide', async () => {
     const tree = await loadOfficeTree(source(files), { converter: converter(), split: true, limits: LIMITS })
     const [page] = tree.root
     expect(page.markdown.trim()).toBe(`# ${page.title}`)
-    expect(titles(page.children)).toEqual(['Agenda', 'Zahlen', 'Slide 3', 'Tabelle'])
+    const names = titles(page.children)
+    expect([names[0], names[1], names[3]]).toEqual(['Agenda', 'Zahlen', 'Tabelle'])
+    expect(names[2]).toMatch(/^Folie 3$/)
     expect(page.children.map((c) => c.sourceRef.id)).toEqual([1, 2, 3, 4].map((n) => `office:deck.pptx@${n}`))
     expect(page.children[0].markdown).toContain('# Agenda')
     expect(page.children[0].markdown).toContain('> [!NOTE]\n> **Speaker notes**')

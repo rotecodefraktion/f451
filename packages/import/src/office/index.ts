@@ -23,7 +23,8 @@ import { normalizeMarkdown } from '../normalize.js'
 import { applyCharts } from './charts.js'
 import type { Converter } from './converter.js'
 import { label, type Lang, type OfficeDoc, type OfficePart } from './doc.js'
-import { expandSelfClosing, findAll, parseBody, prop } from './hast.js'
+import { expandSelfClosing, findAll, parseBody, prop, type HNode } from './hast.js'
+import { detectLang } from './lang.js'
 import { extensionOf, officeKind } from './kinds.js'
 import { attachmentList, avMime, collectAttachments, type Attachment } from './media.js'
 import { scanOdf } from './odf.js'
@@ -47,7 +48,9 @@ export interface OfficeTreeOptions {
   existingTitles?: string[]
   /** Source id → current title of pages already imported: such a page keeps its ID number. */
   existingIds?: Map<string, string>
-  /** Language of generated names ("Folie n" / "Slide n", chart alt text); default `en`. */
+  /** Language of generated names ("Folie n" / "Slide n", chart alt text, TOC
+   *  heading) for a file whose language cannot be detected from its text;
+   *  default `en`. */
   lang?: Lang
   /** Limits of the ZIP check on OOXML and ODF files; part A defaults if unset. */
   limits?: Partial<ZipLimits>
@@ -85,6 +88,8 @@ interface PreparedPart {
 interface Prepared {
   /** A text document: the Word options apply. */
   text: boolean
+  /** Language of the generated names: detected from the text, else the fallback. */
+  lang: Lang
   /** The document title: Title paragraph, title property or file name. */
   title: string
   fileBody: string
@@ -160,6 +165,17 @@ const OFFICE_PACKAGE_LIMITS: Partial<ZipLimits> = { maxRatio: 100, maxUnpackedBy
 function plainText(node: { type: string; value?: string; children?: unknown[] }): string {
   if (typeof node.value === 'string') return node.value
   return Array.isArray(node.children) ? node.children.map((c) => plainText(c as typeof node)).join('') : ''
+}
+
+const BLOCK_TAGS = new Set(['p', 'div', 'li', 'ul', 'ol', 'table', 'tr', 'td', 'th', 'br', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'])
+
+/** The text of an HTML body for language detection: blocks separated by a
+ *  space, so the last word of one paragraph does not run into the next. */
+function bodyText(node: HNode): string {
+  if (node.type === 'text') return node.value ?? ''
+  if (node.type === 'comment') return ''
+  const inner = (node.children ?? []).map(bodyText).join('')
+  return node.type === 'element' && BLOCK_TAGS.has(node.tagName ?? '') ? ` ${inner} ` : inner
 }
 
 interface PageHeading {
@@ -302,7 +318,7 @@ async function prepareFile(
   path: string,
   bytes: Uint8Array,
   opts: OfficeTreeOptions,
-  lang: Lang,
+  fallbackLang: Lang,
   word: WordOptions,
 ): Promise<Prepared> {
   const kind = officeKind(path)
@@ -338,6 +354,9 @@ async function prepareFile(
 
   const html = kind === 'slides' || /^\s*<\?xml/.test(bundle.html) ? expandSelfClosing(bundle.html) : bundle.html
   const body = parseBody(html)
+  // The file's own language names what the import generates for it; the
+  // fallback (the space's default) only when its text says too little.
+  const lang = detectLang(bodyText(body)) ?? fallbackLang
 
   const charts = applyCharts(body, scan.svmFrames, label('chart', lang), dropped)
   if (charts.dropped) {
@@ -443,7 +462,7 @@ async function prepareFile(
   }
   const fileTail = atEnd.length ? `${attachmentList(atEnd, 2, href)}\n` : ''
 
-  return { text: kind === 'text', title, fileBody, fileTail, parts: partBodies, media, dropped, notices, truncated }
+  return { text: kind === 'text', lang, title, fileBody, fileTail, parts: partBodies, media, dropped, notices, truncated }
 }
 
 /** Loads Office files (`FileSource` of one file, a folder or a ZIP) into an
@@ -686,7 +705,7 @@ export async function loadOfficeTree(src: FileSource, opts: OfficeTreeOptions): 
       if (p.text && word.toc && subs.length) {
         // After the content, before the footnote definitions.
         const at = fileAst.children.findIndex((c) => c.type === 'footnoteDefinition')
-        fileAst.children.splice(at < 0 ? fileAst.children.length : at, 0, ...tableOfContents(subs, word.tocDepth, label('toc', lang)))
+        fileAst.children.splice(at < 0 ? fileAst.children.length : at, 0, ...tableOfContents(subs, word.tocDepth, label('toc', p.lang)))
       }
       if (p.fileTail) fileAst.children.push(...parse(p.fileTail).children)
       // "ID only": the document title is the page's first line.

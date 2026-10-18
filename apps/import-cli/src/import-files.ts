@@ -42,6 +42,18 @@ async function openSource(path: string, single: boolean): Promise<FileSource> {
   }
 }
 
+/** The space's default language, the fallback when a file's language cannot
+ *  be detected — the same the API uses, so a re-import keeps its page names.
+ *  `en` if the space list cannot be read. */
+async function spaceLang(f451: F451Api, space: string): Promise<'de' | 'en'> {
+  try {
+    const found = (await f451.spaces()).find((s) => s.id === space)
+    return found?.defaultLang === 'de' ? 'de' : 'en'
+  } catch {
+    return 'en'
+  }
+}
+
 export async function runFileImport(
   args: ParsedArgs,
   env: NodeJS.ProcessEnv,
@@ -68,6 +80,7 @@ export async function runFileImport(
     tree = await loadOfficeTree(src, {
       converter: url ? httpConverter(url) : localConverter(),
       split: args.split === true,
+      lang: await spaceLang(f451, args.space),
       ...(args.text ? { text: args.text } : {}),
       ...(existing ?? {}),
       onFile: (path, i, total) => out.write(`Converting ${path} (${i + 1}/${total})\n`),

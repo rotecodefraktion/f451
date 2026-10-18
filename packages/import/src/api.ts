@@ -72,6 +72,11 @@ export class F451Api {
     return this.expect<TreeNode[]>(`/api/spaces/${space}/tree`, {}, [200])
   }
 
+  /** `GET /api/spaces`: the spaces the user can read. */
+  spaces(): Promise<Array<{ id: string; name: string; defaultLang: string }>> {
+    return this.expect('/api/spaces', {}, [200])
+  }
+
   raw(pageId: string): Promise<string> {
     return this.expect<string>(`/api/pages/${pageId}/raw`, { expectText: true }, [200])
   }
