@@ -2,7 +2,17 @@ export * from './model.js'
 export * from './adapters/bookstack/index.js'
 export { loadMarkdownTree, loadMarkdownFolderTree, loadObsidianTree, loadHtmlTree } from './adapters/markdown/index.js'
 export { loadOfficeTree } from './office/index.js'
-export type { OfficeTreeOptions } from './office/index.js'
+export type { OfficeTreeOptions, WordOptions } from './office/index.js'
+export {
+  DEFAULT_WORD_OPTIONS,
+  parseIdPattern,
+  nextIdNumber,
+  formatId,
+  assignIds,
+  mainTitle,
+  subTitle,
+} from './office/naming.js'
+export type { IdPattern } from './office/naming.js'
 export { httpConverter, localConverter, ConvertError } from './office/converter.js'
 export type { Converter, HtmlBundle } from './office/converter.js'
 export { OFFICE_EXTENSIONS } from './office/kinds.js'
