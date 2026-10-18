@@ -225,6 +225,89 @@ describe('loadOfficeTree — Word structure', () => {
   })
 })
 
+describe('loadOfficeTree — title paragraph and deep headings', () => {
+  const LEVELS = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+  const styles =
+    '<w:styles><w:style w:type="paragraph" w:styleId="Titel"><w:name w:val="Title"/></w:style>' +
+    LEVELS.map(
+      (n) => `<w:style w:type="paragraph" w:styleId="Heading${n}"><w:name w:val="heading ${n}"/><w:pPr><w:outlineLvl w:val="${n - 1}"/></w:pPr></w:style>`,
+    ).join('') +
+    '</w:styles>'
+  const para = (style: string | null, text: string): string =>
+    `<w:p>${style ? `<w:pPr><w:pStyle w:val="${style}"/></w:pPr>` : ''}<w:r><w:t>${text}</w:t></w:r></w:p>`
+  const docx = zipSync({
+    '[Content_Types].xml': strToU8('<Types/>'),
+    'word/styles.xml': strToU8(styles),
+    'word/document.xml': strToU8(
+      '<w:document><w:body>' +
+        '<w:p><w:pPr><w:pStyle w:val="Titel"/></w:pPr><w:r><w:t>My</w:t><w:br/><w:t>Title</w:t></w:r></w:p>' +
+        LEVELS.map((n) => para(`Heading${n}`, `Level ${n}`) + para(null, `text ${n}`)).join('') +
+        '</w:body></w:document>',
+    ),
+    'word/media/pad.bin': noise(500),
+  })
+  // What LibreOffice writes for the marked package (probe 2026-10-18): the
+  // Title paragraph and levels 7–9 as plain paragraphs, the tokens as text.
+  const HTML =
+    '<html><body>' +
+    '<p style="margin-bottom: 0.21cm"><font face="Sans"><font size="4" style="font-size: 14pt">F451XTMy<br/>\nTitle</font></font></p>' +
+    LEVELS.map((n) =>
+      n <= 6 ? `<h${n}>Level ${n}</h${n}><p>text ${n}</p>` : `<p style="margin-top: 0.42cm">F451XL${n}XLevel ${n}</p><p>text ${n}</p>`,
+    ).join('') +
+    '</body></html>'
+  const odt = zipSync({ 'content.xml': strToU8('<office:document-content/>') })
+  const run = async (split: boolean, seen: Uint8Array[] = []) => {
+    const conv: Converter = {
+      async toHtml(bytes) {
+        seen.push(bytes)
+        return { html: HTML, media: new Map(), odf: odt, odfExt: 'odt' }
+      },
+      async fromBundle() {
+        throw new Error('not used')
+      },
+    }
+    return loadOfficeTree(source({ 'my-file.docx': docx }), { converter: conv, split, limits: LIMITS })
+  }
+
+  it('marks the Title paragraph and levels 7–9 in the package before the conversion', async () => {
+    const seen: Uint8Array[] = []
+    await run(false, seen)
+    const xml = new TextDecoder().decode(unzipSync(seen[0])['word/document.xml'])
+    expect(xml).toContain('<w:pStyle w:val="Titel"/></w:pPr><w:r><w:t>F451XT</w:t></w:r>')
+    expect(xml).toContain('F451XL7X')
+    expect(xml).toContain('F451XL9X')
+    expect(xml).not.toContain('F451XL6X')
+  })
+
+  it('takes the title from the Title paragraph and turns headings past level 6 into bold paragraphs', async () => {
+    const tree = await run(false)
+    const [page] = tree.root
+    expect(page.title).toBe('My Title')
+    const md = page.markdown
+    expect(md.startsWith('# My Title\n')).toBe(true)
+    expect(md.split('My Title').length - 1).toBe(1)
+    expect(md).toContain('\n## Level 1\n')
+    expect(md).toContain('\n###### Level 5\n')
+    // One page: level 6 moves down to 7 as well.
+    for (const n of [6, 7, 8, 9]) expect(md).toContain(`\n**Level ${n}**\n`)
+    expect(md).toContain('text 9')
+    expect(md).not.toMatch(/F451X|f451-heading/)
+    expect(tree.droppedHtml.headingTooDeep).toBe(4)
+  })
+
+  it('keeps levels up to 6 as headings when splitting', async () => {
+    const tree = await run(true)
+    const [page] = tree.root
+    expect(page.title).toBe('My Title')
+    expect(titles(page.children)).toEqual(['Level 1'])
+    const md = page.children[0].markdown
+    expect(md).toContain('\n###### Level 6\n')
+    for (const n of [7, 8, 9]) expect(md).toContain(`\n**Level ${n}**\n`)
+    expect(md).not.toMatch(/F451X|f451-heading/)
+    expect(tree.droppedHtml.headingTooDeep).toBe(3)
+  })
+})
+
 describe('loadOfficeTree — slides', () => {
   const files = { 'deck.pptx': fixtureFile('deck.pptx') }
 

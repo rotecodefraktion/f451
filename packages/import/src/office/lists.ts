@@ -142,7 +142,7 @@ export function headingsOnly(list: HElement): HElement[] | null {
     for (const c of child.children) {
       if (c.type === 'text' && !(c.value ?? '').trim()) continue
       if (c.type === 'comment') continue
-      if (isElement(c) && /^h[1-6]$/.test(c.tagName)) out.push(c)
+      if (isElement(c) && /^h\d+$/.test(c.tagName)) out.push(c)
       else if (isList(c)) {
         const inner = headingsOnly(c)
         if (!inner) return null

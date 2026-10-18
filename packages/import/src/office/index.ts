@@ -31,7 +31,8 @@ import { sheetsPrepass } from './sheets.js'
 import { slidesPrepass } from './slides.js'
 import { textPrepass } from './text.js'
 import { HEADING_LINK, stripTokens, takeHeadingTokens, Tokens } from './tokens.js'
-import { acceptTrackedChanges } from './revisions.js'
+import { markPackage } from './marks.js'
+import { acceptPackageChanges, rewritePackage } from './revisions.js'
 
 export interface OfficeTreeOptions {
   converter: Converter
@@ -188,13 +189,19 @@ async function prepareFile(path: string, bytes: Uint8Array, opts: OfficeTreeOpti
     }
   }
 
-  // LibreOffice would write deleted text of open revisions as plain text.
-  const accepted = acceptTrackedChanges(bytes, ext)
-  const bundle = await opts.converter.toHtml(accepted.bytes, baseOf(path))
+  // One pass over a text package: LibreOffice would write deleted text of
+  // open revisions as plain text, and drops the paragraph styles the Title
+  // paragraph and headings past level 6 are known by.
+  let revisions = 0
+  const input = rewritePackage(bytes, ext, (files, pkgKind) => {
+    revisions = acceptPackageChanges(files, pkgKind)
+    const marked = markPackage(files, pkgKind)
+    return revisions > 0 || marked > 0
+  })
+  const bundle = await opts.converter.toHtml(input, baseOf(path))
   const scan = scanOdf(bundle.odf)
-  const title = scan.title ?? stripNoteExt(baseOf(path), FLAVOR)
   const dropped: Record<string, number> = { ...scan.dropped }
-  if (accepted.changes) dropped.trackedChange = (dropped.trackedChange ?? 0) + accepted.changes
+  if (revisions) dropped.trackedChange = (dropped.trackedChange ?? 0) + revisions
   const notices: Prepared['notices'] = []
   if (pkg && !dropped.macro && (await pkg.list()).some((p) => /(^|\/)vbaProject\.bin$/i.test(p))) dropped.macro = 1
 
@@ -269,6 +276,8 @@ async function prepareFile(path: string, bytes: Uint8Array, opts: OfficeTreeOpti
     for (const name of sheets.empty) notices.push({ name: `sheet "${name}"`, reason: 'empty, not imported' })
     truncated = sheets.truncated.map((t) => ({ part: opts.split ? t.part : null, sheet: t.sheet, rows: t.rows }))
   }
+  // The Title paragraph, else the title property, else the file name.
+  const title = doc.title ?? scan.title ?? stripNoteExt(baseOf(path), FLAVOR)
 
   let intro = doc.intro
   let parts: OfficePart[] = doc.parts

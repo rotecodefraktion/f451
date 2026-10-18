@@ -46,9 +46,30 @@ export class Tokens {
   }
 }
 
+/** Marks the Word/ODF Title paragraph; written into the package before the
+ *  conversion (`marks.ts`), taken out by the text pre-pass. */
+export const TITLE_TOKEN = 'F451XT'
+/** Marks a paragraph with outline level `n` past 6; same life cycle. */
+const LEVEL_TOKEN = /F451XL(\d+)X/g
+
+export function levelToken(n: number): string {
+  return `F451XL${n}X`
+}
+
+/** The level of the first level token in `s`, or null. */
+export function markedLevel(s: string): number | null {
+  const m = new RegExp(LEVEL_TOKEN.source).exec(s)
+  return m ? Number(m[1]) : null
+}
+
+/** Removes the package marks (title and level tokens) only. */
+export function stripMarks(s: string): string {
+  return s.replace(LEVEL_TOKEN, '').split(TITLE_TOKEN).join('')
+}
+
 /** Removes tokens from text used as a title. */
 export function stripTokens(s: string): string {
-  return s.replace(TOKEN, '').replace(HEADING_TOKEN, '')
+  return stripMarks(s.replace(TOKEN, '').replace(HEADING_TOKEN, ''))
 }
 
 /** The token that marks heading `n` (an index unique in the document). */

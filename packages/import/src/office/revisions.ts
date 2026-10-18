@@ -34,7 +34,7 @@ const OOXML_MARKERS = [
 
 const OOXML_PARTS = /^word\/(document|footnotes|endnotes|comments|header\d*|footer\d*)\.xml$/
 
-interface Span {
+export interface Span {
   start: number
   /** Index after the start tag. */
   open: number
@@ -44,13 +44,13 @@ interface Span {
   selfClosing: boolean
 }
 
-function escapeRe(s: string): string {
+export function escapeRe(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 /** The element `name` starting at `start` (which points at its `<`), with
  *  nested elements of the same name counted. */
-function spanAt(xml: string, name: string, start: number): Span | null {
+export function spanAt(xml: string, name: string, start: number): Span | null {
   const tagEnd = xml.indexOf('>', start)
   if (tagEnd < 0) return null
   if (xml[tagEnd - 1] === '/') return { start, open: tagEnd + 1, close: tagEnd + 1, end: tagEnd + 1, selfClosing: true }
@@ -66,7 +66,7 @@ function spanAt(xml: string, name: string, start: number): Span | null {
 }
 
 /** Every outermost element `name` in `xml`, in order. */
-function spans(xml: string, name: string, from = 0, to = xml.length): Span[] {
+export function spans(xml: string, name: string, from = 0, to = xml.length): Span[] {
   const re = new RegExp(`<${escapeRe(name)}(?=[\\s/>])`, 'g')
   re.lastIndex = from
   const out: Span[] = []
@@ -91,7 +91,7 @@ function replaceSpans(xml: string, list: Span[], fn: (s: Span) => string): strin
 }
 
 /** The direct `<w:pPr>` of a paragraph span, or null. */
-function paragraphProps(xml: string, p: Span): Span | null {
+export function paragraphProps(xml: string, p: Span): Span | null {
   const head = xml.slice(p.open, p.close).match(/^\s*<w:pPr(?=[\s/>])/)
   return head ? spanAt(xml, 'w:pPr', p.open + head[0].indexOf('<')) : null
 }
@@ -205,32 +205,63 @@ export function acceptOdfContent(input: string): { xml: string; changes: number 
   return { xml, changes }
 }
 
-/** The package with all tracked changes accepted, and how many there were.
- *  Returns the input unchanged when it is not a Word or ODF text package or
- *  has no revisions. */
-export function acceptTrackedChanges(bytes: Uint8Array, ext: string): { bytes: Uint8Array; changes: number } {
-  const ooxml = ext === 'docx' || ext === 'docm' || ext === 'dotx' || ext === 'dotm'
-  if (!ooxml && ext !== 'odt' && ext !== 'ott') return { bytes, changes: 0 }
+/** The text packages the source passes work on. */
+export type PackageKind = 'ooxml' | 'odf'
+
+export function packageKind(ext: string): PackageKind | null {
+  if (ext === 'docx' || ext === 'docm' || ext === 'dotx' || ext === 'dotm') return 'ooxml'
+  if (ext === 'odt' || ext === 'ott') return 'odf'
+  return null
+}
+
+/** Unzips a Word or ODF text package, lets `fn` rewrite its entries in place
+ *  and zips it again when `fn` reports a change. Returns the input itself for
+ *  other formats, broken ZIPs and packages `fn` left alone. */
+export function rewritePackage(
+  bytes: Uint8Array,
+  ext: string,
+  fn: (files: Record<string, Uint8Array>, kind: PackageKind) => boolean,
+): Uint8Array {
+  const kind = packageKind(ext)
+  if (!kind) return bytes
   let files: Record<string, Uint8Array>
   try {
     files = unzipSync(bytes)
   } catch {
-    return { bytes, changes: 0 }
+    return bytes
   }
-  let changes = 0
-  for (const [path, data] of Object.entries(files)) {
-    const part = ooxml ? OOXML_PARTS.test(path) : path === 'content.xml'
-    if (!part) continue
-    const before = strFromU8(data)
-    const after = ooxml ? acceptOoxmlPart(before) : acceptOdfContent(before)
-    if (after.changes === 0) continue
-    changes += after.changes
-    files[path] = strToU8(after.xml)
-  }
-  if (changes === 0) return { bytes, changes: 0 }
+  if (!fn(files, kind)) return bytes
   // `mimetype` stays first and stored, as ODF requires.
   const ordered: Record<string, Uint8Array | [Uint8Array, { level: 0 }]> = {}
   if (files.mimetype) ordered.mimetype = [files.mimetype, { level: 0 }]
   for (const [path, data] of Object.entries(files)) if (path !== 'mimetype') ordered[path] = data
-  return { bytes: zipSync(ordered), changes }
+  return zipSync(ordered)
+}
+
+/** Accepts every tracked change in the unzipped package `files` (in place);
+ *  returns how many there were. */
+export function acceptPackageChanges(files: Record<string, Uint8Array>, kind: PackageKind): number {
+  let changes = 0
+  for (const [path, data] of Object.entries(files)) {
+    const part = kind === 'ooxml' ? OOXML_PARTS.test(path) : path === 'content.xml'
+    if (!part) continue
+    const before = strFromU8(data)
+    const after = kind === 'ooxml' ? acceptOoxmlPart(before) : acceptOdfContent(before)
+    if (after.changes === 0) continue
+    changes += after.changes
+    files[path] = strToU8(after.xml)
+  }
+  return changes
+}
+
+/** The package with all tracked changes accepted, and how many there were.
+ *  Returns the input unchanged when it is not a Word or ODF text package or
+ *  has no revisions. */
+export function acceptTrackedChanges(bytes: Uint8Array, ext: string): { bytes: Uint8Array; changes: number } {
+  let changes = 0
+  const out = rewritePackage(bytes, ext, (files, kind) => {
+    changes = acceptPackageChanges(files, kind)
+    return changes > 0
+  })
+  return { bytes: out, changes }
 }

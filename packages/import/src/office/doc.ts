@@ -10,6 +10,8 @@ export interface OfficePart {
 }
 
 export interface OfficeDoc {
+  /** Text of the document's Title paragraph (text documents), removed from the body. */
+  title?: string
   /** Content before the first part (text: before the first H1). */
   intro: string
   parts: OfficePart[]
