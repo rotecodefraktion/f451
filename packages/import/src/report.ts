@@ -22,6 +22,7 @@ export interface ImportReport {
   unresolved?: Array<{ sourceId: string; target: string }>
   ambiguous?: Array<{ sourceId: string; target: string; chosen: string }>
   truncated?: Array<{ sourceId: string; sheet: string; rows: number }>
+  warnings?: Array<{ sourceId: string; title: string; kind: string; detail: string }>
 }
 
 export function emptyReport(): ImportReport {
@@ -38,6 +39,9 @@ export function renderReport(r: ImportReport): string {
   let out = '# Import report\n\n'
   const cancelled = r.cancelled.length ? `, cancelled ${r.cancelled.length}` : ''
   out += `Created ${r.created.length}, updated ${r.updated.length}, skipped ${r.skipped.length}, failed ${r.failed.length}${cancelled}.\n\n`
+  if (r.warnings?.length) {
+    out += `## Warnings (${r.warnings.length})\n\n` + r.warnings.map((w) => `- ${w.title} (${w.sourceId}) [${w.kind}]: ${w.detail}`).join('\n') + '\n\n'
+  }
   out += section('Failed', r.failed) + section('Cancelled', r.cancelled) + section('Created', r.created) + section('Updated', r.updated) + section('Skipped', r.skipped)
   if (r.mediaSkipped.length) {
     out += `## Media skipped (${r.mediaSkipped.length})\n\n` + r.mediaSkipped.map((m) => `- ${m.name} on ${m.sourceId}: ${m.reason}`).join('\n') + '\n\n'

@@ -4,6 +4,7 @@ import {
   eventHref,
   exceedsUploadLimit,
   fileImportForm,
+  idPatternValid,
   importAvailable,
   isJobView,
   parseImportOffer,
@@ -172,6 +173,14 @@ describe('fileImportForm', () => {
 
     const other = fileImportForm(new Blob(['x']), 'v.zip', { ...opts, word })
     expect(other.has('numbering')).toBe(false)
+  })
+
+  it('checks an ID pattern like the API', () => {
+    expect(idPatternValid('DOC-###')).toBe(true)
+    expect(idPatternValid('DOC-FIXED')).toBe(true)
+    expect(idPatternValid('DOC/###')).toBe(false)
+    expect(idPatternValid('DOC-##-##')).toBe(false)
+    expect(idPatternValid('###')).toBe(false)
   })
 
   it('leaves out an empty parent', () => {

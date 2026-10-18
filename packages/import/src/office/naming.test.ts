@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { assignIds, formatId, mainTitle, nextIdNumber, parseIdPattern, subTitle } from './naming.js'
+import { assignIds, formatId, idIn, mainTitle, nextIdNumber, parseIdPattern, subTitle } from './naming.js'
 
 describe('parseIdPattern', () => {
   it('finds the counter run, its width and the text around it', () => {
@@ -26,6 +26,16 @@ describe('nextIdNumber', () => {
 
   it('respects the suffix', () => {
     expect(nextIdNumber('R#-A', ['R4-A', 'R9-B'])).toBe(5)
+  })
+})
+
+describe('idIn', () => {
+  it('reads the counter ID at the start of a title', () => {
+    expect(idIn('DOC-###', 'DOC-011 Network Guide')).toBe('DOC-011')
+    expect(idIn('DOC-###', 'DOC-0110')).toBe('DOC-0110')
+    expect(idIn('R#-A', 'R4-A x')).toBe('R4-A')
+    expect(idIn('DOC-###', 'x DOC-011')).toBeNull()
+    expect(idIn('DOC-FIXED', 'DOC-FIXED')).toBeNull()
   })
 })
 

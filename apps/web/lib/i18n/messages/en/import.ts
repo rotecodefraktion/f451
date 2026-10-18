@@ -34,7 +34,7 @@ export const importMessages: Messages['import'] = {
     mainName: 'Name of the main page',
     mainNames: { title: 'Title', file: 'File name', id: 'Own ID' },
     idPattern: 'ID pattern',
-    idPatternHint: 'The run of # is the counter, e.g. DOC-### gives DOC-001. Allowed: letters, digits, - _ . space and one run of #.',
+    idPatternHint: 'The run of # is the counter, e.g. DOC-### gives DOC-001. Allowed: letters, digits, - _ . space and one run of #; at least one character besides #.',
     idDisplay: 'Display',
     idDisplays: { id: 'ID only', 'id-title': 'ID and title' },
     splitLevel: 'Subpage from heading level',

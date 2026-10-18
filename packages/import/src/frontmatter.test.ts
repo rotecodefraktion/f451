@@ -76,4 +76,11 @@ describe('importUnchanged', () => {
   it('sees a changed title', () => {
     expect(importUnchanged(existing, { title: 'T2', tags: ['a'], body: 'body\n' })).toBe(false)
   })
+  it('counts adding a missing origin as a change', () => {
+    const withSource = '---\nid: p-abc\ntitle: T\nsource:\n  type: markdown\n  id: README.md\n---\n\nbody\n'
+    expect(importUnchanged(withSource, { title: 'T', tags: [], body: 'body\n' })).toBe(true)
+    expect(importUnchanged(withSource, { title: 'T', tags: [], body: 'body\n', origin: 'vault-a.zip' })).toBe(false)
+    const withOrigin = withSource.replace('id: README.md\n', 'id: README.md\n  origin: vault-a.zip\n')
+    expect(importUnchanged(withOrigin, { title: 'T', tags: [], body: 'body\n', origin: 'vault-a.zip' })).toBe(true)
+  })
 })

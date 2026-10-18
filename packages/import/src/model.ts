@@ -60,6 +60,9 @@ export interface ImportTree {
   ambiguous?: Array<{ sourceId: string; target: string; chosen: string }>
   /** Office imports: sheets cut at the row limit; `rows` is the sheet's row count. */
   truncated?: Array<{ sourceId: string; sheet: string; rows: number }>
+  /** Notices that do not stop a page, e.g. `duplicateId` (an own ID another
+   *  page took meanwhile). Set by the caller before writing. */
+  warnings?: Array<{ sourceId: string; title: string; kind: string; detail: string }>
 }
 
 export interface ImportTarget {

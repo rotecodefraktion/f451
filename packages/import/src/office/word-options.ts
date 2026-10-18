@@ -1,6 +1,7 @@
+import type { F451Api, TreeNode } from '../api.js'
 import { originOf } from '../frontmatter.js'
-import type { ExistingScan } from '../model.js'
-import { parseIdPattern, type WordOptions } from './naming.js'
+import type { ExistingScan, ImportNode, ImportTree } from '../model.js'
+import { idIn, parseIdPattern, type WordOptions } from './naming.js'
 
 // Text options of a Word import as they arrive from the API form and the CLI
 // (spec 2026-10-18-word-import-options §Options): strings, validated once here
@@ -77,6 +78,7 @@ export function parseWordOptions(
     if ((p.match(/#+/g) ?? []).length > 1 || (p.includes('#') && !parseIdPattern(p))) {
       return fail('idPattern may contain only one run of "#" (the counter).')
     }
+    if (!/[^#\s]/.test(p)) return fail('idPattern needs at least one character besides "#".')
     text.idPattern = p
   }
   if (text.mainName === 'id' && text.idPattern === undefined) return fail('mainName "id" needs an idPattern.')
@@ -127,4 +129,70 @@ export function collectExistingNames(
     existingIds.set(source.id, p.title)
   }
   return { existingTitles, existingIds }
+}
+
+/** Re-reads the titles of the target space just before writing (one `tree`
+ *  call) and warns (`duplicateId`) for each main page whose counter ID another
+ *  page took since `scan` (a concurrent run with the same pattern), or that
+ *  already carries it otherwise. The page the main page will update, found in
+ *  `scan` by source id and `origin` like `collectExistingNames`, does not
+ *  count. No lock: the pages are still written. A pattern without counter
+ *  gives no warnings. */
+export async function duplicateIdWarnings(
+  api: Pick<F451Api, 'tree'>,
+  space: string,
+  tree: ImportTree,
+  scan: ExistingScan,
+  pattern: string,
+  origin?: string,
+): Promise<NonNullable<ImportTree['warnings']>> {
+  if (!parseIdPattern(pattern)) return []
+  // Main pages sit at the top or in folder nodes (source id ends in "/");
+  // the children of a main page are its subpages.
+  const mains: ImportNode[] = []
+  const walk = (nodes: ImportNode[]) => {
+    for (const n of nodes) {
+      if (n.sourceRef.id.endsWith('/')) walk(n.children)
+      else if (n.sourceRef.type === 'office') mains.push(n)
+    }
+  }
+  walk(tree.root)
+  if (mains.length === 0) return []
+
+  const own = new Map<string, Set<string>>() // source id → page ids it may update
+  for (const p of scan.pages) {
+    if (!p.inSubtree) continue
+    const source = scan.sources.get(p.id)
+    if (!source || source.type !== 'office') continue
+    if (origin && originOf(source) !== origin) continue
+    const set = own.get(source.id) ?? new Set<string>()
+    set.add(p.id)
+    own.set(source.id, set)
+  }
+
+  const holders = new Map<string, Array<{ id: string; title: string }>>() // ID → pages carrying it
+  const collect = (nodes: TreeNode[]) => {
+    for (const n of nodes) {
+      const id = idIn(pattern, n.title)
+      if (id) holders.set(id, [...(holders.get(id) ?? []), { id: n.id, title: n.title }])
+      collect(n.children ?? [])
+    }
+  }
+  collect(await api.tree(space))
+
+  const warnings: NonNullable<ImportTree['warnings']> = []
+  for (const n of mains) {
+    const id = idIn(pattern, n.title)
+    if (!id) continue
+    const mine = own.get(n.sourceRef.id)
+    const others = (holders.get(id) ?? []).filter((p) => !mine?.has(p.id))
+    if (others.length === 0) continue
+    warnings.push({
+      sourceId: n.sourceRef.id,
+      title: n.title,
+      kind: 'duplicateId',
+      detail: `the ID ${id} is already used by ${others.map((p) => `"${p.title}" (${p.id})`).join(', ')}`,
+    })
+  }
+  return warnings
 }

@@ -562,6 +562,7 @@ describe.sequential('import/export job routes (#128)', () => {
         ['idPattern: forbidden character', { mainName: 'id', idPattern: 'DOC/###' }],
         ['idPattern: two counters', { mainName: 'id', idPattern: 'DOC-##-##' }],
         ['idPattern: too long', { mainName: 'id', idPattern: 'D'.repeat(41) }],
+        ['idPattern: only the counter', { mainName: 'id', idPattern: '###' }],
         ['subName without split', { subName: 'chapter' }],
         ['splitLevel without split', { splitLevel: '2' }],
         ['toc without split', { toc: 'true' }],

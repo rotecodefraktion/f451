@@ -8,6 +8,7 @@ import {
   BookStackClient,
   F451Api,
   collectExistingNames,
+  duplicateIdWarnings,
   exportOffice,
   exportToBookStack,
   importTree,
@@ -315,6 +316,10 @@ export function fileImportRun(deps: RunDeps, p: FileImportParams): JobRun {
             // registry turns a settled job with an aborted signal into `cancelled`.
             if (signal.aborted) return { report: '# Import report\n\nCancelled while converting.\n', counts: { cancelled: 0 } }
             throw err
+          }
+          // Concurrent runs with the same pattern may have drawn the same ID.
+          if (scan && p.text?.idPattern) {
+            tree.warnings = await duplicateIdWarnings(f451, p.space, tree, scan, p.text.idPattern, p.origin)
           }
         } else {
           tree =

@@ -75,13 +75,29 @@ export function mergeIntoExisting(
 }
 
 /** True if `existing` already has exactly this title, body and these tags,
- *  i.e. an update would change nothing the import owns. */
-export function importUnchanged(existing: string, p: { title: string; tags: string[]; body: string }): boolean {
+ *  i.e. an update would change nothing the import owns. With `origin`, a
+ *  source block that lacks an origin counts as a change: `mergeIntoExisting`
+ *  would add it, and without it a later rename is not matched by origin. */
+export function importUnchanged(
+  existing: string,
+  p: { title: string; tags: string[]; body: string; origin?: string },
+): boolean {
   const { yaml, body } = split(existing)
   const data = (yaml ? (parseYaml(yaml) as Record<string, unknown> | null) : null) ?? {}
   const tags = Array.isArray(data.tags) ? data.tags.map(String) : []
   const title = data.title === undefined || data.title === null ? '' : String(data.title)
+  const source = data.source
+  const missingOrigin =
+    !!p.origin &&
+    !!source &&
+    typeof source === 'object' &&
+    !Array.isArray(source) &&
+    !(source as Record<string, unknown>).origin
   return (
-    title === p.title && body === p.body && tags.length === p.tags.length && tags.every((t, i) => t === p.tags[i])
+    !missingOrigin &&
+    title === p.title &&
+    body === p.body &&
+    tags.length === p.tags.length &&
+    tags.every((t, i) => t === p.tags[i])
   )
 }

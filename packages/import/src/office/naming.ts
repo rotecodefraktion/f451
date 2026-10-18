@@ -55,6 +55,15 @@ function numberIn(p: IdPattern, title: string): number | null {
   return m ? Number(m[1]) : null
 }
 
+/** The counter ID `title` starts with by `pattern` (digits as written), or
+ *  null; always null for a pattern without counter. */
+export function idIn(pattern: string, title: string): string | null {
+  const p = parseIdPattern(pattern)
+  if (!p) return null
+  const m = new RegExp(`^${escapeRegExp(p.prefix)}\\d+${escapeRegExp(p.suffix)}`).exec(title)
+  return m ? m[0] : null
+}
+
 /** Highest counter found in `titles` + 1, starting at 1. */
 export function nextIdNumber(pattern: string, titles: string[]): number {
   const p = parseIdPattern(pattern)

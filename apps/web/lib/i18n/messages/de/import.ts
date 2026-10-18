@@ -39,7 +39,7 @@ export const importMessages = {
     mainName: 'Name der Hauptseite',
     mainNames: { title: 'Titel', file: 'Dateiname', id: 'Eigene ID' },
     idPattern: 'ID-Muster',
-    idPatternHint: 'Die Raute-Folge ist der Zähler, z. B. DOC-### ergibt DOC-001. Erlaubt: Buchstaben, Ziffern, - _ . Leerzeichen und eine Folge #.',
+    idPatternHint: 'Die Raute-Folge ist der Zähler, z. B. DOC-### ergibt DOC-001. Erlaubt: Buchstaben, Ziffern, - _ . Leerzeichen und eine Folge #; mindestens ein Zeichen außer #.',
     idDisplay: 'Anzeige',
     idDisplays: { id: 'Nur ID', 'id-title': 'ID und Titel' },
     splitLevel: 'Unterseite ab Überschrift-Ebene',

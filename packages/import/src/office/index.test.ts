@@ -476,6 +476,18 @@ describe('loadOfficeTree — Word options', () => {
     expect(again.root.find((n) => n.sourceRef.id === 'office:a.docx')!.title).toBe('DOC-011')
     expect(again.root.find((n) => n.sourceRef.id === 'office:c.docx')!.title).toBe('DOC-013')
   })
+
+  it('fails every file after the first that would get the same fixed ID', async () => {
+    const fixed = { mainName: 'id' as const, idPattern: 'DOC-FIXED', idDisplay: 'id' as const }
+    const tree = await run(false, { text: fixed }, ['b.docx', 'a.docx', 'c.docx'])
+    expect(tree.root.map((n) => n.sourceRef.id)).toEqual(['office:a.docx'])
+    expect(tree.root[0].title).toBe('DOC-FIXED')
+    expect(tree.failed.map((f) => f.sourceId).sort()).toEqual(['office:b.docx', 'office:c.docx'])
+    expect(tree.failed[0].reason).toMatch(/fixed ID "DOC-FIXED"/)
+    // With the title shown the loader does not refuse anything.
+    const withTitle = await run(false, { text: { ...fixed, idDisplay: 'id-title' } }, ['b.docx', 'a.docx'])
+    expect(withTitle.failed).toEqual([])
+  })
 })
 
 describe('loadOfficeTree — document language', () => {

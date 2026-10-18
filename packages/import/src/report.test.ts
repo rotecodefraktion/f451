@@ -64,6 +64,13 @@ describe('renderReport', () => {
     expect(out).toContain('## Sheets cut at the row limit (1)')
     expect(out).toContain('- Daten on office:book.xlsx@1: 2500 rows')
   })
+
+  it('lists warnings only when present', () => {
+    const r = emptyReport()
+    expect(renderReport(r)).not.toContain('## Warnings')
+    r.warnings = [{ sourceId: 'office:a.docx', title: 'DOC-011', kind: 'duplicateId', detail: 'the ID DOC-011 is already used by "DOC-011" (p-x)' }]
+    expect(renderReport(r)).toContain('## Warnings (1)\n\n- DOC-011 (office:a.docx) [duplicateId]: the ID DOC-011 is already used by "DOC-011" (p-x)')
+  })
 })
 
 describe('renderExportReport', () => {

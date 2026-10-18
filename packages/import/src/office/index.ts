@@ -33,7 +33,7 @@ import { slidesPrepass } from './slides.js'
 import { textPrepass } from './text.js'
 import { HEADING_LINK, stripTokens, takeHeadingTokens, Tokens } from './tokens.js'
 import { markPackage } from './marks.js'
-import { assignIds, DEFAULT_WORD_OPTIONS, mainTitle, subTitle, type WordOptions } from './naming.js'
+import { assignIds, DEFAULT_WORD_OPTIONS, mainTitle, parseIdPattern, subTitle, type WordOptions } from './naming.js'
 import { acceptPackageChanges, rewritePackage } from './revisions.js'
 
 export type { WordOptions } from './naming.js'
@@ -512,6 +512,13 @@ export async function loadOfficeTree(src: FileSource, opts: OfficeTreeOptions): 
           opts.existingIds ?? new Map(),
         )
       : new Map<string, string>()
+  // A fixed ID (pattern without counter) shown alone names every text file
+  // the same; only the first file in path order keeps it, the others fail.
+  const fixedIdTaken = new Set(
+    word.mainName === 'id' && word.idPattern && !parseIdPattern(word.idPattern) && word.idDisplay === 'id'
+      ? textPaths.slice(1)
+      : [],
+  )
   const pageTitle = (path: string): string => {
     const p = prepared.get(path)
     if (!p) return fileName(path)
@@ -670,6 +677,14 @@ export async function loadOfficeTree(src: FileSource, opts: OfficeTreeOptions): 
       const p = prepared.get(n.notePath)
       if (failure !== undefined || !p) {
         tree.failed.push({ sourceId: n.sourceId, title: n.title, reason: failure ?? 'not converted' })
+        continue
+      }
+      if (fixedIdTaken.has(n.notePath)) {
+        tree.failed.push({
+          sourceId: n.sourceId,
+          title: n.title,
+          reason: `the fixed ID "${word.idPattern}" is already used by another file of this import (add "#" to the pattern or show the title)`,
+        })
         continue
       }
       merge(tree.droppedHtml, p.dropped)

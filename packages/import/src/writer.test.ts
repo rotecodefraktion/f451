@@ -135,6 +135,15 @@ describe('importTree', () => {
       expect(api.requestReview).not.toHaveBeenCalled()
     })
 
+    it('writes the draft when the only change is a missing origin', async () => {
+      const api = setup()
+      const page = node('1', 'A', { sourceRef: { type: 'bookstack', id: '1' }, markdown: '# A\n\n![x](_media/x.png)\n', media: media([1, 2, 3]) })
+      const report = await importTree(tree([page]), TARGET, api, { ...OPTS, update: true, origin: 'vault-a.zip' }, () => {})
+      expect(api.discardDraft).not.toHaveBeenCalled()
+      expect(putFor(api, 'p-a')).toContain('origin: vault-a.zip')
+      expect(report.updated.map((r) => r.sourceId)).toEqual(['1'])
+    })
+
     it('reuses a stored diagram whose embedded XML is the same', async () => {
       const api = setup()
       const rendered = '<svg id="ge-svg-AAA" content="&lt;mxfile&gt;&lt;diagram id=&quot;a&quot;/&gt;&lt;/mxfile&gt;"><g/></svg>'

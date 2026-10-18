@@ -229,6 +229,7 @@ export async function importTree(
   if (tree.unresolved) report.unresolved = tree.unresolved
   if (tree.ambiguous) report.ambiguous = tree.ambiguous
   if (tree.truncated) report.truncated = tree.truncated
+  if (tree.warnings?.length) report.warnings = tree.warnings
 
   const entries = flattenTree(tree)
   onEvent({ kind: 'start', pages: entries.length })
@@ -420,7 +421,16 @@ export async function importTree(
             body: markdown,
             ...(source.origin ? { origin: source.origin } : {}),
           })
-      if (!isNew && uploaded === 0 && importUnchanged(existingContent, { title: node.title, tags: node.tags, body: markdown })) {
+      if (
+        !isNew &&
+        uploaded === 0 &&
+        importUnchanged(existingContent, {
+          title: node.title,
+          tags: node.tags,
+          body: markdown,
+          ...(source.origin ? { origin: source.origin } : {}),
+        })
+      ) {
         discardOnFail = false
         await api.discardDraft(pageId)
         skip(node, pageId, 'unchanged')

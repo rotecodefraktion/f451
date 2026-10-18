@@ -165,9 +165,14 @@ export const DEFAULT_WORD_FORM: WordFormOptions = {
   tocDepth: '2',
 }
 
-/** Same rule as the API: 1–40 of letters, digits, `- _ .`, space and `#`, at most one run of `#`. */
+/** Same rule as the API: 1–40 of letters, digits, `- _ .`, space and `#`, at
+ *  most one run of `#`, and at least one character besides `#` and space. */
 export function idPatternValid(pattern: string): boolean {
-  return /^[A-Za-z0-9\-_. #]{1,40}$/.test(pattern) && (pattern.match(/#+/g) ?? []).length <= 1
+  return (
+    /^[A-Za-z0-9\-_. #]{1,40}$/.test(pattern) &&
+    (pattern.match(/#+/g) ?? []).length <= 1 &&
+    /[^#\s]/.test(pattern)
+  )
 }
 
 export interface FileImportOptions {

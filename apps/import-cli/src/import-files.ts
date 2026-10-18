@@ -4,6 +4,7 @@ import {
   ArchiveRejectedError,
   F451Api,
   collectExistingNames,
+  duplicateIdWarnings,
   folderSource,
   httpConverter,
   loadHtmlTree,
@@ -85,6 +86,10 @@ export async function runFileImport(
       ...(existing ?? {}),
       onFile: (path, i, total) => out.write(`Converting ${path} (${i + 1}/${total})\n`),
     })
+    // Concurrent runs with the same pattern may have drawn the same ID.
+    if (scan && args.text?.idPattern) {
+      tree.warnings = await duplicateIdWarnings(f451, args.space, tree, scan, args.text.idPattern, origin)
+    }
   } else {
     tree =
       args.source === 'obsidian'
