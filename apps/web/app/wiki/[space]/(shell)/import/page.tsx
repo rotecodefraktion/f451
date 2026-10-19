@@ -1,10 +1,11 @@
 import { cookies } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { ImportPanel } from '../../../../../components/import-panel'
+import type { TreeNodeData } from '../../../../../components/tree'
 import { ApiError, apiFetch } from '../../../../../lib/api'
 import { getT } from '../../../../../lib/i18n/server'
 import { importAvailable, parseImportOffer, type ImportOffer } from '../../../../../lib/import-job'
-import { apiImportInstancesPath, decodeRouteParam } from '../../../../../lib/urls'
+import { apiImportInstancesPath, apiSpaceTreePath, decodeRouteParam } from '../../../../../lib/urls'
 
 interface ImportPageProps {
   params: Promise<{ space: string }>
@@ -35,11 +36,24 @@ export default async function ImportPage({ params }: ImportPageProps) {
     notFound()
   }
 
+  // The page pickers (#175) need the tree; without access to it the pickers
+  // only offer their empty option instead of breaking the page.
+  let tree: TreeNodeData[]
+  try {
+    tree = await apiFetch<TreeNodeData[]>(apiSpaceTreePath(spaceId), { cookie: cookieHeader })
+  } catch (err) {
+    if (err instanceof ApiError && (err.status === 401 || err.status === 403 || err.status === 404)) {
+      tree = []
+    } else {
+      throw err
+    }
+  }
+
   return (
     <main className="main full doc-pad">
       <h1 className="import-title">{t('import.pageTitle')}</h1>
       <p className="import-intro">{t('import.intro')}</p>
-      <ImportPanel space={spaceId} instances={offer.bookstack} maxUploadMb={offer.maxUploadMb} office={offer.office} />
+      <ImportPanel space={spaceId} instances={offer.bookstack} maxUploadMb={offer.maxUploadMb} office={offer.office} tree={tree} />
     </main>
   )
 }
