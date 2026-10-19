@@ -19,9 +19,11 @@ export interface PagePickerProps {
   value: string
   onChange: (id: string) => void
   emptyLabel?: string
+  /** Id of the element that names the picker when it has no own label. */
+  labelledBy?: string
 }
 
-export function PagePicker({ id, tree, value, onChange, emptyLabel }: PagePickerProps) {
+export function PagePicker({ id, tree, value, onChange, emptyLabel, labelledBy }: PagePickerProps) {
   const options = useMemo(() => flattenTree(tree), [tree])
   const required = emptyLabel === undefined
   const first = options[0]?.id
@@ -33,7 +35,7 @@ export function PagePicker({ id, tree, value, onChange, emptyLabel }: PagePicker
 
   return (
     <div className="selectwrap">
-      <select id={id} className="select" value={value} onChange={(e) => onChange(e.target.value)}>
+      <select id={id} className="select" aria-labelledby={labelledBy} value={value} onChange={(e) => onChange(e.target.value)}>
         {!required && <option value="">{emptyLabel}</option>}
         {options.map((o) => (
           <option key={o.id} value={o.id}>

@@ -586,11 +586,9 @@ export function ImportPanel({ space, instances, maxUploadMb, office, tree }: Imp
         >
           {tab === 'import' ? (
             <div className="field">
-              <label className="label" htmlFor={id('parent')}>
-                {t('import.parentId')}
-              </label>
               <PagePicker
                 id={id('parent')}
+                labelledBy={id('section-target')}
                 tree={tree}
                 value={parentId}
                 onChange={setParentId}
@@ -600,19 +598,14 @@ export function ImportPanel({ space, instances, maxUploadMb, office, tree }: Imp
             </div>
           ) : isFileExport ? (
             <div className="field">
-              <label className="label" htmlFor={id('export-page')}>
-                {t('import.exportFileStartPage')}
-              </label>
-              <PagePicker id={id('export-page')} tree={tree} value={filePageId} onChange={setFilePageId} />
+              <PagePicker id={id('export-page')} labelledBy={id('section-target')} tree={tree} value={filePageId} onChange={setFilePageId} />
               <span className="hint">{t('import.exportFileStartPageHint')}</span>
             </div>
           ) : (
             <div className="field">
-              <label className="label" htmlFor={id('start-page')}>
-                {t('import.startPageId')}
-              </label>
               <PagePicker
                 id={id('start-page')}
+                labelledBy={id('section-target')}
                 tree={tree}
                 value={startPageId}
                 onChange={setStartPageId}
@@ -796,12 +789,10 @@ export function ImportPanel({ space, instances, maxUploadMb, office, tree }: Imp
             )
           ) : isFileExport ? (
             <div className="field">
-              <label className="label" htmlFor={id('export-format')}>
-                {t('import.exportFormatLabel')}
-              </label>
               <div className="selectwrap">
                 <select
                   id={id('export-format')}
+                  aria-labelledby={id('section-source')}
                   className="select"
                   value={exportFormat}
                   onChange={(e) => setExportFormat(e.target.value as ExportFormat)}
