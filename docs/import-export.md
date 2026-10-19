@@ -398,6 +398,11 @@ fields of the same names.
   page), a presentation one per slide (title of the slide, else "Folie n" / "Slide n"
   in the space language) and a workbook one per sheet. A re-import with `--update`
   matches the parts by position, so inserting a slide shifts the later ones.
+- **Slides** are imported as an image plus text (#177): a rendered SVG of the slide
+  (`_media/slide-NN.svg`) comes first, below the slide heading or at the top of the
+  slide's page when split, then the slide's text and speaker notes. Where no image
+  could be rendered, the slide keeps its text only and the report counts it
+  (`slideImage`).
 - **Charts** (and other drawn objects such as SmartArt) become SVG images; where the
   chart's data can be read, a Markdown table with the values follows the image.
 - **Sheets** become tables with the displayed (recalculated) values, not the

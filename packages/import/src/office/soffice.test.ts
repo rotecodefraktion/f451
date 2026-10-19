@@ -47,6 +47,24 @@ done
 exit 0
 `
 
+// Fake poppler tools: a two-page PDF; FAKE_POPPLER_MODE=fail makes pdftocairo fail.
+const FAKE_PDFINFO = `#!/bin/sh
+echo "pdfinfo" >> "$FAKE_SOFFICE_LOG"
+printf 'Producer:       fake\\nPages:          2\\n'
+`
+const FAKE_PDFTOCAIRO = `#!/bin/sh
+if [ "$FAKE_POPPLER_MODE" = fail ]; then echo "Syntax Error: broken" >&2; exit 1; fi
+page=""
+while [ $# -gt 2 ]; do
+  case "$1" in
+    -f) page="$2"; shift 2 ;;
+    *) shift ;;
+  esac
+done
+echo "pdftocairo $page" >> "$FAKE_SOFFICE_LOG"
+printf '<svg xmlns="http://www.w3.org/2000/svg"><title>page %s</title></svg>' "$page" > "$2"
+`
+
 const HTML = `<html><body>
 <p><img src="document_html_1a2b.png" alt="file"></p>
 <p><img alt="inline" src="data:image/png;base64,iVBORw0KGgo="></p>
@@ -64,6 +82,10 @@ beforeAll(async () => {
   await mkdir(bin)
   await writeFile(join(bin, 'soffice'), FAKE)
   await chmod(join(bin, 'soffice'), 0o755)
+  await writeFile(join(bin, 'pdfinfo'), FAKE_PDFINFO)
+  await chmod(join(bin, 'pdfinfo'), 0o755)
+  await writeFile(join(bin, 'pdftocairo'), FAKE_PDFTOCAIRO)
+  await chmod(join(bin, 'pdftocairo'), 0o755)
   await writeFile(join(dir, 'fixture.html'), HTML)
   process.env.PATH = `${bin}${delimiter}${savedPath ?? ''}`
   process.env.FAKE_SOFFICE_HTML = join(dir, 'fixture.html')
@@ -74,11 +96,13 @@ beforeAll(async () => {
 afterAll(async () => {
   process.env.PATH = savedPath
   delete process.env.FAKE_SOFFICE_MODE
+  delete process.env.FAKE_POPPLER_MODE
   await rm(dir, { recursive: true, force: true })
 })
 
 beforeEach(async () => {
   delete process.env.FAKE_SOFFICE_MODE
+  delete process.env.FAKE_POPPLER_MODE
   await writeFile(log, '')
   workRoot = await mkdtemp(join(dir, 'work-'))
 })
@@ -128,6 +152,40 @@ describe('runSoffice to=html', () => {
     const r = await runSoffice({ bytes: strToU8('x'), name: 'deck.PPTX' }, 'html', { timeoutS: 10, workRoot })
     if (!('zip' in r)) throw new Error('expected a zip')
     expect(Object.keys(unzipSync(r.zip))).toContain('document.odp')
+  })
+
+  it('renders one SVG per slide of a presentation through PDF and poppler', async () => {
+    const r = await runSoffice({ bytes: strToU8('x'), name: 'deck.pptx' }, 'html', { timeoutS: 10, workRoot })
+    if (!('zip' in r)) throw new Error('expected a zip')
+    const files = unzipSync(r.zip)
+    expect(Object.keys(files).filter((f) => f.startsWith('slides/')).sort()).toEqual(['slides/slide-1.svg', 'slides/slide-2.svg'])
+    expect(strFromU8(files['slides/slide-2.svg'])).toContain('page 2')
+    const lines = await calls()
+    expect(lines).toContain('convert pdf')
+    expect(lines.filter((l) => l.startsWith('pdftocairo'))).toEqual(['pdftocairo 1', 'pdftocairo 2'])
+  })
+
+  it('renders no slide images for a text document', async () => {
+    const r = await runSoffice(docx, 'html', { timeoutS: 10, workRoot })
+    if (!('zip' in r)) throw new Error('expected a zip')
+    expect(Object.keys(unzipSync(r.zip)).some((f) => f.startsWith('slides/'))).toBe(false)
+    expect(await calls()).not.toContain('pdfinfo')
+  })
+
+  it('still returns the HTML bundle, without slide images, when poppler fails', async () => {
+    process.env.FAKE_POPPLER_MODE = 'fail'
+    const r = await runSoffice({ bytes: strToU8('x'), name: 'deck.pptx' }, 'html', { timeoutS: 10, workRoot })
+    if (!('zip' in r)) throw new Error('expected a zip')
+    const files = unzipSync(r.zip)
+    expect(files['document.html']).toBeDefined()
+    expect(files['document.odp']).toBeDefined()
+    expect(Object.keys(files).some((f) => f.startsWith('slides/'))).toBe(false)
+  })
+
+  it('skips slide images when little time is left', async () => {
+    // 6 s budget minus the 2 s reserve leaves less than the 5 s minimum.
+    await runSoffice({ bytes: strToU8('x'), name: 'deck.pptx' }, 'html', { timeoutS: 6, workRoot })
+    expect(await calls()).not.toContain('convert pdf')
   })
 
   it('replaces a chart that could not be made by a counted placeholder', async () => {

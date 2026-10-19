@@ -110,6 +110,9 @@ async function convertToHtml(work: string, input: { bytes: Uint8Array; name: str
   const failed = await chartsToSvg(work, extracted.charts, deadline, files)
   const html = failed.size ? dropCharts(extracted.html, failed) : extracted.html
 
+  // Last, so it only uses the time left; it never fails the job.
+  if (kind === 'slides') Object.assign(files, await renderSlides(work, inFile, deadline))
+
   files['document.html'] = strToU8(html)
   files[`document.${odfExt}`] = odf
   return zipSync(files)
@@ -240,6 +243,48 @@ async function chartsToSvg(
   return failed
 }
 
+/** Time kept back at the end of the job for zipping and answering. */
+const SLIDES_RESERVE_MS = 2_000
+/** Below this much time left, slide images are not attempted at all. */
+const SLIDES_MIN_MS = 5_000
+
+/**
+ * A rendered image per slide (issue #177): the presentation goes to PDF, then
+ * poppler's `pdftocairo` writes one SVG per page. Best effort — any failure
+ * (no poppler, a failed or timed-out step, too little time left) returns no
+ * slide images at all; the import reports the slides without one.
+ */
+async function renderSlides(work: string, inFile: string, deadline: number): Promise<Record<string, Uint8Array>> {
+  const until = deadline - SLIDES_RESERVE_MS
+  if (until - Date.now() < SLIDES_MIN_MS) return {}
+  // Slides rendered so far; a failing page only loses its own image, a
+  // timeout keeps what is done (the importer reports each missing slide).
+  const out: Record<string, Uint8Array> = {}
+  try {
+    const pdfDir = join(work, 'pdf')
+    await soffice(work, ['--convert-to', 'pdf', '--outdir', pdfDir, inFile], until)
+    const pdf = join(pdfDir, 'document.pdf')
+    const info = await run('pdfinfo', [pdf], work, until, 'pdfinfo')
+    const pages = Number(/^Pages:\s*(\d+)\s*$/m.exec(info)?.[1] ?? 0)
+    const svgDir = join(work, 'slides')
+    await mkdir(svgDir, { recursive: true })
+    for (let n = 1; n <= pages; n++) {
+      const svg = join(svgDir, `slide-${n}.svg`)
+      try {
+        await run('pdftocairo', ['-svg', '-f', String(n), '-l', String(n), pdf, svg], work, until, 'pdftocairo')
+      } catch (e) {
+        if (e instanceof ConvertError && e.status === 504) break
+        continue
+      }
+      const bytes = await readNonEmpty(svg)
+      if (bytes) out[`slides/slide-${n}.svg`] = bytes
+    }
+  } catch {
+    // No PDF or no page count: the deck is imported as text.
+  }
+  return out
+}
+
 /** Replaces the images of failed charts by a placeholder the adapter counts. */
 function dropCharts(html: string, failed: ReadonlySet<string>): string {
   return html.replace(IMG_TAG, (tag) => {
@@ -302,8 +347,6 @@ function exportFilter(to: ExportTarget, isHtml: boolean): { filter: string; infi
 // --- process handling ---
 
 async function soffice(work: string, args: string[], deadline: number): Promise<void> {
-  const remaining = deadline - Date.now()
-  if (remaining <= 0) throw new ConvertError('conversion timed out', 504)
   const argv = [
     '--headless',
     '--norestore',
@@ -312,19 +355,31 @@ async function soffice(work: string, args: string[], deadline: number): Promise<
     `-env:UserInstallation=${pathToFileURL(join(work, 'profile')).href}`,
     ...args,
   ]
-  await new Promise<void>((resolve, reject) => {
-    // Own process group, so a timeout kills soffice.bin and its helpers too.
-    const child = spawn('soffice', argv, {
+  await run('soffice', argv, work, deadline, 'LibreOffice')
+}
+
+/** Runs `cmd` in `work` until `deadline`; resolves with its stdout (first 64 KB).
+ *  `name` names the program in error messages. */
+async function run(cmd: string, argv: string[], work: string, deadline: number, name: string): Promise<string> {
+  const remaining = deadline - Date.now()
+  if (remaining <= 0) throw new ConvertError('conversion timed out', 504)
+  return new Promise<string>((resolve, reject) => {
+    // Own process group, so a timeout kills the program and its helpers too.
+    const child = spawn(cmd, argv, {
       cwd: work,
       env: { ...process.env, HOME: work, TMPDIR: work },
       detached: true,
       stdio: ['ignore', 'pipe', 'pipe'],
     })
     let output = ''
+    let stdout = ''
     const keep = (chunk: Buffer) => {
       output = (output + chunk.toString('utf8')).slice(-4000)
     }
-    child.stdout.on('data', keep)
+    child.stdout.on('data', (chunk: Buffer) => {
+      if (stdout.length < 65_536) stdout += chunk.toString('utf8')
+      keep(chunk)
+    })
     child.stderr.on('data', keep)
     let timedOut = false
     const timer = setTimeout(() => {
@@ -339,13 +394,13 @@ async function soffice(work: string, args: string[], deadline: number): Promise<
     }, remaining)
     child.on('error', (e) => {
       clearTimeout(timer)
-      reject(new ConvertError(`LibreOffice could not be started: ${e.message}`, 422))
+      reject(new ConvertError(`${name} could not be started: ${e.message}`, 422))
     })
     child.on('close', (code, signal) => {
       clearTimeout(timer)
       if (timedOut) reject(new ConvertError('conversion timed out', 504))
-      else if (code !== 0) reject(new ConvertError(`LibreOffice failed (${code ?? signal}): ${lastLine(output)}`, 422))
-      else resolve()
+      else if (code !== 0) reject(new ConvertError(`${name} failed (${code ?? signal}): ${lastLine(output)}`, 422))
+      else resolve(stdout)
     })
   })
 }

@@ -13,6 +13,9 @@ export interface HtmlBundle {
   media: Map<string, Uint8Array>
   odf: Uint8Array
   odfExt: 'odt' | 'odp' | 'ods'
+  /** Presentations: a rendered SVG per slide, keyed by 0-based slide index
+   *  (`slides/slide-<n>.svg`, n 1-based). Best effort — slides may be missing. */
+  slides?: Map<number, Uint8Array>
 }
 
 export interface Converter {
@@ -37,11 +40,17 @@ export function bundleFromZip(zip: Uint8Array, status: number): HtmlBundle {
   for (const [name, bytes] of Object.entries(entries)) {
     if (name.startsWith('media/') && !name.endsWith('/')) media.set(name, bytes)
   }
+  const slides = new Map<number, Uint8Array>()
+  for (const [name, bytes] of Object.entries(entries)) {
+    const m = /^slides\/slide-([1-9]\d*)\.svg$/.exec(name)
+    if (m && bytes.length > 0) slides.set(Number(m[1]) - 1, bytes)
+  }
   return {
     html: strFromU8(html),
     media,
     odf: entries[odfName],
     odfExt: odfName.slice('document.'.length) as HtmlBundle['odfExt'],
+    slides,
   }
 }
 
