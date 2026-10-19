@@ -545,37 +545,39 @@ export function ImportPanel({ space, instances, maxUploadMb, office, tree }: Imp
 
   return (
     <form className="import-panel" onSubmit={onStart} noValidate>
-      {(hasBookstack || office) && (
-        <div className="segmented import-tabs" role="group" aria-label={t('import.tabsLabel')}>
-          <button type="button" aria-pressed={tab === 'import'} onClick={() => setTab('import')}>
-            {t('import.tabs.import')}
-          </button>
-          <button type="button" aria-pressed={tab === 'export'} onClick={() => setTab('export')}>
-            {t('import.tabs.export')}
-          </button>
-        </div>
-      )}
-      {tab === 'import' && hasBookstack && hasFile && (
-        <div className="segmented import-tabs" role="group" aria-label={t('import.originLabel')}>
-          <button type="button" aria-pressed={origin === 'bookstack'} onClick={() => switchOrigin('bookstack')}>
-            {t('import.origins.bookstack')}
-          </button>
-          <button type="button" aria-pressed={origin === 'file'} onClick={() => switchOrigin('file')}>
-            {t('import.origins.file')}
-          </button>
-        </div>
-      )}
+      <div className="import-switches">
+        {(hasBookstack || office) && (
+          <div className="segmented import-tabs" role="group" aria-label={t('import.tabsLabel')}>
+            <button type="button" aria-pressed={tab === 'import'} onClick={() => setTab('import')}>
+              {t('import.tabs.import')}
+            </button>
+            <button type="button" aria-pressed={tab === 'export'} onClick={() => setTab('export')}>
+              {t('import.tabs.export')}
+            </button>
+          </div>
+        )}
+        {tab === 'import' && hasBookstack && hasFile && (
+          <div className="segmented import-tabs" role="group" aria-label={t('import.originLabel')}>
+            <button type="button" aria-pressed={origin === 'bookstack'} onClick={() => switchOrigin('bookstack')}>
+              {t('import.origins.bookstack')}
+            </button>
+            <button type="button" aria-pressed={origin === 'file'} onClick={() => switchOrigin('file')}>
+              {t('import.origins.file')}
+            </button>
+          </div>
+        )}
 
-      {tab === 'export' && hasBookstack && office && (
-        <div className="segmented import-tabs" role="group" aria-label={t('import.exportTargetLabel')}>
-          <button type="button" aria-pressed={exportTarget === 'bookstack'} onClick={() => setExportTarget('bookstack')}>
-            {t('import.exportTargets.bookstack')}
-          </button>
-          <button type="button" aria-pressed={exportTarget === 'file'} onClick={() => setExportTarget('file')}>
-            {t('import.exportTargets.file')}
-          </button>
-        </div>
-      )}
+        {tab === 'export' && hasBookstack && office && (
+          <div className="segmented import-tabs" role="group" aria-label={t('import.exportTargetLabel')}>
+            <button type="button" aria-pressed={exportTarget === 'bookstack'} onClick={() => setExportTarget('bookstack')}>
+              {t('import.exportTargets.bookstack')}
+            </button>
+            <button type="button" aria-pressed={exportTarget === 'file'} onClick={() => setExportTarget('file')}>
+              {t('import.exportTargets.file')}
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* The form card (#175): target (or page) first, then source (or
           format), then options; the action bar closes the card. */}

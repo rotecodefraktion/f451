@@ -111,7 +111,12 @@
   max-width: 44rem;
   margin-top: var(--space-5);
 }
-.import-tabs {
+/* The switches (import/export, source or target) sit in one row with room
+   between the groups, wrapping on narrow screens. */
+.import-switches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-5);
   margin-bottom: var(--space-5);
 }
 /* The form card (#175): `.card` with its padding moved into the sections,
