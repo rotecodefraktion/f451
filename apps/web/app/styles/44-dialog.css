@@ -510,6 +510,28 @@ dialog:not([open]) {
   font-weight: var(--weight-text);
   color: var(--color-text);
 }
+/* "Export as …" dialog (`components/export-dialog.tsx`, #175): the
+   `label.check` building block keeps its row layout and normal weight
+   against `.newpage-body label` above — same specificity trick as
+   `.newpage-parent-option`. The format group is a bare fieldset rendered as
+   a compact list: no frame, no gap between the radios. */
+.newpage-body label.check {
+  flex-direction: row;
+  gap: var(--space-3);
+  font-weight: var(--weight-text);
+  color: var(--color-text);
+}
+.newpage-body fieldset.field {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
+  gap: 0;
+}
+.newpage-body fieldset.field > legend {
+  padding: 0;
+  margin-bottom: var(--space-1);
+}
 .newpage-parent-fixed {
   margin: 0;
   font-size: var(--text-sm);

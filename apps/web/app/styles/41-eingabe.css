@@ -157,6 +157,13 @@ textarea.input[aria-invalid='true'] {
    ist der eigentliche Klickbereich. Deshalb `min-height` am Label, nicht am
    `input`. `align-items: flex-start` haelt das Kaestchen bei mehrzeiliger
    Beschriftung an der ersten Zeile.
+
+   The box is centred on the first text line (#175): the offset is half the
+   difference between the line box (`--text-sm` × `--leading-ui`, the
+   label's own font) and the box height. `1lh` would resolve against the
+   input's own font, which the UA style resets, so it is not used here. The
+   value is slightly negative with the current tokens (box taller than the
+   line), which is intended.
    ========================================================================= */
 label.check {
   display: flex;
@@ -172,7 +179,8 @@ label.check {
 label.check input {
   width: var(--space-5);
   height: var(--space-5);
-  margin-top: var(--space-1);
+  flex: none;
+  margin-block: calc((var(--text-sm) * var(--leading-ui) - var(--space-5)) / 2) 0;
   accent-color: var(--color-accent);
 }
 

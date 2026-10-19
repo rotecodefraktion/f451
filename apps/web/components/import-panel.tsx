@@ -3,8 +3,8 @@
 /**
  * Import/export panel (#128, #90) — the client island of
  * `app/wiki/[space]/(shell)/import/page.tsx`. Starts a BookStack import or
- * export, or a file import (ZIP upload of a Markdown folder or Obsidian
- * vault), as a job in the API and polls `GET /api/jobs/:id` until it ends.
+ * export, or a file import (a Markdown folder, Obsidian vault or HTML folder,
+ * chosen as a folder and packed in the browser or as a ZIP), as a job in the API and polls `GET /api/jobs/:id` until it ends.
  *
  * The job id is kept in `sessionStorage` (per space) so a reload or a second
  * visit reattaches to the running job; a 404 from the poll (API restart,
@@ -14,7 +14,8 @@
  * Fetches go relative over the Next rewrites with the session cookie, as in
  * `lib/editor/client-api.ts`; a 401 sends the user to the login page.
  */
-import { useEffect, useId, useState, type FormEvent } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { formatSize, zipFolder } from '../lib/folder-zip'
 import {
   DEFAULT_WORD_FORM,
   EXPORT_FORMATS,
@@ -48,6 +49,8 @@ import {
   apiSpaceImportPath,
   wikiReviewsHref,
 } from '../lib/urls'
+import { PagePicker } from './page-picker'
+import type { TreeNodeData } from './tree'
 
 const POLL_MS = 1000
 
@@ -110,6 +113,15 @@ interface Notice {
 interface CallResult {
   status: number
   body: Record<string, unknown>
+}
+
+/** What the file import uploads: a chosen file (ZIP or Office) or a folder
+ *  packed into a ZIP in the browser (#176). */
+interface ChosenSource {
+  blob: Blob
+  name: string
+  /** Set for a packed folder: what the status line shows. */
+  folder: { root: string; count: number; bytes: number } | null
 }
 
 class SessionExpired extends Error {}
@@ -180,9 +192,12 @@ export interface ImportPanelProps {
   maxUploadMb: number | null
   /** The API has a convert service: offer the Office format. */
   office: boolean
+  /** Page tree of the space for the page pickers (#175); empty → only the
+   *  empty option (or none) is offered. */
+  tree: TreeNodeData[]
 }
 
-export function ImportPanel({ space, instances, maxUploadMb, office }: ImportPanelProps) {
+export function ImportPanel({ space, instances, maxUploadMb, office, tree }: ImportPanelProps) {
   const { t, messages } = useT()
   const uid = useId()
   const id = (name: string) => `${uid}-${name}`
@@ -196,7 +211,13 @@ export function ImportPanel({ space, instances, maxUploadMb, office }: ImportPan
   const [tab, setTab] = useState<Tab>('import')
   const [origin, setOrigin] = useState<Origin>(hasBookstack ? 'bookstack' : 'file')
   const [fileFormat, setFileFormat] = useState<FileFormat>('markdown')
-  const [file, setFile] = useState<File | null>(null)
+  const [source, setSource] = useState<ChosenSource | null>(null)
+  const [packing, setPacking] = useState(false)
+  // Bumped on every new choice and reset: a packing run whose number is no
+  // longer current (format changed, other folder chosen) drops its result.
+  const packRun = useRef(0)
+  const folderInput = useRef<HTMLInputElement>(null)
+  const zipInput = useRef<HTMLInputElement>(null)
   const [split, setSplit] = useState(false)
   const [word, setWord] = useState<WordFormOptions>(DEFAULT_WORD_FORM)
   const [instance, setInstance] = useState(instances[0] ?? '')
@@ -213,6 +234,9 @@ export function ImportPanel({ space, instances, maxUploadMb, office }: ImportPan
   const [release, setRelease] = useState(false)
   const [dryRun, setDryRun] = useState(false)
   const [startPageId, setStartPageId] = useState('')
+  // Own state for the file export: its picker has no empty option and selects
+  // a page, which must not leak into the BookStack export's "whole space".
+  const [filePageId, setFilePageId] = useState('')
   const [bookId, setBookId] = useState('')
   const [exportTarget, setExportTarget] = useState<ExportTarget>(hasBookstack ? 'bookstack' : 'file')
   const [exportFormat, setExportFormat] = useState<ExportFormat>('docx')
@@ -317,16 +341,52 @@ export function ImportPanel({ space, instances, maxUploadMb, office }: ImportPan
   const isFileImport = tab === 'import' && origin === 'file' && hasFile
   const isFileExport = tab === 'export' && exportTarget === 'file' && office
 
+  /** Drops the chosen file or folder and any packing still running. */
+  function resetSource() {
+    packRun.current += 1
+    setSource(null)
+    setPacking(false)
+  }
+
   function switchOrigin(next: Origin) {
     setOrigin(next)
-    setFile(null)
+    resetSource()
     setNotice(null)
+  }
+
+  function chooseFile(file: File | null) {
+    resetSource()
+    setNotice(null)
+    if (file) setSource({ blob: file, name: file.name, folder: null })
+  }
+
+  /** Packs a folder pick into a ZIP right away, so Start only uploads. */
+  async function chooseFolder(files: File[]) {
+    resetSource()
+    setNotice(null)
+    if (files.length === 0) return
+    const run = packRun.current
+    setPacking(true)
+    try {
+      const packed = await zipFolder(files)
+      if (run !== packRun.current) return
+      if (packed.count === 0) {
+        setNotice({ tone: 'error', text: t('import.errors.emptyFolder') })
+        return
+      }
+      const root = packed.name.replace(/\.zip$/, '')
+      setSource({ blob: packed.blob, name: packed.name, folder: { root, count: packed.count, bytes: packed.bytes } })
+    } catch {
+      if (run === packRun.current) setNotice({ tone: 'error', text: t('import.errors.packFailed') })
+    } finally {
+      if (run === packRun.current) setPacking(false)
+    }
   }
 
   /** Multipart body of a file import, or an error text for the form. */
   function buildFileForm(): { form: FormData } | { error: string } {
-    if (!file) return { error: t('import.errors.missingFile') }
-    if (maxUploadMb !== null && exceedsUploadLimit(file.size, maxUploadMb)) {
+    if (!source) return { error: t('import.errors.missingFile') }
+    if (maxUploadMb !== null && exceedsUploadLimit(source.blob.size, maxUploadMb)) {
       return { error: t('import.errors.tooLarge', { max: maxUploadMb }) }
     }
     if (fileFormat === 'office' && word.mainName === 'id') {
@@ -334,7 +394,7 @@ export function ImportPanel({ space, instances, maxUploadMb, office }: ImportPan
       if (!pattern) return { error: t('import.errors.missingIdPattern') }
       if (!idPatternValid(pattern)) return { error: t('import.errors.invalidIdPattern') }
     }
-    return { form: fileImportForm(file, file.name, { format: fileFormat, split, word, parentId, update, release, dryRun }) }
+    return { form: fileImportForm(source.blob, source.name, { format: fileFormat, split, word, parentId, update, release, dryRun }) }
   }
 
   async function onStart(event: FormEvent) {
@@ -342,7 +402,7 @@ export function ImportPanel({ space, instances, maxUploadMb, office }: ImportPan
     setNotice(null)
     let request: () => Promise<CallResult>
     if (isFileExport) {
-      const page = startPageId.trim()
+      const page = filePageId.trim()
       if (!page) {
         setNotice({ tone: 'error', text: t('import.errors.missingStartPage') })
         return
@@ -425,7 +485,7 @@ export function ImportPanel({ space, instances, maxUploadMb, office }: ImportPan
     clearStored(space)
     setNotice(null)
     // The file input is remounted empty; drop the file it no longer shows.
-    setFile(null)
+    resetSource()
     setPanel({ kind: 'form' })
   }
 
@@ -537,199 +597,399 @@ export function ImportPanel({ space, instances, maxUploadMb, office }: ImportPan
 
   return (
     <form className="import-panel" onSubmit={onStart} noValidate>
-      {(hasBookstack || office) && (
-        <div className="segmented import-tabs" role="group" aria-label={t('import.tabsLabel')}>
-          <button type="button" aria-pressed={tab === 'import'} onClick={() => setTab('import')}>
-            {t('import.tabs.import')}
-          </button>
-          <button type="button" aria-pressed={tab === 'export'} onClick={() => setTab('export')}>
-            {t('import.tabs.export')}
-          </button>
-        </div>
-      )}
-      {tab === 'import' && hasBookstack && hasFile && (
-        <div className="segmented import-tabs" role="group" aria-label={t('import.originLabel')}>
-          <button type="button" aria-pressed={origin === 'bookstack'} onClick={() => switchOrigin('bookstack')}>
-            {t('import.origins.bookstack')}
-          </button>
-          <button type="button" aria-pressed={origin === 'file'} onClick={() => switchOrigin('file')}>
-            {t('import.origins.file')}
-          </button>
-        </div>
-      )}
-
-      {tab === 'export' && hasBookstack && office && (
-        <div className="segmented import-tabs" role="group" aria-label={t('import.exportTargetLabel')}>
-          <button type="button" aria-pressed={exportTarget === 'bookstack'} onClick={() => setExportTarget('bookstack')}>
-            {t('import.exportTargets.bookstack')}
-          </button>
-          <button type="button" aria-pressed={exportTarget === 'file'} onClick={() => setExportTarget('file')}>
-            {t('import.exportTargets.file')}
-          </button>
-        </div>
-      )}
-
-      {!isFileImport && !isFileExport && (
-        <>
-          <div className="field">
-            <label className="label" htmlFor={id('instance')}>
-              {t('import.instance')}
-            </label>
-            <div className="selectwrap">
-              <select
-                id={id('instance')}
-                className="select"
-                value={instance}
-                onChange={(e) => {
-                  setInstance(e.target.value)
-                  setCatalog(null)
-                }}
-              >
-                {instances.map((u) => (
-                  <option key={u} value={u}>
-                    {u}
-                  </option>
-                ))}
-              </select>
-              <span className="caret" aria-hidden="true">
-                ▾
-              </span>
-            </div>
+      <div className="import-switches">
+        {(hasBookstack || office) && (
+          <div className="segmented import-tabs" role="group" aria-label={t('import.tabsLabel')}>
+            <button type="button" aria-pressed={tab === 'import'} onClick={() => setTab('import')}>
+              {t('import.tabs.import')}
+            </button>
+            <button type="button" aria-pressed={tab === 'export'} onClick={() => setTab('export')}>
+              {t('import.tabs.export')}
+            </button>
           </div>
-
-          <div className="import-row">
-            <div className="field">
-              <label className="label" htmlFor={id('token-id')}>
-                {t('import.tokenId')}
-              </label>
-              <input
-                id={id('token-id')}
-                className="input"
-                autoComplete="off"
-                spellCheck={false}
-                value={tokenId}
-                onChange={(e) => setTokenId(e.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label className="label" htmlFor={id('token-secret')}>
-                {t('import.tokenSecret')}
-              </label>
-              <input
-                id={id('token-secret')}
-                className="input"
-                type="password"
-                autoComplete="off"
-                value={tokenSecret}
-                onChange={(e) => setTokenSecret(e.target.value)}
-              />
-            </div>
+        )}
+        {tab === 'import' && hasBookstack && hasFile && (
+          <div className="segmented import-tabs" role="group" aria-label={t('import.originLabel')}>
+            <button type="button" aria-pressed={origin === 'bookstack'} onClick={() => switchOrigin('bookstack')}>
+              {t('import.origins.bookstack')}
+            </button>
+            <button type="button" aria-pressed={origin === 'file'} onClick={() => switchOrigin('file')}>
+              {t('import.origins.file')}
+            </button>
           </div>
-          <p className="import-hint">{t('import.tokenHint')}</p>
-        </>
-      )}
+        )}
 
-      {tab === 'import' ? (
-        <>
-          {isFileImport ? (
+        {tab === 'export' && hasBookstack && office && (
+          <div className="segmented import-tabs" role="group" aria-label={t('import.exportTargetLabel')}>
+            <button type="button" aria-pressed={exportTarget === 'bookstack'} onClick={() => setExportTarget('bookstack')}>
+              {t('import.exportTargets.bookstack')}
+            </button>
+            <button type="button" aria-pressed={exportTarget === 'file'} onClick={() => setExportTarget('file')}>
+              {t('import.exportTargets.file')}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* The form card (#175): target (or page) first, then source (or
+          format), then options; the action bar closes the card. */}
+      <div className="card import-card">
+        <FormSection
+          headingId={id('section-target')}
+          title={tab === 'import' ? t('import.sections.target') : t('import.sections.page')}
+        >
+          {tab === 'import' ? (
+            <div className="field">
+              <PagePicker
+                id={id('parent')}
+                labelledBy={id('section-target')}
+                tree={tree}
+                value={parentId}
+                onChange={setParentId}
+                emptyLabel={t('import.parentIdEmpty')}
+              />
+              <span className="hint">{t('import.parentIdHint')}</span>
+            </div>
+          ) : isFileExport ? (
+            <div className="field">
+              <PagePicker id={id('export-page')} labelledBy={id('section-target')} tree={tree} value={filePageId} onChange={setFilePageId} />
+              <span className="hint">{t('import.exportFileStartPageHint')}</span>
+            </div>
+          ) : (
+            <div className="field">
+              <PagePicker
+                id={id('start-page')}
+                labelledBy={id('section-target')}
+                tree={tree}
+                value={startPageId}
+                onChange={setStartPageId}
+                emptyLabel={t('import.startPageIdEmpty')}
+              />
+              <span className="hint">{t('import.startPageIdHint')}</span>
+            </div>
+          )}
+        </FormSection>
+
+        <FormSection
+          headingId={id('section-source')}
+          title={
+            tab === 'import'
+              ? t('import.sections.source')
+              : isFileExport
+                ? t('import.sections.format')
+                : t('import.sections.target')
+          }
+        >
+          {!isFileImport && !isFileExport && (
             <>
               <div className="field">
-                <label className="label" htmlFor={id('file-format')}>
-                  {t('import.fileFormat')}
+                <label className="label" htmlFor={id('instance')}>
+                  {t('import.instance')}
                 </label>
                 <div className="selectwrap">
                   <select
-                    id={id('file-format')}
+                    id={id('instance')}
                     className="select"
-                    value={fileFormat}
+                    value={instance}
                     onChange={(e) => {
-                      setFileFormat(e.target.value as FileFormat)
-                      setFile(null)
+                      setInstance(e.target.value)
+                      setCatalog(null)
                     }}
                   >
-                    <option value="markdown">{t('import.fileFormats.markdown')}</option>
-                    <option value="obsidian">{t('import.fileFormats.obsidian')}</option>
-                    <option value="html">{t('import.fileFormats.html')}</option>
-                    {office && <option value="office">{t('import.fileFormats.office')}</option>}
+                    {instances.map((u) => (
+                      <option key={u} value={u}>
+                        {u}
+                      </option>
+                    ))}
                   </select>
                   <span className="caret" aria-hidden="true">
                     ▾
                   </span>
                 </div>
               </div>
-              <div className="field">
-                <label className="label" htmlFor={id('file')}>
-                  {t(fileFormat === 'office' ? 'import.fileOffice' : 'import.file')}
-                </label>
-                <input
-                  // Remounted per format so a file chosen for another format is dropped.
-                  key={fileFormat}
-                  id={id('file')}
-                  className="input"
-                  type="file"
-                  accept={fileAccept(fileFormat)}
-                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                />
-                {maxUploadMb !== null && (
-                  <span className="hint">
-                    {t(fileFormat === 'office' ? 'import.fileHintOffice' : 'import.fileHint', { max: maxUploadMb })}
-                  </span>
+
+              <div className="import-row">
+                <div className="field">
+                  <label className="label" htmlFor={id('token-id')}>
+                    {t('import.tokenId')}
+                  </label>
+                  <input
+                    id={id('token-id')}
+                    className="input"
+                    autoComplete="off"
+                    spellCheck={false}
+                    value={tokenId}
+                    onChange={(e) => setTokenId(e.target.value)}
+                  />
+                </div>
+                <div className="field">
+                  <label className="label" htmlFor={id('token-secret')}>
+                    {t('import.tokenSecret')}
+                  </label>
+                  <input
+                    id={id('token-secret')}
+                    className="input"
+                    type="password"
+                    autoComplete="off"
+                    value={tokenSecret}
+                    onChange={(e) => setTokenSecret(e.target.value)}
+                  />
+                </div>
+              </div>
+              <p className="import-hint">{t('import.tokenHint')}</p>
+            </>
+          )}
+
+          {tab === 'import' ? (
+            isFileImport ? (
+              <div className="import-row">
+                <div className="field">
+                  <label className="label" htmlFor={id('file-format')}>
+                    {t('import.fileFormat')}
+                  </label>
+                  <div className="selectwrap">
+                    <select
+                      id={id('file-format')}
+                      className="select"
+                      value={fileFormat}
+                      onChange={(e) => {
+                        setFileFormat(e.target.value as FileFormat)
+                        resetSource()
+                      }}
+                    >
+                      <option value="markdown">{t('import.fileFormats.markdown')}</option>
+                      <option value="obsidian">{t('import.fileFormats.obsidian')}</option>
+                      <option value="html">{t('import.fileFormats.html')}</option>
+                      {office && <option value="office">{t('import.fileFormats.office')}</option>}
+                    </select>
+                    <span className="caret" aria-hidden="true">
+                      ▾
+                    </span>
+                  </div>
+                </div>
+                {fileFormat === 'office' ? (
+                  <div className="field">
+                    <label className="label" htmlFor={id('file')}>
+                      {t('import.fileOffice')}
+                    </label>
+                    <input
+                      // Remounted per format so a file chosen for another format is dropped.
+                      key={fileFormat}
+                      id={id('file')}
+                      className="input"
+                      type="file"
+                      accept={fileAccept(fileFormat)}
+                      onChange={(e) => chooseFile(e.target.files?.[0] ?? null)}
+                    />
+                    {maxUploadMb !== null && (
+                      <span className="hint">{t('import.fileHintOffice', { max: maxUploadMb })}</span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="field" role="group" aria-labelledby={id('file-label')}>
+                    <span id={id('file-label')} className="label">
+                      {t('import.file')}
+                    </span>
+                    <div className="import-file-buttons">
+                      <button type="button" className="btn" onClick={() => folderInput.current?.click()}>
+                        {t('import.chooseFolder')}
+                      </button>
+                      <button type="button" className="btn" onClick={() => zipInput.current?.click()}>
+                        {t('import.chooseZip')}
+                      </button>
+                    </div>
+                    {/* Remounted per format like the Office input; the value is
+                        cleared after each pick so the same folder can be chosen again. */}
+                    <input
+                      key={`folder-${fileFormat}`}
+                      ref={folderInput}
+                      type="file"
+                      multiple
+                      hidden
+                      {...{ webkitdirectory: '' }}
+                      onChange={(e) => {
+                        const files = e.target.files ? Array.from(e.target.files) : []
+                        e.target.value = ''
+                        void chooseFolder(files)
+                      }}
+                    />
+                    <input
+                      key={`zip-${fileFormat}`}
+                      ref={zipInput}
+                      type="file"
+                      hidden
+                      accept={fileAccept(fileFormat)}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] ?? null
+                        e.target.value = ''
+                        chooseFile(file)
+                      }}
+                    />
+                    <span className="hint" aria-live="polite">
+                      {packing
+                        ? t('import.packing')
+                        : source?.folder
+                          ? t('import.folderStatus', {
+                              name: source.folder.root,
+                              count: source.folder.count,
+                              size: formatSize(source.folder.bytes),
+                            })
+                          : source
+                            ? source.name
+                            : t('import.noSource')}
+                    </span>
+                    {maxUploadMb !== null && <span className="hint">{t('import.fileHint', { max: maxUploadMb })}</span>}
+                  </div>
                 )}
               </div>
-              {fileFormat === 'office' && (
-                <label className="check">
-                  <input type="checkbox" checked={split} onChange={(e) => setSplit(e.target.checked)} />
-                  <span>{t('import.splitOffice')}</span>
-                </label>
-              )}
-              {fileFormat === 'office' && (
-                <div role="group" aria-labelledby={id('word')}>
-                  <span id={id('word')} className="label">
-                    {t('import.word.legend')}
-                  </span>
-                  <label className="check">
-                    <input
-                      type="checkbox"
-                      checked={word.numbering}
-                      onChange={(e) => setWord({ ...word, numbering: e.target.checked })}
-                    />
-                    <span>{t('import.word.numbering')}</span>
-                  </label>
-                  <OptionSelect
-                    inputId={id('word-main-name')}
-                    label={t('import.word.mainName')}
-                    value={word.mainName}
-                    options={(['title', 'file', 'id'] as const).map((v) => [v, t(`import.word.mainNames.${v}`)])}
-                    onChange={(v) => setWord({ ...word, mainName: v as WordFormOptions['mainName'] })}
+            ) : (
+              <>
+                <div className="import-row">
+                  <div className="field">
+                    <label className="label" htmlFor={id('source-kind')}>
+                      {t('import.sourceKind')}
+                    </label>
+                    <div className="selectwrap">
+                      <select
+                        id={id('source-kind')}
+                        className="select"
+                        value={sourceKind}
+                        onChange={(e) => {
+                          setSourceKind(e.target.value as SourceKind)
+                          setSourceValue('')
+                        }}
+                      >
+                        <option value="book">{t('import.sourceKinds.book')}</option>
+                        <option value="shelf">{t('import.sourceKinds.shelf')}</option>
+                        <option value="page">{t('import.sourceKinds.page')}</option>
+                      </select>
+                      <span className="caret" aria-hidden="true">
+                        ▾
+                      </span>
+                    </div>
+                  </div>
+                  <SourceField
+                    inputId={id('source')}
+                    kind={sourceKind}
+                    catalog={catalog}
+                    value={sourceValue}
+                    onChange={setSourceValue}
                   />
-                  {word.mainName === 'id' && (
-                    <>
-                      <div className="field">
-                        <label className="label" htmlFor={id('word-id-pattern')}>
-                          {t('import.word.idPattern')}
-                        </label>
-                        <input
-                          id={id('word-id-pattern')}
-                          className="input"
-                          type="text"
-                          maxLength={40}
-                          placeholder="DOC-###"
-                          value={word.idPattern}
-                          onChange={(e) => setWord({ ...word, idPattern: e.target.value })}
-                        />
-                        <span className="hint">{t('import.word.idPatternHint')}</span>
-                      </div>
-                      <OptionSelect
-                        inputId={id('word-id-display')}
-                        label={t('import.word.idDisplay')}
-                        value={word.idDisplay}
-                        options={(['id', 'id-title'] as const).map((v) => [v, t(`import.word.idDisplays.${v}`)])}
-                        onChange={(v) => setWord({ ...word, idDisplay: v as WordFormOptions['idDisplay'] })}
+                </div>
+                {sourceKind !== 'page' && (
+                  <div className="import-catalog">
+                    <button
+                      type="button"
+                      className="btn small"
+                      onClick={loadCatalog}
+                      disabled={!credentialsReady || catalogBusy}
+                    >
+                      {catalogBusy ? t('import.loadingBooks') : t('import.loadBooks')}
+                    </button>
+                    {catalog === null && <span className="import-hint">{t('import.catalogHint')}</span>}
+                  </div>
+                )}
+                {catalogError && (
+                  <div className="callout error import-notice" role="alert">
+                    {catalogError}
+                  </div>
+                )}
+              </>
+            )
+          ) : isFileExport ? (
+            <div className="field">
+              <div className="selectwrap">
+                <select
+                  id={id('export-format')}
+                  aria-labelledby={id('section-source')}
+                  className="select"
+                  value={exportFormat}
+                  onChange={(e) => setExportFormat(e.target.value as ExportFormat)}
+                >
+                  {EXPORT_FORMATS.map((f) => (
+                    <option key={f} value={f}>
+                      {t(`import.exportFormats.${f}`)}
+                    </option>
+                  ))}
+                </select>
+                <span className="caret" aria-hidden="true">
+                  ▾
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="field">
+              <label className="label" htmlFor={id('book-id')}>
+                {t('import.bookId')}
+              </label>
+              <input
+                id={id('book-id')}
+                className="input"
+                inputMode="numeric"
+                autoComplete="off"
+                value={bookId}
+                onChange={(e) => setBookId(e.target.value)}
+              />
+              <span className="hint">{t('import.bookIdHint')}</span>
+            </div>
+          )}
+        </FormSection>
+
+        <FormSection headingId={id('section-options')} title={t('import.sections.options')}>
+          {isFileImport && fileFormat === 'office' && (
+            <>
+              <label className="check">
+                <input type="checkbox" checked={split} onChange={(e) => setSplit(e.target.checked)} />
+                <span>{t('import.splitOffice')}</span>
+              </label>
+              <div className="import-group" role="group" aria-labelledby={id('word')}>
+                <span id={id('word')} className="label">
+                  {t('import.word.legend')}
+                </span>
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={word.numbering}
+                    onChange={(e) => setWord({ ...word, numbering: e.target.checked })}
+                  />
+                  <span>{t('import.word.numbering')}</span>
+                </label>
+                <OptionSelect
+                  inputId={id('word-main-name')}
+                  label={t('import.word.mainName')}
+                  value={word.mainName}
+                  options={(['title', 'file', 'id'] as const).map((v) => [v, t(`import.word.mainNames.${v}`)])}
+                  onChange={(v) => setWord({ ...word, mainName: v as WordFormOptions['mainName'] })}
+                />
+                {word.mainName === 'id' && (
+                  <div className="import-row">
+                    <div className="field">
+                      <label className="label" htmlFor={id('word-id-pattern')}>
+                        {t('import.word.idPattern')}
+                      </label>
+                      <input
+                        id={id('word-id-pattern')}
+                        className="input"
+                        type="text"
+                        maxLength={40}
+                        placeholder="DOC-###"
+                        value={word.idPattern}
+                        onChange={(e) => setWord({ ...word, idPattern: e.target.value })}
                       />
-                    </>
-                  )}
-                  {split && (
-                    <>
+                      <span className="hint">{t('import.word.idPatternHint')}</span>
+                    </div>
+                    <OptionSelect
+                      inputId={id('word-id-display')}
+                      label={t('import.word.idDisplay')}
+                      value={word.idDisplay}
+                      options={(['id', 'id-title'] as const).map((v) => [v, t(`import.word.idDisplays.${v}`)])}
+                      onChange={(v) => setWord({ ...word, idDisplay: v as WordFormOptions['idDisplay'] })}
+                    />
+                  </div>
+                )}
+                {split && (
+                  <>
+                    <div className="import-row">
                       <OptionSelect
                         inputId={id('word-split-level')}
                         label={t('import.word.splitLevel')}
@@ -747,190 +1007,85 @@ export function ImportPanel({ space, instances, maxUploadMb, office }: ImportPan
                         ])}
                         onChange={(v) => setWord({ ...word, subName: v as WordFormOptions['subName'] })}
                       />
-                      <label className="check">
-                        <input
-                          type="checkbox"
-                          checked={word.toc}
-                          onChange={(e) => setWord({ ...word, toc: e.target.checked })}
-                        />
-                        <span>{t('import.word.toc')}</span>
-                      </label>
-                      {word.toc && (
-                        <OptionSelect
-                          inputId={id('word-toc-depth')}
-                          label={t('import.word.tocDepth')}
-                          value={word.tocDepth}
-                          options={LEVELS}
-                          onChange={(v) => setWord({ ...word, tocDepth: v as WordFormOptions['tocDepth'] })}
-                        />
-                      )}
-                    </>
-                  )}
-                </div>
-              )}
-            </>
-          ) : (
-            <>
-              <div className="import-row">
-                <div className="field">
-                  <label className="label" htmlFor={id('source-kind')}>
-                    {t('import.sourceKind')}
-                  </label>
-                  <div className="selectwrap">
-                    <select
-                      id={id('source-kind')}
-                      className="select"
-                      value={sourceKind}
-                      onChange={(e) => {
-                        setSourceKind(e.target.value as SourceKind)
-                        setSourceValue('')
-                      }}
-                    >
-                      <option value="book">{t('import.sourceKinds.book')}</option>
-                      <option value="shelf">{t('import.sourceKinds.shelf')}</option>
-                      <option value="page">{t('import.sourceKinds.page')}</option>
-                    </select>
-                    <span className="caret" aria-hidden="true">
-                      ▾
-                    </span>
-                  </div>
-                </div>
-                <SourceField
-                  inputId={id('source')}
-                  kind={sourceKind}
-                  catalog={catalog}
-                  value={sourceValue}
-                  onChange={setSourceValue}
-                />
+                    </div>
+                    <label className="check">
+                      <input
+                        type="checkbox"
+                        checked={word.toc}
+                        onChange={(e) => setWord({ ...word, toc: e.target.checked })}
+                      />
+                      <span>{t('import.word.toc')}</span>
+                    </label>
+                    {word.toc && (
+                      <OptionSelect
+                        inputId={id('word-toc-depth')}
+                        label={t('import.word.tocDepth')}
+                        value={word.tocDepth}
+                        options={LEVELS}
+                        onChange={(v) => setWord({ ...word, tocDepth: v as WordFormOptions['tocDepth'] })}
+                      />
+                    )}
+                  </>
+                )}
               </div>
-              {sourceKind !== 'page' && (
-                <div className="import-catalog">
-                  <button type="button" className="btn small" onClick={loadCatalog} disabled={!credentialsReady || catalogBusy}>
-                    {catalogBusy ? t('import.loadingBooks') : t('import.loadBooks')}
-                  </button>
-                  {catalog === null && <span className="import-hint">{t('import.catalogHint')}</span>}
-                </div>
-              )}
-              {catalogError && (
-                <div className="callout error import-notice" role="alert">
-                  {catalogError}
-                </div>
-              )}
             </>
           )}
+          <div className="import-checks">
+            {tab === 'import' && (
+              <>
+                <label className="check">
+                  <input type="checkbox" checked={update} onChange={(e) => setUpdate(e.target.checked)} />
+                  <span>{t('import.update')}</span>
+                </label>
+                <label className="check">
+                  <input type="checkbox" checked={release} onChange={(e) => setRelease(e.target.checked)} />
+                  <span>{t('import.release')}</span>
+                </label>
+              </>
+            )}
+            {isFileExport && (
+              <label className="check">
+                <input type="checkbox" checked={exportSubpages} onChange={(e) => setExportSubpages(e.target.checked)} />
+                <span>{t('import.exportSubpages')}</span>
+              </label>
+            )}
+            {!isFileExport && (
+              <label className="check">
+                <input type="checkbox" checked={dryRun} onChange={(e) => setDryRun(e.target.checked)} />
+                <span>{t('import.dryRun')}</span>
+              </label>
+            )}
+          </div>
+        </FormSection>
 
-          <div className="field">
-            <label className="label" htmlFor={id('parent')}>
-              {t('import.parentId')}
-            </label>
-            <input
-              id={id('parent')}
-              className="input"
-              autoComplete="off"
-              spellCheck={false}
-              value={parentId}
-              onChange={(e) => setParentId(e.target.value)}
-            />
-            <span className="hint">{t('import.parentIdHint')}</span>
-          </div>
-          <label className="check">
-            <input type="checkbox" checked={update} onChange={(e) => setUpdate(e.target.checked)} />
-            <span>{t('import.update')}</span>
-          </label>
-          <label className="check">
-            <input type="checkbox" checked={release} onChange={(e) => setRelease(e.target.checked)} />
-            <span>{t('import.release')}</span>
-          </label>
-        </>
-      ) : isFileExport ? (
-        <>
-          <div className="field">
-            <label className="label" htmlFor={id('export-page')}>
-              {t('import.exportFileStartPage')}
-            </label>
-            <input
-              id={id('export-page')}
-              className="input"
-              autoComplete="off"
-              spellCheck={false}
-              value={startPageId}
-              onChange={(e) => setStartPageId(e.target.value)}
-            />
-            <span className="hint">{t('import.exportFileStartPageHint')}</span>
-          </div>
-          <div className="field">
-            <label className="label" htmlFor={id('export-format')}>
-              {t('import.exportFormatLabel')}
-            </label>
-            <div className="selectwrap">
-              <select
-                id={id('export-format')}
-                className="select"
-                value={exportFormat}
-                onChange={(e) => setExportFormat(e.target.value as ExportFormat)}
-              >
-                {EXPORT_FORMATS.map((f) => (
-                  <option key={f} value={f}>
-                    {t(`import.exportFormats.${f}`)}
-                  </option>
-                ))}
-              </select>
-              <span className="caret" aria-hidden="true">
-                ▾
-              </span>
-            </div>
-          </div>
-          <label className="check">
-            <input type="checkbox" checked={exportSubpages} onChange={(e) => setExportSubpages(e.target.checked)} />
-            <span>{t('import.exportSubpages')}</span>
-          </label>
-        </>
-      ) : (
-        <>
-          <div className="field">
-            <label className="label" htmlFor={id('start-page')}>
-              {t('import.startPageId')}
-            </label>
-            <input
-              id={id('start-page')}
-              className="input"
-              autoComplete="off"
-              spellCheck={false}
-              value={startPageId}
-              onChange={(e) => setStartPageId(e.target.value)}
-            />
-            <span className="hint">{t('import.startPageIdHint')}</span>
-          </div>
-          <div className="field">
-            <label className="label" htmlFor={id('book-id')}>
-              {t('import.bookId')}
-            </label>
-            <input
-              id={id('book-id')}
-              className="input"
-              inputMode="numeric"
-              autoComplete="off"
-              value={bookId}
-              onChange={(e) => setBookId(e.target.value)}
-            />
-            <span className="hint">{t('import.bookIdHint')}</span>
-          </div>
-        </>
-      )}
-      {!isFileExport && (
-        <label className="check">
-          <input type="checkbox" checked={dryRun} onChange={(e) => setDryRun(e.target.checked)} />
-          <span>{t('import.dryRun')}</span>
-        </label>
-      )}
-
-      {noticeBlock}
-      <div className="btn-row">
-        <button type="submit" className="btn primary" disabled={starting}>
-          {starting ? t('import.starting') : t('import.start')}
-        </button>
+        {noticeBlock}
+        <div className="import-actions">
+          <button type="submit" className="btn primary" disabled={starting || (isFileImport && packing)}>
+            {starting ? t('import.starting') : t('import.start')}
+          </button>
+        </div>
       </div>
     </form>
+  )
+}
+
+/** One section of the form card (#175): a small caps heading over its fields. */
+function FormSection({
+  headingId,
+  title,
+  children,
+}: {
+  headingId: string
+  title: string
+  children: ReactNode
+}) {
+  return (
+    <section className="import-section" aria-labelledby={headingId}>
+      <h2 id={headingId} className="import-section-title">
+        {title}
+      </h2>
+      {children}
+    </section>
   )
 }
 
