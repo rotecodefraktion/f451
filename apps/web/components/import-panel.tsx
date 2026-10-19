@@ -3,8 +3,8 @@
 /**
  * Import/export panel (#128, #90) — the client island of
  * `app/wiki/[space]/(shell)/import/page.tsx`. Starts a BookStack import or
- * export, or a file import (ZIP upload of a Markdown folder or Obsidian
- * vault), as a job in the API and polls `GET /api/jobs/:id` until it ends.
+ * export, or a file import (a Markdown folder, Obsidian vault or HTML folder,
+ * chosen as a folder and packed in the browser or as a ZIP), as a job in the API and polls `GET /api/jobs/:id` until it ends.
  *
  * The job id is kept in `sessionStorage` (per space) so a reload or a second
  * visit reattaches to the running job; a 404 from the poll (API restart,
@@ -14,7 +14,8 @@
  * Fetches go relative over the Next rewrites with the session cookie, as in
  * `lib/editor/client-api.ts`; a 401 sends the user to the login page.
  */
-import { useEffect, useId, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { formatSize, zipFolder } from '../lib/folder-zip'
 import {
   DEFAULT_WORD_FORM,
   EXPORT_FORMATS,
@@ -114,6 +115,15 @@ interface CallResult {
   body: Record<string, unknown>
 }
 
+/** What the file import uploads: a chosen file (ZIP or Office) or a folder
+ *  packed into a ZIP in the browser (#176). */
+interface ChosenSource {
+  blob: Blob
+  name: string
+  /** Set for a packed folder: what the status line shows. */
+  folder: { root: string; count: number; bytes: number } | null
+}
+
 class SessionExpired extends Error {}
 
 /** Same-origin fetch; 401 redirects to the login page (pattern
@@ -201,7 +211,13 @@ export function ImportPanel({ space, instances, maxUploadMb, office, tree }: Imp
   const [tab, setTab] = useState<Tab>('import')
   const [origin, setOrigin] = useState<Origin>(hasBookstack ? 'bookstack' : 'file')
   const [fileFormat, setFileFormat] = useState<FileFormat>('markdown')
-  const [file, setFile] = useState<File | null>(null)
+  const [source, setSource] = useState<ChosenSource | null>(null)
+  const [packing, setPacking] = useState(false)
+  // Bumped on every new choice and reset: a packing run whose number is no
+  // longer current (format changed, other folder chosen) drops its result.
+  const packRun = useRef(0)
+  const folderInput = useRef<HTMLInputElement>(null)
+  const zipInput = useRef<HTMLInputElement>(null)
   const [split, setSplit] = useState(false)
   const [word, setWord] = useState<WordFormOptions>(DEFAULT_WORD_FORM)
   const [instance, setInstance] = useState(instances[0] ?? '')
@@ -325,16 +341,52 @@ export function ImportPanel({ space, instances, maxUploadMb, office, tree }: Imp
   const isFileImport = tab === 'import' && origin === 'file' && hasFile
   const isFileExport = tab === 'export' && exportTarget === 'file' && office
 
+  /** Drops the chosen file or folder and any packing still running. */
+  function resetSource() {
+    packRun.current += 1
+    setSource(null)
+    setPacking(false)
+  }
+
   function switchOrigin(next: Origin) {
     setOrigin(next)
-    setFile(null)
+    resetSource()
     setNotice(null)
+  }
+
+  function chooseFile(file: File | null) {
+    resetSource()
+    setNotice(null)
+    if (file) setSource({ blob: file, name: file.name, folder: null })
+  }
+
+  /** Packs a folder pick into a ZIP right away, so Start only uploads. */
+  async function chooseFolder(files: File[]) {
+    resetSource()
+    setNotice(null)
+    if (files.length === 0) return
+    const run = packRun.current
+    setPacking(true)
+    try {
+      const packed = await zipFolder(files)
+      if (run !== packRun.current) return
+      if (packed.count === 0) {
+        setNotice({ tone: 'error', text: t('import.errors.emptyFolder') })
+        return
+      }
+      const root = packed.name.replace(/\.zip$/, '')
+      setSource({ blob: packed.blob, name: packed.name, folder: { root, count: packed.count, bytes: packed.bytes } })
+    } catch {
+      if (run === packRun.current) setNotice({ tone: 'error', text: t('import.errors.packFailed') })
+    } finally {
+      if (run === packRun.current) setPacking(false)
+    }
   }
 
   /** Multipart body of a file import, or an error text for the form. */
   function buildFileForm(): { form: FormData } | { error: string } {
-    if (!file) return { error: t('import.errors.missingFile') }
-    if (maxUploadMb !== null && exceedsUploadLimit(file.size, maxUploadMb)) {
+    if (!source) return { error: t('import.errors.missingFile') }
+    if (maxUploadMb !== null && exceedsUploadLimit(source.blob.size, maxUploadMb)) {
       return { error: t('import.errors.tooLarge', { max: maxUploadMb }) }
     }
     if (fileFormat === 'office' && word.mainName === 'id') {
@@ -342,7 +394,7 @@ export function ImportPanel({ space, instances, maxUploadMb, office, tree }: Imp
       if (!pattern) return { error: t('import.errors.missingIdPattern') }
       if (!idPatternValid(pattern)) return { error: t('import.errors.invalidIdPattern') }
     }
-    return { form: fileImportForm(file, file.name, { format: fileFormat, split, word, parentId, update, release, dryRun }) }
+    return { form: fileImportForm(source.blob, source.name, { format: fileFormat, split, word, parentId, update, release, dryRun }) }
   }
 
   async function onStart(event: FormEvent) {
@@ -433,7 +485,7 @@ export function ImportPanel({ space, instances, maxUploadMb, office, tree }: Imp
     clearStored(space)
     setNotice(null)
     // The file input is remounted empty; drop the file it no longer shows.
-    setFile(null)
+    resetSource()
     setPanel({ kind: 'form' })
   }
 
@@ -702,7 +754,7 @@ export function ImportPanel({ space, instances, maxUploadMb, office, tree }: Imp
                       value={fileFormat}
                       onChange={(e) => {
                         setFileFormat(e.target.value as FileFormat)
-                        setFile(null)
+                        resetSource()
                       }}
                     >
                       <option value="markdown">{t('import.fileFormats.markdown')}</option>
@@ -715,25 +767,80 @@ export function ImportPanel({ space, instances, maxUploadMb, office, tree }: Imp
                     </span>
                   </div>
                 </div>
-                <div className="field">
-                  <label className="label" htmlFor={id('file')}>
-                    {t(fileFormat === 'office' ? 'import.fileOffice' : 'import.file')}
-                  </label>
-                  <input
-                    // Remounted per format so a file chosen for another format is dropped.
-                    key={fileFormat}
-                    id={id('file')}
-                    className="input"
-                    type="file"
-                    accept={fileAccept(fileFormat)}
-                    onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                  />
-                  {maxUploadMb !== null && (
-                    <span className="hint">
-                      {t(fileFormat === 'office' ? 'import.fileHintOffice' : 'import.fileHint', { max: maxUploadMb })}
+                {fileFormat === 'office' ? (
+                  <div className="field">
+                    <label className="label" htmlFor={id('file')}>
+                      {t('import.fileOffice')}
+                    </label>
+                    <input
+                      // Remounted per format so a file chosen for another format is dropped.
+                      key={fileFormat}
+                      id={id('file')}
+                      className="input"
+                      type="file"
+                      accept={fileAccept(fileFormat)}
+                      onChange={(e) => chooseFile(e.target.files?.[0] ?? null)}
+                    />
+                    {maxUploadMb !== null && (
+                      <span className="hint">{t('import.fileHintOffice', { max: maxUploadMb })}</span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="field" role="group" aria-labelledby={id('file-label')}>
+                    <span id={id('file-label')} className="label">
+                      {t('import.file')}
                     </span>
-                  )}
-                </div>
+                    <div className="import-file-buttons">
+                      <button type="button" className="btn" onClick={() => folderInput.current?.click()}>
+                        {t('import.chooseFolder')}
+                      </button>
+                      <button type="button" className="btn" onClick={() => zipInput.current?.click()}>
+                        {t('import.chooseZip')}
+                      </button>
+                    </div>
+                    {/* Remounted per format like the Office input; the value is
+                        cleared after each pick so the same folder can be chosen again. */}
+                    <input
+                      key={`folder-${fileFormat}`}
+                      ref={folderInput}
+                      type="file"
+                      multiple
+                      hidden
+                      {...{ webkitdirectory: '' }}
+                      onChange={(e) => {
+                        const files = e.target.files ? Array.from(e.target.files) : []
+                        e.target.value = ''
+                        void chooseFolder(files)
+                      }}
+                    />
+                    <input
+                      key={`zip-${fileFormat}`}
+                      ref={zipInput}
+                      type="file"
+                      hidden
+                      accept={fileAccept(fileFormat)}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] ?? null
+                        e.target.value = ''
+                        chooseFile(file)
+                      }}
+                    />
+                    <span className="hint" aria-live="polite">
+                      {packing
+                        ? t('import.packing')
+                        : source?.folder
+                          ? t('import.folderStatus', {
+                              name: source.folder.root,
+                              count: source.folder.count,
+                              size: formatSize(source.folder.bytes),
+                            })
+                          : source
+                            ? source.name
+                            : t('import.noSource')}
+                    </span>
+                    {maxUploadMb !== null && <span className="hint">{t('import.fileHint', { max: maxUploadMb })}</span>}
+                  </div>
+                )}
               </div>
             ) : (
               <>
@@ -953,7 +1060,7 @@ export function ImportPanel({ space, instances, maxUploadMb, office, tree }: Imp
 
         {noticeBlock}
         <div className="import-actions">
-          <button type="submit" className="btn primary" disabled={starting}>
+          <button type="submit" className="btn primary" disabled={starting || (isFileImport && packing)}>
             {starting ? t('import.starting') : t('import.start')}
           </button>
         </div>
