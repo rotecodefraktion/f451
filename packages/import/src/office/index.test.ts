@@ -5,7 +5,7 @@ import { strToU8, unzipSync, zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import type { FileSource } from '../files/source.js'
 import type { ImportNode } from '../model.js'
-import { ConvertError, type Converter, type HtmlBundle } from './converter.js'
+import { bundleFromZip, ConvertError, type Converter, type HtmlBundle } from './converter.js'
 import { fromOutDir, loadOfficeTree } from './index.js'
 
 const FIX = join(dirname(fileURLToPath(import.meta.url)), '../../test-fixtures/office')
@@ -602,6 +602,59 @@ describe('loadOfficeTree — slides', () => {
     const video = tree.root[0].media.find((m) => m.name === 'media1.mp4')!
     expect(video.mime).toBe('video/mp4')
     expect(video.kind).toBe('file')
+  })
+})
+
+describe('loadOfficeTree — slide images', () => {
+  const pptx = zipSync({ '[Content_Types].xml': strToU8('<Types/>'), 'ppt/pad.bin': noise(500) })
+  const odp = zipSync({ 'content.xml': strToU8('<office:document-content/>') })
+  // Two slides: one titled, one without a title.
+  const html =
+    '<html><body>' +
+    '<div class="page-1"><div id="Title 1"><p>Kickoff</p></div><div id="Content 1"><p>First point</p></div></div>' +
+    '<div class="page-2"><div id="Content 2"><p>Second point</p></div></div>' +
+    '</body></html>'
+  const svg = (n: number) => strToU8(`<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><path d="M0 0h${n}v1z"/></svg>`)
+  const conv = (withSlides: boolean): Converter =>
+    converter({
+      'deck.pptx': () =>
+        bundleFromZip(
+          zipSync({
+            'document.html': strToU8(html),
+            'document.odp': odp,
+            ...(withSlides ? { 'slides/slide-1.svg': svg(1), 'slides/slide-2.svg': svg(2) } : {}),
+          }),
+          502,
+        ),
+    })
+
+  it('puts the rendered slide right below the slide heading, then the text', async () => {
+    const tree = await loadOfficeTree(source({ 'deck.pptx': pptx }), { converter: conv(true), split: false, limits: LIMITS })
+    expect(tree.failed).toEqual([])
+    const md = tree.root[0].markdown
+    expect(section(md, '## Kickoff', '## Slide 2')).toMatch(/^## Kickoff\n\n!\[Kickoff\]\(_media\/slide-01\.svg\)\n\nFirst point/)
+    expect(section(md, '## Slide 2')).toMatch(/^## Slide 2\n\n!\[Slide 2\]\(_media\/slide-02\.svg\)\n\nSecond point/)
+    const media = tree.root[0].media
+    expect(media.map((m) => m.name).sort()).toEqual(['slide-01.svg', 'slide-02.svg'])
+    expect(media.every((m) => m.kind === 'image')).toBe(true)
+    expect(tree.droppedHtml.slideImage).toBeUndefined()
+  })
+
+  it('puts the rendered slide at the top of the slide page when splitting', async () => {
+    const tree = await loadOfficeTree(source({ 'deck.pptx': pptx }), { converter: conv(true), split: true, limits: LIMITS })
+    const [first, second] = tree.root[0].children
+    expect(first.markdown).toMatch(/^# Kickoff\n\n!\[Kickoff\]\(_media\/slide-01\.svg\)\n\nFirst point/)
+    expect(first.media.map((m) => m.name)).toEqual(['slide-01.svg'])
+    expect(second.markdown).toMatch(/^# Slide 2\n\n!\[Slide 2\]\(_media\/slide-02\.svg\)\n\nSecond point/)
+    expect(tree.root[0].media).toEqual([])
+  })
+
+  it('keeps the text only and counts the missing slide images without rendered slides', async () => {
+    const tree = await loadOfficeTree(source({ 'deck.pptx': pptx }), { converter: conv(false), split: false, limits: LIMITS })
+    const md = tree.root[0].markdown
+    expect(md).not.toContain('slide-0')
+    expect(section(md, '## Kickoff', '## Slide 2')).toMatch(/^## Kickoff\n\nFirst point/)
+    expect(tree.droppedHtml.slideImage).toBe(2)
   })
 })
 

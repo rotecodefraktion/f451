@@ -43,6 +43,9 @@ with a new major version.
   `--sub-name`, `--split-level`, `--no-toc`, `--toc-depth`) and as fields of
   `POST /api/spaces/:space/import/file`. See
   [docs/import-export.md](docs/import-export.md).
+- Office import: slides are imported as an image plus text — a rendered SVG of
+  each slide, then its text and notes (#177). The convert image now includes
+  `poppler-utils`.
 
 ### Fixed
 - Wikilinks with an anchor (`[[Page#Heading]]`) keep the anchor (#163).

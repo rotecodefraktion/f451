@@ -418,6 +418,14 @@ async function prepareFile(
         const list = bySlide.get(slide)
         return list?.length ? attachmentList(list, depth, href) : null
       },
+      // Rendered slides join the page's media as `slide-<NN>.svg`.
+      slideImage: (slide) => {
+        const svg = bundle.slides?.get(slide)
+        if (!svg) return null
+        const key = `slides/slide-${String(slide + 1).padStart(2, '0')}.svg`
+        media.set(key, svg)
+        return MEDIA_SCHEME + encodeURIComponent(key)
+      },
     })
     for (const [slide, list] of bySlide) if (slide >= doc.parts.length) atEnd.push(...list)
   } else {

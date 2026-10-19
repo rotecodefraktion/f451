@@ -12,6 +12,7 @@ RUN apk add --no-cache \
       nodejs \
       libreoffice-writer libreoffice-calc libreoffice-impress libreoffice-draw \
       font-dejavu font-liberation font-noto \
+      poppler-utils \
  && addgroup -S convert \
  && adduser -S -G convert -H -h /work convert
 WORKDIR /app

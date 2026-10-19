@@ -36,6 +36,9 @@ export interface SlidesContext {
   pages: OdfPage[]
   /** Attachment list Markdown per slide index (0-based), placed at the end of the slide. */
   attachments: (headingDepth: number, slide: number) => string | null
+  /** Image source of the rendered slide (0-based index), placed first in the
+   *  slide; null if the converter rendered none (counted as `slideImage`). */
+  slideImage: (slide: number) => string | null
 }
 
 type Role = 'title' | 'notes' | 'drop' | 'body'
@@ -207,6 +210,11 @@ export function slidesPrepass(body: HElement, ctx: SlidesContext): OfficeDoc {
     if (attachments) blocks.push(el('p', {}, [txt(ctx.tokens.block(attachments))]))
 
     const slideTitle = title || `${label('slide', ctx.lang)} ${index + 1}`
+    // The rendered slide comes first: right below the slide heading, or at the
+    // top of the slide's page when splitting (the title is the page's H1).
+    const image = ctx.slideImage(index)
+    if (image) blocks.unshift(el('p', {}, [el('img', { src: image, alt: slideTitle })]))
+    else ctx.dropped.slideImage = (ctx.dropped.slideImage ?? 0) + 1
     return {
       title: slideTitle,
       heading: serialize([el('h2', {}, [txt(slideTitle)])]),
