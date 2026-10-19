@@ -3,6 +3,8 @@ import { basename } from 'node:path'
 import {
   ArchiveRejectedError,
   F451Api,
+  collectExistingNames,
+  duplicateIdWarnings,
   folderSource,
   httpConverter,
   loadHtmlTree,
@@ -10,7 +12,9 @@ import {
   loadObsidianTree,
   loadOfficeTree,
   localConverter,
+  scanExisting,
   zipSource,
+  type ExistingScan,
   type FileSource,
   type ImportTree,
 } from '@f451/import'
@@ -39,6 +43,18 @@ async function openSource(path: string, single: boolean): Promise<FileSource> {
   }
 }
 
+/** The space's default language, the fallback when a file's language cannot
+ *  be detected — the same the API uses, so a re-import keeps its page names.
+ *  `en` if the space list cannot be read. */
+async function spaceLang(f451: F451Api, space: string): Promise<'de' | 'en'> {
+  try {
+    const found = (await f451.spaces()).find((s) => s.id === space)
+    return found?.defaultLang === 'de' ? 'de' : 'en'
+  } catch {
+    return 'en'
+  }
+}
+
 export async function runFileImport(
   args: ParsedArgs,
   env: NodeJS.ProcessEnv,
@@ -52,14 +68,28 @@ export async function runFileImport(
   if (!args.path) throw new UsageError('missing path')
   const f451 = new F451Api(need('F451_URL'), need('F451_TOKEN'))
   const src = await openSource(args.path, args.source === 'office')
+  // Marks the pages as coming from this source, like the upload name in the web UI.
+  const origin = basename(args.path)
   let tree: ImportTree
+  // Read once and handed on to the writer.
+  let scan: ExistingScan | undefined
   if (args.source === 'office') {
     const url = args.convertUrl ?? env.F451_CONVERT_URL
+    // An own ID continues the counter of the target space.
+    if (args.text?.mainName === 'id') scan = await scanExisting(f451, args.space, args.parent)
+    const existing = scan ? collectExistingNames(scan, origin) : undefined
     tree = await loadOfficeTree(src, {
       converter: url ? httpConverter(url) : localConverter(),
       split: args.split === true,
+      lang: await spaceLang(f451, args.space),
+      ...(args.text ? { text: args.text } : {}),
+      ...(existing ?? {}),
       onFile: (path, i, total) => out.write(`Converting ${path} (${i + 1}/${total})\n`),
     })
+    // Concurrent runs with the same pattern may have drawn the same ID.
+    if (scan && args.text?.idPattern) {
+      tree.warnings = await duplicateIdWarnings(f451, args.space, tree, scan, args.text.idPattern, origin)
+    }
   } else {
     tree =
       args.source === 'obsidian'
@@ -68,5 +98,5 @@ export async function runFileImport(
           ? await loadHtmlTree(src)
           : await loadMarkdownFolderTree(src)
   }
-  return writeTreeAndReport(tree, args, f451, out)
+  return writeTreeAndReport(tree, args, f451, out, { ...(origin ? { origin } : {}), ...(scan ? { existing: scan } : {}) })
 }

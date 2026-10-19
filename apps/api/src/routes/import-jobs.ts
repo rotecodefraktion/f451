@@ -7,10 +7,13 @@ import {
   ArchiveRejectedError,
   BookStackApiError,
   OFFICE_EXTENSIONS,
+  hasWordOptions,
+  parseWordOptions,
   zipSource,
   type BookStackSelector,
   type Converter,
   type FileSource,
+  type WordOptions,
 } from '@f451/import'
 import { requireBrowserSession } from '../auth/sessions.js'
 import type { Db } from '../db/client.js'
@@ -381,6 +384,14 @@ export function registerImportJobRoutes(app: FastifyInstance, deps: ImportJobsDe
               return badRequest(held, 'update, release and dryRun must be "true" or "false".')
             }
             const parentId = fields.parentId ? fields.parentId : undefined
+            let text: Partial<WordOptions> = {}
+            if (format === 'office') {
+              const parsed = parseWordOptions(fields, split)
+              if (!parsed.ok) return badRequest(held, parsed.error)
+              text = parsed.text
+            } else if (hasWordOptions(fields)) {
+              return badRequest(held, 'The Word options are only valid for format "office".')
+            }
 
             let source: FileSource
             try {
@@ -415,8 +426,9 @@ export function registerImportJobRoutes(app: FastifyInstance, deps: ImportJobsDe
                 space: gate.space.id,
                 format,
                 source,
+                ...(uploadName ? { origin: uploadName } : {}),
                 ...(format === 'office'
-                  ? { split, lang: gate.space.defaultLang === 'de' ? ('de' as const) : ('en' as const) }
+                  ? { split, text, lang: gate.space.defaultLang === 'de' ? ('de' as const) : ('en' as const) }
                   : {}),
                 cleanup: () => deps.tempFiles.remove(tempFile),
                 ...(parentId ? { parentId } : {}),

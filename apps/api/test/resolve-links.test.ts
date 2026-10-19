@@ -187,4 +187,33 @@ describe('buildResolveLink', () => {
 
     expect(resolveLink!('setup/index.md', 'relative')).toEqual({ href: '/wiki/demo/setup' })
   })
+
+  describe('heading anchors (#163)', () => {
+    const resolver = new LinkResolver([
+      { id: 'p-x', path: 'p-x/index.md', title: 'X' },
+      { id: 'onboarding', path: 'onboarding/index.md', title: 'Onboarding' },
+      { id: 'page', path: 'onboarding/page.md', title: 'Page' },
+    ])
+    const resolveLink = buildResolveLink(resolver, 'onboarding/index.md', 'demo', 'onboarding')
+
+    it('slugifies a heading text in a wikilink fragment', () => {
+      expect(resolveLink!('p-x#Some Heading', 'wikilink')).toEqual({ href: '/wiki/demo/p-x#some-heading' })
+    })
+
+    it('keeps a fragment that is already a slug', () => {
+      expect(resolveLink!('p-x#11-scope', 'wikilink')).toEqual({ href: '/wiki/demo/p-x#11-scope' })
+    })
+
+    it('decodes a percent-encoded fragment before slugifying', () => {
+      expect(resolveLink!('p-x#Some%20Heading', 'wikilink')).toEqual({ href: '/wiki/demo/p-x#some-heading' })
+    })
+
+    it('carries the fragment of a relative page link', () => {
+      expect(resolveLink!('page.md#a', 'relative')).toEqual({ href: '/wiki/demo/page#a' })
+    })
+
+    it('adds no hash for an empty fragment', () => {
+      expect(resolveLink!('p-x#', 'wikilink')).toEqual({ href: '/wiki/demo/p-x' })
+    })
+  })
 })

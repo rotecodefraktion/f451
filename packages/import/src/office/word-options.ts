@@ -1,0 +1,205 @@
+import type { F451Api, TreeNode } from '../api.js'
+import { originOf } from '../frontmatter.js'
+import type { ExistingScan, ImportNode, ImportTree } from '../model.js'
+import { updatableInSubtree } from '../writer.js'
+import { idIn, parseIdPattern, type WordOptions } from './naming.js'
+
+// Text options of a Word import as they arrive from the API form and the CLI
+// (spec 2026-10-18-word-import-options §Options): strings, validated once here
+// so both entry points answer with the same messages.
+
+export const WORD_OPTION_FIELDS = [
+  'numbering',
+  'mainName',
+  'idPattern',
+  'idDisplay',
+  'subName',
+  'splitLevel',
+  'toc',
+  'tocDepth',
+] as const
+
+export type WordOptionField = (typeof WORD_OPTION_FIELDS)[number]
+export type WordOptionFields = Partial<Record<WordOptionField, string | undefined>>
+
+/** Fields that only make sense when the text is split into subpages. */
+const SPLIT_ONLY: WordOptionField[] = ['subName', 'splitLevel', 'toc', 'tocDepth']
+
+const MAIN_NAMES = ['title', 'file', 'id']
+const ID_DISPLAYS = ['id', 'id-title']
+const SUB_NAMES = ['chapter', 'title-chapter', 'key-chapter', 'key-number']
+const ID_PATTERN_CHARS = /^[A-Za-z0-9\-_. #]{1,40}$/
+
+function flag(v: string): boolean | null {
+  if (v === 'true' || v === '1') return true
+  if (v === 'false' || v === '0') return false
+  return null
+}
+
+function level(v: string): 1 | 2 | 3 | null {
+  return v === '1' || v === '2' || v === '3' ? (Number(v) as 1 | 2 | 3) : null
+}
+
+/** True if any Word option is set (empty strings count as unset). */
+export function hasWordOptions(fields: WordOptionFields): boolean {
+  return WORD_OPTION_FIELDS.some((f) => fields[f] !== undefined && fields[f] !== '')
+}
+
+/** Validates the Word options. Returns only the options that were given, so the
+ *  adapter's defaults apply to the rest. */
+export function parseWordOptions(
+  fields: WordOptionFields,
+  split: boolean,
+): { ok: true; text: Partial<WordOptions> } | { ok: false; error: string } {
+  const f: WordOptionFields = {}
+  for (const k of WORD_OPTION_FIELDS) if (fields[k] !== undefined && fields[k] !== '') f[k] = fields[k]
+  const fail = (error: string) => ({ ok: false as const, error })
+  const text: Partial<WordOptions> = {}
+
+  if (!split) {
+    const stray = SPLIT_ONLY.find((k) => f[k] !== undefined)
+    if (stray) return fail(`${stray} needs split.`)
+  }
+
+  if (f.numbering !== undefined) {
+    const v = flag(f.numbering)
+    if (v === null) return fail('numbering must be "true" or "false".')
+    text.numbering = v
+  }
+  if (f.mainName !== undefined) {
+    if (!MAIN_NAMES.includes(f.mainName)) return fail('mainName must be "title", "file" or "id".')
+    text.mainName = f.mainName as WordOptions['mainName']
+  }
+  if (f.idPattern !== undefined) {
+    const p = f.idPattern
+    if (!ID_PATTERN_CHARS.test(p)) {
+      return fail('idPattern must be 1-40 characters: letters, digits, "-", "_", ".", space and "#".')
+    }
+    // One contiguous run of "#" (the counter); none makes a fixed ID.
+    if ((p.match(/#+/g) ?? []).length > 1 || (p.includes('#') && !parseIdPattern(p))) {
+      return fail('idPattern may contain only one run of "#" (the counter).')
+    }
+    if (!/[^#\s]/.test(p)) return fail('idPattern needs at least one character besides "#".')
+    text.idPattern = p
+  }
+  if (text.mainName === 'id' && text.idPattern === undefined) return fail('mainName "id" needs an idPattern.')
+  if (f.idDisplay !== undefined) {
+    if (!ID_DISPLAYS.includes(f.idDisplay)) return fail('idDisplay must be "id" or "id-title".')
+    text.idDisplay = f.idDisplay as WordOptions['idDisplay']
+  }
+  if (f.subName !== undefined) {
+    if (!SUB_NAMES.includes(f.subName)) {
+      return fail('subName must be "chapter", "title-chapter", "key-chapter" or "key-number".')
+    }
+    text.subName = f.subName as WordOptions['subName']
+  }
+  if (f.splitLevel !== undefined) {
+    const v = level(f.splitLevel)
+    if (v === null) return fail('splitLevel must be 1, 2 or 3.')
+    text.splitLevel = v
+  }
+  if (f.toc !== undefined) {
+    const v = flag(f.toc)
+    if (v === null) return fail('toc must be "true" or "false".')
+    text.toc = v
+  }
+  if (f.tocDepth !== undefined) {
+    const v = level(f.tocDepth)
+    if (v === null) return fail('tocDepth must be 1, 2 or 3.')
+    text.tocDepth = v
+  }
+  return { ok: true, text }
+}
+
+/** Office pages in the target subtree of `scan` by source id, narrowed to the
+ *  ones an import of `origin` updates, by the writer's rule
+ *  (`updatableInSubtree`): same origin, else a page without origin that is the
+ *  only one with its id. Without `origin`, every Office page counts. */
+function ownOfficePages(scan: ExistingScan, origin?: string): Map<string, Array<{ id: string; title: string }>> {
+  const bySource = new Map<string, Array<{ id: string; title: string; origin?: string }>>()
+  for (const p of scan.pages) {
+    if (!p.inSubtree) continue
+    const source = scan.sources.get(p.id)
+    if (!source || source.type !== 'office') continue
+    const o = originOf(source)
+    bySource.set(source.id, [...(bySource.get(source.id) ?? []), { id: p.id, title: p.title, ...(o ? { origin: o } : {}) }])
+  }
+  const own = new Map<string, Array<{ id: string; title: string }>>()
+  for (const [sourceId, pages] of bySource) {
+    const mine = origin ? updatableInSubtree(pages, origin) : pages
+    if (mine.length > 0) own.set(sourceId, mine)
+  }
+  return own
+}
+
+/** What the ID counter of a Word import needs from the target space (a
+ *  `scanExisting` of it): all page titles, and for the Office pages in the
+ *  target subtree the import updates (`ownOfficePages`), source id → current
+ *  title. */
+export function collectExistingNames(
+  scan: ExistingScan,
+  origin?: string,
+): { existingTitles: string[]; existingIds: Map<string, string> } {
+  const existingTitles = scan.pages.map((p) => p.title)
+  const existingIds = new Map<string, string>()
+  for (const [sourceId, pages] of ownOfficePages(scan, origin)) existingIds.set(sourceId, pages[0]!.title)
+  return { existingTitles, existingIds }
+}
+
+/** Re-reads the titles of the target space just before writing (one `tree`
+ *  call) and warns (`duplicateId`) for each main page whose counter ID another
+ *  page took since `scan` (a concurrent run with the same pattern), or that
+ *  already carries it otherwise. The page the main page will update, found in
+ *  `scan` by source id and `origin` (`ownOfficePages`), does not
+ *  count. No lock: the pages are still written. A pattern without counter
+ *  gives no warnings. */
+export async function duplicateIdWarnings(
+  api: Pick<F451Api, 'tree'>,
+  space: string,
+  tree: ImportTree,
+  scan: ExistingScan,
+  pattern: string,
+  origin?: string,
+): Promise<NonNullable<ImportTree['warnings']>> {
+  if (!parseIdPattern(pattern)) return []
+  // Main pages sit at the top or in folder nodes (source id ends in "/");
+  // the children of a main page are its subpages.
+  const mains: ImportNode[] = []
+  const walk = (nodes: ImportNode[]) => {
+    for (const n of nodes) {
+      if (n.sourceRef.id.endsWith('/')) walk(n.children)
+      else if (n.sourceRef.type === 'office') mains.push(n)
+    }
+  }
+  walk(tree.root)
+  if (mains.length === 0) return []
+
+  const own = new Map<string, Set<string>>() // source id → page ids it may update
+  for (const [sourceId, pages] of ownOfficePages(scan, origin)) own.set(sourceId, new Set(pages.map((p) => p.id)))
+
+  const holders = new Map<string, Array<{ id: string; title: string }>>() // ID → pages carrying it
+  const collect = (nodes: TreeNode[]) => {
+    for (const n of nodes) {
+      const id = idIn(pattern, n.title)
+      if (id) holders.set(id, [...(holders.get(id) ?? []), { id: n.id, title: n.title }])
+      collect(n.children ?? [])
+    }
+  }
+  collect(await api.tree(space))
+
+  const warnings: NonNullable<ImportTree['warnings']> = []
+  for (const n of mains) {
+    const id = idIn(pattern, n.title)
+    if (!id) continue
+    const mine = own.get(n.sourceRef.id)
+    const others = (holders.get(id) ?? []).filter((p) => !mine?.has(p.id))
+    if (others.length === 0) continue
+    warnings.push({
+      sourceId: n.sourceRef.id,
+      title: n.title,
+      kind: 'duplicateId',
+      detail: `the ID ${id} is already used by ${others.map((p) => `"${p.title}" (${p.id})`).join(', ')}`,
+    })
+  }
+  return warnings
+}

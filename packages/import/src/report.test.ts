@@ -28,6 +28,15 @@ describe('renderReport', () => {
     expect(out).toContain('- C (3): cancelled')
   })
 
+  it('names the previous title of a renamed page', () => {
+    const r = emptyReport()
+    r.updated.push({ sourceId: '1', title: 'New', pageId: 'p-a', previousTitle: 'Old' })
+    r.updated.push({ sourceId: '2', title: 'Same', pageId: 'p-b' })
+    const out = renderReport(r)
+    expect(out).toContain('- New (was "Old") (1) → p-a')
+    expect(out).toContain('- Same (2) → p-b')
+  })
+
   it('shows the file-import sections only when present', () => {
     const r = emptyReport()
     const plain = renderReport(r)
@@ -54,6 +63,13 @@ describe('renderReport', () => {
     const out = renderReport(r)
     expect(out).toContain('## Sheets cut at the row limit (1)')
     expect(out).toContain('- Daten on office:book.xlsx@1: 2500 rows')
+  })
+
+  it('lists warnings only when present', () => {
+    const r = emptyReport()
+    expect(renderReport(r)).not.toContain('## Warnings')
+    r.warnings = [{ sourceId: 'office:a.docx', title: 'DOC-011', kind: 'duplicateId', detail: 'the ID DOC-011 is already used by "DOC-011" (p-x)' }]
+    expect(renderReport(r)).toContain('## Warnings (1)\n\n- DOC-011 (office:a.docx) [duplicateId]: the ID DOC-011 is already used by "DOC-011" (p-x)')
   })
 })
 

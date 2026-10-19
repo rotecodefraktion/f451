@@ -539,6 +539,49 @@ describe.sequential('import/export job routes (#128)', () => {
         expect(job.counts.failed).toBe(0)
       }, 120_000)
 
+      it('Word options reach the loader: an own ID names the main page', async () => {
+        const res = await upload(
+          app,
+          writerSession,
+          space.id,
+          docx,
+          { ...office, numbering: 'false', mainName: 'id', idPattern: 'DOC-###', idDisplay: 'id' },
+          'network-guide.docx',
+        )
+        expect(res.statusCode).toBe(202)
+        const job = await waitForJob(writerSession, (res.json() as { jobId: string }).jobId)
+        expect(job.status).toBe('done')
+        expect(job.events.map((e) => e.title)).toEqual(['DOC-001'])
+      }, 120_000)
+
+      it.each([
+        ['mainName: bad enum', { mainName: 'name' }],
+        ['idDisplay: bad enum', { idDisplay: 'title' }],
+        ['numbering: not a flag', { numbering: 'maybe' }],
+        ['mainName=id without idPattern', { mainName: 'id' }],
+        ['idPattern: forbidden character', { mainName: 'id', idPattern: 'DOC/###' }],
+        ['idPattern: two counters', { mainName: 'id', idPattern: 'DOC-##-##' }],
+        ['idPattern: too long', { mainName: 'id', idPattern: 'D'.repeat(41) }],
+        ['idPattern: only the counter', { mainName: 'id', idPattern: '###' }],
+        ['subName without split', { subName: 'chapter' }],
+        ['splitLevel without split', { splitLevel: '2' }],
+        ['toc without split', { toc: 'true' }],
+        ['tocDepth without split', { tocDepth: '2' }],
+        ['subName: bad enum', { split: '1', subName: 'number' }],
+        ['splitLevel: out of range', { split: '1', splitLevel: '4' }],
+        ['tocDepth: out of range', { split: '1', tocDepth: '0' }],
+      ])('invalid Word options → 400, no job (%s)', async (_name, extra) => {
+        const before = await importTempFiles()
+        const res = await upload(app, writerSession, space.id, docx, { ...office, ...extra }, 'network-guide.docx')
+        expect(res.statusCode).toBe(400)
+        expect(await newTempFiles(before)).toEqual([])
+      })
+
+      it('Word options with another format → 400', async () => {
+        const res = await upload(app, writerSession, space.id, storedZip(vault), { ...flags, numbering: 'false' })
+        expect(res.statusCode).toBe(400)
+      })
+
       it('a file that is neither a ZIP nor an Office file → 400', async () => {
         const res = await upload(app, writerSession, space.id, Buffer.from('x'), office, 'notes.txt')
         expect(res.statusCode).toBe(400)

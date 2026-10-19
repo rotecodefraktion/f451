@@ -9,13 +9,13 @@ import { unified } from 'unified'
 import remarkParse from 'remark-parse'
 import remarkGfm from 'remark-gfm'
 import remarkStringify from 'remark-stringify'
-import type { Heading, Image, Link, Root, Text } from 'mdast'
+import type { Heading, Image, Link, List, ListItem, Root, RootContent, Text } from 'mdast'
 import { createSlugger } from '@f451/markdown'
 import { visit } from 'unist-util-visit'
 import { htmlToMarkdown } from '../adapters/bookstack/html-to-md.js'
 import { mimeFor, slugifyFileName, uniqueName } from '../adapters/bookstack/media.js'
 import { isImagePath, rewriteLinksAndMedia, VaultIndex, type LinkContext } from '../adapters/markdown/links.js'
-import { baseOf, buildStructure, classifyPaths, stripNoteExt, type PlanNode } from '../adapters/markdown/structure.js'
+import { baseOf, buildStructure, classifyPaths, sourceIdFor, stripNoteExt, type PlanNode } from '../adapters/markdown/structure.js'
 import { ArchiveRejectedError, type FileSource, type ZipLimits } from '../files/source.js'
 import { zipSource } from '../files/zip.js'
 import type { ImportMedia, ImportNode, ImportTree } from '../model.js'
@@ -23,7 +23,8 @@ import { normalizeMarkdown } from '../normalize.js'
 import { applyCharts } from './charts.js'
 import type { Converter } from './converter.js'
 import { label, type Lang, type OfficeDoc, type OfficePart } from './doc.js'
-import { expandSelfClosing, findAll, parseBody, prop } from './hast.js'
+import { expandSelfClosing, findAll, parseBody, prop, type HNode } from './hast.js'
+import { detectLang } from './lang.js'
 import { extensionOf, officeKind } from './kinds.js'
 import { attachmentList, avMime, collectAttachments, type Attachment } from './media.js'
 import { scanOdf } from './odf.js'
@@ -31,13 +32,25 @@ import { sheetsPrepass } from './sheets.js'
 import { slidesPrepass } from './slides.js'
 import { textPrepass } from './text.js'
 import { HEADING_LINK, stripTokens, takeHeadingTokens, Tokens } from './tokens.js'
-import { acceptTrackedChanges } from './revisions.js'
+import { markPackage } from './marks.js'
+import { assignIds, DEFAULT_WORD_OPTIONS, mainTitle, parseIdPattern, subTitle, type WordOptions } from './naming.js'
+import { acceptPackageChanges, rewritePackage } from './revisions.js'
+
+export type { WordOptions } from './naming.js'
 
 export interface OfficeTreeOptions {
   converter: Converter
-  /** Text at H1, one page per slide, one page per sheet. */
+  /** Text at the split level, one page per slide, one page per sheet. */
   split: boolean
-  /** Language of generated names ("Folie n" / "Slide n", chart alt text); default `en`. */
+  /** Options for text documents; unset fields take `DEFAULT_WORD_OPTIONS`. */
+  text?: Partial<WordOptions>
+  /** All page titles of the target space: the ID counter continues after the highest number. */
+  existingTitles?: string[]
+  /** Source id → current title of pages already imported: such a page keeps its ID number. */
+  existingIds?: Map<string, string>
+  /** Language of generated names ("Folie n" / "Slide n", chart alt text, TOC
+   *  heading) for a file whose language cannot be detected from its text;
+   *  default `en`. */
   lang?: Lang
   /** Limits of the ZIP check on OOXML and ODF files; part A defaults if unset. */
   limits?: Partial<ZipLimits>
@@ -58,10 +71,31 @@ const processor = unified()
   .use(remarkGfm)
   .use(remarkStringify, { bullet: '-', fences: true, emphasis: '*', strong: '*', rule: '-', listItemIndent: 'one' })
 
+interface PreparedPart {
+  /** The heading as shown (with its number when numbering is on). */
+  title: string
+  /** The heading without its outline number. */
+  text: string
+  number: string | null
+  /** Dotted position among the parts (`3`, `3.2`); the source id suffix. */
+  position: string
+  body: string
+  /** Heading tokens of the part heading, which becomes the page's H1. */
+  anchors: number[]
+  children: PreparedPart[]
+}
+
 interface Prepared {
+  /** A text document: the Word options apply. */
+  text: boolean
+  /** Language of the generated names: detected from the text, else the fallback. */
+  lang: Lang
+  /** The document title: Title paragraph, title property or file name. */
   title: string
   fileBody: string
-  parts: Array<{ title: string; body: string }>
+  /** Attachment list at the end of the file page, '' if none. */
+  fileTail: string
+  parts: PreparedPart[]
   /** Media key (bundle path or `attach:<entry>`) → bytes. */
   media: Map<string, Uint8Array>
   dropped: Record<string, number>
@@ -133,12 +167,48 @@ function plainText(node: { type: string; value?: string; children?: unknown[] })
   return Array.isArray(node.children) ? node.children.map((c) => plainText(c as typeof node)).join('') : ''
 }
 
-/** In-document links of the text pre-pass: each marked heading gets the slug
- *  the renderer gives it on this page; a link to a heading on another page
- *  keeps only its text. */
-function resolveHeadingLinks(ast: Root): void {
+const BLOCK_TAGS = new Set(['p', 'div', 'li', 'ul', 'ol', 'table', 'tr', 'td', 'th', 'br', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'])
+
+/** The text of an HTML body for language detection: blocks separated by a
+ *  space, so the last word of one paragraph does not run into the next. */
+function bodyText(node: HNode): string {
+  if (node.type === 'text') return node.value ?? ''
+  if (node.type === 'comment') return ''
+  const inner = (node.children ?? []).map(bodyText).join('')
+  return node.type === 'element' && BLOCK_TAGS.has(node.tagName ?? '') ? ` ${inner} ` : inner
+}
+
+interface PageHeading {
+  depth: number
+  text: string
+  /** The id the renderer gives the heading on its page. */
+  slug: string
+}
+
+/** Where a marked heading of one document ended up. `top`: the page's H1. */
+interface HeadingTarget {
+  sourceId: string
+  slug: string
+  top: boolean
+}
+
+/** A page between the two halves of its conversion. */
+interface OpenPage {
+  sourceId: string
+  ast: Root
+  /** Attachment path → media name, from the link pass. */
+  linked: Map<string, string>
+  /** Media key → media name, for media of the bundle and the package. */
+  own: Map<string, string>
+  lookup: Map<string, Uint8Array>
+  headings: PageHeading[]
+}
+
+/** The page's headings in order with the slugs the renderer gives them; the
+ *  heading tokens are taken out and their targets recorded. */
+function collectHeadings(ast: Root, sourceId: string, targets: Map<number, HeadingTarget>): PageHeading[] {
   const slugger = createSlugger()
-  const slugs = new Map<number, string>()
+  const out: PageHeading[] = []
   visit(ast, 'heading', (h: Heading) => {
     const ids: number[] = []
     let last: Text | null = null
@@ -150,18 +220,90 @@ function resolveHeadingLinks(ast: Root): void {
     })
     // The token sat at the end; space before it would now trail the heading.
     if (ids.length && last) (last as Text).value = (last as Text).value.trimEnd()
-    const slug = slugger(plainText(h))
-    for (const id of ids) slugs.set(id, slug)
+    const text = plainText(h)
+    const slug = slugger(text)
+    const top = out.length === 0 && h.depth === 1
+    out.push({ depth: h.depth, text: collapse(text), slug })
+    for (const id of ids) targets.set(id, { sourceId, slug, top })
   })
+  return out
+}
+
+/** In-document links of the text pre-pass: a link to a heading on this page
+ *  gets its slug, one to a heading on another page of the same document a
+ *  link placeholder (to the page itself for its H1); a link to a heading
+ *  that is no heading any more keeps only its text. */
+function resolveHeadingLinks(ast: Root, sourceId: string, targets: Map<number, HeadingTarget>): void {
   visit(ast, 'link', (node: Link, index, parent) => {
     if (!node.url.startsWith(HEADING_LINK)) return
-    const slug = slugs.get(Number(node.url.slice(HEADING_LINK.length)))
-    if (slug !== undefined) node.url = `#${slug}`
-    else if (parent && index !== undefined) {
-      parent.children.splice(index, 1, ...node.children)
-      return index
+    const target = targets.get(Number(node.url.slice(HEADING_LINK.length)))
+    if (!target) {
+      if (parent && index !== undefined) {
+        parent.children.splice(index, 1, ...node.children)
+        return index
+      }
+      return
+    }
+    if (target.sourceId === sourceId) node.url = `#${target.slug}`
+    else {
+      node.url = target.top ? `source:${target.sourceId}|#` : `source:${target.sourceId}#${target.slug}|#`
+      // The writer's placeholder pattern allows no title after the URL.
+      node.title = null
     }
   })
+}
+
+interface TocPage {
+  sourceId: string
+  title: string
+  headings: PageHeading[]
+  children: TocPage[]
+}
+
+interface TocEntry {
+  text: string
+  url: string
+  children: TocEntry[]
+}
+
+/** The table of contents of a split text document (spec §Table of contents):
+ *  every part page, and on each its headings down to `depth` (depth 1 = the
+ *  pages only, 2 = plus their `##` headings, …). Bold paragraphs are no
+ *  headings any more and stay out by construction. */
+function tableOfContents(pages: TocPage[], depth: number, heading: string): RootContent[] {
+  const sections = (page: TocPage): TocEntry[] => {
+    const root: TocEntry[] = []
+    const stack: Array<{ depth: number; items: TocEntry[] }> = [{ depth: 1, items: root }]
+    for (const h of page.headings) {
+      if (h.depth < 2 || h.depth > depth || !h.text) continue
+      while (stack[stack.length - 1].depth >= h.depth) stack.pop()
+      const entry: TocEntry = { text: h.text, url: `source:${page.sourceId}#${h.slug}|#`, children: [] }
+      stack[stack.length - 1].items.push(entry)
+      stack.push({ depth: h.depth, items: entry.children })
+    }
+    return root
+  }
+  const entry = (page: TocPage): TocEntry => ({
+    text: page.title,
+    url: `source:${page.sourceId}|#`,
+    children: [...sections(page), ...page.children.map(entry)],
+  })
+  const list = (entries: TocEntry[]): List => ({
+    type: 'list',
+    ordered: false,
+    spread: false,
+    children: entries.map(
+      (e): ListItem => ({
+        type: 'listItem',
+        spread: false,
+        children: [
+          { type: 'paragraph', children: [{ type: 'link', url: e.url, title: null, children: [{ type: 'text', value: e.text }] }] },
+          ...(e.children.length ? [list(e.children)] : []),
+        ],
+      }),
+    ),
+  })
+  return [{ type: 'heading', depth: 2, children: [{ type: 'text', value: heading }] }, list(pages.map(entry))]
 }
 
 function tryZip(bytes: Uint8Array, limits?: Partial<ZipLimits>): FileSource | null {
@@ -172,7 +314,13 @@ function tryZip(bytes: Uint8Array, limits?: Partial<ZipLimits>): FileSource | nu
   }
 }
 
-async function prepareFile(path: string, bytes: Uint8Array, opts: OfficeTreeOptions, lang: Lang): Promise<Prepared> {
+async function prepareFile(
+  path: string,
+  bytes: Uint8Array,
+  opts: OfficeTreeOptions,
+  fallbackLang: Lang,
+  word: WordOptions,
+): Promise<Prepared> {
   const kind = officeKind(path)
   if (!kind) throw new Error('not an Office file')
   const ext = extensionOf(path)
@@ -188,18 +336,27 @@ async function prepareFile(path: string, bytes: Uint8Array, opts: OfficeTreeOpti
     }
   }
 
-  // LibreOffice would write deleted text of open revisions as plain text.
-  const accepted = acceptTrackedChanges(bytes, ext)
-  const bundle = await opts.converter.toHtml(accepted.bytes, baseOf(path))
+  // One pass over a text package: LibreOffice would write deleted text of
+  // open revisions as plain text, and drops the paragraph styles the Title
+  // paragraph and headings past level 6 are known by.
+  let revisions = 0
+  const input = rewritePackage(bytes, ext, (files, pkgKind) => {
+    revisions = acceptPackageChanges(files, pkgKind)
+    const marked = markPackage(files, pkgKind)
+    return revisions > 0 || marked > 0
+  })
+  const bundle = await opts.converter.toHtml(input, baseOf(path))
   const scan = scanOdf(bundle.odf)
-  const title = scan.title ?? stripNoteExt(baseOf(path), FLAVOR)
   const dropped: Record<string, number> = { ...scan.dropped }
-  if (accepted.changes) dropped.trackedChange = (dropped.trackedChange ?? 0) + accepted.changes
+  if (revisions) dropped.trackedChange = (dropped.trackedChange ?? 0) + revisions
   const notices: Prepared['notices'] = []
   if (pkg && !dropped.macro && (await pkg.list()).some((p) => /(^|\/)vbaProject\.bin$/i.test(p))) dropped.macro = 1
 
   const html = kind === 'slides' || /^\s*<\?xml/.test(bundle.html) ? expandSelfClosing(bundle.html) : bundle.html
   const body = parseBody(html)
+  // The file's own language names what the import generates for it; the
+  // fallback (the space's default) only when its text says too little.
+  const lang = detectLang(bodyText(body)) ?? fallbackLang
 
   const charts = applyCharts(body, scan.svmFrames, label('chart', lang), dropped)
   if (charts.dropped) {
@@ -249,7 +406,7 @@ async function prepareFile(path: string, bytes: Uint8Array, opts: OfficeTreeOpti
   let doc: OfficeDoc
   let truncated: Prepared['truncated'] = []
   if (kind === 'text') {
-    doc = textPrepass(body, { tokens, dropped, lang, shiftHeadings: !opts.split })
+    doc = textPrepass(body, { tokens, dropped, lang, splitLevel: opts.split ? word.splitLevel : null, numbering: word.numbering })
   } else if (kind === 'slides') {
     doc = slidesPrepass(body, {
       tokens,
@@ -269,14 +426,16 @@ async function prepareFile(path: string, bytes: Uint8Array, opts: OfficeTreeOpti
     for (const name of sheets.empty) notices.push({ name: `sheet "${name}"`, reason: 'empty, not imported' })
     truncated = sheets.truncated.map((t) => ({ part: opts.split ? t.part : null, sheet: t.sheet, rows: t.rows }))
   }
+  // The Title paragraph, else the title property, else the file name.
+  const title = doc.title ?? scan.title ?? stripNoteExt(baseOf(path), FLAVOR)
 
   let intro = doc.intro
   let parts: OfficePart[] = doc.parts
   // A document opening with its title as H1: that heading is the file page's,
-  // not a first chapter of the same name.
+  // not a first chapter of the same name. Its subparts move up a level.
   if (opts.split && kind === 'text' && isBlankHtml(intro) && parts[0] && sameTitle(parts[0].title, title)) {
     intro = parts[0].heading + parts[0].html
-    parts = parts.slice(1)
+    parts = [...(parts[0].children ?? []), ...parts.slice(1)]
   }
 
   const toMd = (fragment: string): string => {
@@ -284,23 +443,33 @@ async function prepareFile(path: string, bytes: Uint8Array, opts: OfficeTreeOpti
     merge(dropped, converted.dropped)
     return tokens.resolve(converted.markdown)
   }
+  const toPrepared = (p: OfficePart, position: string): PreparedPart => ({
+    title: p.title,
+    text: p.text ?? p.title,
+    number: p.number ?? null,
+    position,
+    body: toMd(p.html),
+    anchors: takeHeadingTokens(p.heading).ids,
+    children: (p.children ?? []).map((c, k) => toPrepared(c, `${position}.${k + 1}`)),
+  })
   let fileBody: string
-  let partBodies: Prepared['parts'] = []
+  let partBodies: PreparedPart[] = []
   if (opts.split) {
     fileBody = toMd(intro)
-    partBodies = parts.map((p) => ({ title: p.title, body: toMd(p.html) }))
+    partBodies = parts.map((p, k) => toPrepared(p, String(k + 1)))
   } else {
     fileBody = toMd(intro + parts.map((p) => p.heading + p.html).join('\n'))
   }
-  if (atEnd.length) fileBody = `${fileBody.trimEnd()}\n\n${attachmentList(atEnd, 2, href)}\n`
+  const fileTail = atEnd.length ? `${attachmentList(atEnd, 2, href)}\n` : ''
 
-  return { title, fileBody, parts: partBodies, media, dropped, notices, truncated }
+  return { text: kind === 'text', lang, title, fileBody, fileTail, parts: partBodies, media, dropped, notices, truncated }
 }
 
 /** Loads Office files (`FileSource` of one file, a folder or a ZIP) into an
  *  `ImportTree`. Conversions run one at a time, in path order. */
 export async function loadOfficeTree(src: FileSource, opts: OfficeTreeOptions): Promise<ImportTree> {
   const lang = opts.lang ?? 'en'
+  const word: WordOptions = { ...DEFAULT_WORD_OPTIONS, ...opts.text }
   const unresolved: NonNullable<ImportTree['unresolved']> = []
   const ambiguous: NonNullable<ImportTree['ambiguous']> = []
   const truncated: NonNullable<ImportTree['truncated']> = []
@@ -325,13 +494,45 @@ export async function loadOfficeTree(src: FileSource, opts: OfficeTreeOptions): 
     opts.signal?.throwIfAborted()
     opts.onFile?.(path, i, notes.length)
     try {
-      prepared.set(path, await prepareFile(path, await src.read(path), opts, lang))
+      prepared.set(path, await prepareFile(path, await src.read(path), opts, lang, word))
     } catch (e) {
       failures.set(path, e instanceof Error ? e.message : String(e))
     }
   }
 
-  const plan = buildStructure(notes, (p) => prepared.get(p)?.title ?? stripNoteExt(baseOf(p), FLAVOR), FLAVOR)
+  // Own IDs for the converted text documents, numbered in source-path order.
+  const fileName = (path: string): string => stripNoteExt(baseOf(path), FLAVOR)
+  const textPaths = notes.filter((p) => prepared.get(p)?.text).sort()
+  const ids =
+    word.mainName === 'id' && word.idPattern
+      ? assignIds(
+          word.idPattern,
+          textPaths.map((p) => sourceIdFor(FLAVOR, p)),
+          opts.existingTitles ?? [],
+          opts.existingIds ?? new Map(),
+        )
+      : new Map<string, string>()
+  // A fixed ID (pattern without counter) shown alone names every text file
+  // the same; only the first file in path order keeps it, the others fail.
+  const fixedIdTaken = new Set(
+    word.mainName === 'id' && word.idPattern && !parseIdPattern(word.idPattern) && word.idDisplay === 'id'
+      ? textPaths.slice(1)
+      : [],
+  )
+  const pageTitle = (path: string): string => {
+    const p = prepared.get(path)
+    if (!p) return fileName(path)
+    if (!p.text) return p.title
+    return mainTitle({
+      mainName: word.mainName,
+      idDisplay: word.idDisplay,
+      title: p.title,
+      fileName: fileName(path),
+      id: ids.get(sourceIdFor(FLAVOR, path)),
+    })
+  }
+
+  const plan = buildStructure(notes, pageTitle, FLAVOR)
   const pageIds = new Map<string, string>()
   const folderIds = new Map<string, string>()
   const collectIds = (nodes: PlanNode[]): void => {
@@ -355,16 +556,22 @@ export async function loadOfficeTree(src: FileSource, opts: OfficeTreeOptions): 
   }
   const referenced = new Set<string>()
 
-  /** One page: link pass (links relative to `notePath`), media from `lookup`,
-   *  the title as H1 unless the body already opens with it. */
-  const convert = async (
+  const parse = (markdown: string): Root => processor.parse(markdown) as Root
+
+  /** First half of a page: link pass (links relative to `notePath`), media
+   *  from `lookup`, the title as H1 unless the body already opens with it,
+   *  the headings with their slugs. `anchors` are heading tokens that point
+   *  at the H1; `demote` moves an H1 of the body that is not the title one
+   *  level down, so the page keeps a single H1. */
+  const openPage = (
     sourceId: string,
     title: string,
     notePath: string | null,
-    body: string,
+    ast: Root,
     lookup: Map<string, Uint8Array>,
-  ): Promise<{ markdown: string; media: ImportMedia[] }> => {
-    const ast = processor.parse(body) as Root
+    targets: Map<number, HeadingTarget>,
+    extra: { anchors?: number[]; demote?: boolean } = {},
+  ): OpenPage => {
     const ctx: LinkContext = {
       flavor: FLAVOR,
       notePath: notePath ?? '',
@@ -397,13 +604,27 @@ export async function loadOfficeTree(src: FileSource, opts: OfficeTreeOptions): 
 
     const first = ast.children[0]
     if (first && first.type === 'heading' && sameTitle(stripTokens(headingText(first)), title)) first.depth = 1
-    else ast.children.unshift({ type: 'heading', depth: 1, children: [{ type: 'text', value: title }] })
-    resolveHeadingLinks(ast)
-    const normalized = normalizeMarkdown(processor.stringify(ast))
+    else {
+      if (extra.demote && first && first.type === 'heading' && first.depth === 1) first.depth = 2
+      ast.children.unshift({ type: 'heading', depth: 1, children: [{ type: 'text', value: title }] })
+    }
+    const headings = collectHeadings(ast, sourceId, targets)
+    for (const id of extra.anchors ?? []) targets.set(id, { sourceId, slug: headings[0].slug, top: true })
+    return { sourceId, ast, linked: ctx.media, own, lookup, headings }
+  }
+
+  /** Second half: heading links (all pages of the document opened), Markdown, media. */
+  const finishPage = async (
+    page: OpenPage,
+    targets: Map<number, HeadingTarget>,
+  ): Promise<{ markdown: string; media: ImportMedia[] }> => {
+    const { sourceId, own, lookup } = page
+    resolveHeadingLinks(page.ast, sourceId, targets)
+    const normalized = normalizeMarkdown(processor.stringify(page.ast))
     merge(tree.droppedHtml, normalized.dropped)
 
     const media: ImportMedia[] = []
-    for (const [path, name] of ctx.media) {
+    for (const [path, name] of page.linked) {
       referenced.add(path)
       try {
         media.push({
@@ -429,11 +650,18 @@ export async function loadOfficeTree(src: FileSource, opts: OfficeTreeOptions): 
     return { markdown: normalized.markdown, media }
   }
 
+  interface SubPage extends TocPage {
+    order: number
+    page: OpenPage
+    children: SubPage[]
+  }
+
   const build = async (nodes: PlanNode[]): Promise<ImportNode[]> => {
     const out: ImportNode[] = []
     for (const [i, n] of nodes.entries()) {
       if (!n.notePath) {
-        const converted = await convert(n.sourceId, n.title, null, '', new Map())
+        const targets = new Map<number, HeadingTarget>()
+        const converted = await finishPage(openPage(n.sourceId, n.title, null, parse(''), new Map(), targets), targets)
         out.push({
           sourceRef: { type: FLAVOR, id: n.sourceId },
           title: n.title,
@@ -451,26 +679,71 @@ export async function loadOfficeTree(src: FileSource, opts: OfficeTreeOptions): 
         tree.failed.push({ sourceId: n.sourceId, title: n.title, reason: failure ?? 'not converted' })
         continue
       }
+      if (fixedIdTaken.has(n.notePath)) {
+        tree.failed.push({
+          sourceId: n.sourceId,
+          title: n.title,
+          reason: `the fixed ID "${word.idPattern}" is already used by another file of this import (add "#" to the pattern or show the title)`,
+        })
+        continue
+      }
       merge(tree.droppedHtml, p.dropped)
       for (const notice of p.notices) tree.mediaSkipped.push({ sourceId: n.sourceId, ...notice })
       for (const t of p.truncated) {
         truncated.push({ sourceId: t.part === null ? n.sourceId : `${n.sourceId}@${t.part + 1}`, sheet: t.sheet, rows: t.rows })
       }
-      const file = await convert(n.sourceId, n.title, n.notePath, p.fileBody, p.media)
-      const children: ImportNode[] = []
-      for (const [k, part] of p.parts.entries()) {
-        const id = `${n.sourceId}@${k + 1}`
-        const converted = await convert(id, part.title, n.notePath, part.body, p.media)
-        children.push({
-          sourceRef: { type: FLAVOR, id },
-          title: part.title,
-          markdown: converted.markdown,
-          tags: [],
-          children: [],
-          media: converted.media,
-          order: k,
+      // Heading tokens are numbered per document: links between its pages
+      // resolve once every page of it is open.
+      const notePath = n.notePath
+      const targets = new Map<number, HeadingTarget>()
+      const key = ids.get(n.sourceId) ?? fileName(notePath)
+      const openParts = (parts: PreparedPart[]): SubPage[] =>
+        parts.map((part, k) => {
+          const id = `${n.sourceId}@${part.position}`
+          const title = p.text
+            ? subTitle({
+                subName: word.subName,
+                chapter: part.title,
+                text: part.text,
+                number: part.number,
+                position: part.position,
+                docTitle: p.title,
+                key,
+              })
+            : part.title
+          const page = openPage(id, title, notePath, parse(part.body), p.media, targets, { anchors: part.anchors })
+          return { sourceId: id, title, headings: page.headings, order: k, page, children: openParts(part.children) }
         })
+      const subs = openParts(p.parts)
+
+      const fileAst = parse(p.fileBody)
+      if (p.text && word.toc && subs.length) {
+        // After the content, before the footnote definitions.
+        const at = fileAst.children.findIndex((c) => c.type === 'footnoteDefinition')
+        fileAst.children.splice(at < 0 ? fileAst.children.length : at, 0, ...tableOfContents(subs, word.tocDepth, label('toc', p.lang)))
       }
+      if (p.fileTail) fileAst.children.push(...parse(p.fileTail).children)
+      // "ID only": the document title is the page's first line.
+      const h1 = p.text && word.mainName === 'id' && word.idDisplay === 'id' ? p.title : n.title
+      const file = await finishPage(openPage(n.sourceId, h1, notePath, fileAst, p.media, targets, { demote: p.text }), targets)
+
+      const finishParts = async (list: SubPage[]): Promise<ImportNode[]> => {
+        const done: ImportNode[] = []
+        for (const s of list) {
+          const converted = await finishPage(s.page, targets)
+          done.push({
+            sourceRef: { type: FLAVOR, id: s.sourceId },
+            title: s.title,
+            markdown: converted.markdown,
+            tags: [],
+            children: await finishParts(s.children),
+            media: converted.media,
+            order: s.order,
+          })
+        }
+        return done
+      }
+      const children = await finishParts(subs)
       out.push({
         sourceRef: { type: FLAVOR, id: n.sourceId },
         title: n.title,

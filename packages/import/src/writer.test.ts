@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { F451ApiError, type TreeNode } from './api.js'
 import type { ImportEvent, ImportNode, ImportOptions, ImportTree } from './model.js'
-import { importTree, MAX_UPLOAD, type WriterApi } from './writer.js'
+import { importTree, MAX_UPLOAD, scanExisting, type WriterApi } from './writer.js'
 
 function fakeApi() {
   return {
@@ -133,6 +133,15 @@ describe('importTree', () => {
       expect(api.uploadMedia).not.toHaveBeenCalled()
       expect(api.discardDraft).toHaveBeenCalledWith('p-a')
       expect(api.requestReview).not.toHaveBeenCalled()
+    })
+
+    it('writes the draft when the only change is a missing origin', async () => {
+      const api = setup()
+      const page = node('1', 'A', { sourceRef: { type: 'bookstack', id: '1' }, markdown: '# A\n\n![x](_media/x.png)\n', media: media([1, 2, 3]) })
+      const report = await importTree(tree([page]), TARGET, api, { ...OPTS, update: true, origin: 'vault-a.zip' }, () => {})
+      expect(api.discardDraft).not.toHaveBeenCalled()
+      expect(putFor(api, 'p-a')).toContain('origin: vault-a.zip')
+      expect(report.updated.map((r) => r.sourceId)).toEqual(['1'])
     })
 
     it('reuses a stored diagram whose embedded XML is the same', async () => {
@@ -367,6 +376,227 @@ describe('importTree', () => {
       expect(content).not.toContain('old body')
       expect(api.requestReview).toHaveBeenCalledWith('p-old')
       expect(report.updated).toEqual([{ sourceId: 'A', title: 'A', pageId: 'p-old' }])
+    })
+  })
+
+  describe('page renamed at the source', () => {
+    // Same BookStack instance as `node()` (origin https://b).
+    const oldRaw = (id: string) =>
+      `---\nid: ${id}\ntitle: Old name\nsource:\n  type: bookstack\n  id: "1"\n  url: https://b/1\n---\n\nsame body\n`
+    const target = { space: 's', parentId: 'p-book' }
+
+    function renamedApi(treeNodes: TreeNode[]) {
+      const api = fakeApi()
+      api.tree.mockResolvedValue(treeNodes)
+      api.raw.mockImplementation(async (id) => (id === 'p-book' ? '---\nid: p-book\ntitle: Book\n---\n\nx\n' : oldRaw(id)))
+      api.openDraft.mockImplementation(async (id) => ({ baseSha: `sha-${id}`, content: oldRaw(id) }))
+      return api
+    }
+    const below = (): TreeNode[] => [
+      { id: 'p-book', title: 'Book', path: 'book/index.md', archived: false, children: [
+        { id: 'p-old', title: 'Old name', path: 'book/old-name.md', archived: false, children: [] },
+      ] },
+    ]
+
+    it('updates the page under the same parent instead of creating one', async () => {
+      const api = renamedApi(below())
+
+      const report = await importTree(
+        tree([node('1', 'New name', { markdown: 'new body\n' })]),
+        target, api, { ...OPTS, update: true }, () => {},
+      )
+
+      expect(api.createPage).not.toHaveBeenCalled()
+      expect(api.raw).toHaveBeenCalledWith('p-old')
+      expect(report.created).toEqual([])
+      expect(report.updated).toEqual([{ sourceId: '1', title: 'New name', pageId: 'p-old', previousTitle: 'Old name' }])
+      const content = putFor(api, 'p-old')
+      expect(content).toContain('title: New name')
+      expect(content).not.toContain('Old name')
+    })
+
+    it('writes a draft when only the title changed', async () => {
+      const api = renamedApi(below())
+
+      const report = await importTree(
+        tree([node('1', 'New name', { markdown: 'same body\n' })]),
+        target, api, { ...OPTS, update: true }, () => {},
+      )
+
+      expect(report.skipped).toEqual([])
+      expect(api.discardDraft).not.toHaveBeenCalled()
+      expect(putFor(api, 'p-old')).toContain('title: New name')
+      expect(api.requestReview).toHaveBeenCalledWith('p-old')
+      expect(report.updated.map((r) => r.pageId)).toEqual(['p-old'])
+    })
+
+    it('creates a new page when the renamed page lies outside the target subtree', async () => {
+      const api = renamedApi([
+        { id: 'p-book', title: 'Book', path: 'book/index.md', archived: false, children: [] },
+        { id: 'p-elsewhere', title: 'Old name', path: 'old-name.md', archived: false, children: [] },
+      ])
+
+      const report = await importTree(
+        tree([node('1', 'New name', { markdown: 'new body\n' })]),
+        target, api, { ...OPTS, update: true }, () => {},
+      )
+
+      // Found by title only, and the title changed: a documented limit.
+      expect(api.raw).not.toHaveBeenCalledWith('p-elsewhere')
+      expect(api.createPage).toHaveBeenCalledWith({ space: 's', title: 'New name', parentId: 'p-book' })
+      expect(report.created.map((r) => r.pageId)).toEqual(['p-new name'])
+      expect(report.updated).toEqual([])
+    })
+  })
+
+  describe('origin of a source', () => {
+    const page = (id: string, title: string): TreeNode => ({ id, title, path: `${id}.md`, archived: false, children: [] })
+    const stored = (title: string, source: string) => `---\nid: p-stored\ntitle: ${title}\nsource:\n${source}---\n\nold body\n`
+    const readme = (title: string, extra: Partial<ImportNode> = {}) =>
+      node('README.md', title, { sourceRef: { type: 'markdown', id: 'README.md' }, markdown: 'new body\n', ...extra })
+
+    function storedApi(content: string, title: string) {
+      const api = fakeApi()
+      api.tree.mockResolvedValue([page('p-stored', title)])
+      api.raw.mockResolvedValue(content)
+      api.openDraft.mockResolvedValue({ baseSha: 'sha-stored', content })
+      return api
+    }
+
+    it('creates a page when a BookStack page with the same id comes from another instance', async () => {
+      const api = storedApi(stored('Old name', '  type: bookstack\n  id: "1"\n  url: https://other/1\n'), 'Old name')
+
+      const report = await importTree(tree([node('1', 'New name')]), TARGET, api, { ...OPTS, update: true }, () => {})
+
+      expect(api.raw).toHaveBeenCalledWith('p-stored')
+      expect(api.openDraft).not.toHaveBeenCalled()
+      expect(report.created.map((r) => r.pageId)).toEqual(['p-new name'])
+      expect(report.updated).toEqual([])
+    })
+
+    it('updates a BookStack page of the same instance under its new title', async () => {
+      const api = storedApi(stored('Old name', '  type: bookstack\n  id: "1"\n  url: https://b/books/x/page/1\n'), 'Old name')
+
+      const report = await importTree(tree([node('1', 'New name')]), TARGET, api, { ...OPTS, update: true }, () => {})
+
+      expect(api.createPage).not.toHaveBeenCalled()
+      expect(report.updated).toEqual([{ sourceId: '1', title: 'New name', pageId: 'p-stored', previousTitle: 'Old name' }])
+    })
+
+    it('still matches by equal title whatever the origin', async () => {
+      const api = storedApi(stored('Same', '  type: bookstack\n  id: "1"\n  url: https://other/1\n'), 'Same')
+
+      const report = await importTree(tree([node('1', 'Same')]), TARGET, api, { ...OPTS, update: true }, () => {})
+
+      expect(api.createPage).not.toHaveBeenCalled()
+      expect(report.updated).toEqual([{ sourceId: '1', title: 'Same', pageId: 'p-stored' }])
+    })
+
+    it('creates a page when the same file name comes from another upload', async () => {
+      const api = storedApi(stored('Readme', '  type: markdown\n  id: README.md\n  origin: vault-a.zip\n'), 'Readme')
+
+      const report = await importTree(
+        tree([readme('Intro')]), TARGET, api, { ...OPTS, update: true, origin: 'vault-b.zip' }, () => {},
+      )
+
+      expect(report.created.map((r) => r.pageId)).toEqual(['p-intro'])
+      expect(report.updated).toEqual([])
+      expect(putFor(api, 'p-intro')).toContain('  origin: vault-b.zip')
+    })
+
+    it('updates a renamed page of the same upload and reports its previous title', async () => {
+      const api = storedApi(stored('Readme', '  type: markdown\n  id: README.md\n  origin: vault-a.zip\n'), 'Readme')
+
+      const report = await importTree(
+        tree([readme('Intro')]), TARGET, api, { ...OPTS, update: true, origin: 'vault-a.zip' }, () => {},
+      )
+
+      expect(api.createPage).not.toHaveBeenCalled()
+      expect(report.updated).toEqual([{ sourceId: 'README.md', title: 'Intro', pageId: 'p-stored', previousTitle: 'Readme' }])
+      expect(putFor(api, 'p-stored')).toContain('title: Intro')
+    })
+
+    it('updates a renamed page without origin that is the only one with its id, adding the origin', async () => {
+      const api = storedApi(stored('Readme', '  type: markdown\n  id: README.md\n'), 'Readme')
+
+      const report = await importTree(
+        tree([readme('Intro')]), TARGET, api, { ...OPTS, update: true, origin: 'vault-a.zip' }, () => {},
+      )
+
+      expect(api.createPage).not.toHaveBeenCalled()
+      expect(report.updated).toEqual([{ sourceId: 'README.md', title: 'Intro', pageId: 'p-stored', previousTitle: 'Readme' }])
+      const content = putFor(api, 'p-stored')
+      expect(content).toContain('  id: README.md\n  origin: vault-a.zip')
+      expect(content).toContain('title: Intro')
+    })
+
+    it('creates a page when two pages without origin share the id (ambiguous)', async () => {
+      const api = fakeApi()
+      api.tree.mockResolvedValue([page('p-one', 'Readme'), page('p-two', 'Readme too')])
+      api.raw.mockImplementation(async (id) =>
+        `---\nid: ${id}\ntitle: x\nsource:\n  type: markdown\n  id: README.md\n---\n\nold body\n`)
+
+      const report = await importTree(
+        tree([readme('Intro')]), TARGET, api, { ...OPTS, update: true, origin: 'vault-a.zip' }, () => {},
+      )
+
+      expect(api.openDraft).not.toHaveBeenCalled()
+      expect(report.created.map((r) => r.pageId)).toEqual(['p-intro'])
+      expect(report.updated).toEqual([])
+    })
+
+    it('finds a page that has only a draft by its draft source', async () => {
+      const api = fakeApi()
+      api.tree.mockResolvedValue([
+        { id: 'p-book', title: 'Book', path: 'book/index.md', archived: false, children: [page('p-draft', 'Old name')] },
+      ])
+      api.raw.mockImplementation(async (id) => {
+        if (id === 'p-draft') throw new F451ApiError('/api/pages/p-draft/raw failed with 404', 404, { status: 'not_found' })
+        return '---\nid: p-book\ntitle: Book\n---\n\nx\n'
+      })
+      api.getDraft.mockImplementation(async (id) =>
+        id === 'p-draft'
+          ? { baseSha: 'sha-draft', content: '---\nid: p-draft\ntitle: Old name\nsource:\n  type: bookstack\n  id: "1"\n  url: https://b/1\n---\n\nold body\n' }
+          : null)
+
+      const report = await importTree(
+        tree([node('1', 'New name')]), { space: 's', parentId: 'p-book' }, api, { ...OPTS, update: true }, () => {},
+      )
+
+      expect(api.getDraft).toHaveBeenCalledWith('p-draft')
+      expect(api.createPage).not.toHaveBeenCalled()
+      expect(report.created).toEqual([])
+      // Matched; its open draft is left alone as for any page with a draft.
+      expect(report.skipped).toEqual([expect.objectContaining({ sourceId: '1', pageId: 'p-draft', reason: 'draft already open' })])
+      expect(api.putDraft).not.toHaveBeenCalled()
+    })
+
+    it('adds the origin to a stored page without one when updating it', async () => {
+      const api = storedApi(stored('Readme', '  type: markdown\n  id: README.md\n'), 'Readme')
+
+      const report = await importTree(
+        tree([readme('Readme')]), TARGET, api, { ...OPTS, update: true, origin: 'vault-a.zip' }, () => {},
+      )
+
+      expect(report.updated.map((r) => r.pageId)).toEqual(['p-stored'])
+      const content = putFor(api, 'p-stored')
+      expect(content).toContain('  id: README.md\n  origin: vault-a.zip')
+      expect(content).toContain('type: markdown')
+    })
+
+    it('reads no page twice with a scan made beforehand', async () => {
+      const api = storedApi(stored('Readme', '  type: markdown\n  id: README.md\n  origin: vault-a.zip\n'), 'Readme')
+      const existing = await scanExisting(api, 's')
+      api.tree.mockClear()
+      api.raw.mockClear()
+
+      const report = await importTree(
+        tree([readme('Intro')]), TARGET, api, { ...OPTS, update: true, origin: 'vault-a.zip', existing }, () => {},
+      )
+
+      expect(api.tree).not.toHaveBeenCalled()
+      expect(api.raw).not.toHaveBeenCalled()
+      expect(report.updated.map((r) => r.pageId)).toEqual(['p-stored'])
     })
   })
 

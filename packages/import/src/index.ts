@@ -2,7 +2,25 @@ export * from './model.js'
 export * from './adapters/bookstack/index.js'
 export { loadMarkdownTree, loadMarkdownFolderTree, loadObsidianTree, loadHtmlTree } from './adapters/markdown/index.js'
 export { loadOfficeTree } from './office/index.js'
-export type { OfficeTreeOptions } from './office/index.js'
+export type { OfficeTreeOptions, WordOptions } from './office/index.js'
+export {
+  DEFAULT_WORD_OPTIONS,
+  parseIdPattern,
+  nextIdNumber,
+  formatId,
+  assignIds,
+  mainTitle,
+  subTitle,
+} from './office/naming.js'
+export type { IdPattern } from './office/naming.js'
+export {
+  parseWordOptions,
+  hasWordOptions,
+  collectExistingNames,
+  duplicateIdWarnings,
+  WORD_OPTION_FIELDS,
+} from './office/word-options.js'
+export type { WordOptionField, WordOptionFields } from './office/word-options.js'
 export { httpConverter, localConverter, ConvertError } from './office/converter.js'
 export type { Converter, HtmlBundle } from './office/converter.js'
 export { OFFICE_EXTENSIONS } from './office/kinds.js'
@@ -23,7 +41,7 @@ export type {
   ExportPageSource,
   ExportContext,
 } from './office/export/index.js'
-export { importTree } from './writer.js'
+export { importTree, scanExisting } from './writer.js'
 export { flattenTree } from './order.js'
 export { F451Api, F451ApiError } from './api.js'
 export { renderReport, emptyReport } from './report.js'

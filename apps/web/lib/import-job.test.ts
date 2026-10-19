@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  DEFAULT_WORD_FORM,
   eventHref,
   exceedsUploadLimit,
   fileImportForm,
+  idPatternValid,
   importAvailable,
   isJobView,
   parseImportOffer,
@@ -152,6 +154,33 @@ describe('fileImportForm', () => {
     const file = form.get('file')
     expect(file).toBeInstanceOf(Blob)
     expect((file as File).name).toBe('vault.zip')
+  })
+
+  it('sends the Word options of an office import; split options only with a split', () => {
+    const word = { ...DEFAULT_WORD_FORM, mainName: 'id' as const, idPattern: ' DOC-### ', numbering: false }
+    const plain = fileImportForm(new Blob(['x']), 'guide.docx', { ...opts, format: 'office', word })
+    expect([...plain.keys()]).toEqual([
+      'format', 'numbering', 'mainName', 'idPattern', 'idDisplay', 'parentId', 'update', 'release', 'dryRun', 'file',
+    ])
+    expect(plain.get('numbering')).toBe('false')
+    expect(plain.get('idPattern')).toBe('DOC-###')
+
+    const split = fileImportForm(new Blob(['x']), 'guide.docx', { ...opts, format: 'office', split: true, word })
+    expect(split.get('splitLevel')).toBe('1')
+    expect(split.get('subName')).toBe('chapter')
+    expect(split.get('toc')).toBe('true')
+    expect(split.get('tocDepth')).toBe('2')
+
+    const other = fileImportForm(new Blob(['x']), 'v.zip', { ...opts, word })
+    expect(other.has('numbering')).toBe(false)
+  })
+
+  it('checks an ID pattern like the API', () => {
+    expect(idPatternValid('DOC-###')).toBe(true)
+    expect(idPatternValid('DOC-FIXED')).toBe(true)
+    expect(idPatternValid('DOC/###')).toBe(false)
+    expect(idPatternValid('DOC-##-##')).toBe(false)
+    expect(idPatternValid('###')).toBe(false)
   })
 
   it('leaves out an empty parent', () => {

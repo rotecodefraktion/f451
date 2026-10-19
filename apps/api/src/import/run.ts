@@ -7,6 +7,8 @@ import type { FastifyInstance } from 'fastify'
 import {
   BookStackClient,
   F451Api,
+  collectExistingNames,
+  duplicateIdWarnings,
   exportOffice,
   exportToBookStack,
   importTree,
@@ -17,10 +19,13 @@ import {
   loadOfficeTree,
   renderExportReport,
   renderReport,
+  scanExisting,
   type BookStackSelector,
   type Converter,
+  type ExistingScan,
   type FileSource,
   type ImportTree,
+  type WordOptions,
 } from '@f451/import'
 import { generateApiToken, generateSessionId, hashApiToken } from '../auth/crypto.js'
 import type { Db } from '../db/client.js'
@@ -81,7 +86,11 @@ export interface FileImportParams {
   split?: boolean
   /** `office` only: language of generated names (the space's language). */
   lang?: 'de' | 'en'
+  /** `office` only: options for text documents (validated by the route). */
+  text?: Partial<WordOptions>
   source: FileSource
+  /** File name of the upload; marks the pages as coming from this source. */
+  origin?: string
   cleanup: () => Promise<void>
   parentId?: string
   update: boolean
@@ -241,15 +250,23 @@ export function importRun(deps: RunDeps, p: ImportParams): JobRun {
 async function writeTree(
   tree: ImportTree,
   f451: F451Api,
-  p: { space: string; parentId?: string; update: boolean; release: boolean; dryRun: boolean },
+  p: { space: string; parentId?: string; update: boolean; release: boolean; dryRun: boolean; origin?: string },
   signal: AbortSignal,
   progress: JobProgress,
+  existing?: ExistingScan,
 ): Promise<JobResult> {
   const report = await importTree(
     tree,
     { space: p.space, ...(p.parentId ? { parentId: p.parentId } : {}) },
     f451,
-    { update: p.update, release: p.release, dryRun: p.dryRun, signal },
+    {
+      update: p.update,
+      release: p.release,
+      dryRun: p.dryRun,
+      signal,
+      ...(p.origin ? { origin: p.origin } : {}),
+      ...(existing ? { existing } : {}),
+    },
     (e) => {
       if (e.kind === 'start') progress.start(e.pages)
       else if (e.kind === 'phase') progress.phase(e.phase)
@@ -277,14 +294,21 @@ export function fileImportRun(deps: RunDeps, p: FileImportParams): JobRun {
         // The loaders take no signal (the archive is local); a cancel while
         // reading takes effect in importTree, which reports the pages as cancelled.
         let tree: ImportTree
+        // Read once and handed on to the writer.
+        let scan: ExistingScan | undefined
         if (p.format === 'office') {
           if (!deps.converter) throw new Error('The convert service is not configured.')
           // Conversions run one by one; a cancel stops before the next file.
           try {
+            // An own ID continues the counter of the target space.
+            if (p.text?.mainName === 'id') scan = await scanExisting(f451, p.space, p.parentId)
+            const existing = scan ? collectExistingNames(scan, p.origin) : undefined
             tree = await loadOfficeTree(p.source, {
               converter: deps.converter,
               split: p.split === true,
               lang: p.lang ?? 'de',
+              ...(p.text ? { text: p.text } : {}),
+              ...(existing ?? {}),
               signal,
             })
           } catch (err) {
@@ -292,6 +316,10 @@ export function fileImportRun(deps: RunDeps, p: FileImportParams): JobRun {
             // registry turns a settled job with an aborted signal into `cancelled`.
             if (signal.aborted) return { report: '# Import report\n\nCancelled while converting.\n', counts: { cancelled: 0 } }
             throw err
+          }
+          // Concurrent runs with the same pattern may have drawn the same ID.
+          if (scan && p.text?.idPattern) {
+            tree.warnings = await duplicateIdWarnings(f451, p.space, tree, scan, p.text.idPattern, p.origin)
           }
         } else {
           tree =
@@ -301,7 +329,7 @@ export function fileImportRun(deps: RunDeps, p: FileImportParams): JobRun {
                 ? await loadHtmlTree(p.source)
                 : await loadMarkdownFolderTree(p.source)
         }
-        return writeTree(tree, f451, p, signal, progress)
+        return writeTree(tree, f451, p, signal, progress, scan)
       })
     } finally {
       await p.cleanup()
